@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="
+	   http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.0.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.5.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd"
+	default-lazy-init="false">
+
+
+	<!-- General Definitions -->
+	<bean
+		class="org.springframework.beans.factory.annotation.RequiredAnnotationBeanPostProcessor">
+		<description>@Require annotation enabler</description>
+	</bean>
+
+	<bean id="dataSource"
+		class="org.apache.commons.dbcp.BasicDataSource"
+		destroy-method="close">
+		<description>
+			- Local Apache Commons DBCP DataSource that refers to a combined database.
+		</description>
+		<property name="driverClassName" value="com.mysql.jdbc.Driver">
+		</property>
+		<property name="url"
+			value="jdbc:mysql://127.0.0.1:3306/project3?useUnicode=true&amp;characterEncoding=UTF-8">
+		</property>
+		<property name="username" value="tester"></property>
+		<property name="password" value="tester"></property>
+		<property name="defaultAutoCommit" value="false"></property>
+		<property name="maxActive" value="5"></property>
+		<property name="maxIdle" value="5" />
+		<property name="minIdle" value="0" />
+		<property name="initialSize" value="5"></property>
+	</bean>
+
+	
+	<!-- 
+	IMPORTANT
+	Be sure to read API docuementation of LocalSessionFactoryBean and remember especially about
+	transaction related features. Part of the documentation says.
+	
+	"This factory bean will by default expose a transaction-aware SessionFactory proxy, 
+	letting data access code work with the plain Hibernate SessionFactory and its getCurrentSession() method, 
+	while still being able to participate in current Spring-managed transactions: 
+	with any transaction management strategy, either local or JTA / EJB CMT, and any transaction 
+	synchronization mechanism, either Spring or JTA. Furthermore, getCurrentSession() 
+	will also seamlessly work with a request-scoped Session managed 
+	by OpenSessionInViewFilter / OpenSessionInViewInterceptor."
+	-->
+	<bean id="hibernateSessionFactory" class="org.springframework.orm.hibernate3.LocalSessionFactoryBean">
+	
+		<!-- from API documentation
+		"Set the DataSource to be used by the SessionFactory. 
+		If set, this will override corresponding settings in Hibernate properties.
+
+		If this is set, the Hibernate settings should not define a connection 
+		provider to avoid meaningless double configuration." 
+		-->
+		<property name="dataSource" ref="dataSource"/>
+		<property name="configLocation" value="classpath:thirdstage/project3/confs/hibernate-project3.cfg.xml"/>
+	</bean>
+
+</beans>
