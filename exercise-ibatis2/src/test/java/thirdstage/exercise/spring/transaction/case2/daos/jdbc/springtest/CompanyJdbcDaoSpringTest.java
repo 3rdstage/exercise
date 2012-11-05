@@ -1,0 +1,102 @@
+package thirdstage.exercise.spring.transaction.case2.daos.jdbc.springtest;
+
+import static org.junit.Assert.*;
+import java.util.Properties;
+import javax.sql.DataSource;
+import org.dbunit.database.DatabaseDataSourceConnection;
+import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.xml.FlatXmlDataSet;
+import org.dbunit.operation.DatabaseOperation;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import thirdstage.exercise.spring.transaction.case2.CompanyService;
+import thirdstage.exercise.spring.transaction.case2.daos.CompanyDao;
+import thirdstage.exercise.spring.transaction.case2.entities.Company;
+
+@RunWith(SpringJUnit4ClassRunner.class)
+@ContextConfiguration(locations={"/thirdstage/exercise/spring/transaction/case2/confs/spring-exercise-jdbc.xml"})
+public class CompanyJdbcDaoSpringTest{
+	
+	protected static ApplicationContext applContext;
+	protected static IDataSet dataSet;
+
+	private CompanyDao companyDao;
+
+	/**
+	 * @throws java.lang.Exception
+	 */
+	@BeforeClass
+	public static void setUpBeforeClass() throws Exception{
+		// initialize Log4j
+		Properties props = new Properties();
+		props.load((new ClassPathResource("confs/log4j-exercise.properties", CompanyService.class)).getInputStream());
+		org.apache.log4j.PropertyConfigurator.configure(props);
+
+		// load springframework context
+		applContext = new ClassPathXmlApplicationContext("confs/spring-exercise-jdbc.xml", CompanyService.class);
+
+		// create DbUnit core components
+		IDatabaseConnection conn = new DatabaseDataSourceConnection((DataSource)applContext.getBean("dataSource"));
+		dataSet = new FlatXmlDataSet((new ClassPathResource("thirdstage/exercise/spring/transaction/case2/test/dataset/company-building-factory-seed-01.xml")).getFile());
+
+		// clean target tables and load test data
+		try{
+			DatabaseOperation.CLEAN_INSERT.execute(conn, dataSet);
+		}finally{
+			conn.close();
+		}
+		
+		
+	}
+
+	/**
+	 * @throws java.lang.Exception
+	 */
+	@AfterClass
+	public static void tearDownAfterClass() throws Exception{
+		dataSet = null;
+	}
+	
+	@Autowired
+	public void setCompanyDao(CompanyDao companyDao){
+		this.companyDao = companyDao;
+	}
+
+	@Test
+	public final void testAddCompany(){
+		Company company = new Company();
+		company.setName("IBM");
+		companyDao.addCompany(company);
+
+		assertTrue(company.getId() > 3);
+	}
+
+	@Ignore
+	@Test
+	public final void testGetAllCompanies(){
+		fail("Not yet implemented"); // TODO
+	}
+
+	@Ignore
+	@Test
+	public final void testGetCompany(){
+		fail("Not yet implemented"); // TODO
+	}
+
+	@Ignore
+	@Test
+	public final void testGetNumberOfAllCompanies(){
+		fail("Not yet implemented"); // TODO
+	}
+
+}

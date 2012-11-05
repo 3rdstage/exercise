@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="
+	   http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.0.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.5.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd">
+
+	
+	<!-- Data Access Common Definitions -->
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+		<description>
+			- Local Apache Commons DBCP DataSource that refers to a combined database. - See dataAccessContext-ibatis-jta.xml for alternatives. - The
+			placeholders are resolved from jdbc.properties through the PropertyPlaceholderConfigurer in applicationContext.xml
+		</description>
+		<property name="driverClassName" value="com.mysql.jdbc.Driver"></property>
+		<property name="url" value="jdbc:mysql://127.0.0.1:3306/petstore1d?useUnicode=true&amp;characterEncoding=UTF-8"></property>
+		<property name="username" value="petstore"></property>
+		<property name="password" value="petstore"></property>
+		
+		<!-- 
+		IMPORTANT
+		
+		Should compare differences between the auto commit on and off.
+		-->
+		<property name="defaultAutoCommit" value="true"></property>
+		<property name="maxActive" value="10"></property>
+		<property name="maxIdle" value="10" />
+		<property name="minIdle" value="0" />
+		<property name="initialSize" value="10"></property>
+	</bean>
+
+	<!-- //@Question Where to use?
+	@Answer 2008-07-01, Used by transaction advice (txAdvice), transactionManager is default name
+	so can be implicit in defining transaction advice  
+	 -->
+	<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<description>- Transaction manager for a single JDBC DataSource. - See dataAccessContext-ibatis-jta.xml for alternatives.</description>
+		<property name="dataSource" ref="dataSource"></property>
+		<property name="defaultTimeout" value="120"/>
+	</bean>
+	
+	<tx:annotation-driven 
+		transaction-manager="transactionManager"
+		mode="proxy"
+	/>
+	
+	<bean id="sqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean">
+		<description>SqlMap setup for iBATIS database layer</description>
+		<property name="configLocation" value="classpath:thirdstage/petstore1/test/confs/ibatis/sql-map-petstore.xml" />
+		<property name="dataSource" ref="dataSource" />
+		
+		<!-- Default setting is specified for clarity. -->
+		<property name="useTransactionAwareDataSource" value="true"/>
+
+		<!-- Default setting is specified for clarity. -->
+		<property name="transactionConfigClass">
+			<value type="java.lang.Class">com.ibatis.sqlmap.engine.transaction.external.ExternalTransactionConfig</value>
+		</property>
+	</bean>
+	<!-- Data Access Common Definitions : end -->
+	
+	
+
+	<!-- DAO Definitions Set1 : iBATIS implementations -->
+	<bean id="accountDao" class="thirdstage.petstore1.daos.ibatis.AccountIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+	</bean>
+
+	<bean id="accountDaoWithDefect" class="thirdstage.petstore1.daos.ibatis.AccountIBatisDaoWithDefect">
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+	</bean>
+
+	<bean id="categoryDao" class="thirdstage.petstore1.daos.ibatis.CategoryIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+	</bean>
+
+	<bean id="productDao" class="thirdstage.petstore1.daos.ibatis.ProductIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+	</bean>
+
+	<bean id="itemDao" class="thirdstage.petstore1.daos.ibatis.ItemIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+	</bean>
+
+	<bean id="orderDao" class="thirdstage.petstore1.daos.ibatis.OrderIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+		<property name="sequenceDao" ref="sequenceDao"></property>
+	</bean>
+
+	<bean id="orderDaoWithDefect" class="thirdstage.petstore1.daos.ibatis.OrderIBatisDaoWithDefect">
+		<description>
+		This dao throws exception right after storing order header information
+		but before storing lineitem information.
+		</description>
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+		<property name="sequenceDao" ref="sequenceDao"></property>
+	</bean>
+	
+	<bean id="sequenceDao" class="thirdstage.petstore1.daos.ibatis.SequenceIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+	</bean>
+	<!-- DAO Definitions Set1 : end -->	
+</beans>

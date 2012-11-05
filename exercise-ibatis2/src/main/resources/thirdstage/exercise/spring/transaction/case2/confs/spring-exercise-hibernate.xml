@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="
+	   http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.0.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.5.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd"
+>
+	
+	<!-- General Definitions-->
+	<bean id="requiedAnnotationEnabler" class="org.springframework.beans.factory.annotation.RequiredAnnotationBeanPostProcessor">
+		<description>Make @Required annotation enabled</description>
+	</bean>
+
+	<!--  DataSource and Transaction Definitions -->
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+		<property name="driverClassName" value="com.mysql.jdbc.Driver"/>
+		<property name="url" value="jdbc:mysql://127.0.0.1:3306/test2?useUnicode=true&amp;characterEncoding=UTF-8"/>
+		<property name="username" value="tester"/>
+		<property name="password" value="tester"/>
+		<property name="defaultAutoCommit" value="false"/>
+		<property name="initialSize" value="3"/>
+		<property name="maxActive" value="3"/>
+		<property name="maxIdle" value="3"/>
+		<property name="minIdle" value="0"/>
+	</bean>
+
+	<bean id="lazyConnectionDataSource"
+		class="org.springframework.jdbc.datasource.LazyConnectionDataSourceProxy">
+		<description>Lazy connection proxy for default datasource</description>
+		<property name="targetDataSource" ref="dataSource"/>
+	</bean>
+
+	<bean id="hibernateSessionFactory"
+	   class="org.springframework.orm.hibernate3.annotation.AnnotationSessionFactoryBean">
+		<property name="dataSource" ref="lazyConnectionDataSource"/>
+		<property name="configLocation" value="classpath:thirdstage/exercise/spring/transaction/case2/confs/hibernate-exercise.cfg.xml"/>
+	</bean>
+	
+	<bean id="transactionManager"
+		class="org.springframework.orm.hibernate3.HibernateTransactionManager">
+		<property name="sessionFactory" ref="hibernateSessionFactory"/>
+		
+	</bean>
+
+	<tx:annotation-driven 
+		transaction-manager="transactionManager"
+		mode="proxy"
+	/>
+
+	<!-- Service Objects -->
+	<bean id="companyService"
+		class="thirdstage.exercise.spring.transaction.case2.CompanyHibernateService">
+		<property name="sessionFactory" ref="hibernateSessionFactory"/>
+	</bean>		
+		
+		
+	
+</beans>

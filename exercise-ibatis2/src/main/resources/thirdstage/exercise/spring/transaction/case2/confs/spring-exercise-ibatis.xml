@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="
+	   http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.0.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.5.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd"
+>
+	
+	<!-- General Definitions-->
+	<bean id="requiedAnnotationEnabler" class="org.springframework.beans.factory.annotation.RequiredAnnotationBeanPostProcessor">
+		<description>Make @Required annotation enabled</description>
+	</bean>
+
+	<!--  DataSource and Transaction Definitions -->
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+		<property name="driverClassName" value="com.mysql.jdbc.Driver"/>
+		<property name="url" value="jdbc:mysql://127.0.0.1:3306/test2?useUnicode=true&amp;characterEncoding=UTF-8"/>
+		<property name="username" value="tester"/>
+		<property name="password" value="tester"/>
+		<property name="defaultAutoCommit" value="true"/>
+		<property name="initialSize" value="3"/>
+		<property name="maxActive" value="3"/>
+		<property name="maxIdle" value="3"/>
+		<property name="minIdle" value="0"/>
+	</bean>
+
+	<bean id="sqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean">
+		<description>SqlMap setup for iBATIS database layer</description>
+		<property name="configLocation" value="classpath:thirdstage/exercise/spring/transaction/case2/confs/sql-map-exercise.xml"/>
+		<property name="dataSource" ref="dataSource"/>
+	</bean>
+
+	<bean id="txManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource"/>
+		<property name="defaultTimeout" value="120"/>
+	</bean>
+
+	<tx:annotation-driven 
+		transaction-manager="txManager"
+		mode="proxy"
+	/>
+
+	<!-- Data Access Objects -->
+	<bean id="companyDao" class="thirdstage.exercise.spring.transaction.case2.daos.ibatis.CompanyIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"/>
+	</bean>
+	
+	<bean id="buildingDao" class="thirdstage.exercise.spring.transaction.case2.daos.ibatis.BuildingIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"/>
+	</bean>
+	
+	<bean id="factoryDao" class="thirdstage.exercise.spring.transaction.case2.daos.ibatis.FactoryIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"/>
+	</bean>
+
+	
+	<!-- Service Objects -->
+	<bean id="companyService" class="thirdstage.exercise.spring.transaction.case2.CompanyIBatisService">
+		<property name="companyDao" ref="companyDao"/>
+		<property name="buildingDao" ref="buildingDao"/>
+		<property name="factoryDao" ref="factoryDao"/>
+	</bean>
+
+	
+</beans>

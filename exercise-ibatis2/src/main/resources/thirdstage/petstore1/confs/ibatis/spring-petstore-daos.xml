@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop" 
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="
+	   http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.0.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.5.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd"
+	default-lazy-init="false">
+
+
+	<!-- General Definitions -->
+	<bean id="requiredAnnotationEnbabler"
+	      class="org.springframework.beans.factory.annotation.RequiredAnnotationBeanPostProcessor">
+		<description>@Require annotation enabler</description>
+	</bean>
+
+	<!-- 
+	IMPORTANT the order of RmiRegistryBean and JmxConnectorServiceBean.
+	RmiRegistryBean should defined before JmxConnectorSerivceBean, 'cause
+	JmxConnectorServiceBean has no reference on RmiRegistryBean.
+	-->
+	<bean class="org.springframework.remoting.rmi.RmiRegistryFactoryBean">
+		<description>local RMI registry service</description>
+		<property name="port" value="1099"/>
+	</bean>
+
+	<bean id="defaultJMXServer" class="org.springframework.jmx.support.MBeanServerFactoryBean">
+		<description>local MBeanServer using springframework</description>
+		<property name="locateExistingServerIfPossible" value="false"/>
+		<property name="defaultDomain" value="petstore"/>
+	</bean>
+
+	<!-- 
+	IMPORTANT Annotation-based Automatic MBean Export 
+	For automatic mbean export, mbean exporter should be defined before 
+	beans to export which has @ManagedResources and related annotations,
+	and Spring AOP should use GCLIB proxy instead of it's default JDK proxy.
+	Springframework 2.5 uses GCLIB 2.1.3 which depends on ASM 1.3.4.
+	GCLIB 2.1.3 is also used by Hibernate 3.2 and works correctly with 
+	ASM 1.5.3. Hibernate 3.2.x includes GCLIB 2.1.3 and ASM 1.5.3.
+	Note that GCLIB 2.1.3 doesn't work with ASM 2.x or higher.
+	-->
+	<context:mbean-export server="defaultJMXServer"/>
+	
+	<!--
+	Below commneted out block (from mbeanExporter to jmxAttributeSource) is
+	same with above context:mbean-export elements.
+	
+	<bean id="mbeanExporter" 
+		class="org.springframework.jmx.export.MBeanExporter" lazy-init="default">
+		<description>MBean Exporter</description>
+		<property name="server" ref="defaultJMXServer"/>
+		<property name="assembler" ref="mbeanInfoAssembler"/>
+		<property name="autodetect" value="true"/>
+		<property name="autodetectModeName" value="AUTODETECT_ASSEMBLER"/>
+		<property name="namingStrategy" ref="mbeanNamingStrategy"/>
+		<property name="registrationBehaviorName" value="REGISTRATION_REPLACE_EXISTING"/>
+	</bean>
+
+	<bean id="mbeanInfoAssembler" 
+		class="org.springframework.jmx.export.assembler.MetadataMBeanInfoAssembler">
+		<property name="attributeSource" ref="jmxAttributeSource"/>
+	</bean>
+	
+	<bean id="mbeanNamingStrategy" 
+		class="org.springframework.jmx.export.naming.MetadataNamingStrategy">
+		<property name="attributeSource" ref="jmxAttributeSource"/>
+	</bean>
+
+	<bean id="jmxAttributeSource" 
+		class="org.springframework.jmx.export.annotation.AnnotationJmxAttributeSource"/>	
+	-->
+
+	<bean id="jmxServerConnector" class="org.springframework.jmx.support.ConnectorServerFactoryBean">
+		<property name="server" ref="defaultJMXServer"/>
+		<property name="threaded" value="true"/>
+		<property name="daemon" value="true"/>
+		<property name="serviceUrl" value="service:jmx:rmi://localhost/jndi/rmi://localhost:1099/petstore"/>
+	</bean>
+	<!-- General Definitions : end -->
+
+
+	
+	<!-- Data Access Common Definitions -->
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+		<description>
+			- Local Apache Commons DBCP DataSource that refers to a combined database.
+		</description>
+		<property name="driverClassName" value="com.mysql.jdbc.Driver"></property>
+		<property name="url" value="jdbc:mysql://127.0.0.1:3306/petstore1d?useUnicode=true&amp;characterEncoding=UTF-8"></property>
+		<property name="username" value="petstore"></property>
+		<property name="password" value="petstore"></property>
+		
+		<!--
+		IMPORTANT AutoCommit mode should be handled by transaction manager
+		It is desirable to toggle on auto-commit mode of datasource, so to
+		DAO objects can work independently.
+		For service objects, transaction manager will take the control of
+		auto-commit mode(e.g. toggle off auto-commit for declarative mode)
+		over datasource  
+		
+		IMPORTANT Need more review
+		How doesn't the toggling on of defaultAutoCommit causes any problem,
+		despite that SqlMapClientFactoryBean preserves the auto commit mode
+		of the connection pool. Dose DataSourceTransactionManager do something?
+		Look into the DEBUG outputs.
+		-->
+		<property name="defaultAutoCommit" value="true"></property>
+		<property name="maxActive" value="20"></property>
+		<property name="maxIdle" value="20" />
+		<property name="minIdle" value="0" />
+		<property name="initialSize" value="20"></property>
+	</bean>
+
+	<!-- //@Question Where to use?
+	@Answer 2008-07-01, Used by transaction advice (txAdvice), transactionManager is default name
+	so can be implicit in defining transaction advice  
+	 -->
+	<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource"></property>
+		<property name="defaultTimeout" value="120"/>
+	</bean>
+	
+	<!-- 
+	IMPORTANT Annotated MBean and CGLIB
+	MetadataMBeanInfoAssembler does not support JDK dynamic proxies.
+	So, You should use CGLIB proxies for Spring AOP by toggling on
+	"proxy-target-class" attribute
+	-->
+	<tx:annotation-driven 
+		transaction-manager="transactionManager"
+		mode="proxy"
+		proxy-target-class="true"
+	/>
+	
+	<!-- 
+	IMPORTANT Transaction management of SqlMapClient created by springframework's SqlMapClientFactoryBean
+	SqlMapClientBean of springframework creates SqlMapClient with EXTERNAL
+	transaction management by default. So, the SqlMapClient created by below
+	bean definiton would have no self transaction management capability
+	with SqlMpaClient.startTransaction(), SqlMapClient.commitTransaction()
+	or SqlMapClient.endTransaction() 
+
+	Read more on API documentation of SqlMapClientFactoryBean, specially
+	setDataSource, setUseTransactionAwareDataSource, and
+	setTransactionConfigClass.	
+	-->
+	<bean id="sqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean">
+		<description>SqlMap setup for iBATIS database layer</description>
+		<property name="configLocation" value="classpath:thirdstage/petstore1/conf/sql-map-petstore.xml" />
+		
+		<!-- 
+		IMPORTANT DataSource for SqlMapClientFactoryBean.
+		You can supply just plain datasource not transaction aware datasource to
+		SqlMapClientFactoryBean which can automatically(internally) wrap the given
+		datasource to TransactionAwareDataSourceProxy 
+		 -->
+		<property name="dataSource" ref="dataSource" />
+
+		<!-- Default setting is specified for clarity. -->
+		<property name="useTransactionAwareDataSource" value="true"/>
+
+		<!-- Default setting is specified for clarity. -->
+		<!-- 
+		IMPORTANT Transaction config of SqlMapClientFactoryBean.
+		ExternalTransactionConfig would set the "SetAutoCommitAllowed" property of 
+		SqlMapClient to false, in contrast to the iBATIS default, to always keep the 
+		original autoCommit value as provided by the connection pool.
+		-->
+		<property name="transactionConfigClass">
+			<value type="java.lang.Class">com.ibatis.sqlmap.engine.transaction.external.ExternalTransactionConfig</value>
+		</property>
+
+	</bean>
+	<!-- Data Access Common Definitions : end -->
+
+
+
+	<!-- DAO Definitions Set1 : iBATIS implementations -->
+	<bean id="accountDao" class="thirdstage.petstore1.daos.ibatis.AccountIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+	</bean>
+
+
+	<bean id="categoryDao" class="thirdstage.petstore1.daos.ibatis.CategoryIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+	</bean>
+
+	<bean id="productDao" class="thirdstage.petstore1.daos.ibatis.ProductIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+	</bean>
+
+	<bean id="itemDao" class="thirdstage.petstore1.daos.ibatis.ItemIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+	</bean>
+
+	<bean id="orderDao" class="thirdstage.petstore1.daos.ibatis.OrderIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+		<property name="sequenceDao" ref="sequenceDao"></property>
+	</bean>
+
+	<bean id="sequenceDao" class="thirdstage.petstore1.daos.ibatis.SequenceIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+	</bean>
+	<!-- DAO Definitions Set1 : end -->
+
+
+</beans>

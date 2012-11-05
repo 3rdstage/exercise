@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="HibernateTasks" default="exercise" basedir=".">
+
+	<taskdef resource="net/sf/ant4eclipse/antlib.xml" />
+
+	<property name="eclipse.home" value="c:/tools/eclipse-3.4" />
+	<property name="eclipse.workspace" value="g:/eclipse-projects" />
+	<property name="project.name" value="exercise-ibatis2" />
+	
+	<property name="project.home" value="${eclipse.workspace}/${project.name}"/>
+	<property name="package.name" value="thirdstage/exercise/spring/transaction/case2"/>
+	
+	<path id="hibernatetoolLib">
+		<fileset dir="${user.home}/.m2/repository" includes="**/*.jar"/>
+	</path>
+
+	<taskdef name="hibernatetool"
+		classname="org.hibernate.tool.ant.HibernateToolTask"
+		classpathref="hibernatetoolLib"/>
+
+	
+	<target name="exercise">
+		<echo>${project.home}</echo>
+		<echo>${project.home}/src/main/java/${package.name}/entities/hbms</echo>
+		
+		<property name="destdir" value="${project.home}/src/main/java"/>
+		<fail>
+			<condition><not>
+				<available file="${destdir}" type="dir"/>
+			</not></condition>
+		</fail>
+		
+		<echoproperties />
+	</target>
+
+	<target name="generate-hbm-ddl">
+		<property name="config" value="${project.home}/src/main/resources/${package.name}/confs/hibernate-exercise.cfg.xml"/>
+		<fail>
+			<condition><not>
+				<available file="${config}" type="file"/>
+			</not></condition>
+		</fail>		
+		
+		<hibernatetool destdir="${project.home}/src/main/java">
+			<classpath>
+				<pathelement location="${project.home}/src/main/java"/>
+				<pathelement location="${project.home}/target/main"/>
+			</classpath>
+			<annotationconfiguration 
+				configurationfile="${config}"/>
+			<hbm2hbmxml/>
+		</hibernatetool>
+		<hibernatetool destdir=".">
+			<classpath>
+				<pathelement location="${project.home}/src/main/java"/>
+				<pathelement location="${project.home}/target/main"/>
+			</classpath>
+			<annotationconfiguration 
+				configurationfile="${config}"/>
+			<hbm2ddl export="false" update="fasle" drop="false" 
+				outputfilename="ddl.sql" format="true"/>
+		</hibernatetool>
+	</target>
+
+	<target name="print.classpath">
+		<getEclipseClasspath property="build.classpath" 
+			targetPlatformLocation="${eclipse.home}" 
+			workspace="${eclipse.workspace}" 
+			projectName="${project.name}" />
+		<echo>${build.classpath}</echo>
+	</target>
+</project>

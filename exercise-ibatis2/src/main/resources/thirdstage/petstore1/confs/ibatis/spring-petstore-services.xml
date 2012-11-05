@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop" 
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="
+	   http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.0.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.5.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd"
+	default-lazy-init="false">
+
+
+	<!--
+	<bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<description>
+			- Configurer that replaces ${...} placeholders with values from properties files. (in this case, mail and JDBC related properties
+		</description>
+		<property name="locations">
+			<list>
+				<value>???</value>
+				<value>???</value>
+			</list>
+		</property>
+	</bean>
+	-->
+	
+	<!--
+		<bean id="mailSender" class="org.springframework.mail.javamail.JavaMailSenderImpl">
+		<description>Mail sender used by EmailAdvice</description>
+		<property name="host" value="???"/>
+		</bean> 
+	-->
+
+
+
+	<!-- Aspect Configuration -->
+	<aop:config>
+		<!-- Commented out to use annotation-based tranaction management
+			- This definition creates auto-proxy infrastructure based on the given pointcut, expressed
+			in AspectJ pointcut language.
+			- Here applying the advice named "txAdvice" to all methods on classes that implements PetStoreFacade.
+		<aop:advisor pointcut="execution(* *..PetStoreFacade.*(..))" advice-ref="txAdvice" />
+		-->
+
+		<!-- 
+			- This definition creates auto-proxy infrastructure based on the given pointcut, expressed
+			in AspectJ pointcut language.
+			- Here applying the advice named "emailAdvice" to insertOrder method of PetStoreFacade.
+		<aop:advisor pointcut="execution(* *..PetStoreFacade.insertOrder(*..Order))" advice-ref="emailAdvice" />
+		-->	
+	</aop:config>
+
+	<!-- Commented out to use annotation-based tranaction management
+		- Transaction advice definition, based on method name patterns.
+		- Defaults to PROPAGATION_REQUIRED for all methods whose name starts with "insert" or "update"
+		and to PROPAGATION_REQUIRED with read-only hint for all other methods.
+
+	<tx:advice id="txAdvice" transaction-manager="transactionManager">
+		<tx:attributes>
+			<tx:method name="add*"  propagation="REQUIRED" isolation="DEFAULT" 
+				rollback-for="java.sql.SQLException"/>
+			<tx:method name="update*"  propagation="REQUIRED" isolation="DEFAULT" 
+				rollback-for="java.sql.SQLException"/>
+			<tx:method name="make*" propagation="REQUIRED" isolation="DEFAULT" 
+				rollback-for="java.sql.SQLException"/>
+			<tx:method name="*" read-only="true" propagation="SUPPORTS" />
+		</tx:attributes>
+	</tx:advice>
+	-->
+
+	<!-- 
+		- AOP advice used to send confirmation email after order has been submitted.
+	<bean id="emailAdvice" class="thirdstage.petstore1.domain.logic.SendOrderConfirmationEmailAdvice">
+		<property name="mailSender" ref="mailSender" />
+	</bean>
+	-->
+	<!-- Aspect Configuration : end -->
+
+
+
+	<!-- Business Objects -->
+	<bean id="accountValidator" class="thirdstage.petstore1.validators.AccountValidator">
+		<description>Generic validator for Account objects, to be used by the Spring web tier</description>
+	</bean>
+
+	<bean id="orderValidator" class="thirdstage.petstore1.validators.OrderValidator">
+		<description>Generic validator for Order objects, to be used by the Spring web tier</description>
+	</bean>
+
+	<bean id="petStore" class="thirdstage.petstore1.services.PetStoreIBatisFacade">
+		<description>
+			- PetStore primary business object (default implementation). 
+			- Transaction advice gets applied through the AOP configuration below.
+		</description>
+		<property name="accountDao" ref="accountDao"></property>
+		<property name="categoryDao" ref="categoryDao"></property>
+		<property name="productDao" ref="productDao"></property>
+		<property name="itemDao" ref="itemDao"></property>
+		<property name="orderDao" ref="orderDao"></property>
+	</bean>
+	<!-- Business Objects : end -->
+
+
+
+	<!-- Remote Exporter Definitions -->
+	<!--
+	<bean id="order-rmi" class="org.springframework.remoting.rmi.RmiServiceExporter">
+		<description>
+		-  RMI exporter for ther OrderService
+		- Commented out by default to avoid conflicts with EJB containers
+		</description>
+		<property name="service" ref="petStore"></property>
+		<property name="serviceInterface" value="thirdstage.petstore1.domain.logic.OrderService"></property>
+		<property name="serviceName" value="order"></property>
+		<property name="registryPort" value="1099"></property>	
+	</bean>
+	-->
+	<!-- Remote Exporter Definitions : end -->
+	
+	
+
+</beans>
