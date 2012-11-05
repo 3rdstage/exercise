@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<title>D3.js Exercise - samples from Scott Murray's tutorial at 'http://alignedleft.com/tutorials/d3/'</title>
+	
+		<script src="http://d3js.org/d3.v2.js" type="text/javascript"></script>
+		<style type="text/css"> 
+		
+		div.bar{
+			display:inline-block;
+			width:20px;
+			height:75px;
+			margin-right:2px;
+			background-color:teal;
+		}
+		
+		#div2 svg circle{
+			fill:yellow;
+			stroke:orange;
+		}
+		
+		div .axis path, div .axis line{
+			fill:none;
+			stroke:black;
+			shape-rendering:crispEdges;
+		}
+		
+		div .axis text{
+			font-family:sans-serif;
+			font-size:11px;
+		}
+		
+		</style>
+	</head>
+	
+	<body>
+		
+		<div id="div1"></div>
+		<script type="text/javascript">
+		
+		var data1 = [];
+		for(var i =0; i < 25; i++){
+			data1 = data1.concat(Math.round(Math.random() * 30));
+		} 
+		
+		d3.select("#div1")
+			.selectAll("div")
+			.data(data1)
+			.enter()
+			.append("div")
+			.classed("bar", true)
+			.style("height", function(d){return d*5 + "px";});
+		</script>
+		
+		<hr align='left' width='500'/>
+		
+		<div id="div2"></div>
+		<script type="text/javascript">
+		
+		var data2 = [5, 10, 15, 20, 25];
+		
+		var circles = d3.select("#div2")
+			.append("svg").attr("width", 500).attr("height", 200)
+			.selectAll("circle")
+			.data(data2)
+			.enter()
+			.append("circle");
+
+		circles.attr("cx", function(d, i){return (i*50) + 25;})
+			.attr("cy", 100)
+			.attr("r", function(d){return d;})
+			.attr("stroke-width", function(d){return Math.round(d/4);});
+		</script>
+
+		<hr align='left' width='500'/>
+		
+		<div id='div3'></div>
+		<script type='text/javascript'>
+		
+		var data3 = data1;
+		var w3 = 800, h3 = 200, p3 = 1;
+		
+		d3.select("#div3")
+			.append("svg").attr("width", w3).attr("height", h3)
+			.selectAll("rect")
+			.data(data3)
+			.enter()
+			.append("rect")
+			.attr("x", function(d, i){return (w3/data3.length)*i;})
+			.attr("y", function(d){return h3 - d*4;})
+			.attr("height", function(d){return d*4;})
+			.attr("width", w3/data3.length - p3)
+			.attr("fill", function(d){return "rgb(0, 0," + (d*10) + ")";});
+			
+		d3.select("#div3 svg")
+			.selectAll("text")
+			.data(data3)
+			.enter()
+			.append("text")
+			.attr("x", function(d, i){return (w3/data3.length)*i + (w3/data3.length - p3)/2;})
+			.attr("y", function(d){return h3 - d*4;})
+			.attr("text-anchor", "middle")
+			.attr("dominant-baseline", "text-before-edge")
+			.attr("fill", "white")
+			.attr("font-weight", "bold")
+			.text(function(d){return d;});
+		</script>
+		
+		<hr align='left' width='500'/>
+		
+		<div id='div4'></div>
+		<script type='text/javascript'>
+		
+		var data4 = [[5, 20], [480, 90], [250, 50], [100, 33], [330, 95], 
+			[410, 12], [475, 44], [25, 67], [85, 21], [220, 88]];
+			
+		var w4 = 800, h4 = 300, p4 = 20;
+		var rMax4 = 5, rMin4 = 2;
+
+		var xScale4 = d3.scale.linear()
+			.domain([0, d3.max(data4, function(d){return d[0];})])
+			.range([p4, w4 - p4*2]);
+			
+		var yScale4 = d3.scale.linear()
+			.domain([0, d3.max(data4, function(d){return d[1];})])
+			.range([h4 - p4, p4]);
+			
+		var rScale4 = d3.scale.linear()
+			.domain([0, d3.max(data4, function(d){return d[1];})])
+			.range([rMin4, rMax4]);
+					
+		d3.select("#div4")
+			.append("svg").attr("width", w4).attr("height", h4)
+			.selectAll("circle")
+			.data(data4)
+			.enter()
+			.append("circle")
+			.attr("cx", function(d){return xScale4(d[0]);})
+			.attr("cy", function(d){return yScale4(d[1]);})
+			.attr("r", function(d){return rScale4(d[1]);});
+			
+		d3.select("#div4 svg")
+			.selectAll("text")
+			.data(data4)
+			.enter()
+			.append("text")
+			.attr("x", function(d){return xScale4(d[0]);})
+			.attr("y", function(d){return yScale4(d[1]);})
+			.attr("font-size", "11px")
+			.attr("fill", "red")
+			.text(function(d){ return d[0] + "," + d[1];});
+			
+		var xAxis4 = d3.svg.axis().scale(xScale4).orient("bottom");
+		d3.select("#div4 svg").append("g")
+			.classed("axis", true)
+			.attr("transform", "translate(0," + (h4 - p4) + ")")
+			.call(xAxis4);
+				
+		var yAxis4 = d3.svg.axis().scale(yScale4).orient("left").ticks(10)
+		
+		d3.select("#div4 svg").append("g")
+			.classed("axis", true)
+			.attr("transform", "translate(" + p4 + ",0)")
+			.call(yAxis4);
+			
+				
+			
+		</script>
+		
+		<hr align='left' width='500'/>
+		
+		<div id="div5"></div>
+		<script type="text/javascript">
+		
+		var w5 = 800, h5 = 600, p5 = 40;
+		var data5 = [];
+		var len5 = 50;
+		var x5 = 0, y5 = 0;
+		var rMax5 = 7, rMin5 = 2;
+		
+		for(var i = 0; i < len5; i++){
+			x5 = Math.round(Math.random() * w5);
+			y5 = Math.round(Math.random() * h5);
+			data5.push([x5, y5]);
+		}
+		
+		var xScale5 = d3.scale.linear().domain([0, w5]).range([p5, w5 - p5]);
+		var yScale5 = d3.scale.linear().domain([0, h5]).range([h5 - p5, p5]);
+		var rScale5 = d3.scale.linear().domain([0, w5*h5]).range([rMin5, rMax5]);
+		
+		d3.select("#div5")
+			.append("svg").attr("width", w5).attr("height", h5)
+			.selectAll("circle")
+			.data(data5)
+			.enter()
+			.append("circle")
+			.attr("cx", function(d){return xScale5(d[0]);})
+			.attr("cy", function(d){return yScale5(d[1]);})
+			.attr("r", function(d){return rScale5(d[0]*d[1]);});
+		
+		d3.select("#div5 svg")
+			.selectAll("text")
+			.data(data5)
+			.enter()
+			.append("text")
+			.attr("x", function(d){return xScale5(d[0]);})
+			.attr("y", function(d){return yScale5(d[1]);})
+			.attr("font-size", "11px")
+			.attr("fill", "darkred")
+			.text(function(d){return d[0] + "," + d[1]});
+			
+		var xAxis5 = d3.svg.axis().scale(xScale5).orient("bottom").ticks(w5/50);
+		d3.select("#div5 svg")
+			.append("g")
+			.classed("axis", true)
+			.attr("transform", "translate(0," + (h5 - p5) + ")")
+			.call(xAxis5);
+			
+		var yAxis5 = d3.svg.axis().scale(yScale5).orient("left").ticks(h5/50);
+		d3.select("#div5 svg")
+			.append("g")
+			.classed("axis", true)
+			.attr("transform", "translate(" + p5 + ",0)")
+			.call(yAxis5);
+		
+		</script>
+
+		<hr align='left' width='500'/>
+
+	</body>
+</html>
