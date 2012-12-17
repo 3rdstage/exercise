@@ -38,12 +38,10 @@
 		var maxX = spec.maxX || 1000;
 		var minY = spec.minY || 0;
 		var maxY = spec.maxY || 500;
-		var points = spec.points;
-		var pointSize = spec.pointSize || 5;
-		
-		var unstartedPoints = null;
-		var startedPoints = null;
- 
+		var data = spec.data;
+		var pointSize = spec.pointSize || 2;
+		var flowSpeed = spec.flowSpeed || 50; // speed in millisecond per pixcel in screen
+
 		
 		var xScale = d3.scale.linear().domain([minX, maxX]).range([paddingLeft, width - paddingRight]);
 		var yScale = d3.scale.linear().domain([minY, maxY]).range([height - paddingBottom, paddingTop]);
@@ -52,15 +50,22 @@
 		var yAxis = d3.svg.axis().scale(yScale).orient("left");
 		
 		var svg = null;
-			
+		var _points = null;
+		var _isFlowing = false;
+		var _pointSeq = 0;  //@todo point seq should be able to wrapped to avoid to become too large above the limit of the variable size;
+		var _unstartedPoints = null;
+		var _startedPoints = null;
+
+		
 		that.draw = function(){
 			svg = d3.select(canvas)
 				.append("svg")
 				.attr("width", width)
 				.attr("height", height);
 			
-			svg.selectAll("circle")
-				.data(points)
+			_points = svg.selectAll("circle")
+			
+			_points.data(data, function(d){ return _pointSeq++;})
 				.enter()
 				.append("circle")
 				.attr("cx", function(d){ return xScale(d[0]);})
@@ -87,19 +92,64 @@
 		
 		
 		that.flow = function(){
-			d3.selectAll(canvas + " svg circle")
-				.transition()
-				.duration(3000)
+			//@todo _points.transition() doesn't work. why ?
+			
+			svg.selectAll("circle").transition()
 				.attrTween("cx", function(){
 					var x = Number(d3.select(this).attr("cx"));
 					return d3.interpolateNumber(x, width - paddingRight);
 				})
+				.duration(function(d){
+					var t = flowSpeed * (maxX - minX - d[0]);
+					return t;
+
+				})
+				.ease("linear")
 				.each("end", function(){
 					d3.select(this).remove();
 				});
 			
+			_isFlowing = true;
 			return that; 
+		}
+		
+		that.stopFlow = function(){
 			
+			//if(!_isFlowing) return;
+			
+			_points.transtion()
+				.duration(0);
+			
+			return that;
+		}
+		
+		that.addData = function(dataAdded){
+			
+			var addedPoints = _points.data(dataAdded, function(d){ return _pointSeq++;})
+				.enter()
+				.append("circle")
+				.attr("cx", function(d){ return xScale(d[0]);})
+				.attr("cy", function(d){ return yScale(d[1]);})
+				.attr("r", pointSize);		
+			
+			if(_isFlowing){
+
+				addedPoints.transition()
+					.attrTween("cx", function(){
+						var x = Number(d3.select(this).attr("cx"));
+						return d3.interpolateNumber(x, width - paddingRight);
+					})
+					.duration(function(d){
+						var t = flowSpeed * (maxX - minX - d[0]);
+						return t;
+					})
+					.ease("linear")
+					.each("end", function(){
+						d3.select(this).remove();
+					});				
+			}
+			
+			return that;
 		}
 
 		return that;
@@ -108,111 +158,18 @@
 </head>
 <body>
 
-	<div id="div1" align="left">
-	<svg></svg>
-	<form>
-		<button id="button1a" type="button" class="submit">Animate 1</button>
-		<button id="button1b" type="button" class="submit">Animate 2</button>
-		<button id="button1c" type="button" class="submit">Animate 3</button>
-	</form>
-	
-	</div>
-	<br/>
-
-	<script type="text/javascript">
-		var xMax1 = 200, xMin1 = 0, yMax1 = 100, yMin1 = 0;
-		var w1 = 800, h1 = 600, d1 = 50, r1 = 2, dr1 = 20;
-		var n1 = 1000;
-		
-		var data1 = [];
-		
-		var x1 = 0, y1 = 0;
-		for(var i = 0; i < n1; i++){
-			x1 = 1; 	
-			y1 = Math.round(Math.random()*yMax1) + yMin1;
-			data1.push([x1, y1]);
-		}	
-		
-		var xScale1 = d3.scale.linear().domain([xMin1, xMax1]).range([d1, w1 - d1]);
-		var yScale1 = d3.scale.linear().domain([yMin1, yMax1]).range([h1 - d1, d1]);
-		var xUnit1 = xScale1(1) - d1;
-		
-		var circles = d3.select("#div1 svg")
-			.attr("width", w1)
-			.attr("height", h1)
-			.selectAll("circle")
-			.data(data1)
-			.enter()
-			.append("circle")
-			.attr("cx", function(d){return xScale1(d[0]);})
-			.attr("cy", function(d){return yScale1(d[1]);})
-			.attr("r", r1);
-		
-		var xAxis1 = d3.svg.axis().scale(xScale1).orient("bottom").ticks((xMax1 - xMin1)/50);
-		var yAxis1 = d3.svg.axis().scale(yScale1).orient("left").ticks((yMax1 - yMin1)/20);
-		
-		d3.select("#div1 svg")
-			.append("g")
-			.classed("axis", true)
-			.attr("transform", "translate(0," + (h1 - d1) + ")")
-			.call(xAxis1);
-		
-		d3.select("#div1 svg")
-			.append("g")
-			.classed("axis", true)
-			.attr("transform", "translate(" + d1  + ",0)")
-			.call(yAxis1);
-			
-		
-		var cx0 = Number(circles.attr("cx"))
-		function step(){
-			cx0 = cx0 + xUnit1;
-			if(cx0 >= (w1 - d1)/4) return true;
-			else circles.transition().duration(dr1)
-						.attr("cx", Number(circles.attr("cx")) + xUnit1);
-		};
-		
-		$("#button1a").click(function(ev){
-			ev.stopPropagation();
-			step();
-		});
-
-		$("#button1b").click(function(ev){
-			ev.stopPropagation();
-			d3.timer(step, dr1);
-		});
-
-		$("#button1c").click(function(ev){
-			ev.stopPropagation();
-			d3.selectAll("#div1 svg circle")
-				.transition()
-				.duration(3000)
-				.attrTween("cx", function(){
-					return d3.interpolateNumber(Number(d3.select(this).attr("cx")), w1 - d1);
-				});
-			
-					
-			
-		});
-			
-		
-		
-	</script>
-	
-	<hr align="left" width="800"/>
-	
 	<div id="div2"></div>
 	<script type='text/javascript'>
 		var dim2 = [800, 600];
 		var os2 = [50, 50, 50, 50];
 		var ll2 = [0, 0];
 		var ur2 = [400, 300];
-		var r2 = 10;
+		var r2 = 5;
 
 		var data2 = [];
 		var x2 = 0, y2 = 0, n2 = 10;
 		for(var i = 0; i < n2; i++){
-			x2 = Math.round(Math.random()*ur2[0]);
+			x2 = Math.round(Math.random()*30);
 			y2 = Math.round(Math.random()*ur2[1]);
 			data2.push([x2, y2]);
 		}
@@ -229,18 +186,46 @@
 			maxX : ur2[0],
 			minY : ll2[1],
 			maxY : ur2[1],
-			points : data2,
+			data : data2,
 			pointSize : r2
 		});
 
+		//chart2.draw();
 		chart2.draw().flow();
+		
+		var timerId = self.setInterval(function(){
+			var data = [];
+			for(var i = 0; i < n2; i++){
+				data.push([Math.round(Math.random()*30), Math.round(Math.random()*ur2[1])]);
+			}
+			chart2.addData(data);
+		}, 1000);
+		
+		$("#button2a").click(function(ev){
+			ev.stopPropagation();
+			chart2.stopFlow();
+		});
+		
+		$("#button2c").click(function(ev){
+			ev.stopPropagation();
+			self.clearInterval(timerId);
+		});
 
 			
 	</script>
 
 	<hr align="left" width="800"/>
 	
-	<div id="div2"></div>
+	<div id="div2">
+	
+	</div>
+	<div id="div2Control">
+		<form>
+			<button id="button2a" type="button" class="submit">Stop Flow</button>
+			<button id="button2b" type="button" class="submit">Animate 2</button>
+			<button id="button2c" type="button" class="submit">Stop Add</button>
+		</form>	
+	</div>
 		
 	
 	
