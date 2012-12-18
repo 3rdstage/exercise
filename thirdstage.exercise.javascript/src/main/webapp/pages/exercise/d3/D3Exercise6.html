@@ -21,6 +21,10 @@
 	</style>
 	
 	<script>
+	//@todo Change the speed of transition and the control for it
+	//@todo Generalize the data for points using meta for the data.
+	//@todo Add mouse over/out event handler to represent the data nearby the point.
+	//@todo Add mouse click event handler to view the detail of the data around the 
 	function scatterChart(spec){
 		var that = {};
 		
@@ -40,8 +44,10 @@
 		var maxY = spec.maxY || 500;
 		var data = spec.data;
 		var pointSize = spec.pointSize || 2;
-		var flowSpeed = spec.flowSpeed || 50; // speed in millisecond per pixcel in screen
-
+		var flowSpeed = spec.flowSpeed.initial || 50; // speed in millisecond per pixcel in screen
+		var flowSpeedMax = spec.flowSpeed.max || 500;
+		var flowSpeedMin = spec.flowSpeed.min || 10;
+		var flowSpeedStep = spec.flowSpeed.step || 5;
 		
 		var xScale = d3.scale.linear().domain([minX, maxX]).range([paddingLeft, width - paddingRight]);
 		var yScale = d3.scale.linear().domain([minY, maxY]).range([height - paddingBottom, paddingTop]);
@@ -49,21 +55,44 @@
 		var xAxis = d3.svg.axis().scale(xScale).orient("bottom");
 		var yAxis = d3.svg.axis().scale(yScale).orient("left");
 		
-		var svg = null;
+		var _svg = null;
 		var _points = null;
 		var _isFlowing = false;
 		var _pointSeq = 0;  //@todo point seq should be able to wrapped to avoid to become too large above the limit of the variable size;
 		var _unstartedPoints = null;
 		var _startedPoints = null;
 
+		function flowPoints(){
+			if(_isFlowing) return;
+			
+			//@todo _points.transition() doesn't work. why ?
+			_svg.selectAll("circle").transition()
+				.attrTween("cx", function(){
+					var x = Number(d3.select(this).attr("cx"));
+					return d3.interpolateNumber(x, width - paddingRight);
+				})
+				.duration(function(d){
+					var t = flowSpeed * (maxX - minX - d[0]);
+					return t;
+				})
+				.ease("linear")
+				.each("end", function(){
+					d3.select(this).remove();
+				});
+			
+			_isFlowing = true;
+			
+		}
+		
+		
 		
 		that.draw = function(){
-			svg = d3.select(canvas)
+			_svg = d3.select(canvas)
 				.append("svg")
 				.attr("width", width)
 				.attr("height", height);
 			
-			_points = svg.selectAll("circle")
+			_points = _svg.selectAll("circle")
 			
 			_points.data(data, function(d){ return _pointSeq++;})
 				.enter()
@@ -72,17 +101,17 @@
 				.attr("cy", function(d){ return yScale(d[1]);})
 				.attr("r", pointSize);
 			
-			svg.append("g")
+			_svg.append("g")
 				.classed("axis", true)
 				.attr("transform", "translate(0, " + (height - paddingBottom) + ")")
 				.call(xAxis);
 		
-			svg.append("g")
+			_svg.append("g")
 				.classed("axis", true)
 				.attr("transform", "translate(" + paddingLeft + ", 0)")
 				.call(yAxis);
 		
-			svg.selectAll(".axis line, .axis path")
+			_svg.selectAll(".axis line, .axis path")
 				.style("fill", "none")
 				.style("stroke", "black")
 				.style("shape-rendering", "crispEdges");
@@ -92,34 +121,20 @@
 		
 		
 		that.flow = function(){
-			//@todo _points.transition() doesn't work. why ?
 			
-			svg.selectAll("circle").transition()
-				.attrTween("cx", function(){
-					var x = Number(d3.select(this).attr("cx"));
-					return d3.interpolateNumber(x, width - paddingRight);
-				})
-				.duration(function(d){
-					var t = flowSpeed * (maxX - minX - d[0]);
-					return t;
-
-				})
-				.ease("linear")
-				.each("end", function(){
-					d3.select(this).remove();
-				});
+			flowPoints();
 			
-			_isFlowing = true;
 			return that; 
 		}
 		
 		that.stopFlow = function(){
 			
-			//if(!_isFlowing) return;
+			if(!_isFlowing) return;
 			
-			_points.transtion()
-				.duration(0);
-			
+			//@todo Still can't understand difference between _svg.selectAll("circle") and _points. 
+			//They do be different. but why? and how?
+			_svg.selectAll("circle").transition().duration(0);
+			_isFlowing = false;
 			return that;
 		}
 		
@@ -151,6 +166,23 @@
 			
 			return that;
 		}
+		
+		that.isFlowing = function(){
+			return _isFlowing;
+		}
+		
+		that.getFlowSpeed = function(){
+			return flowSpeed;
+		}
+		
+		that.setFlowSpeed = function(speed){
+			
+			if(speed > flowSpeedMax) flowSpeed = flowSpeedMax;
+			else if(speed < flowSpeedMin) flowSpeed = flowSpeedMin;
+			else flowSpeed = speed;
+				
+			return that;
+		}
 
 		return that;
 	}
@@ -158,16 +190,25 @@
 </head>
 <body>
 
+	
 	<div id="div2"></div>
+	<div id="div2Control">
+		<form>
+			<button id="button2a" type="button" class="submit">Stop flow</button>
+			<button id="button2b" type="button" class="submit">Stop add</button>
+			<button id="button2c" type="button" class="submit">Speed up</button>
+		</form>	
+	</div>
+		
 	<script type='text/javascript'>
-		var dim2 = [800, 600];
+		var dim2 = [800, 300];
 		var os2 = [50, 50, 50, 50];
 		var ll2 = [0, 0];
 		var ur2 = [400, 300];
 		var r2 = 5;
 
 		var data2 = [];
-		var x2 = 0, y2 = 0, n2 = 10;
+		var x2 = 0, y2 = 0, n2 = 5;
 		for(var i = 0; i < n2; i++){
 			x2 = Math.round(Math.random()*30);
 			y2 = Math.round(Math.random()*ur2[1]);
@@ -187,47 +228,71 @@
 			minY : ll2[1],
 			maxY : ur2[1],
 			data : data2,
-			pointSize : r2
+			pointSize : r2,
+			flowSpeed : {
+				initial : 20,
+				max : 100,
+				min : 2,
+				step : 2
+			}
 		});
 
 		//chart2.draw();
 		chart2.draw().flow();
 		
-		var timerId = self.setInterval(function(){
+		
+		function addData(){
+			if(!chart2.isFlowing()) return;
+			
 			var data = [];
 			for(var i = 0; i < n2; i++){
 				data.push([Math.round(Math.random()*30), Math.round(Math.random()*ur2[1])]);
 			}
 			chart2.addData(data);
-		}, 1000);
+		}
+		
+		var timerId = self.setInterval(addData, 2000);
 		
 		$("#button2a").click(function(ev){
 			ev.stopPropagation();
-			chart2.stopFlow();
+
+			if(chart2.isFlowing()){
+				chart2.stopFlow();
+				$("#button2a").text("Start flow");
+			}else{
+				chart2.flow();
+				$("#button2a").text("Stop flow");
+			}
+		});
+		
+		$("#button2b").click(function(ev){
+			ev.stopPropagation();
+
+			if(timerId != -1){
+				self.clearInterval(timerId);
+				$("#button2b").text("Start add");
+				timerId = -1;
+			}else{
+				timerId = self.setInterval(addData, 2000);
+				$("#button2b").text("Stop add");
+			}
 		});
 		
 		$("#button2c").click(function(ev){
 			ev.stopPropagation();
-			self.clearInterval(timerId);
+
+			chart2.stopFlow();
+
+			chart2.setFlowSpeed(chart2.getFlowSpeed() - 2);
+			chart2.flow();
+			if(chart2.isFlowing()){
+				
+			}
 		});
-
-			
-	</script>
-
-	<hr align="left" width="800"/>
-	
-	<div id="div2">
-	
-	</div>
-	<div id="div2Control">
-		<form>
-			<button id="button2a" type="button" class="submit">Stop Flow</button>
-			<button id="button2b" type="button" class="submit">Animate 2</button>
-			<button id="button2c" type="button" class="submit">Stop Add</button>
-		</form>	
-	</div>
 		
-	
+		
+		
+	</script>	
 	
 
 </body>
