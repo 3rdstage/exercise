@@ -25,6 +25,7 @@
 	//@todo Generalize the data for points using meta for the data.
 	//@todo Add mouse over/out event handler to represent the data nearby the point.
 	//@todo Add mouse click event handler to view the detail of the data around the 
+	//@todo Show message at speed (upper and lower) limit.
 	function scatterChart(spec){
 		var that = {};
 		
@@ -44,10 +45,10 @@
 		var maxY = spec.maxY || 500;
 		var data = spec.data;
 		var pointSize = spec.pointSize || 2;
-		var flowSpeed = spec.flowSpeed.initial || 50; // speed in millisecond per pixcel in screen
-		var flowSpeedMax = spec.flowSpeed.max || 500;
-		var flowSpeedMin = spec.flowSpeed.min || 10;
-		var flowSpeedStep = spec.flowSpeed.step || 5;
+		var flowDuration = spec.flowDuration.initial || 10000; // speed in millisecond per pixcel in screen
+		var flowDurationMax = spec.flowDuration.max || 600000;
+		var flowDurationMin = spec.flowDuration.min || 10000;
+		var flowDurationStep = spec.flowDuration.step || 500;
 		
 		var xScale = d3.scale.linear().domain([minX, maxX]).range([paddingLeft, width - paddingRight]);
 		var yScale = d3.scale.linear().domain([minY, maxY]).range([height - paddingBottom, paddingTop]);
@@ -72,7 +73,7 @@
 					return d3.interpolateNumber(x, width - paddingRight);
 				})
 				.duration(function(d){
-					var t = flowSpeed * (maxX - minX - d[0]);
+					var t = flowDuration * (width - paddingRight - d3.select(this).attr("cx"))/(width - paddingRight - paddingLeft);
 					return t;
 				})
 				.ease("linear")
@@ -155,7 +156,7 @@
 						return d3.interpolateNumber(x, width - paddingRight);
 					})
 					.duration(function(d){
-						var t = flowSpeed * (maxX - minX - d[0]);
+						var t = flowDuration * (width - paddingRight - d3.select(this).attr("cx"))/(width - paddingRight - paddingLeft);
 						return t;
 					})
 					.ease("linear")
@@ -171,19 +172,41 @@
 			return _isFlowing;
 		}
 		
-		that.getFlowSpeed = function(){
-			return flowSpeed;
+		that.getFlowDuration = function(){
+			return flowDuration;
 		}
 		
-		that.setFlowSpeed = function(speed){
+		that.setFlowDuration = function(speed){
 			
-			if(speed > flowSpeedMax) flowSpeed = flowSpeedMax;
-			else if(speed < flowSpeedMin) flowSpeed = flowSpeedMin;
-			else flowSpeed = speed;
+			if(speed > flowDurationMax) flowDuration = flowDurationMax;
+			else if(speed < flowDurationMin) flowDuration = flowDurationMin;
+			else flowDuration = speed;
 				
 			return that;
 		}
+		
+		/**
+		 * Increase the speed of the flow. 
+		 * This function doesn't flow status of the chart. That means the freezed chart
+		 * remains freezed after this function is called, although the attribute for the speed is changed.
+		 * 
+		*/
+		that.speedUp = function(){
+			 var status = that.isFlowing();
+			if(status) that.stopFlow();			 
+			that.setFlowDuration(flowDuration - flowDurationStep);
+			if(status) that.flow();
+		}
 
+		/**
+		 * Decrease the speed of the flow.
+		 * This function doesn't flow status of the chart. That means the freezed chart
+		 * remains freezed after this function is called, although the attribute for the speed is changed.
+		*/
+		that.speedDown = function(){
+			that.setFlowDuration(flowDuration + flowDurationStep);
+		}
+		
 		return that;
 	}
 	</script>
@@ -197,6 +220,8 @@
 			<button id="button2a" type="button" class="submit">Stop flow</button>
 			<button id="button2b" type="button" class="submit">Stop add</button>
 			<button id="button2c" type="button" class="submit">Speed up</button>
+
+			<button id="button2d" type="button" class="submit">Speed down</button>
 		</form>	
 	</div>
 		
@@ -229,11 +254,11 @@
 			maxY : ur2[1],
 			data : data2,
 			pointSize : r2,
-			flowSpeed : {
-				initial : 20,
-				max : 100,
-				min : 2,
-				step : 2
+			flowDuration : {
+				initial : 20000,
+				max : 100000,
+				min : 2000,
+				step : 1000
 			}
 		});
 
@@ -281,14 +306,22 @@
 		$("#button2c").click(function(ev){
 			ev.stopPropagation();
 
-			chart2.stopFlow();
-
-			chart2.setFlowSpeed(chart2.getFlowSpeed() - 2);
-			chart2.flow();
+			chart2.speedUp();
 			if(chart2.isFlowing()){
 				
 			}
 		});
+		
+		$("#button2d").click(function(ev){
+			ev.stopPropagation();
+
+			chart2.speedDown();
+			if(chart2.isFlowing()){
+				
+			}			
+			
+		});
+		
 		
 		
 		
