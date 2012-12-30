@@ -26,11 +26,11 @@
 	//@todo Add mouse over/out event handler to represent the data nearby the point.
 	//@todo Add mouse click event handler to view the detail of the data around the 
 	//@todo Show message at speed (upper and lower) limit.
+	//@todo Add warning firing when some properties such as canvas is not specified.
+	//@todo Add ratio (width versus height) property and releated methods.
+	//@todo Add side box to list data having measured values more than the specified hurdle. 
 	function scatterChart(spec){
 		var that = {};
-		
-		//@todo add issue firing when some properties such as canvas is not specified.
-		//@todo add ratio (width versus height) property and releated methods.
 		
 		var canvas = spec.canvas;
 		var width = spec.width || 800;
@@ -49,6 +49,34 @@
 		var flowDurationMax = spec.flowDuration.max || 600000;
 		var flowDurationMin = spec.flowDuration.min || 10000;
 		var flowDurationStep = spec.flowDuration.step || 500;
+		
+		var dataAccessor = spec.dataAccessor;
+		var dataMeta = {};
+		dataMeta.meta = {
+			fields : ["xValue", "yValue"],
+			defaults : {
+				index : [0, 1],
+				name : ["x", "y"],
+				unit : ["", ""],
+				desc : ["", ""]
+			} 
+		}
+		for(var i = 0; i < dataMeta.meta.fields.length; i++){
+			dataMeta[dataMeta.meta.fields[i]] = {};
+			if(spec.dataMeta && spec.dataMeta[dataMeta.meta.fields[i]]){
+				dataMeta[dataMeta.meta.fields[i]].index = spec.dataMeta[dataMeta.meta.fields[i]].index || dataMeta.meta.defaults.index[i];
+				dataMeta[dataMeta.meta.fields[i]].name = spec.dataMeta[dataMeta.meta.fields[i]].name || dataMeta.meta.defaults.name[i];
+				dataMeta[dataMeta.meta.fields[i]].unit = spec.dataMeta[dataMeta.meta.fields[i]].unit || dataMeta.meta.defaults.unit[i];
+				dataMeta[dataMeta.meta.fields[i]].desc = spec.dataMeta[dataMeta.meta.fields[i]].desc || dataMeta.meta.defaults.desc[i];
+			}else{
+				dataMeta[dataMeta.meta.fields[i]] = {
+					index : dataMeta.meta.defaults.index[i],
+					name : dataMeta.meta.defaults.name[i],
+					unit : dataMeta.meta.defaults.unit[i],
+					desc : dataMeta.meta.defaults.desc[i]
+				}
+			}
+		}
 		
 		var xScale = d3.scale.linear().domain([minX, maxX]).range([paddingLeft, width - paddingRight]);
 		var yScale = d3.scale.linear().domain([minY, maxY]).range([height - paddingBottom, paddingTop]);
@@ -85,8 +113,6 @@
 			
 		}
 		
-		
-		
 		that.draw = function(){
 			_svg = d3.select(canvas)
 				.append("svg")
@@ -120,11 +146,12 @@
 			return that;
 		}
 		
+		that.isFlowing = function(){
+			return _isFlowing;
+		}
 		
 		that.flow = function(){
-			
 			flowPoints();
-			
 			return that; 
 		}
 		
@@ -167,9 +194,9 @@
 			
 			return that;
 		}
-		
-		that.isFlowing = function(){
-			return _isFlowing;
+
+		that.getDataMeta = function(){
+			return dataMeta;
 		}
 		
 		that.getFlowDuration = function(){
@@ -192,7 +219,7 @@
 		 * 
 		*/
 		that.speedUp = function(){
-			 var status = that.isFlowing();
+			var status = that.isFlowing();
 			if(status) that.stopFlow();			 
 			that.setFlowDuration(flowDuration - flowDurationStep);
 			if(status) that.flow();
@@ -204,8 +231,11 @@
 		 * remains freezed after this function is called, although the attribute for the speed is changed.
 		*/
 		that.speedDown = function(){
+			var status = that.isFlowing();
+			if(status) that.stopFlow();			 
 			that.setFlowDuration(flowDuration + flowDurationStep);
-		}
+			if(status) that.flow();
+		 }
 		
 		return that;
 	}
@@ -262,9 +292,7 @@
 			}
 		});
 
-		//chart2.draw();
 		chart2.draw().flow();
-		
 		
 		function addData(){
 			if(!chart2.isFlowing()) return;
@@ -326,7 +354,32 @@
 		
 		
 	</script>	
-	
+
+
+	<div id="div3"></div>
+	<script>
+		var chart3 = scatterChart({
+			canvas : "#div3",
+			data : data2,
+			dataMeta : {
+				xValue : {
+					index : 0,
+					name : "time"
+				}
+			}, 
+			flowDuration : {
+				initial : 20000,
+				max : 100000,
+				min : 2000,
+				step : 1000
+			}
+		});
+		
+		chart3.draw();
+		dataMeta3 = chart3.getDataMeta();
+		
+	</script>
+
 
 </body>
 </html>
