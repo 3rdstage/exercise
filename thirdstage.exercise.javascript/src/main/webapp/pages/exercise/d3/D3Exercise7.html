@@ -43,13 +43,13 @@
 		var maxX = spec.maxX || 1000;
 		var minY = spec.minY || 0;
 		var maxY = spec.maxY || 500;
-		var data = spec.data;
 		var pointSize = spec.pointSize || 2;
 		var flowDuration = spec.flowDuration.initial || 10000; // speed in millisecond per pixcel in screen
 		var flowDurationMax = spec.flowDuration.max || 600000;
 		var flowDurationMin = spec.flowDuration.min || 10000;
 		var flowDurationStep = spec.flowDuration.step || 500;
 		
+
 		var dataMeta = {};
 		dataMeta.meta = {
 			fields : ["xValue", "yValue"],
@@ -76,6 +76,10 @@
 				}
 			}
 		}
+
+		var dataAccessor = spec.dataAccessor;
+		var dataAccessInterval = spec.dataAccessInterval; //time interval in millisecond to call data accessor		
+		
 		
 		var xScale = d3.scale.linear().domain([minX, maxX]).range([paddingLeft, width - paddingRight]);
 		var yScale = d3.scale.linear().domain([minY, maxY]).range([height - paddingBottom, paddingTop]);
@@ -118,15 +122,6 @@
 				.attr("width", width)
 				.attr("height", height);
 			
-			_points = _svg.selectAll("circle")
-			
-			_points.data(data, function(d){ return _pointSeq++;})
-				.enter()
-				.append("circle")
-				.attr("cx", function(d){ return xScale(d[0]);})
-				.attr("cy", function(d){ return yScale(d[1]);})
-				.attr("r", pointSize);
-			
 			_svg.append("g")
 				.classed("axis", true)
 				.attr("transform", "translate(0, " + (height - paddingBottom) + ")")
@@ -141,6 +136,15 @@
 				.style("fill", "none")
 				.style("stroke", "black")
 				.style("shape-rendering", "crispEdges");
+			
+			_points = _svg.selectAll("circle")
+			
+			_points.data(dataAccessor(), function(d){ return _pointSeq++;})
+				.enter()
+				.append("circle")
+				.attr("cx", function(d){ return xScale(d[0]);})
+				.attr("cy", function(d){ return yScale(d[1]);})
+				.attr("r", pointSize);			
 			
 			return that;
 		}
@@ -348,7 +352,36 @@
 			}			
 			
 		});
+		
+		
+		
+		
 	</script>	
+
+
+	<div id="div3"></div>
+	<script>
+		var chart3 = scatterChart({
+			canvas : "#div3",
+			data : data2,
+			dataMeta : {
+				xValue : {
+					index : 0,
+					name : "time"
+				}
+			}, 
+			flowDuration : {
+				initial : 20000,
+				max : 100000,
+				min : 2000,
+				step : 1000
+			}
+		});
+		
+		chart3.draw();
+		dataMeta3 = chart3.getDataMeta();
+		
+	</script>
 
 
 </body>
