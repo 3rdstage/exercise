@@ -1,18 +1,6 @@
 
 /**
  * 
- * @todo Change the speed of transition and the control for it
- * @todo Generalize the data for points using meta for the data.
- * @todo Add mouse over/out event handler to represent the data nearby the point.
- * @todo Add mouse click event handler to view the detail of the data around the 
- * @todo Show message at speed (upper and lower) limit.
- * @todo Add warning firing when some properties such as canvas is not specified.
- * @todo Add ratio (width versus height) property and related methods.
- * @todo Add side box to list data having measured values more than the specified hurdle.
- * @todo Apply strict mode and restrict the extensibility using features in ECMAScript 5.
- * @todo Add side box to control some properties including flow speed and data access interval.
- * @todo Add validation or auto-reconcile for flow duration related properties in initialize parameter.
- * @todo Add validation or auto-reconcile for data access interval related properties in initialize parameter.
 */ 
 function scatterChart(spec){
 	"use strict";
@@ -228,6 +216,10 @@ function scatterChart(spec){
 		if(interval > dataAccessIntervalMax) dataAccessInterval = dataAccessIntervalMax;
 		else if(interval < dataAccessIntervalMin) dataAccessInterval = dataAccessIntervalMin;
 		else dataAccessInterval = interval;
+		
+		self.clearInterval(_dataAccessorTimer);
+		_dataAccessorTimer = self.setInterval(drawPoints, dataAccessInterval);
+		
 		return that;
 	};
 

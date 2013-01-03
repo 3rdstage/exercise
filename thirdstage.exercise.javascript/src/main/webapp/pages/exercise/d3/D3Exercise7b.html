@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Exercise using version 3.0 of D3.js</title>
+<script type="text/javascript" src="../../../scripts/jquery/js/jquery-1.8.0.min.js"></script>
+<script type='text/javascript' src='../../../scripts/d3/d3.v3.min.js'></script>
+<script type='text/javascript' src='../../../scripts/d3-chart/d3-chart.js'></script>
+
+	<style type="text/css">
+		div .axis path, div .axis line{
+			fill:none;
+			stroke:black;
+			shape-rendering:crispEdges;
+		}
+		
+		div .axis text{
+			font-family:sans-serif;
+			font-size:11px;
+		}
+	</style>
+</head>
+<body>
+
+	
+	<div id="div2"></div>
+	<div id="div2Control">
+		<form>
+			<button id="button2a" type="button" class="submit">Stop flow</button>
+			<button id="button2b" type="button" class="submit">Stop add</button>
+			&nbsp;&nbsp;
+			<button id="button2c" type="button" class="submit">Speed up</button>
+			<input id="speed2" type="text" readonly size="6"></input>
+			<button id="button2d" type="button" class="submit">Speed down</button>
+			&nbsp;&nbsp;
+			<button id="button2e" type="button" class="submit">More data</button>
+			<input id="interval2" type="text" readonly size="6"></input>
+			<button id="button2f" type="button" class="submit">Less data</button>
+
+		</form>	
+	</div>
+		
+	<script type='text/javascript'>
+		var dim2 = [800, 300];
+		var os2 = [50, 50, 50, 50];
+		var ll2 = [0, 0];
+		var ur2 = [400, 300];
+		var r2 = 5;
+	
+		var chart2 = scatterChart({
+			canvas : "#div2",
+			width : dim2[0],
+			height : dim2[1],
+			paddingTop : os2[0],
+			paddingRight : os2[1],
+			paddingBottom : os2[2],
+			paddingLeft : os2[3],
+			minX : ll2[0],
+			maxX : ur2[0],
+			minY : ll2[1],
+			maxY : ur2[1],
+			dataAccessor : function(){
+				var data2 = [];
+				for(var i = 0; i< 5; i++){
+					data2.push([Math.round(Math.random()*30), Math.round(Math.random()*ur2[1])]);
+				}
+				return data2;
+			},
+			dataAccessInterval : {
+				initial : 2000,
+				max : 4000,
+				min : 500,
+				step : 250
+			},
+			pointSize : r2,
+			dataMeta : {
+				xValue : {
+					index : 0,
+					name : "time"
+				}
+			}, 			
+			flowDuration : {
+				initial : 20000,
+				max : 100000,
+				min : 2000,
+				step : 1000
+			}
+		});
+
+		chart2.draw().flow();
+		
+		$("#button2a").click(function(ev){
+			ev.stopPropagation();
+
+			if(chart2.isFlowing()){
+				chart2.stopFlow();
+				$("#button2a").text("Start flow");
+			}else{
+				chart2.flow();
+				$("#button2a").text("Stop flow");
+			}
+		});
+		
+		$("#button2b").click(function(ev){
+			ev.stopPropagation();
+
+			if(timerId != -1){
+				self.clearInterval(timerId);
+				$("#button2b").text("Start add");
+				timerId = -1;
+			}else{
+				timerId = self.setInterval(chart2.addData, 2000);
+				$("#button2b").text("Stop add");
+			}
+		});
+		
+		$("#button2c").click(function(ev){
+			ev.stopPropagation();
+
+			chart2.speedUp();
+			$("#speed2").val(chart2.getFlowDuration());
+			if(chart2.isFlowing()){
+			}
+		});
+		
+		$("#button2d").click(function(ev){
+			ev.stopPropagation();
+
+			chart2.speedDown();
+			$("#speed2").val(chart2.getFlowDuration());
+			if(chart2.isFlowing()){}			
+		});
+		
+		$("#speed2").val(chart2.getFlowDuration());
+		
+		
+		$("#button2e").click(function(ev){
+			ev.stopPropagation();
+
+			chart2.setDataAccessInterval(chart2.getDataAccessInterval() - 250);
+			$("#interval2").val(chart2.getDataAccessInterval());
+			if(chart2.isFlowing()){
+			}
+		});
+		
+		$("#button2f").click(function(ev){
+			ev.stopPropagation();
+
+			chart2.setDataAccessInterval(chart2.getDataAccessInterval() + 250);
+			$("#interval2").val(chart2.getDataAccessInterval());
+			if(chart2.isFlowing()){}			
+		});
+		
+		$("#interval2").val(chart2.getDataAccessInterval());
+		
+	</script>	
+
+
+
+</body>
+</html>
