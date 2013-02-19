@@ -77,51 +77,65 @@ function scatterChart(spec){
 	var _unstartedPoints = null;
 	var _startedPoints = null;
 	var _dataAccessorTimer = null;
+	var _pointLabel = null;
 
 	function drawPoints(){
+		var _points = null;
+		var _point = null;
+		
 		if(_isFlowing){
-			var points = _svg.selectAll("circle")
-			.data(dataAccessor, function(d){ return _pointSeq++;})
-			.enter()
-			.append("circle")
-			.attr("cx", function(d){ return _xScale(d[dataMeta.xValue.index]);})
-			.attr("cy", function(d){ return _yScale(d[dataMeta.yValue.index]);})
-			.attr("r", pointSize);
-
-			points.transition()
-			.attrTween("cx", function(){
-				return d3.interpolateNumber(Number(d3.select(this).attr("cx")), width - paddingRight);
-			})
-			.duration(function(d){
-				return flowDuration * (width - paddingRight - d3.select(this).attr("cx"))/(width - paddingRight - paddingLeft);
-			})
-			.ease("linear")
-			.each("end", function(){
-				d3.select(this).remove();
+			_points = _svg.selectAll("circle")
+				.data(dataAccessor, function(d){ return _pointSeq++;})
+				.enter()
+				.append("circle")
+				.attr("cx", function(d){ return _xScale(d[dataMeta.xValue.index]);})
+				.attr("cy", function(d){ return _yScale(d[dataMeta.yValue.index]);})
+				.attr("r", pointSize);
+	
+			_points.transition()
+				.attrTween("cx", function(){
+					return d3.interpolateNumber(Number(d3.select(this).attr("cx")), width - paddingRight);
+				})
+				.duration(function(d){
+					return flowDuration * (width - paddingRight - d3.select(this).attr("cx"))/(width - paddingRight - paddingLeft);
+				})
+				.ease("linear")
+				.each("end", function(){
+					d3.select(this).remove();
+				});
+					
+			_svg.selectAll("circle").on("mouseover.tooltip", function(d){
+				_point = d3.select(this);
+				
+				_pointLabel = _svg.append("text")
+					.text("[" + d[0] + ", " + d[1] + "]")
+					.attr("x", _point.attr("cx"))
+					.attr("y", _point.attr("cy"));
+					
 			});
 		}
 	}
 
 	that.draw = function(){
 		_svg = d3.select(canvas)
-		.append("svg")
-		.attr("width", width)
-		.attr("height", height);
+			.append("svg")
+			.attr("width", width)
+			.attr("height", height);
 
 		_svg.append("g")
-		.classed("axis", true)
-		.attr("transform", "translate(0, " + (height - paddingBottom) + ")")
-		.call(_xAxis);
+			.classed("axis", true)
+			.attr("transform", "translate(0, " + (height - paddingBottom) + ")")
+			.call(_xAxis);
 
 		_svg.append("g")
-		.classed("axis", true)
-		.attr("transform", "translate(" + paddingLeft + ", 0)")
-		.call(_yAxis);
+			.classed("axis", true)
+			.attr("transform", "translate(" + paddingLeft + ", 0)")
+			.call(_yAxis);
 
 		_svg.selectAll(".axis line, .axis path")
-		.style("fill", "none")
-		.style("stroke", "black")
-		.style("shape-rendering", "crispEdges");
+			.style("fill", "none")
+			.style("stroke", "black")
+			.style("shape-rendering", "crispEdges");
 
 		_dataAccessorTimer = self.setInterval(drawPoints, dataAccessInterval);
 
@@ -136,16 +150,16 @@ function scatterChart(spec){
 		if(_isFlowing) return;
 
 		_svg.selectAll("circle").transition()
-		.attrTween("cx", function(){
-			return d3.interpolateNumber(Number(d3.select(this).attr("cx")), width - paddingRight);
-		})
-		.duration(function(d){
-			return flowDuration * (width - paddingRight - d3.select(this).attr("cx"))/(width - paddingRight - paddingLeft);
-		})
-		.ease("linear")
-		.each("end", function(){
-			d3.select(this).remove();
-		});
+			.attrTween("cx", function(){
+				return d3.interpolateNumber(Number(d3.select(this).attr("cx")), width - paddingRight);
+			})
+			.duration(function(d){
+				return flowDuration * (width - paddingRight - d3.select(this).attr("cx"))/(width - paddingRight - paddingLeft);
+			})
+			.ease("linear")
+			.each("end", function(){
+				d3.select(this).remove();
+			});
 
 		_isFlowing = true;
 		return that; 
