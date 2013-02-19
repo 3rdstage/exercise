@@ -13,9 +13,15 @@ options {
   package thirdstage.exercise.antlr3;
 }
 
-functionDef : 'function' ID '()' BLOCK;
+functionDef : FUNCTION ID '()' block;
 
-BLOCK : '{' ( BLOCK | ~[{}] )* '}';
+block : BLOCK_NAME? '{' (statement|block)* '}';
+
+statement :  ID+ ';';
+
+
+FUNCTION : 'function';
+BLOCK_NAME : 'for' | 'if' | 'while';
 ID : ('a'..'z'|'A'..'Z'|'_')('a'..'z'|'A'..'Z'|'0'..'9'|'_')* ;
-WS : (' '|'\t'|'\n'|'\r')+ {$channel=HIDDEN};
+WS : (' '|'\t'|'\n'|'\r'|'\f')+ {$channel=HIDDEN};
 
