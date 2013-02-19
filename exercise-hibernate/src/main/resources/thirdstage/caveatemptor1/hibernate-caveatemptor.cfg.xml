@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-configuration PUBLIC
+		"-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+		"http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">
+<hibernate-configuration>
+
+	<session-factory>
+		<!-- 
+		Datasource would be set by spring framework.
+		The spring framework would overrite the datasource settings in this file, so
+		belows can remain uncommented. But, to remove the meaningless duplication,
+		belows are commented.
+		-->
+		
+		<property name="hibernate.connection.driver_class">com.mysql.jdbc.Driver</property>
+		<property name="hibernate.connection.url">jdbc:mysql://127.0.0.1:3306/caveatemptor1</property>
+		<property name="hibernate.connection.password">caveatemptor</property>
+		<property name="hibernate.connection.username">caveatemptor</property>
+		<property name="hibernate.c3p0.min_size">3</property>
+		<property name="hibernate.c3p0.max_size">5</property>
+		<property name="hibernate.c3p0.timeout">1800</property>
+		<property name="hibernate.c3p0.max_statements">20</property>
+		<property name="hibernate.default_catalog">caveatemptor1</property>
+		
+		<property name="hibernate.dialect">org.hibernate.dialect.MySQL5InnoDBDialect</property>
+		<property name="hibernate.show_sql">true</property>
+		<property name="hibernate.format_sql">true</property>
+		<property name="hibernate.use_outer_join">true</property>
+		<property name="hibernate.max_fetch_depth">2</property>
+		<property name="hibernate.default_batch_fetch_size">4</property>
+		<property name="hibernate.default_entity_mode">pojo</property>
+		<property name="hibernate.generate_statistics">false</property>
+		<property name="hibernate.use_identifier_rollback">false</property>
+		<property name="hibernate.use_sql_comments">false</property>
+		<property name="hibernate.validator.apply_to_ddl">true</property>
+
+		<!-- 
+		IMPORTANT Strategy for the scoping of current session
+		
+		To use SessionFactory.getCurrentSession, hibernate.current_session_context_class
+		should be explicitly configured. 
+		Exceptionally, if hiberante.transaction.manager_lookup_class (which specify
+		what kind of JTA Transacion Manager (WebLogic, WebSphere, JBoss, JOTM ...)
+		is set, current_session_context_class is set to 'jta' implicitly.
+	
+		In case of spring framework 2.5, LocalSessionFactoryBean and AnnotationSessionFactoryBean
+		will implicitly use org.springframework.orm.hibernate3.SpringSessionContext as
+		hibernate.current_session_context_class, so this property should not specified here.
+		But they don't support Session.getCurrentSession method as of 2.5.5. I don't tell whether 
+		this is a bug or there's misunderstand for me. 		
+		-->
+		<property name="hibernate.current_session_context_class">thread</property>
+
+		<!-- IMPORTANT Strategy for the scoping of current session 2
+
+		Check the correct setting for transaction.factory_class, transaction.manager_lookup_class and 
+		current_session_context_class to use SessionFactory.getCurrentSession for specific cases 
+		
+		- CMT/EJB : CMTTransactionFactory, depends on the brand of EJB container, jta or unset
+		- BMT/EJB : JTATransactionFactory, depends on the brand of EJB container, jta or unset
+		- plain JDBC : JDBCTransactionFactory, unset, thread
+		- Spring framework : TODO
+		-->		
+<!--		<property name="hibernate.transaction.factory_class">org.hibernate.transaction.JDBCTransactionFactory</property>-->
+<!--		<property name="hibernate.transaction.manager_lookup_class"></property>-->
+
+
+		<!-- IMPORTANT Connection release mode when working with Spring framework
+		
+		As of Hibernate 3.2.6 and Springframewok 2.5.5, the auto connection release mode 
+		result in various actual mode depending on current session context class and transaction factory class.
+		
+		   - ThreadLocalSessionContext + SpringTransactionFactory -> on_close
+		   - ThreadLocalSessionContext + JDBCTransactionFactory -> not explicit
+		 
+		SpringTransactionFactory itself would set connection release mode to on_close. Read the API
+		documentation about this.
+		-->
+		<property name="hibernate.connection.release_mode">auto</property>
+		
+<!--		<mapping package="thirdstage.caveatemptor1.domain.entities" />-->
+		<mapping class="thirdstage.caveatemptor1.domain.entities.Category" />
+	</session-factory>
+
+
+</hibernate-configuration>
