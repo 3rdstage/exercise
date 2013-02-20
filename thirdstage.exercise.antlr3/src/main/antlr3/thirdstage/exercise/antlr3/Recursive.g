@@ -1,4 +1,4 @@
-grammar Simplest;
+grammar Recursive;
 
 options {
   language = Java;
@@ -17,7 +17,7 @@ options {
 functionDef : 'function()' BLOCK;
 
 CHAR 
-  : [a-z]
+  : 'a'..'z'
   ;
 BLOCK 
   : '(' (BLOCK|CHAR)* ')'
