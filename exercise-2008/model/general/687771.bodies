@@ -1,0 +1,132 @@
+class KeyIndex
+!!!4629019.java!!!	add(inout value : Object, in node : int) : void
+	IntegerArray nodes;
+	if ((nodes = (IntegerArray) _index.get(value)) == null) {
+	    _index.put(value, nodes = new IntegerArray());
+	}
+	nodes.add(node);
+!!!4629147.java!!!	merge(inout other : KeyIndex) : void
+	if (other == null) return;
+
+	if (other._nodes != null) {
+	    if (_nodes == null) {
+		_nodes = other._nodes;
+	    }
+	    else {
+		_nodes.merge(other._nodes);
+	    }
+	}
+!!!4629275.java!!!	lookupId(inout value : Object) : void
+	// Clear _nodes array
+	_nodes = null;
+
+	final StringTokenizer values = new StringTokenizer((String) value);
+	while (values.hasMoreElements()) {
+            final String token = (String) values.nextElement();
+	    IntegerArray nodes = (IntegerArray) _index.get(token);
+
+            if (nodes == null && _enhancedDOM != null
+                && _enhancedDOM.hasDOMSource()) {
+                nodes = getDOMNodeById(token);
+            }
+
+	    if (nodes == null) continue;
+
+	    if (_nodes == null) {
+		_nodes = nodes;
+	    }
+	    else {
+		_nodes.merge(nodes);
+	    }
+	}
+!!!4629403.java!!!	getDOMNodeById(in id : String) : IntegerArray
+        IntegerArray nodes = null;
+        if (_enhancedDOM != null) {
+            int ident = _enhancedDOM.getElementById(id);
+            if (ident != DTM.NULL) {
+	        nodes = new IntegerArray();
+	    	_index.put(id, nodes);
+		nodes.add(ident);
+            }
+        }
+        return nodes; 	
+!!!4629531.java!!!	lookupKey(inout value : Object) : void
+	_nodes = (IntegerArray) _index.get(value);
+	_position = 0;
+!!!4629659.java!!!	next() : int
+	if (_nodes == null) return DTMAxisIterator.END;
+
+	return (_position < _nodes.cardinality()) ? 
+	    _dom.getNodeHandle(_nodes.at(_position++)) : DTMAxisIterator.END;
+!!!4629787.java!!!	containsID(in node : int, inout value : Object) : int
+ 
+	final String string = (String)value;
+	if (string.indexOf(' ') > -1) {
+	    final StringTokenizer values = new StringTokenizer(string);
+
+	    while (values.hasMoreElements()) {
+                final String token = (String) values.nextElement();
+		IntegerArray nodes = (IntegerArray) _index.get(token);
+
+		if (nodes == null && _enhancedDOM != null
+                    && _enhancedDOM.hasDOMSource()) {
+		    nodes = getDOMNodeById(token);	
+		}
+		if (nodes != null && nodes.indexOf(node) >= 0) {
+		    return 1;
+		}
+	    }
+	    return 0;
+	}
+	else {
+	    IntegerArray nodes = (IntegerArray) _index.get(value);
+            if (nodes == null && _enhancedDOM != null && _enhancedDOM.hasDOMSource()) {
+                nodes = getDOMNodeById(string);
+            }
+	    return (nodes != null && nodes.indexOf(node) >= 0) ? 1 : 0;
+	}
+!!!4629915.java!!!	containsKey(in node : int, inout value : Object) : int
+ 
+	final IntegerArray nodes = (IntegerArray) _index.get(value);
+	return (nodes != null && nodes.indexOf(node) >= 0) ? 1 : 0;
+!!!4630043.java!!!	reset() : DTMAxisIterator
+	_position = 0;
+	return this;
+!!!4630171.java!!!	getLast() : int
+	return (_nodes == null) ? 0 : _nodes.cardinality();
+!!!4630299.java!!!	getPosition() : int
+	return _position;
+!!!4630427.java!!!	setMark() : void
+	_markedPosition = _position;
+!!!4630555.java!!!	gotoMark() : void
+	_position = _markedPosition;
+!!!4630683.java!!!	setStartNode(in start : int) : DTMAxisIterator
+	if (start == DTMAxisIterator.END) {
+	    _nodes = null;
+	}
+	else if (_nodes != null) {
+	    _position = 0;
+	}
+	return (DTMAxisIterator) this;
+!!!4630811.java!!!	getStartNode() : int
+      
+        return 0;
+!!!4630939.java!!!	isReverse() : boolean
+	return(false);
+!!!4631067.java!!!	cloneIterator() : DTMAxisIterator
+	KeyIndex other = new KeyIndex(0);
+	other._index = _index;
+	other._nodes = _nodes;
+	other._position = _position;
+	return (DTMAxisIterator) other;
+!!!4631195.java!!!	setDom(inout dom : DOM) : void
+    	_dom = dom;
+    	if (dom instanceof DOMEnhancedForDTM) {
+    	    _enhancedDOM = (DOMEnhancedForDTM)dom;
+    	}
+    	else if (dom instanceof DOMAdapter) {
+    	    DOM idom = ((DOMAdapter)dom).getDOMImpl();
+    	    if (idom instanceof DOMEnhancedForDTM) {
+    	        _enhancedDOM = (DOMEnhancedForDTM)idom;
+    	    }
+    	}

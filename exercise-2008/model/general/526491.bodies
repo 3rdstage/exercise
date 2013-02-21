@@ -1,0 +1,32 @@
+class JMXSubjectDomainCombiner
+!!!3249307.java!!!	JMXSubjectDomainCombiner(inout s : Subject)
+        super(s);
+!!!3249435.java!!!	combine(inout current : ProtectionDomain, inout assigned : ProtectionDomain) : ProtectionDomain
+        // Add a new ProtectionDomain with the null codesource/signers, and
+        // the empty permission set, to the end of the array containing the
+	// 'current' protections domains, i.e. the ones that will be augmented
+	// with the permissions granted to the set of principals present in
+	// the supplied subject.
+	//
+        ProtectionDomain[] newCurrent;
+        if (current == null || current.length == 0) {
+            newCurrent = new ProtectionDomain[1];
+            newCurrent[0] = pdNoPerms;
+        } else {
+            newCurrent = new ProtectionDomain[current.length + 1];
+            for (int i = 0; i < current.length; i++) {
+                newCurrent[i] = current[i];
+            }
+            newCurrent[current.length] = pdNoPerms;          
+        }
+        return super.combine(newCurrent, assigned);
+!!!3249563.java!!!	hasOnlySystemCode(inout acc : AccessControlContext) : boolean
+	return systemACC.equals(acc);
+!!!3249691.java!!!	getContext(inout subject : Subject) : AccessControlContext
+	AccessControlContext currentACC = AccessController.getContext();
+	if (hasOnlySystemCode(currentACC)) {
+	    currentACC =
+		new AccessControlContext(new ProtectionDomain[] {pdAllPerms});
+	}
+	return new AccessControlContext(currentACC,
+					new JMXSubjectDomainCombiner(subject));

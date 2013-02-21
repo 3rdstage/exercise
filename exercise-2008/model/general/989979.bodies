@@ -1,0 +1,221 @@
+class ConcurrentHashMap
+!!!7879451.java!!!	hash(inout x : Object) : int
+        int h = x.hashCode();
+        h += ~(h << 9);
+        h ^=  (h >>> 14);
+        h +=  (h << 4);
+        h ^=  (h >>> 10);
+        return h;
+!!!7879579.java!!!	segmentFor(in hash : int) : Segment
+        return (Segment<K,V>) segments[(hash >>> segmentShift) & segmentMask];
+!!!7897499.java!!!	ConcurrentHashMap(in initialCapacity : int, in loadFactor : float, in concurrencyLevel : int)
+        if (!(loadFactor > 0) || initialCapacity < 0 || concurrencyLevel <= 0)
+            throw new IllegalArgumentException();
+
+        if (concurrencyLevel > MAX_SEGMENTS)
+            concurrencyLevel = MAX_SEGMENTS;
+
+        // Find power-of-two sizes best matching arguments
+        int sshift = 0;
+        int ssize = 1;
+        while (ssize < concurrencyLevel) {
+            ++sshift;
+            ssize <<= 1;
+        }
+        segmentShift = 32 - sshift;
+        segmentMask = ssize - 1;
+        this.segments = new Segment[ssize];
+
+        if (initialCapacity > MAXIMUM_CAPACITY)
+            initialCapacity = MAXIMUM_CAPACITY;
+        int c = initialCapacity / ssize;
+        if (c * ssize < initialCapacity)
+            ++c;
+        int cap = 1;
+        while (cap < c)
+            cap <<= 1;
+
+        for (int i = 0; i < this.segments.length; ++i)
+            this.segments[i] = new Segment<K,V>(cap, loadFactor);
+!!!7897627.java!!!	ConcurrentHashMap(in initialCapacity : int)
+        this(initialCapacity, DEFAULT_LOAD_FACTOR, DEFAULT_SEGMENTS);
+!!!7897755.java!!!	ConcurrentHashMap()
+        this(DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, DEFAULT_SEGMENTS);
+!!!7897883.java!!!	ConcurrentHashMap(inout t : Map)
+        this(Math.max((int) (t.size() / DEFAULT_LOAD_FACTOR) + 1,
+                      11),
+             DEFAULT_LOAD_FACTOR, DEFAULT_SEGMENTS);
+        putAll(t);
+!!!7898011.java!!!	isEmpty() : boolean
+        final Segment[] segments = this.segments;
+        /*
+         * We keep track of per-segment modCounts to avoid ABA
+         * problems in which an element in one segment was added and
+         * in another removed during traversal, in which case the
+         * table was never actually empty at any point. Note the
+         * similar use of modCounts in the size() and containsValue()
+         * methods, which are the only other methods also susceptible
+         * to ABA problems.
+         */
+        int[] mc = new int[segments.length];
+        int mcsum = 0;
+        for (int i = 0; i < segments.length; ++i) {
+            if (segments[i].count != 0)
+                return false;
+            else 
+                mcsum += mc[i] = segments[i].modCount;
+        }
+        // If mcsum happens to be zero, then we know we got a snapshot
+        // before any modifications at all were made.  This is
+        // probably common enough to bother tracking.
+        if (mcsum != 0) {
+            for (int i = 0; i < segments.length; ++i) {
+                if (segments[i].count != 0 ||
+                    mc[i] != segments[i].modCount) 
+                    return false;
+            }
+        }
+        return true;
+!!!7898139.java!!!	size() : int
+        final Segment[] segments = this.segments;
+        long sum = 0;
+        long check = 0;
+        int[] mc = new int[segments.length];
+        // Try a few times to get accurate count. On failure due to
+        // continuous async changes in table, resort to locking.
+        for (int k = 0; k < RETRIES_BEFORE_LOCK; ++k) {
+            check = 0;
+            sum = 0;
+            int mcsum = 0;
+            for (int i = 0; i < segments.length; ++i) {
+                sum += segments[i].count;
+                mcsum += mc[i] = segments[i].modCount;
+            }
+            if (mcsum != 0) {
+                for (int i = 0; i < segments.length; ++i) {
+                    check += segments[i].count;
+                    if (mc[i] != segments[i].modCount) {
+                        check = -1; // force retry
+                        break;
+                    }
+                }
+            }
+            if (check == sum) 
+                break;
+        }
+        if (check != sum) { // Resort to locking all segments
+            sum = 0;
+            for (int i = 0; i < segments.length; ++i) 
+                segments[i].lock();
+            for (int i = 0; i < segments.length; ++i) 
+                sum += segments[i].count;
+            for (int i = 0; i < segments.length; ++i) 
+                segments[i].unlock();
+        }
+        if (sum > Integer.MAX_VALUE)
+            return Integer.MAX_VALUE;
+        else
+            return (int)sum;
+!!!7898267.java!!!	get(inout key : Object) : V
+        int hash = hash(key); // throws NullPointerException if key null
+        return segmentFor(hash).get(key, hash);
+!!!7898395.java!!!	containsKey(inout key : Object) : boolean
+        int hash = hash(key); // throws NullPointerException if key null
+        return segmentFor(hash).containsKey(key, hash);
+!!!7898523.java!!!	containsValue(inout value : Object) : boolean
+        if (value == null)
+            throw new NullPointerException();
+        
+        // See explanation of modCount use above
+
+        final Segment[] segments = this.segments;
+        int[] mc = new int[segments.length];
+
+        // Try a few times without locking
+        for (int k = 0; k < RETRIES_BEFORE_LOCK; ++k) {
+            int sum = 0;
+            int mcsum = 0;
+            for (int i = 0; i < segments.length; ++i) {
+                int c = segments[i].count;
+                mcsum += mc[i] = segments[i].modCount;
+                if (segments[i].containsValue(value))
+                    return true;
+            }
+            boolean cleanSweep = true;
+            if (mcsum != 0) {
+                for (int i = 0; i < segments.length; ++i) {
+                    int c = segments[i].count;
+                    if (mc[i] != segments[i].modCount) {
+                        cleanSweep = false;
+                        break;
+                    }
+                }
+            }
+            if (cleanSweep)
+                return false;
+        }
+        // Resort to locking all segments
+        for (int i = 0; i < segments.length; ++i) 
+            segments[i].lock();
+        boolean found = false;
+        try {
+            for (int i = 0; i < segments.length; ++i) {
+                if (segments[i].containsValue(value)) {
+                    found = true;
+                    break;
+                }
+            }
+        } finally {
+            for (int i = 0; i < segments.length; ++i) 
+                segments[i].unlock();
+        }
+        return found;
+!!!7898651.java!!!	contains(inout value : Object) : boolean
+        return containsValue(value);
+!!!7898779.java!!!	put(inout key : K, inout value : V) : V
+        if (value == null)
+            throw new NullPointerException();
+        int hash = hash(key);
+        return segmentFor(hash).put(key, hash, value, false);
+!!!7898907.java!!!	putIfAbsent(inout key : K, inout value : V) : V
+        if (value == null)
+            throw new NullPointerException();
+        int hash = hash(key);
+        return segmentFor(hash).put(key, hash, value, true);
+!!!7899035.java!!!	putAll(inout t : Map) : void
+        for (Iterator<? extends Map.Entry<? extends K, ? extends V>> it = (Iterator<? extends Map.Entry<? extends K, ? extends V>>) t.entrySet().iterator(); it.hasNext(); ) {
+            Entry<? extends K, ? extends V> e = it.next();
+            put(e.getKey(), e.getValue());
+        }
+!!!7899163.java!!!	remove(inout key : Object) : V
+        int hash = hash(key);
+        return segmentFor(hash).remove(key, hash, null);
+!!!7899291.java!!!	remove(inout key : Object, inout value : Object) : boolean
+        int hash = hash(key);
+        return segmentFor(hash).remove(key, hash, value) != null;
+!!!7899419.java!!!	replace(inout key : K, inout oldValue : V, inout newValue : V) : boolean
+        if (oldValue == null || newValue == null)
+            throw new NullPointerException();
+        int hash = hash(key);
+        return segmentFor(hash).replace(key, hash, oldValue, newValue);
+!!!7899547.java!!!	replace(inout key : K, inout value : V) : V
+        if (value == null)
+            throw new NullPointerException();
+        int hash = hash(key);
+        return segmentFor(hash).replace(key, hash, value);
+!!!7899675.java!!!	clear() : void
+        for (int i = 0; i < segments.length; ++i)
+            segments[i].clear();
+!!!7899803.java!!!	keySet() : Set
+        Set<K> ks = keySet;
+        return (ks != null) ? ks : (keySet = new KeySet());
+!!!7899931.java!!!	values() : Collection
+        Collection<V> vs = values;
+        return (vs != null) ? vs : (values = new Values());
+!!!7900059.java!!!	entrySet() : Set
+        Set<Map.Entry<K,V>> es = entrySet;
+        return (es != null) ? es : (entrySet = (Set<Map.Entry<K,V>>) (Set) new EntrySet());
+!!!7900187.java!!!	keys() : Enumeration
+        return new KeyIterator();
+!!!7900315.java!!!	elements() : Enumeration
+        return new ValueIterator();

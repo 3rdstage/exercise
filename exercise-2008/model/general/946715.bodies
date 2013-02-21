@@ -1,0 +1,58 @@
+class SelectorProvider
+!!!7498139.java!!!	SelectorProvider()
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null)
+	    sm.checkPermission(new RuntimePermission("selectorProvider"));
+!!!7498267.java!!!	loadProviderFromProperty() : boolean
+	String cn = System.getProperty("java.nio.channels.spi.SelectorProvider");
+	if (cn == null)
+	    return false;
+	try {
+	    Class c = Class.forName(cn, true,
+				    ClassLoader.getSystemClassLoader());
+	    provider = (SelectorProvider)c.newInstance();
+	    return true;
+	} catch (ClassNotFoundException x) {
+	    throw new ServiceConfigurationError(x);
+	} catch (IllegalAccessException x) {
+	    throw new ServiceConfigurationError(x);
+	} catch (InstantiationException x) {
+	    throw new ServiceConfigurationError(x);
+	} catch (SecurityException x) {
+	    throw new ServiceConfigurationError(x);
+	}
+!!!7498395.java!!!	loadProviderAsService() : boolean
+	Iterator i = Service.providers(SelectorProvider.class,
+				       ClassLoader.getSystemClassLoader());
+	for (;;) {
+	    try {
+		if (!i.hasNext())
+		    return false;
+		provider = (SelectorProvider)i.next();
+		return true;
+	    } catch (ServiceConfigurationError sce) {
+		if (sce.getCause() instanceof SecurityException) {
+		    // Ignore the security exception, try the next provider
+		    continue;
+		}
+		throw sce;
+	    }
+	}
+!!!7498523.java!!!	provider() : SelectorProvider
+	synchronized (lock) {
+	    if (provider != null)
+		return provider;
+	    return (SelectorProvider)AccessController
+		.doPrivileged(new PrivilegedAction() {
+			public Object run() {
+			    if (loadProviderFromProperty())
+				return provider;
+			    if (loadProviderAsService())
+				return provider;
+			    provider = sun.nio.ch.DefaultSelectorProvider.create();
+			    return provider;
+			}
+		    });
+	}
+!!!7499291.java!!!	inheritedChannel() : Channel
+	return null;

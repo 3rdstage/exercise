@@ -1,0 +1,55 @@
+class SecureClassLoader
+!!!7280539.java!!!	SecureClassLoader(inout parent : ClassLoader)
+	super(parent);
+	// this is to make the stack depth consistent with 1.1
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkCreateClassLoader();
+	}
+	initialized = true;
+!!!7280667.java!!!	SecureClassLoader()
+	super();
+	// this is to make the stack depth consistent with 1.1
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkCreateClassLoader();
+	}
+	initialized = true;
+!!!7280795.java!!!	defineClass(in name : String, in b : byte, in off : int, in len : int, inout cs : CodeSource) : Class
+	if (cs == null)
+	    return defineClass(name, b, off, len);
+	else 
+	    return defineClass(name, b, off, len, getProtectionDomain(cs));
+!!!7280923.java!!!	defineClass(in name : String, inout b : ByteBuffer, inout cs : CodeSource) : Class
+	if (cs == null)
+	    return defineClass(name, b, (ProtectionDomain)null);
+	else 
+	    return defineClass(name, b, getProtectionDomain(cs));
+!!!7281051.java!!!	getPermissions(inout codesource : CodeSource) : PermissionCollection
+	check();
+	return new Permissions(); // ProtectionDomain defers the binding
+!!!7281179.java!!!	getProtectionDomain(inout cs : CodeSource) : ProtectionDomain
+	if (cs == null)
+	    return null;
+
+	ProtectionDomain pd = null;
+	synchronized (pdcache) {
+	    pd = (ProtectionDomain)pdcache.get(cs);
+	    if (pd == null) {
+		PermissionCollection perms = getPermissions(cs);
+		pd = new ProtectionDomain(cs, perms, this, null);
+		if (pd != null) {
+		    pdcache.put(cs, pd);
+		    if (debug != null) {
+			debug.println(" getPermissions "+ pd);
+			debug.println("");
+		    }
+		}
+	    }
+	}
+	return pd;
+!!!7281307.java!!!	check() : void
+ 
+	if (!initialized) {
+	    throw new SecurityException("ClassLoader object not initialized");
+	}

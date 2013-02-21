@@ -1,0 +1,51 @@
+class RMIIIOPServerImpl
+!!!8439195.java!!!	RMIIIOPServerImpl(inout env : Map)
+	super(env);
+
+	this.env = (env == null) ? Collections.EMPTY_MAP : env;
+
+        callerACC = AccessController.getContext();
+!!!8439323.java!!!	export() : void
+	PortableRemoteObject.exportObject(this);
+!!!8439451.java!!!	getProtocol() : String
+	return "iiop";
+!!!8439579.java!!!	toStub() : Remote
+	// javax.rmi.CORBA.Stub stub = 
+	//    (javax.rmi.CORBA.Stub) PortableRemoteObject.toStub(this);
+	final Remote stub = PortableRemoteObject.toStub(this);
+	// java.lang.System.out.println("NON CONNECTED STUB " + stub);
+	// org.omg.CORBA.ORB orb =
+	//    org.omg.CORBA.ORB.init((String[])null, (Properties)null);
+	// stub.connect(orb);
+	// java.lang.System.out.println("CONNECTED STUB " + stub);
+	return (Remote) stub;
+!!!8439707.java!!!	makeClient(in connectionId : String, inout subject : Subject) : RMIConnection
+
+	if (connectionId == null)
+	    throw new NullPointerException("Null connectionId");
+
+	RMIConnection client =
+	    new RMIConnectionImpl(this, connectionId, getDefaultClassLoader(),
+				  subject, env);
+	PortableRemoteObject.exportObject(client);
+	return client;
+!!!8439835.java!!!	closeClient(inout client : RMIConnection) : void
+	PortableRemoteObject.unexportObject(client);
+!!!8439963.java!!!	closeServer() : void
+	PortableRemoteObject.unexportObject(this);
+!!!8440091.java!!!	doNewClient(in credentials : Object) : RMIConnection
+        if (callerACC == null) {
+            throw new SecurityException("AccessControlContext cannot be null");
+        }
+        try {
+            return AccessController.doPrivileged(
+                new PrivilegedExceptionAction<RMIConnection>() {
+                    public RMIConnection run() throws IOException {
+                        return superDoNewClient(credentials);
+                    }
+            }, callerACC);
+        } catch (PrivilegedActionException pae) {
+            throw (IOException) pae.getCause();
+        }
+!!!8440219.java!!!	superDoNewClient(inout credentials : Object) : RMIConnection
+        return super.doNewClient(credentials);

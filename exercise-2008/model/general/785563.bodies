@@ -1,0 +1,85 @@
+class ErrorHandlerWrapper
+!!!5497499.java!!!	ErrorHandlerWrapper(inout errorHandler : ErrorHandler)
+        setErrorHandler(errorHandler);
+!!!5497627.java!!!	setErrorHandler(inout errorHandler : ErrorHandler) : void
+        fErrorHandler = errorHandler;
+!!!5497755.java!!!	getErrorHandler() : ErrorHandler
+        return fErrorHandler;
+!!!5497883.java!!!	warning(in domain : String, in key : String, inout exception : XMLParseException) : void
+
+        if (fErrorHandler != null) {
+        	SAXParseException saxException = createSAXParseException(exception);
+        	
+        	try {
+        		fErrorHandler.warning(saxException);
+        	}
+        	catch (SAXParseException e) {
+        		throw createXMLParseException(e);
+        	}
+        	catch (SAXException e) {
+        		throw createXNIException(e);
+        	}
+        }
+        
+!!!5498011.java!!!	error(in domain : String, in key : String, inout exception : XMLParseException) : void
+        
+        if (fErrorHandler != null) {
+        	SAXParseException saxException = createSAXParseException(exception);
+        	
+        	try {
+        		fErrorHandler.error(saxException);
+        	}
+        	catch (SAXParseException e) {
+        		throw createXMLParseException(e);
+        	}
+        	catch (SAXException e) {
+        		throw createXNIException(e);
+        	}
+        }
+
+!!!5498139.java!!!	fatalError(in domain : String, in key : String, inout exception : XMLParseException) : void
+                           	
+        if (fErrorHandler != null) {
+        	SAXParseException saxException = createSAXParseException(exception);
+        	
+        	try {
+        		fErrorHandler.fatalError(saxException);
+        	}
+        	catch (SAXParseException e) {
+        		throw createXMLParseException(e);
+        	}
+        	catch (SAXException e) {
+        		throw createXNIException(e);
+        	}
+        }
+
+!!!5498267.java!!!	createSAXParseException(inout exception : XMLParseException) : SAXParseException
+        return new SAXParseException(exception.getMessage(),
+                                     exception.getPublicId(),
+                                     exception.getExpandedSystemId(),
+                                     exception.getLineNumber(),
+                                     exception.getColumnNumber(),
+                                     exception.getException());
+!!!5498395.java!!!	createXMLParseException(inout exception : SAXParseException) : XMLParseException
+        final String fPublicId = exception.getPublicId();
+        final String fExpandedSystemId = exception.getSystemId();
+        final int fLineNumber = exception.getLineNumber();
+        final int fColumnNumber = exception.getColumnNumber();
+        XMLLocator location = new XMLLocator() {
+            public void setPublicId(String id) {}
+            public String getPublicId() { return fPublicId; }
+            public void setExpandedSystemId( String id) {}
+            public String getExpandedSystemId() { return fExpandedSystemId; }
+            public void setBaseSystemId(String id) {}
+            public String getBaseSystemId() { return null; }
+            public void setLiteralSystemId(String id) {}
+            public String getLiteralSystemId() { return null; }
+            public int getColumnNumber() { return fColumnNumber; }
+            public void setColumnNumber(int col) {}
+            public int getLineNumber() { return fLineNumber; }
+            public void setLineNumber(int line) {}
+            public String getEncoding() { return null; }
+        };
+        return new XMLParseException(location, exception.getMessage(),exception);
+!!!5498523.java!!!	createXNIException(inout exception : SAXException) : XNIException
+        return new XNIException(exception.getMessage(),exception);

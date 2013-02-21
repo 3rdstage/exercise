@@ -1,0 +1,99 @@
+class ParserConfigurationSettings
+!!!4851739.java!!!	ParserConfigurationSettings()
+        this(null);
+!!!4851867.java!!!	ParserConfigurationSettings(inout parent : XMLComponentManager)
+
+        // create storage for recognized features and properties
+        fRecognizedFeatures = new ArrayList();
+        fRecognizedProperties = new ArrayList();
+
+        // create table for features and properties
+        fFeatures = new HashMap();
+        fProperties = new HashMap();
+
+        // save parent
+        fParentSettings = parent;
+
+!!!4851995.java!!!	addRecognizedFeatures(in featureIds : String) : void
+
+        // add recognized features
+        int featureIdsCount = featureIds != null ? featureIds.length : 0;
+        for (int i = 0; i < featureIdsCount; i++) {
+            String featureId = featureIds[i];
+            if (!fRecognizedFeatures.contains(featureId)) {
+                fRecognizedFeatures.add(featureId);
+            }
+        }
+
+!!!4852123.java!!!	setFeature(in featureId : String, inout state : boolean) : void
+
+        // check and store
+        checkFeature(featureId);
+
+        fFeatures.put(featureId, state ? Boolean.TRUE : Boolean.FALSE);
+!!!4852251.java!!!	addRecognizedProperties(in propertyIds : String) : void
+
+        // add recognizedProperties
+        int propertyIdsCount = propertyIds != null ? propertyIds.length : 0;
+        for (int i = 0; i < propertyIdsCount; i++) {
+            String propertyId = propertyIds[i];
+            if (!fRecognizedProperties.contains(propertyId)) {
+                fRecognizedProperties.add(propertyId);
+            }
+        }
+
+!!!4852379.java!!!	setProperty(in propertyId : String, inout value : Object) : void
+
+        // check and store
+        checkProperty(propertyId);
+		if(value == null){
+			fProperties.remove(propertyId);
+		}else
+        	fProperties.put(propertyId, value);
+
+!!!4852507.java!!!	getFeature(in featureId : String) : boolean
+
+        Boolean state = (Boolean) fFeatures.get(featureId);
+
+        if (state == null) {
+            checkFeature(featureId);
+            return false;
+        }
+        return state.booleanValue();
+
+!!!4852635.java!!!	getProperty(in propertyId : String) : Object
+
+        Object propertyValue = fProperties.get(propertyId);
+
+        if (propertyValue == null) {
+            checkProperty(propertyId);
+        }
+
+        return propertyValue;
+
+!!!4852763.java!!!	checkFeature(in featureId : String) : void
+
+        // check feature
+        if (!fRecognizedFeatures.contains(featureId)) {
+            if (fParentSettings != null) {
+                fParentSettings.getFeature(featureId);
+            }
+            else {
+                short type = XMLConfigurationException.NOT_RECOGNIZED;
+                throw new XMLConfigurationException(type, featureId);
+            }
+        }
+
+!!!4852891.java!!!	checkProperty(in propertyId : String) : void
+
+        // check property
+        if (!fRecognizedProperties.contains(propertyId)) {
+            if (fParentSettings != null) {
+                fParentSettings.getProperty(propertyId);
+            }
+            else {
+                short type = XMLConfigurationException.NOT_RECOGNIZED;
+                throw new XMLConfigurationException(type, propertyId);
+            }
+        }
+

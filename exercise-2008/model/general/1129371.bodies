@@ -1,0 +1,105 @@
+class OverlayLayout
+!!!9238043.java!!!	OverlayLayout(inout target : Container)
+	this.target = target;
+!!!9238171.java!!!	invalidateLayout(inout target : Container) : void
+	checkContainer(target);
+	xChildren = null;
+	yChildren = null;
+	xTotal = null;
+	yTotal = null;
+!!!9238299.java!!!	addLayoutComponent(in name : String, inout comp : Component) : void
+        invalidateLayout(comp.getParent());
+!!!9238427.java!!!	removeLayoutComponent(inout comp : Component) : void
+        invalidateLayout(comp.getParent());
+!!!9238555.java!!!	addLayoutComponent(inout comp : Component, inout constraints : Object) : void
+        invalidateLayout(comp.getParent());
+!!!9238683.java!!!	preferredLayoutSize(inout target : Container) : Dimension
+	checkContainer(target);
+	checkRequests();
+
+	Dimension size = new Dimension(xTotal.preferred, yTotal.preferred);
+	Insets insets = target.getInsets();
+	size.width += insets.left + insets.right;
+	size.height += insets.top + insets.bottom;
+	return size;
+!!!9238811.java!!!	minimumLayoutSize(inout target : Container) : Dimension
+	checkContainer(target);
+	checkRequests();
+
+	Dimension size = new Dimension(xTotal.minimum, yTotal.minimum);
+	Insets insets = target.getInsets();
+	size.width += insets.left + insets.right;
+	size.height += insets.top + insets.bottom;
+	return size;
+!!!9238939.java!!!	maximumLayoutSize(inout target : Container) : Dimension
+	checkContainer(target);
+	checkRequests();
+
+	Dimension size = new Dimension(xTotal.maximum, yTotal.maximum);
+	Insets insets = target.getInsets();
+	size.width += insets.left + insets.right;
+	size.height += insets.top + insets.bottom;
+	return size;
+!!!9239067.java!!!	getLayoutAlignmentX(inout target : Container) : float
+	checkContainer(target);
+	checkRequests();
+	return xTotal.alignment;
+!!!9239195.java!!!	getLayoutAlignmentY(inout target : Container) : float
+	checkContainer(target);
+	checkRequests();
+	return yTotal.alignment;
+!!!9239323.java!!!	layoutContainer(inout target : Container) : void
+	checkContainer(target);
+	checkRequests();
+	
+	int nChildren = target.getComponentCount();
+	int[] xOffsets = new int[nChildren];
+	int[] xSpans = new int[nChildren];
+	int[] yOffsets = new int[nChildren];
+	int[] ySpans = new int[nChildren];
+
+	// determine the child placements
+	Dimension alloc = target.getSize();
+	Insets in = target.getInsets();
+	alloc.width -= in.left + in.right;
+	alloc.height -= in.top + in.bottom;
+	SizeRequirements.calculateAlignedPositions(alloc.width, xTotal, 
+						   xChildren, xOffsets,
+						   xSpans);
+	SizeRequirements.calculateAlignedPositions(alloc.height, yTotal,
+						   yChildren, yOffsets,
+						   ySpans);
+
+	// flush changes to the container
+	for (int i = 0; i < nChildren; i++) {
+	    Component c = target.getComponent(i);
+	    c.setBounds(in.left + xOffsets[i], in.top + yOffsets[i],
+			xSpans[i], ySpans[i]);
+	}
+!!!9239451.java!!!	checkContainer(inout target : Container) : void
+	if (this.target != target) {
+	    throw new AWTError("OverlayLayout can't be shared");
+	}
+!!!9239579.java!!!	checkRequests() : void
+	if (xChildren == null || yChildren == null) {
+	    // The requests have been invalidated... recalculate
+	    // the request information.
+	    int n = target.getComponentCount();
+	    xChildren = new SizeRequirements[n];
+	    yChildren = new SizeRequirements[n];
+	    for (int i = 0; i < n; i++) {
+		Component c = target.getComponent(i);
+		Dimension min = c.getMinimumSize();
+		Dimension typ = c.getPreferredSize();
+		Dimension max = c.getMaximumSize();
+		xChildren[i] = new SizeRequirements(min.width, typ.width, 
+						    max.width, 
+						    c.getAlignmentX());
+		yChildren[i] = new SizeRequirements(min.height, typ.height, 
+						    max.height, 
+						    c.getAlignmentY());
+	    }
+	    
+	    xTotal = SizeRequirements.getAlignedSizeRequirements(xChildren);
+	    yTotal = SizeRequirements.getAlignedSizeRequirements(yChildren);
+	}

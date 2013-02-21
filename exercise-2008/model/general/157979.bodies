@@ -1,0 +1,69 @@
+class SubMap
+!!!379291.java!!!	SubMap(inout fromKey : K, inout toKey : K)
+            if (compare(fromKey, toKey) > 0)
+                throw new IllegalArgumentException("fromKey > toKey");
+            this.fromKey = fromKey;
+            this.toKey = toKey;
+!!!379419.java!!!	SubMap(inout key : K, inout headMap : boolean)
+            compare(key, key); // Type-check key
+
+            if (headMap) {
+                fromStart = true;
+                toKey = key;
+            } else {
+                toEnd = true;
+                fromKey = key;
+            }
+!!!379547.java!!!	SubMap(inout fromStart : boolean, inout fromKey : K, inout toEnd : boolean, inout toKey : K)
+            this.fromStart = fromStart;
+            this.fromKey= fromKey;
+            this.toEnd = toEnd;
+            this.toKey = toKey;
+!!!379675.java!!!	isEmpty() : boolean
+            return entrySet.isEmpty();
+!!!379803.java!!!	containsKey(inout key : Object) : boolean
+            return inRange((K) key) && TreeMap.this.containsKey(key);
+!!!379931.java!!!	get(inout key : Object) : V
+            if (!inRange((K) key))
+                return null;
+            return TreeMap.this.get(key);
+!!!380059.java!!!	put(inout key : K, inout value : V) : V
+            if (!inRange(key))
+                throw new IllegalArgumentException("key out of range");
+            return TreeMap.this.put(key, value);
+!!!380187.java!!!	comparator() : Comparator
+            return comparator;
+!!!380315.java!!!	firstKey() : K
+	    TreeMap.Entry<K,V> e = fromStart ? firstEntry() : getCeilEntry(fromKey);
+            K first = key(e);
+            if (!toEnd && compare(first, toKey) >= 0)
+                throw(new NoSuchElementException());
+            return first;
+!!!380443.java!!!	lastKey() : K
+	    TreeMap.Entry<K,V> e = toEnd ? lastEntry() : getPrecedingEntry(toKey);
+            K last = key(e);
+            if (!fromStart && compare(last, fromKey) < 0)
+                throw(new NoSuchElementException());
+            return last;
+!!!380571.java!!!	entrySet() : Set
+            return entrySet;
+!!!381339.java!!!	subMap(inout fromKey : K, inout toKey : K) : SortedMap
+            if (!inRange2(fromKey))
+                throw new IllegalArgumentException("fromKey out of range");
+            if (!inRange2(toKey))
+                throw new IllegalArgumentException("toKey out of range");
+            return new SubMap(fromKey, toKey);
+!!!381467.java!!!	headMap(inout toKey : K) : SortedMap
+            if (!inRange2(toKey))
+                throw new IllegalArgumentException("toKey out of range");
+            return new SubMap(fromStart, fromKey, false, toKey);
+!!!381595.java!!!	tailMap(inout fromKey : K) : SortedMap
+            if (!inRange2(fromKey))
+                throw new IllegalArgumentException("fromKey out of range");
+            return new SubMap(false, fromKey, toEnd, toKey);
+!!!381723.java!!!	inRange(inout key : K) : boolean
+            return (fromStart || compare(key, fromKey) >= 0) &&
+                   (toEnd     || compare(key, toKey)   <  0);
+!!!381851.java!!!	inRange2(inout key : K) : boolean
+            return (fromStart || compare(key, fromKey) >= 0) &&
+                   (toEnd     || compare(key, toKey)   <= 0);

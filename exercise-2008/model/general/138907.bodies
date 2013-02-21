@@ -1,0 +1,442 @@
+class Locale
+!!!320923.java!!!	Locale(in language : String, in country : String, in variant : String)
+        this.language = convertOldISOCodes(language);
+        this.country = toUpperCase(country).intern();
+        this.variant = variant.intern();
+!!!321051.java!!!	Locale(in language : String, in country : String)
+        this(language, country, "");
+!!!321179.java!!!	Locale(in language : String)
+        this(language, "", "");
+!!!321307.java!!!	getDefault() : Locale
+        // do not synchronize this method - see 4071298
+        // it's OK if more than one default locale happens to be created
+        if (defaultLocale == null) {
+            String language, region, country, variant;
+            language = (String) AccessController.doPrivileged(
+                            new GetPropertyAction("user.language", "en"));
+            // for compatibility, check for old user.region property
+            region = (String) AccessController.doPrivileged(
+                            new GetPropertyAction("user.region"));
+            if (region != null) {
+                // region can be of form country, country_variant, or _variant
+                int i = region.indexOf('_');
+                if (i >= 0) {
+                    country = region.substring(0, i);
+                    variant = region.substring(i + 1);
+                } else {
+                    country = region;
+                    variant = "";
+                }
+            } else {
+                country = (String) AccessController.doPrivileged(
+                                new GetPropertyAction("user.country", ""));
+                variant = (String) AccessController.doPrivileged(
+                                new GetPropertyAction("user.variant", ""));
+            }
+            defaultLocale = new Locale(language, country, variant);
+        }
+        return defaultLocale;
+!!!321435.java!!!	setDefault(inout newLocale : Locale) : void
+        if (newLocale == null)
+            throw new NullPointerException("Can't set default locale to NULL");
+
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) sm.checkPermission(new PropertyPermission
+                        ("user.language", "write"));
+            defaultLocale = newLocale;
+!!!321563.java!!!	getAvailableLocales() : Locale
+        return LocaleData.getAvailableLocales("LocaleString");
+!!!321691.java!!!	getISOCountries() : String
+        if (isoCountries == null) {
+            isoCountries = new String[compressedIsoCountries.length() / 6];
+            for (int i = 0; i < isoCountries.length; i++)
+                isoCountries[i] = compressedIsoCountries.substring((i * 6) + 1, (i * 6) + 3);
+        }
+        String[] result = new String[isoCountries.length];
+        System.arraycopy(isoCountries, 0, result, 0, isoCountries.length);
+        return result;
+!!!321819.java!!!	getISOLanguages() : String
+        if (isoLanguages == null) {
+            isoLanguages = new String[compressedIsoLanguages.length() / 6];
+            for (int i = 0; i < isoLanguages.length; i++)
+                isoLanguages[i] = compressedIsoLanguages.substring((i * 6) + 1, (i * 6) + 3);
+        }
+        String[] result = new String[isoLanguages.length];
+        System.arraycopy(isoLanguages, 0, result, 0, isoLanguages.length);
+        return result;
+!!!321947.java!!!	getLanguage() : String
+        return language;
+!!!322075.java!!!	getCountry() : String
+        return country;
+!!!322203.java!!!	getVariant() : String
+        return variant;
+!!!322331.java!!!	toString() : String
+        boolean l = language.length() != 0;
+        boolean c = country.length() != 0;
+        boolean v = variant.length() != 0;
+        StringBuffer result = new StringBuffer(language);
+        if (c||(l&&v)) {
+            result.append('_').append(country); // This may just append '_'
+        }
+        if (v&&(l||c)) {
+            result.append('_').append(variant);
+        }
+        return result.toString();
+!!!322459.java!!!	getISO3Language() : String
+        int length = language.length();
+
+        if (length == 0) {
+            return "";
+        }
+
+        int index = compressedIsoLanguages.indexOf("," + language);
+        if (index == -1 || length != 2) {
+            throw new MissingResourceException("Couldn't find 3-letter language code for "
+                    + language, "LocaleElements_" + toString(), "ShortLanguage");
+        }
+        return compressedIsoLanguages.substring(index + 3, index + 6);
+!!!322587.java!!!	getISO3Country() : String
+        int length = country.length();
+
+        if (length == 0) {
+            return "";
+        }
+
+        int index = compressedIsoCountries.indexOf("," + country);
+        if (index == -1 || length != 2) {
+            throw new MissingResourceException("Couldn't find 3-letter country code for "
+                    + country, "LocaleElements_" + toString(), "ShortCountry");
+        }
+        return compressedIsoCountries.substring(index + 3, index + 6);
+!!!322715.java!!!	getDisplayLanguage() : String
+        return getDisplayLanguage(getDefault());
+!!!322843.java!!!	getDisplayLanguage(inout inLocale : Locale) : String
+        String  langCode = language;
+        if (langCode.length() == 0)
+            return "";
+
+        Locale  workingLocale = (Locale)inLocale.clone();
+        String  result = null;
+        int     phase = 0;
+        boolean done = false;
+
+        if (workingLocale.variant.length() == 0)
+            phase = 1;
+        if (workingLocale.country.length() == 0)
+            phase = 2;
+
+        while (!done) {
+            try {
+                ResourceBundle bundle = LocaleData.getLocaleElements(workingLocale);
+                result = findStringMatch((String[][])bundle.getObject("Languages"),
+                                    langCode, langCode);
+                if (result.length() != 0)
+                    done = true;
+            }
+            catch (Exception e) {
+                // just fall through
+            }
+
+            if (!done) {
+                switch (phase) {
+                    case 0:
+                        workingLocale = new Locale(workingLocale.language,
+                                                   workingLocale.country,
+                                                   "");
+                        break;
+
+                    case 1:
+                        workingLocale = new Locale(workingLocale.language,
+                                                   "",
+                                                   workingLocale.variant);
+                        break;
+
+                    case 2:
+                        workingLocale = getDefault();
+                        break;
+
+                    case 3:
+                        workingLocale = new Locale("", "", "");
+                        break;
+
+                    default:
+                        return langCode;
+                }
+                phase++;
+            }
+        }
+        return result;
+!!!322971.java!!!	getDisplayCountry() : String
+        return getDisplayCountry(getDefault());
+!!!323099.java!!!	getDisplayCountry(inout inLocale : Locale) : String
+        String  ctryCode = country;
+        if (ctryCode.length() == 0)
+            return "";
+
+        Locale  workingLocale = (Locale)inLocale.clone();
+        String  result = null;
+        int     phase = 0;
+        boolean done = false;
+
+        if (workingLocale.variant.length() == 0)
+            phase = 1;
+        if (workingLocale.country.length() == 0)
+            phase = 2;
+
+        while (!done) {
+            try {
+                ResourceBundle bundle = LocaleData.getLocaleElements(workingLocale);
+                result = findStringMatch((String[][])bundle.getObject("Countries"),
+                                    ctryCode, ctryCode);
+                if (result.length() != 0)
+                    done = true;
+            }
+            catch (Exception e) {
+                // just fall through
+            }
+
+            if (!done) {
+                switch (phase) {
+                    case 0:
+                        workingLocale = new Locale(workingLocale.language,
+                                                   workingLocale.country,
+                                                   "");
+                        break;
+
+                    case 1:
+                        workingLocale = new Locale(workingLocale.language,
+                                                   "",
+                                                   workingLocale.variant);
+                        break;
+
+                    case 2:
+                        workingLocale = getDefault();
+                        break;
+
+                    case 3:
+                        workingLocale = new Locale("", "", "");
+                        break;
+
+                    default:
+                        return ctryCode;
+                }
+                phase++;
+            }
+        }
+        return result;
+!!!323227.java!!!	getDisplayVariant() : String
+        return getDisplayVariant(getDefault());
+!!!323355.java!!!	getDisplayVariant(inout inLocale : Locale) : String
+        if (variant.length() == 0)
+            return "";
+
+        ResourceBundle bundle = LocaleData.getLocaleElements(inLocale);
+
+        String names[] = getDisplayVariantArray(bundle);
+
+        // Get the localized patterns for formatting a list, and use
+        // them to format the list.
+        String[] patterns;
+        try {
+            patterns = (String[])bundle.getObject("LocaleNamePatterns");
+        }
+        catch (MissingResourceException e) {
+            patterns = null;
+        }
+        return formatList(patterns, names);
+!!!323483.java!!!	getDisplayName() : String
+        return getDisplayName(getDefault());
+!!!323611.java!!!	getDisplayName(inout inLocale : Locale) : String
+        ResourceBundle bundle = LocaleData.getLocaleElements(inLocale);
+
+        String languageName = getDisplayLanguage(inLocale);
+        String countryName = getDisplayCountry(inLocale);
+        String[] variantNames = getDisplayVariantArray(bundle);
+
+        // Get the localized patterns for formatting a display name.
+        String[] patterns;
+        try {
+            patterns = (String[])bundle.getObject("LocaleNamePatterns");
+        }
+        catch (MissingResourceException e) {
+            patterns = null;
+        }
+
+        // The display name consists of a main name, followed by qualifiers.
+        // Typically, the format is "MainName (Qualifier, Qualifier)" but this
+        // depends on what pattern is stored in the display locale.
+        String   mainName       = null;
+        String[] qualifierNames = null;
+
+        // The main name is the language, or if there is no language, the country.
+        // If there is neither language nor country (an anomalous situation) then
+        // the display name is simply the variant's display name.
+        if (languageName.length() != 0) {
+            mainName = languageName;
+            if (countryName.length() != 0) {
+                qualifierNames = new String[variantNames.length + 1];
+                System.arraycopy(variantNames, 0, qualifierNames, 1, variantNames.length);
+                qualifierNames[0] = countryName;
+            }
+            else qualifierNames = variantNames;
+        }
+        else if (countryName.length() != 0) {
+            mainName = countryName;
+            qualifierNames = variantNames;
+        }
+        else {
+            return formatList(patterns, variantNames);
+        }
+
+        // Create an array whose first element is the number of remaining
+        // elements.  This serves as a selector into a ChoiceFormat pattern from
+        // the resource.  The second and third elements are the main name and
+        // the qualifier; if there are no qualifiers, the third element is
+        // unused by the format pattern.
+        Object[] displayNames = {
+            new Integer(qualifierNames.length != 0 ? 2 : 1),
+            mainName,
+            // We could also just call formatList() and have it handle the empty
+            // list case, but this is more efficient, and we want it to be
+            // efficient since all the language-only locales will not have any
+            // qualifiers.
+            qualifierNames.length != 0 ? formatList(patterns, qualifierNames) : null
+        };
+
+        if (patterns != null) {
+            return new MessageFormat(patterns[0]).format(displayNames);
+        }
+        else {
+            // If we cannot get the message format pattern, then we use a simple
+            // hard-coded pattern.  This should not occur in practice unless the
+            // installation is missing some core files (LocaleElements etc.).
+            StringBuffer result = new StringBuffer();
+            result.append((String)displayNames[1]);
+            if (displayNames.length > 2) {
+                result.append(" (");
+                result.append((String)displayNames[2]);
+                result.append(")");
+            }
+            return result.toString();
+        }
+!!!323739.java!!!	clone() : Object
+        try {
+            Locale that = (Locale)super.clone();
+            return that;
+        } catch (CloneNotSupportedException e) {
+            throw new InternalError();
+        }
+!!!323867.java!!!	hashCode() : int
+        int hc = hashCodeValue;
+        if (hc == 0) {
+            hc = (language.hashCode() << 8) ^ country.hashCode() ^ (variant.hashCode() << 4);
+            hashCodeValue = hc;
+        }
+        return hc;
+!!!323995.java!!!	equals(inout obj : Object) : boolean
+        if (this == obj)                      // quick check
+            return true;
+        if (!(obj instanceof Locale))
+            return false;
+        Locale other = (Locale) obj;
+	return language == other.language 
+            && country == other.country
+            && variant == other.variant;
+!!!324123.java!!!	getDisplayVariantArray(inout bundle : ResourceBundle) : String
+        // Split the variant name into tokens separated by '_'.
+        StringTokenizer tokenizer = new StringTokenizer(variant, "_");
+        String[] names = new String[tokenizer.countTokens()];
+
+        // For each variant token, lookup the display name.  If
+        // not found, use the variant name itself.
+        for (int i=0; i<names.length; ++i) {
+            String token = tokenizer.nextToken();
+            try {
+                names[i] = (String)bundle.getObject("%%" + token);
+            }
+            catch (MissingResourceException e) {
+                names[i] = token;
+            }
+        }
+
+        return names;
+!!!324251.java!!!	formatList(in patterns : String, in stringList : String) : String
+        // If we have no list patterns, compose the list in a simple,
+        // non-localized way.
+        if (patterns == null) {
+            StringBuffer result = new StringBuffer();
+            for (int i=0; i<stringList.length; ++i) {
+                if (i>0) result.append(',');
+                result.append(stringList[i]);
+            }
+            return result.toString();
+        }
+
+        // Compose the list down to three elements if necessary
+        if (stringList.length > 3) {
+            MessageFormat format = new MessageFormat(patterns[2]);
+            stringList = composeList(format, stringList);
+        }
+
+        // Rebuild the argument list with the list length as the first element
+        Object[] args = new Object[stringList.length + 1];
+        System.arraycopy(stringList, 0, args, 1, stringList.length);
+        args[0] = new Integer(stringList.length);
+
+        // Format it using the pattern in the resource
+        MessageFormat format = new MessageFormat(patterns[1]);
+        return format.format(args);
+!!!324379.java!!!	composeList(inout format : MessageFormat, in list : String) : String
+        if (list.length <= 3) return list;
+
+        // Use the given format to compose the first two elements into one
+        String[] listItems = { list[0], list[1] };
+        String newItem = format.format(listItems);
+
+        // Form a new list one element shorter
+        String[] newList = new String[list.length-1];
+        System.arraycopy(list, 2, newList, 1, newList.length-1);
+        newList[0] = newItem;
+
+        // Recurse
+        return composeList(format, newList);
+!!!324507.java!!!	readResolve() : Object
+        return new Locale(language, country, variant);
+!!!324635.java!!!	toLowerCase(in str : String) : String
+	char[] buf = new char[str.length()];
+        for (int i = 0; i < buf.length; i++) {
+	    buf[i] = Character.toLowerCase(str.charAt(i));
+        }
+        return new String( buf );
+!!!324763.java!!!	toUpperCase(in str : String) : String
+	char[] buf = new char[str.length()];
+        for (int i = 0; i < buf.length; i++) {
+	    buf[i] = Character.toUpperCase(str.charAt(i));
+        }
+        return new String( buf );
+!!!324891.java!!!	findStringMatch(in languages : String, in desiredLanguage : String, in fallbackLanguage : String) : String
+        for (int i = 0; i < languages.length; ++i)
+            if (desiredLanguage.equals(languages[i][0]))
+                return languages[i][1];
+        if (!fallbackLanguage.equals(desiredLanguage))
+            for (int i = 0; i < languages.length; ++i)
+                if (fallbackLanguage.equals(languages[i][0]))
+                    return languages[i][1];
+        if (!"EN".equals(desiredLanguage) && "EN".equals(fallbackLanguage))
+            for (int i = 0; i < languages.length; ++i)
+                if ("EN".equals(languages[i][0]))
+                    return languages[i][1];
+        return "";
+!!!325019.java!!!	convertOldISOCodes(in language : String) : String
+        // we accept both the old and the new ISO codes for the languages whose ISO
+        // codes have changed, but we always store the OLD code, for backward compatibility
+        language = toLowerCase(language).intern();
+        if (language == "he") {
+            return "iw";
+        } else if (language == "yi") {
+            return "ji";
+        } else if (language == "id") {
+            return "in";
+        } else {
+            return language;
+        }

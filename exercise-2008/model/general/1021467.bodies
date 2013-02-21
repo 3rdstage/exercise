@@ -1,0 +1,31 @@
+class UBlock
+!!!8138267.java!!!	UBlock(inout block : UnicodeBlock, inout not : boolean)
+             this.block = block;
+             this.complementMe = not;
+!!!8138395.java!!!	dup(inout not : boolean) : Node
+             if (not)
+                 return new UBlock(block, !complementMe);
+             else
+                 return new UBlock(block, complementMe);
+!!!8138523.java!!!	match(inout matcher : Matcher, in i : int, inout seq : CharSequence) : boolean
+             if (complementMe)
+                 return notMatch(matcher, i, seq);
+             if (i < matcher.to) {
+                 int ch = Character.codePointAt(seq, i);
+                 return (block == Character.UnicodeBlock.of(ch) && 
+                         (next.match(matcher, i+Character.charCount(ch), seq)));
+             }
+             matcher.hitEnd = true;
+             return false;
+!!!8138651.java!!!	notMatch(inout matcher : Matcher, in i : int, inout seq : CharSequence) : boolean
+             if (i < matcher.to) {
+                 int ch = Character.codePointAt(seq, i);
+                 return (block != Character.UnicodeBlock.of(ch) && 
+                         (next.match(matcher, i+Character.charCount(ch), seq)));
+             }
+             matcher.hitEnd = true;
+             return false;
+!!!8138779.java!!!	study(inout info : TreeInfo) : boolean
+             info.minLength++;
+             info.maxLength++;
+             return next.study(info);

@@ -1,0 +1,68 @@
+class TreeModelHandler
+!!!9207067.java!!!	treeStructureChanged(inout e : TreeModelEvent) : void
+	    if(e == null)
+		return;
+
+	    // NOTE: If I change this to NOT remove the descendants
+	    // and update BasicTreeUIs treeStructureChanged method
+	    // to update descendants in response to a treeStructureChanged
+	    // event, all the children of the event won't collapse!
+	    TreePath            parent = e.getTreePath();
+
+	    if(parent == null)
+		return;
+
+	    if (parent.getPathCount() == 1) {
+		// New root, remove everything!
+		clearToggledPaths();
+		if(treeModel.getRoot() != null &&
+                   !treeModel.isLeaf(treeModel.getRoot())) {
+		    // Mark the root as expanded, if it isn't a leaf.
+		    expandedState.put(parent, Boolean.TRUE);
+		}
+	    }
+	    else if(expandedState.get(parent) != null) {
+		Vector<TreePath>    toRemove = new Vector<TreePath>(1);
+		boolean             isExpanded = isExpanded(parent);
+
+		toRemove.addElement(parent);
+		removeDescendantToggledPaths(toRemove.elements());
+		if(isExpanded) {
+		    TreeModel         model = getModel();
+
+		    if(model == null || model.isLeaf
+		       (parent.getLastPathComponent()))
+			collapsePath(parent);
+		    else
+			expandedState.put(parent, Boolean.TRUE);
+		}
+	    }
+	    removeDescendantSelectedPaths(parent, false);
+!!!9207195.java!!!	treeNodesRemoved(inout e : TreeModelEvent) : void
+	    if(e == null)
+		return;
+
+	    TreePath            parent = e.getTreePath();
+	    Object[]            children = e.getChildren();
+
+	    if(children == null)
+		return;
+
+	    TreePath            rPath;
+	    Vector<TreePath>    toRemove
+		= new Vector<TreePath>(Math.max(1, children.length));
+
+	    for(int counter = children.length - 1; counter >= 0; counter--) {
+		rPath = parent.pathByAddingChild(children[counter]);
+		if(expandedState.get(rPath) != null)
+		    toRemove.addElement(rPath);
+	    }
+	    if(toRemove.size() > 0)
+		removeDescendantToggledPaths(toRemove.elements());
+
+	    TreeModel         model = getModel();
+
+	    if(model == null || model.isLeaf(parent.getLastPathComponent()))
+		expandedState.remove(parent);
+
+	    removeDescendantSelectedPaths(e);

@@ -1,0 +1,241 @@
+class Monitor
+!!!8313115.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_MONITOR);
+!!!8313243.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_MONITOR, clz, func, info);
+!!!8313371.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!8313499.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_MONITOR);
+!!!8313627.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_MONITOR, clz, func, info);
+!!!8313755.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);
+!!!8313883.java!!!	preRegister(inout server : MBeanServer, inout name : ObjectName) : ObjectName
+
+        if (isTraceOn()) {
+            trace("preRegister",
+		  "initialize the reference on the MBean server");
+        }
+
+        this.server = server;
+        return name;
+!!!8314139.java!!!	preDeregister() : void
+
+        if (isTraceOn()) {
+            trace("preDeregister", "stop the monitor");
+        }
+
+        // Stop the Monitor.
+        //
+        stop();
+!!!8314651.java!!!	getObservedObject() : ObjectName
+	synchronized(this) {
+	    if (observedObjects.isEmpty()) {
+		return null;
+	    } else {
+        return (ObjectName)observedObjects.get(0);
+    }
+	}
+!!!8314779.java!!!	setObservedObject(inout object : ObjectName) : void
+	while (!observedObjects.isEmpty()) {
+	    removeObservedObject((ObjectName)observedObjects.get(0));
+	}
+
+	addObservedObject(object);
+!!!8314907.java!!!	addObservedObject(inout object : ObjectName) : void
+
+        if (object == null) {
+            throw new IllegalArgumentException("Null observed object");
+        }
+
+	// Check that the specified object is not already contained
+	//
+	if (observedObjects.contains(object)) {
+	    return;
+	}
+
+	// Add the specified object in the list.
+	//
+	observedObjects.add(object);
+
+	// Update alreadyNotified array.
+	//
+	int value = RESET_FLAGS_ALREADY_NOTIFIED;
+	value &= ~(OBSERVED_OBJECT_ERROR_NOTIFIED |
+		   OBSERVED_ATTRIBUTE_ERROR_NOTIFIED |
+		   OBSERVED_ATTRIBUTE_TYPE_ERROR_NOTIFIED);
+	if (alreadyNotifieds.length >= elementCount)
+	    alreadyNotifieds = expandArray(alreadyNotifieds);
+	alreadyNotifieds[elementCount] = value;
+
+	updateDeprecatedAlreadyNotified();
+
+	// Update other specific arrays.
+	//
+	insertSpecificElementAt(elementCount);
+
+	// Update elementCount.
+	//
+	elementCount++;
+!!!8315035.java!!!	removeObservedObject(inout object : ObjectName) : void
+	synchronized(this) {
+            int index = observedObjects.indexOf(object);
+	    if (index >= 0) {
+		observedObjects.remove(index);
+
+            // Update alreadyNotifieds array.
+            //
+            removeElementAt(alreadyNotifieds, index);
+	    updateDeprecatedAlreadyNotified();
+
+            // Update other specific arrays.
+            //
+            removeSpecificElementAt(index);
+
+            // Update elementCount.
+            //
+            elementCount--;
+        }
+    }
+!!!8315163.java!!!	containsObservedObject(inout object : ObjectName) : boolean
+	synchronized(this) {
+        return observedObjects.contains(object);
+    }
+!!!8315291.java!!!	getObservedObjects() : ObjectName
+	ObjectName[] objects;
+	synchronized(this) {
+	    objects = new ObjectName[elementCount];
+	    for (int i=0; i<elementCount; i++) {
+          objects[i] = (ObjectName)observedObjects.get(i);
+        }
+	}
+        return objects;
+!!!8315419.java!!!	getObservedAttribute() : String
+        return observedAttribute;
+!!!8315547.java!!!	setObservedAttribute(in attribute : String) : void
+
+        if (attribute == null) {
+            throw new IllegalArgumentException("Null observed attribute");
+        }
+
+        // Update alreadyNotified array.
+        //
+	synchronized(this) {
+	    observedAttribute = attribute;
+
+        for (int i = 0; i < elementCount; i++) {
+	    resetAlreadyNotified(i,
+				 OBSERVED_ATTRIBUTE_ERROR_NOTIFIED |
+				 OBSERVED_ATTRIBUTE_TYPE_ERROR_NOTIFIED);
+        }
+    }
+!!!8315675.java!!!	getGranularityPeriod() : long
+        return granularityPeriod;
+!!!8315803.java!!!	setGranularityPeriod(in period : long) : void
+
+        if (period <= 0) {
+            throw new IllegalArgumentException("Nonpositive granularity " +
+					       "period");
+        }
+        granularityPeriod = period;
+!!!8315931.java!!!	isActive() : boolean
+        return isActive;
+!!!8316059.java!!!	getObservedObject(in index : int) : ObjectName
+        return (ObjectName)observedObjects.get(index);
+!!!8316187.java!!!	updateDeprecatedAlreadyNotified() : void
+	if (elementCount > 0)
+	    alreadyNotified = alreadyNotifieds[0];
+	else
+	    alreadyNotified = 0;
+!!!8316315.java!!!	setAlreadyNotified(in index : int, in mask : int) : void
+	alreadyNotifieds[index] |= mask;
+	if (index == 0)
+	    updateDeprecatedAlreadyNotified();
+!!!8316443.java!!!	resetAlreadyNotified(in index : int, in mask : int) : void
+	alreadyNotifieds[index] &= ~mask;
+	if (index == 0)
+	    updateDeprecatedAlreadyNotified();
+!!!8316571.java!!!	alreadyNotified(in index : int, in mask : int) : boolean
+	return ((alreadyNotifieds[index] & mask) != 0);
+!!!8316699.java!!!	resetAllAlreadyNotified(in index : int) : void
+	alreadyNotifieds[index] = 0;
+	if (index == 0)
+	    updateDeprecatedAlreadyNotified();
+!!!8316827.java!!!	expandArray(in array : int) : int
+	int[] newArray = new int[array.length + capacityIncrement];
+	System.arraycopy(array, 0, newArray, 0, array.length);
+	return newArray;
+!!!8316955.java!!!	expandArray(in array : long) : long
+	long[] newArray = new long[array.length + capacityIncrement];
+	System.arraycopy(array, 0, newArray, 0, array.length);
+	return newArray;
+!!!8317083.java!!!	expandArray(inout array : Number) : Number
+	Number[] newArray = new Number[array.length + capacityIncrement];
+	System.arraycopy(array, 0, newArray, 0, array.length);
+	return newArray;
+!!!8317211.java!!!	expandArray(inout array : boolean) : boolean
+	boolean[] newArray = new boolean[array.length + capacityIncrement];
+	System.arraycopy(array, 0, newArray, 0, array.length);
+	return newArray;
+!!!8317339.java!!!	expandArray(in array : String) : String
+	String[] newArray = new String[array.length + capacityIncrement];
+	System.arraycopy(array, 0, newArray, 0, array.length);
+	return newArray;
+!!!8317467.java!!!	removeElementAt(in array : int, in index : int) : void
+        if (index < 0 || index >= elementCount)
+            return;
+        int j = elementCount - index - 1;
+        if (j > 0) {
+            System.arraycopy(array, index + 1, array, index, j);
+        }
+!!!8317595.java!!!	removeElementAt(in array : long, in index : int) : void
+        if (index < 0 || index >= elementCount)
+            return;
+        int j = elementCount - index - 1;
+        if (j > 0) {
+            System.arraycopy(array, index + 1, array, index, j);
+        }
+!!!8317723.java!!!	removeElementAt(inout array : boolean, in index : int) : void
+        if (index < 0 || index >= elementCount)
+            return;
+        int j = elementCount - index - 1;
+        if (j > 0) {
+            System.arraycopy(array, index + 1, array, index, j);
+        }
+!!!8317851.java!!!	removeElementAt(inout array : Object, in index : int) : void
+        if (index < 0 || index >= elementCount)
+            return;
+        int j = elementCount - index - 1;
+        if (j > 0) {
+            System.arraycopy(array, index + 1, array, index, j);
+        }
+	array[elementCount - 1] = null;
+!!!8317979.java!!!	indexOf(inout object : ObjectName) : int
+        return observedObjects.indexOf(object);
+!!!8318363.java!!!	sendNotification(in type : String, in timeStamp : long, in msg : String, inout derGauge : Object, inout trigger : Object, in index : int) : void
+
+	if (isTraceOn()) {
+	    trace("sendNotification", "send notification:" +
+		  "\n\tNotification observed object = " +
+		  getObservedObject(index) +
+		  "\n\tNotification observed attribute = " +
+		  observedAttribute +
+		  "\n\tNotification derived gauge = " +
+		  derGauge);
+	}
+
+	long seqno;
+	synchronized (this) {
+	    seqno = sequenceNumber++;
+	}
+
+	sendNotification(new MonitorNotification(type,
+						 this,
+						 seqno,
+						 timeStamp,
+						 msg,
+						 getObservedObject(index),
+						 observedAttribute,
+						 derGauge,
+						 trigger));

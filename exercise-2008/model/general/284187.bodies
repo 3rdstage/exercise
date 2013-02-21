@@ -1,0 +1,107 @@
+class WorkerThread
+!!!1523739.java!!!	WorkerThread(inout tg : ThreadGroup, in threadPoolName : String)
+	    super(tg, "Idle");
+	    this.threadId = ThreadPoolImpl.getUniqueThreadId();
+            this.threadPoolName = threadPoolName;
+	    setName(composeWorkerThreadName(threadPoolName, "Idle"));
+!!!1523867.java!!!	run() : void
+            while (true) {
+                try {
+
+		    synchronized (lock) {
+			availableWorkerThreads++;
+		    }
+                    
+                    // Get some work to do
+                    currentWork = ((WorkQueueImpl)workQueue).requestWork(inactivityTimeout);
+
+		    synchronized (lock) {
+			availableWorkerThreads--;
+			// It is possible in notifyForAvailableWork that the
+			// check for availableWorkerThreads = 0 may return
+			// false, because the availableWorkerThreads has not been
+			// decremented to zero before the producer thread added 
+			// work to the queue. This may create a deadlock, if the
+			// executing thread needs information which is in the work
+			// item queued in the workqueue, but has no thread to work
+			// on it since none was created because availableWorkerThreads = 0
+			// returned false.
+			// The following code will ensure that a thread is always available
+			// in those situations
+			if  ((availableWorkerThreads == 0) && 
+				(workQueue.workItemsInQueue() > 0)) {
+			    createWorkerThread();
+			}
+		    }
+
+                    // Set the thread name for debugging.
+	            setName(composeWorkerThreadName(threadPoolName,
+				      Integer.toString(this.threadId)));
+
+                    long start = System.currentTimeMillis();
+                    
+		    try {
+			// Do the work
+			currentWork.doWork();
+		    } catch (Throwable t) {
+			// Ignore all errors.
+			;
+		    }
+                    
+                    long end = System.currentTimeMillis();
+                    
+
+		    synchronized (lock) {
+			totalTimeTaken += (end - start);
+			processedCount++;
+		    }
+
+		    // set currentWork to null so that the work item can be 
+		    // garbage collected
+		    currentWork = null;
+
+	            setName(composeWorkerThreadName(threadPoolName, "Idle"));
+
+                } catch (TimeoutException e) {
+                    // This thread timed out waiting for something to do.
+
+		    synchronized (lock) {
+			availableWorkerThreads--;
+
+			// This should for both bounded and unbounded case
+			if (currentThreadCount > minWorkerThreads) {
+			    currentThreadCount--;
+			    // This thread can exit.
+			    return;
+			} else {
+			    // Go back to waiting on workQueue
+			    continue;
+			}
+		    }
+                } catch (InterruptedException ie) {
+                    // InterruptedExceptions are
+                    // caught here.  Thus, threads can be forced out of
+                    // requestWork and so they have to reacquire the lock.
+                    // Other options include ignoring or
+                    // letting this thread die.
+                    // Ignoring for now. REVISIT
+		    synchronized (lock) {
+			availableWorkerThreads--;
+		    }
+
+                } catch (Throwable e) {
+
+                    // Ignore any exceptions that currentWork.process
+                    // accidently lets through, but let Errors pass.
+                    // Add debugging output?  REVISIT
+		    synchronized (lock) {
+			availableWorkerThreads--;
+		    }
+
+                }
+            }
+!!!1523995.java!!!	composeWorkerThreadName(in poolName : String, in workerName : String) : String
+            workerThreadName.setLength(0);
+	    workerThreadName.append("p: ").append(poolName);
+	    workerThreadName.append("; w: ").append(workerName);
+	    return workerThreadName.toString();

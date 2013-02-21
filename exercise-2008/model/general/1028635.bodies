@@ -1,0 +1,81 @@
+class MemoryCacheImageOutputStream
+!!!8216859.java!!!	MemoryCacheImageOutputStream(inout stream : OutputStream)
+        if (stream == null) {
+            throw new IllegalArgumentException("stream == null!");
+        }
+        this.stream = stream;
+!!!8216987.java!!!	read() : int
+        checkClosed();
+
+        bitOffset = 0;
+
+        int val = cache.read(streamPos);
+        if (val != -1) {
+            ++streamPos;
+        }
+        return val;
+!!!8217115.java!!!	read(in b : byte, in off : int, in len : int) : int
+        checkClosed();
+        
+        // Fix 4467619: read([B,I,I) doesn't throw NPE as specified
+        // Fix 4467608: read([B,I,I) works incorrectly if len<=0
+        // Will throw NullPointerException if b == null
+        // Will throw IIOBE if off, len are bad args
+        if (off < 0 || len < 0 || off + len > b.length || off + len < 0) {
+            throw new IndexOutOfBoundsException
+                ("off < 0 || len < 0 || off + len > b.length!");
+        }
+
+        bitOffset = 0;
+
+        if (len == 0) {
+            return 0;
+        }
+
+        // check if we're already at/past EOF i.e.
+        // no more bytes left to read from cache
+        long bytesLeftInCache = cache.getLength() - streamPos;
+        if (bytesLeftInCache <= 0) {
+            return -1; // EOF
+        }
+
+        // guaranteed by now that bytesLeftInCache > 0 && len > 0
+        // and so the rest of the error checking is done by cache.read()
+        // NOTE that alot of error checking is duplicated
+        len = (int)Math.min(bytesLeftInCache, (long)len);
+        cache.read(b, off, len, streamPos);
+        streamPos += len;
+        return len;
+!!!8217243.java!!!	write(in b : int) : void
+        checkClosed();
+        flushBits();
+        cache.write(b, streamPos);
+        ++streamPos;
+!!!8217371.java!!!	write(in b : byte, in off : int, in len : int) : void
+        checkClosed();
+        flushBits();
+        cache.write(b, off, len, streamPos);
+        streamPos += len;
+!!!8217499.java!!!	length() : long
+        return cache.getLength();
+!!!8217627.java!!!	isCached() : boolean
+        return true;
+!!!8217755.java!!!	isCachedFile() : boolean
+        return false;
+!!!8217883.java!!!	isCachedMemory() : boolean
+        return true;
+!!!8218011.java!!!	close() : void
+        long length = cache.getLength();
+        seek(length);
+        flushBefore(length);
+        super.close();
+        cache.reset();
+        stream = null;
+!!!8218139.java!!!	flushBefore(in pos : long) : void
+        long oFlushedPos = flushedPos;
+        super.flushBefore(pos);
+
+        long flushBytes = flushedPos - oFlushedPos;
+        cache.writeToStream(stream, oFlushedPos, flushBytes);
+        cache.disposeBefore(flushedPos);
+        stream.flush();

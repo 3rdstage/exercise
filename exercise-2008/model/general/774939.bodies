@@ -1,0 +1,67 @@
+class JAXPConfiguration
+!!!5466651.java!!!	JAXPConfiguration(inout schema : Schema)
+        this.fSchema = schema;
+!!!5466779.java!!!	configurePipeline() : void
+        super.configurePipeline();
+        
+        if (fSchema != null) {
+            if( isXNICapabaleSchema(fSchema) ) {
+                // if the validator is also from this Xerces,
+                // we will use the XNI-based validator for
+                // better performance
+                InsulatedValidatorComponent v = ((XercesSchema)fSchema).newXNIValidator();
+                addComponent(v);
+                
+                fLastComponent.setDocumentHandler(v.getValidator());
+                v.getValidator().setDocumentSource(fLastComponent);
+                fLastComponent = v.getValidator();
+                v.getValidator().setDocumentHandler(fDocumentHandler);
+            } else {
+                // otherwise wrap that into JAXPValidatorComponent.
+                XMLDocumentFilter validator = null;
+                ValidatorHandler validatorHandler = fSchema.newValidatorHandler();
+            
+                validator = new JAXPValidatorComponent(validatorHandler);
+                addComponent((XMLComponent)validator);
+                
+                fLastComponent.setDocumentHandler(validator);
+                validator.setDocumentSource(fLastComponent);
+                fLastComponent = validator;
+                validator.setDocumentHandler(fDocumentHandler);
+            }
+        }
+!!!5466907.java!!!	isXNICapabaleSchema(inout s : Schema) : boolean
+        if(!(s instanceof XercesSchema ))   return false;
+        
+        try {
+            String v = System.getProperty(JAXPConfiguration.class.getName()+".noSchemaOptimization");
+            if(v==null)
+                // there might be a bug in the optimization we do.
+                // this property provides an escape hatch for such a situation
+                // by forcing non-optimized way.
+                return false;
+        } catch( Throwable t ) {
+            ;
+        }
+        
+        // otherwise if schema derives from XercesSchema,
+        // we set up better optimized pipeline.
+        return true;
+!!!5467035.java!!!	getFeatureDefaultValue(in featureId : String) : boolean
+
+        // reset every component
+        int count = fComponents.size();
+        for (int i = 0; i < count; i++) {
+            XMLComponent c = (XMLComponent) fComponents.get(i);
+            Boolean bo = c.getFeatureDefault(featureId);
+            if(bo != null){
+                return bo.booleanValue();
+            }
+            //null if component doesn't recognize this feature.
+            //continue it might be present in some other components.
+            //it might make sense to store default values of feature for 
+            //the current configuration that would make the lookup faster.
+            
+        }
+        //if it wasn't found in all the components return false;
+        return false;

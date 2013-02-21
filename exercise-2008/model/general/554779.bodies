@@ -1,0 +1,62 @@
+class JJTParserState
+!!!3522971.java!!!	JJTParserState()
+    nodes = new java.util.Stack();
+    marks = new java.util.Stack();
+    sp = 0;
+    mk = 0;
+!!!3523099.java!!!	nodeCreated() : boolean
+    return node_created;
+!!!3523227.java!!!	reset() : void
+    nodes.removeAllElements();
+    marks.removeAllElements();
+    sp = 0;
+    mk = 0;
+!!!3523355.java!!!	rootNode() : Node
+    return (Node)nodes.elementAt(0);
+!!!3523483.java!!!	pushNode(inout n : Node) : void
+    nodes.push(n);
+    ++sp;
+!!!3523611.java!!!	popNode() : Node
+    if (--sp < mk) {
+      mk = ((Integer)marks.pop()).intValue();
+    }
+    return (Node)nodes.pop();
+!!!3523739.java!!!	peekNode() : Node
+    return (Node)nodes.peek();
+!!!3523867.java!!!	nodeArity() : int
+    return sp - mk;
+!!!3523995.java!!!	clearNodeScope(inout n : Node) : void
+    while (sp > mk) {
+      popNode();
+    }
+    mk = ((Integer)marks.pop()).intValue();
+!!!3524123.java!!!	openNodeScope(inout n : Node) : void
+    marks.push(new Integer(mk));
+    mk = sp;
+    n.jjtOpen();
+!!!3524251.java!!!	closeNodeScope(inout n : Node, in num : int) : void
+    mk = ((Integer)marks.pop()).intValue();
+    while (num-- > 0) {
+      Node c = popNode();
+      c.jjtSetParent(n);
+      n.jjtAddChild(c, num);
+    }
+    n.jjtClose();
+    pushNode(n);
+    node_created = true;
+!!!3524379.java!!!	closeNodeScope(inout n : Node, inout condition : boolean) : void
+    if (condition) {
+      int a = nodeArity();
+      mk = ((Integer)marks.pop()).intValue();
+      while (a-- > 0) {
+	Node c = popNode();
+	c.jjtSetParent(n);
+	n.jjtAddChild(c, a);
+      }
+      n.jjtClose();
+      pushNode(n);
+      node_created = true;
+    } else {
+      mk = ((Integer)marks.pop()).intValue();
+      node_created = false;
+    }

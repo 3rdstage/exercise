@@ -1,0 +1,57 @@
+class FileOutputStream
+!!!6851227.java!!!	FileOutputStream(in name : String)
+	this(name != null ? new File(name) : null, false);
+!!!6851355.java!!!	FileOutputStream(in name : String, inout append : boolean)
+        this(name != null ? new File(name) : null, append);
+!!!6851483.java!!!	FileOutputStream(inout file : File)
+	this(file, false);
+!!!6851611.java!!!	FileOutputStream(inout file : File, inout append : boolean)
+        String name = (file != null ? file.getPath() : null);
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkWrite(name);
+	}
+        if (name == null) {
+            throw new NullPointerException();
+        }
+	fd = new FileDescriptor();
+        this.append = append;
+	if (append) {
+	    openAppend(name);
+	} else {
+	    open(name);
+	}
+!!!6851739.java!!!	FileOutputStream(inout fdObj : FileDescriptor)
+	SecurityManager security = System.getSecurityManager();
+	if (fdObj == null) {
+	    throw new NullPointerException();
+	}
+	if (security != null) {
+	    security.checkWrite(fdObj);
+	}
+	fd = fdObj;
+!!!6852379.java!!!	write(in b : byte) : void
+	writeBytes(b, 0, b.length);
+!!!6852507.java!!!	write(in b : byte, in off : int, in len : int) : void
+	writeBytes(b, off, len);
+!!!6852635.java!!!	close() : void
+        if (channel != null)
+            channel.close();
+        close0();
+!!!6852763.java!!!	getFD() : FileDescriptor
+	if (fd != null) return fd;
+	throw new IOException();
+!!!6852891.java!!!	getChannel() : FileChannel
+	synchronized (this) {
+	    if (channel == null)
+		channel = FileChannelImpl.open(fd, false, true, this, append);
+	    return channel;
+	}
+!!!6853019.java!!!	finalize() : void
+ 	if (fd != null) {
+ 	    if (fd == fd.out || fd == fd.err) {
+ 		flush();
+ 	    } else {
+ 		close();
+ 	    }
+ 	}

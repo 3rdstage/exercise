@@ -1,0 +1,45 @@
+class BasicHTML
+!!!9384347.java!!!	createHTMLView(inout c : JComponent, in html : String) : View
+	BasicEditorKit kit = getFactory();
+	Document doc = kit.createDefaultDocument(c.getFont(),
+                                                 c.getForeground());
+	Object base = c.getClientProperty(documentBaseKey);
+	if (base instanceof URL) {
+	    ((HTMLDocument)doc).setBase((URL)base);
+	}
+	Reader r = new StringReader(html);
+	try {
+	    kit.read(r, doc, 0);
+	} catch (Throwable e) {
+	}
+	ViewFactory f = kit.getViewFactory();
+	View hview = f.create(doc.getDefaultRootElement());
+	View v = new Renderer(c, f, hview);
+	return v;
+!!!9384475.java!!!	isHTMLString(in s : String) : boolean
+	if (s != null) {
+	    if ((s.length() >= 6) && (s.charAt(0) == '<') && (s.charAt(5) == '>')) {
+		String tag = s.substring(1,5);
+		return tag.equalsIgnoreCase(propertyKey);
+	    }
+	}
+	return false;
+!!!9384603.java!!!	updateRenderer(inout c : JComponent, in text : String) : void
+	View value = null;
+        View oldValue = (View)c.getClientProperty(BasicHTML.propertyKey);
+        Boolean htmlDisabled = (Boolean) c.getClientProperty(htmlDisable);
+	if (htmlDisabled != Boolean.TRUE && BasicHTML.isHTMLString(text)) {
+	    value = BasicHTML.createHTMLView(c, text);
+	}
+        if (value != oldValue && oldValue != null) {
+            for (int i = 0; i < oldValue.getViewCount(); i++) {
+                oldValue.getView(i).setParent(null);
+            }
+        }
+	c.putClientProperty(BasicHTML.propertyKey, value);
+!!!9384731.java!!!	getFactory() : BasicEditorKit
+	if (basicHTMLFactory == null) {
+            basicHTMLViewFactory = new BasicHTMLViewFactory();
+	    basicHTMLFactory = new BasicEditorKit();
+	}
+	return basicHTMLFactory;

@@ -1,0 +1,115 @@
+class SnmpMibSubRequestImpl
+!!!3387803.java!!!	SnmpMibSubRequestImpl(inout global : SnmpMibRequest, inout sublist : Vector, inout entryoid : SnmpOid, inout isnew : boolean, inout getnextflag : boolean, inout rs : SnmpVarBind)
+	    this.global = global;
+	    varbinds           = sublist;
+	    this.version       = global.getVersion();
+	    this.entryoid      = entryoid;
+	    this.isnew         = isnew;
+	    this.getnextflag   = getnextflag;
+	    this.statusvb      = rs;
+!!!3387931.java!!!	getElements() : Enumeration
+	    return varbinds.elements();
+!!!3388059.java!!!	getSubList() : Vector
+	    return varbinds;
+!!!3388187.java!!!	getSize() : int
+	    if (varbinds == null) return 0;
+	    return varbinds.size();
+!!!3388315.java!!!	addVarBind(inout varbind : SnmpVarBind) : void
+	    // XXX not sure we must also add the varbind in the global 
+	    //     request? or whether we should raise an exception:
+	    //     in principle, this method should not be called!
+	    varbinds.addElement(varbind);
+	    global.addVarBind(varbind);
+!!!3388443.java!!!	isNewEntry() : boolean
+	    return isnew;
+!!!3388571.java!!!	getEntryOid() : SnmpOid
+	    return entryoid;
+!!!3388699.java!!!	getVarIndex(inout varbind : SnmpVarBind) : int
+	    if (varbind == null) return 0;
+	    return global.getVarIndex(varbind);
+!!!3388827.java!!!	getUserData() : Object
+ return global.getUserData();
+!!!3388955.java!!!	registerGetException(inout var : SnmpVarBind, inout exception : SnmpStatusException) : void
+	    // The index in the exception must correspond to 
+	    // the SNMP index ...
+	    //
+	    if (version == SnmpDefinitions.snmpVersionOne)
+		throw new SnmpStatusException(exception, getVarIndex(var)+1);
+
+	    if (var == null) 
+		throw exception;
+
+	    // If we're doing a getnext ==> endOfMibView
+	    if (getnextflag) {
+		var.value = SnmpVarBind.endOfMibView;
+		return;
+	    }
+
+	    final int errorCode = mapGetException(exception.getStatus(),
+						  version);
+
+	    // Now take care of V2 errorCodes that can be stored
+	    // in the varbind itself:
+	    if (errorCode == 
+		SnmpStatusException.noSuchObject)
+		// noSuchObject => noSuchObject
+		var.value= SnmpVarBind.noSuchObject;
+
+	    else if (errorCode == 
+		     SnmpStatusException.noSuchInstance)
+		// noSuchInstance => noSuchInstance
+		var.value= SnmpVarBind.noSuchInstance;
+
+	    else 
+		throw new SnmpStatusException(errorCode, getVarIndex(var)+1);
+
+!!!3389083.java!!!	registerSetException(inout var : SnmpVarBind, inout exception : SnmpStatusException) : void
+	    // The index in the exception must correspond to 
+	    // the SNMP index ...
+	    //
+	    if (version == SnmpDefinitions.snmpVersionOne)
+		throw new SnmpStatusException(exception, getVarIndex(var)+1);
+
+	    // Although the first pass of check() did not fail,
+	    // the set() phase could not be carried out correctly.
+	    // Since we don't know how to make an "undo", and some 
+	    // assignation may already have been performed, we're going
+	    // to throw an snmpRspUndoFailed.
+	    //
+	    throw new SnmpStatusException(SnmpDefinitions.snmpRspUndoFailed,
+					  getVarIndex(var)+1);
+!!!3389211.java!!!	registerCheckException(inout var : SnmpVarBind, inout exception : SnmpStatusException) : void
+	    // The index in the exception must correspond to 
+	    // the SNMP index ...
+	    //
+	    // We throw the exception in order to abort the SET operation
+	    // in an atomic way.
+	    final int errorCode = exception.getStatus();
+	    final int mappedErrorCode = mapSetException(errorCode,
+							version);
+	    
+	    if (errorCode != mappedErrorCode)
+		throw new 
+		    SnmpStatusException(mappedErrorCode, getVarIndex(var)+1);
+	    else 
+		throw new SnmpStatusException(exception, getVarIndex(var)+1);
+!!!3389339.java!!!	getVersion() : int
+	    return version;
+!!!3389467.java!!!	getRowStatusVarBind() : SnmpVarBind
+	    return statusvb;
+!!!3389595.java!!!	getPdu() : SnmpPdu
+	    return global.getPdu();
+!!!3389723.java!!!	getRequestPduVersion() : int
+	    return global.getRequestPduVersion();
+!!!3389851.java!!!	getEngine() : SnmpEngine
+	    return global.getEngine();
+!!!3389979.java!!!	getPrincipal() : String
+	    return global.getPrincipal();
+!!!3390107.java!!!	getSecurityLevel() : int
+	    return global.getSecurityLevel();
+!!!3390235.java!!!	getSecurityModel() : int
+	    return global.getSecurityModel();
+!!!3390363.java!!!	getContextName() : byte
+	    return global.getContextName();
+!!!3390491.java!!!	getAccessContextName() : byte
+	    return global.getAccessContextName();

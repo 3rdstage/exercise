@@ -1,0 +1,124 @@
+class NamespaceSupport
+!!!5180443.java!!!	NamespaceSupport(inout context : NamespaceContext)
+        pushContext();
+        // copy declaration in the context
+        Enumeration prefixes = context.getAllPrefixes();
+        while (prefixes.hasMoreElements()){
+            String prefix = (String)prefixes.nextElement();
+            String uri = context.getURI(prefix);
+            declarePrefix(prefix, uri);
+        }
+!!!5180571.java!!!	reset() : void
+
+        // reset namespace and context info
+        fNamespaceSize = 0;
+        fCurrentContext = 0;
+        fContext[fCurrentContext] = fNamespaceSize;
+
+        // bind "xml" prefix to the XML uri
+        fNamespace[fNamespaceSize++] = XMLSymbols.PREFIX_XML;
+        fNamespace[fNamespaceSize++] = NamespaceContext.XML_URI;
+        // bind "xmlns" prefix to the XMLNS uri
+        fNamespace[fNamespaceSize++] = XMLSymbols.PREFIX_XMLNS;
+        fNamespace[fNamespaceSize++] = NamespaceContext.XMLNS_URI;
+        ++fCurrentContext;
+
+!!!5180699.java!!!	pushContext() : void
+
+        // extend the array, if necessary
+        if (fCurrentContext + 1 == fContext.length) {
+            int[] contextarray = new int[fContext.length * 2];
+            System.arraycopy(fContext, 0, contextarray, 0, fContext.length);
+            fContext = contextarray;
+        }
+
+        // push context
+        fContext[++fCurrentContext] = fNamespaceSize;
+
+!!!5180827.java!!!	popContext() : void
+        fNamespaceSize = fContext[fCurrentContext--];
+!!!5180955.java!!!	declarePrefix(in prefix : String, in uri : String) : boolean
+        // ignore "xml" and "xmlns" prefixes
+        if (prefix == XMLSymbols.PREFIX_XML || prefix == XMLSymbols.PREFIX_XMLNS) {
+            return false;
+        }
+
+        // see if prefix already exists in current context
+        for (int i = fNamespaceSize; i > fContext[fCurrentContext]; i -= 2) {
+            if (fNamespace[i - 2] == prefix) {
+                // REVISIT: [Q] Should the new binding override the
+                //          previously declared binding or should it
+                //          it be ignored? -Ac
+                // NOTE:    The SAX2 "NamespaceSupport" helper allows
+                //          re-bindings with the new binding overwriting
+                //          the previous binding. -Ac
+                fNamespace[i - 1] = uri;
+                return true;
+            }
+        }
+
+        // resize array, if needed
+        if (fNamespaceSize == fNamespace.length) {
+            String[] namespacearray = new String[fNamespaceSize * 2];
+            System.arraycopy(fNamespace, 0, namespacearray, 0, fNamespaceSize);
+            fNamespace = namespacearray;
+        }
+
+        // bind prefix to uri in current context
+        fNamespace[fNamespaceSize++] = prefix;
+        fNamespace[fNamespaceSize++] = uri;
+
+        return true;
+
+!!!5181083.java!!!	getURI(in prefix : String) : String
+        
+        // find prefix in current context
+        for (int i = fNamespaceSize; i > 0; i -= 2) {
+            if (fNamespace[i - 2] == prefix) {
+                return fNamespace[i - 1];
+            }
+        }
+
+        // prefix not found
+        return null;
+
+!!!5181211.java!!!	getPrefix(in uri : String) : String
+
+        // find uri in current context
+        for (int i = fNamespaceSize; i > 0; i -= 2) {
+            if (fNamespace[i - 1] == uri) {
+                if (getURI(fNamespace[i - 2]) == uri)
+                    return fNamespace[i - 2];
+            }
+        }
+
+        // uri not found
+        return null;
+
+!!!5181339.java!!!	getDeclaredPrefixCount() : int
+        return (fNamespaceSize - fContext[fCurrentContext]) / 2;
+!!!5181467.java!!!	getDeclaredPrefixAt(in index : int) : String
+        return fNamespace[fContext[fCurrentContext] + index * 2];
+!!!5181595.java!!!	getAllPrefixes() : Enumeration
+        int count = 0;
+        if (fPrefixes.length < (fNamespace.length/2)) {
+            // resize prefix array          
+            String[] prefixes = new String[fNamespaceSize];
+            fPrefixes = prefixes;
+        }
+        String prefix = null;
+        boolean unique = true;
+        for (int i = 2; i < (fNamespaceSize-2); i += 2) {
+            prefix = fNamespace[i + 2];            
+            for (int k=0;k<count;k++){
+                if (fPrefixes[k]==prefix){
+                    unique = false;
+                    break;
+                }               
+            }
+            if (unique){
+                fPrefixes[count++] = prefix;
+            }
+            unique = true;
+        }
+		return new Prefixes(fPrefixes, count);

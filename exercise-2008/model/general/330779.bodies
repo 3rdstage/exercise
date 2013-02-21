@@ -1,0 +1,67 @@
+class IORFactories
+!!!1830043.java!!!	makeObjectId(in id : byte) : ObjectId
+	return new ObjectIdImpl( id ) ;
+!!!1830171.java!!!	makeObjectKey(inout oktemp : ObjectKeyTemplate, inout oid : ObjectId) : ObjectKey
+	return new ObjectKeyImpl( oktemp, oid ) ;
+!!!1830299.java!!!	makeIOR(inout orb : ORB, in typeid : String) : IOR
+	return new IORImpl( orb, typeid ) ;
+!!!1830427.java!!!	makeIOR(inout orb : ORB) : IOR
+	return new IORImpl( orb ) ;
+!!!1830555.java!!!	makeIOR(inout is : InputStream) : IOR
+	return new IORImpl( is ) ;
+!!!1830683.java!!!	makeIORTemplate(inout oktemp : ObjectKeyTemplate) : IORTemplate
+	return new IORTemplateImpl( oktemp ) ;
+!!!1830811.java!!!	makeIORTemplate(inout is : InputStream) : IORTemplate
+	return new IORTemplateImpl( is ) ;
+!!!1830939.java!!!	makeIORTemplateList() : IORTemplateList
+	return new IORTemplateListImpl() ;
+!!!1831067.java!!!	makeIORTemplateList(inout is : InputStream) : IORTemplateList
+	return new IORTemplateListImpl( is ) ;
+!!!1831195.java!!!	getIORFactory(inout ort : ObjectReferenceTemplate) : IORFactory
+	if (ort instanceof ObjectReferenceTemplateImpl) {
+	    ObjectReferenceTemplateImpl orti = 
+		(ObjectReferenceTemplateImpl)ort ;
+	    return orti.getIORFactory() ;
+	}
+
+	throw new BAD_PARAM() ;
+!!!1831323.java!!!	getIORTemplateList(inout orf : ObjectReferenceFactory) : IORTemplateList
+	if (orf instanceof ObjectReferenceProducerBase) {
+	    ObjectReferenceProducerBase base =
+		(ObjectReferenceProducerBase)orf ;
+	    return base.getIORTemplateList() ;
+	}
+
+	throw new BAD_PARAM() ;
+!!!1831451.java!!!	makeObjectReferenceTemplate(inout orb : ORB, inout iortemp : IORTemplate) : ObjectReferenceTemplate
+	return new ObjectReferenceTemplateImpl( orb, iortemp ) ;
+!!!1831579.java!!!	makeObjectReferenceFactory(inout orb : ORB, inout iortemps : IORTemplateList) : ObjectReferenceFactory
+	return new ObjectReferenceFactoryImpl( orb, iortemps ) ;
+!!!1831707.java!!!	makeObjectKeyFactory(inout orb : ORB) : ObjectKeyFactory
+	return new ObjectKeyFactoryImpl( orb ) ;
+!!!1831835.java!!!	getIOR(inout obj : Object) : IOR
+	return ORBUtility.getIOR( obj ) ;
+!!!1831963.java!!!	makeObjectReference(inout ior : IOR) : Object
+	return ORBUtility.makeObjectReference( ior ) ;
+!!!1832091.java!!!	registerValueFactories(inout orb : ORB) : void
+	// Create and register the factory for the Object Reference Template
+	// implementation.
+	ValueFactory vf = new ValueFactory() {
+	    public Serializable read_value( InputStream is ) 
+	    {
+		return new ObjectReferenceTemplateImpl( is ) ;
+	    }
+	} ;
+
+	orb.register_value_factory( ObjectReferenceTemplateImpl.repositoryId, vf ) ;
+
+	// Create and register the factory for the Object Reference Factory
+	// implementation.
+	vf = new ValueFactory() {
+	    public Serializable read_value( InputStream is ) 
+	    {
+		return new ObjectReferenceFactoryImpl( is ) ;
+	    }
+	} ;
+
+	orb.register_value_factory( ObjectReferenceFactoryImpl.repositoryId, vf ) ;

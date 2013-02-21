@@ -1,0 +1,152 @@
+class ClassLoaderRepositorySupport
+!!!3172251.java!!!	add(inout name : ObjectName, inout cl : ClassLoader) : boolean
+	List l = new ArrayList(Arrays.asList(loaders));
+	l.add(new LoaderEntry(name, cl));
+	loaders = (LoaderEntry[]) l.toArray(EMPTY_LOADER_ARRAY);
+	return true;
+!!!3172379.java!!!	remove(inout name : ObjectName, inout cl : ClassLoader) : boolean
+	final int size = loaders.length;
+	for (int i = 0; i < size; i++) {
+	    LoaderEntry entry = loaders[i];
+	    boolean match =
+		(name == null) ?
+		cl == entry.loader :
+		name.equals(entry.name);
+	    if (match) {
+		LoaderEntry[] newloaders = new LoaderEntry[size - 1];
+		System.arraycopy(loaders, 0, newloaders, 0, i);
+		System.arraycopy(loaders, i + 1, newloaders, i,
+				 size - 1 - i);
+		loaders = newloaders;
+		return true;
+	    }
+	}
+	return false;
+!!!3172507.java!!!	loadClass(in className : String) : Class
+	return  loadClass(loaders, className, null, null);
+!!!3172635.java!!!	loadClassWithout(inout without : ClassLoader, in className : String) : Class
+	
+	if (isTraceOn()) {
+	    trace("loadClassWithout", className + "\twithout " + without);
+	} 
+
+	// without is null => just behave as loadClass
+	//
+	if (without == null)
+	    return loadClass(loaders, className, null, null);
+	
+	// We must try to load the class without the given loader.
+	//
+	startValidSearch(without, className);
+	try {
+	    return loadClass(loaders, className, without, null);
+	} finally {
+	    stopValidSearch(without, className);
+	}
+!!!3172763.java!!!	loadClassBefore(inout stop : ClassLoader, in className : String) : Class
+	if (isTraceOn())
+	    trace("loadClassBefore", className + "\tbefore " + stop);
+
+	if (stop == null)
+	    return loadClass(loaders, className, null, null);
+
+	startValidSearch(stop, className);
+	try {
+	    return loadClass(loaders, className, null, stop);
+	} finally {
+	    stopValidSearch(stop, className);
+	}
+!!!3172891.java!!!	loadClass(in list : LoaderEntry, in className : String, in without : ClassLoader, in stop : ClassLoader) : Class
+	final int size = list.length;
+        for(int i=0; i<size; i++) {
+	    try {
+		final ClassLoader cl = list[i].loader;
+		if (cl == null) // bootstrap class loader
+		    return Class.forName(className, false, null);
+		if (cl == without)
+		    continue;
+		if (cl == stop)
+		    break;
+		if (isTraceOn()) {
+		    trace("loadClass", "trying loader = " + cl);
+		}
+		/* We used to have a special case for "instanceof
+		   MLet" here, where we invoked the method
+		   loadClass(className, null) to prevent infinite
+		   recursion.  But the rule whereby the MLet only
+		   consults loaders that precede it in the CLR (via
+		   loadClassBefore) means that the recursion can't
+		   happen, and the test here caused some legitimate
+		   classloading to fail.  For example, if you have
+		   dependencies C->D->E with loaders {E D C} in the
+		   CLR in that order, you would expect to be able to
+		   load C.  The problem is that while resolving D, CLR
+		   delegation is disabled, so it can't find E.  */
+		return Class.forName(className, false, cl);
+            } catch (ClassNotFoundException e) {
+		// OK: continue with next class
+	    }
+        }
+
+        throw new ClassNotFoundException(className);
+!!!3173019.java!!!	startValidSearch(inout aloader : ClassLoader, in className : String) : void
+        // Check if we have such a current search
+        //
+        Vector excluded= (Vector) search.get(className);
+        if ((excluded!= null) && (excluded.contains(aloader))) {
+	    if (isTraceOn()) {
+		trace("startValidSearch", "already requested loader=" + 
+		      aloader + " class= " + className);
+	    }            
+            throw new ClassNotFoundException(className);
+        }
+      
+        // Add an entry
+        //
+        if (excluded == null) {
+            excluded= new Vector(1);
+            search.put(className, excluded);
+        }         
+        excluded.addElement(aloader);
+	if (isTraceOn()) {
+	    trace("startValidSearch", "loader=" + aloader + " class= " + 
+		  className);
+	}     
+!!!3173147.java!!!	stopValidSearch(inout aloader : ClassLoader, in className : String) : void
+    
+        // Retrieve the search.
+        //
+        Vector excluded= (Vector) search.get(className);
+        if (excluded!= null) {
+            excluded.removeElement(aloader);
+	    if (isTraceOn()) {
+		trace("stopValidSearch", "loader=" + aloader + 
+		      " class= " + className);
+	    }               
+	}
+!!!3173275.java!!!	addClassLoader(inout loader : ClassLoader) : void
+	add(null, loader);
+!!!3173403.java!!!	removeClassLoader(inout loader : ClassLoader) : void
+	remove(null, loader);
+!!!3173531.java!!!	addClassLoader(inout name : ObjectName, inout loader : ClassLoader) : void
+	loadersWithNames.put(name, loader);
+	if (!(loader instanceof PrivateClassLoader))
+	    add(name, loader);
+!!!3173659.java!!!	removeClassLoader(inout name : ObjectName) : void
+	ClassLoader loader = (ClassLoader) loadersWithNames.remove(name);
+	if (!(loader instanceof PrivateClassLoader))
+	    remove(name, loader);
+!!!3173787.java!!!	getClassLoader(inout name : ObjectName) : ClassLoader
+	return (ClassLoader)loadersWithNames.get(name);
+!!!3173915.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_MBEANSERVER);
+!!!3174043.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_MBEANSERVER,clz,func,info);
+!!!3174171.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!3174299.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_MBEANSERVER);
+!!!3174427.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_MBEANSERVER,clz,func,info);
+!!!3174555.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);

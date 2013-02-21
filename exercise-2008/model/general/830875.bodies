@@ -1,0 +1,46 @@
+class JAXPPrefixResolver
+!!!6032795.java!!!	JAXPPrefixResolver(inout nsContext : NamespaceContext)
+        this.namespaceContext = nsContext;
+!!!6032923.java!!!	getNamespaceForPrefix(in prefix : String) : String
+        return namespaceContext.getNamespaceURI( prefix );
+!!!6033051.java!!!	getBaseIdentifier() : String
+        return null;
+!!!6033179.java!!!	handlesNullPrefixes() : boolean
+        return false;
+!!!6033307.java!!!	getNamespaceForPrefix(in prefix : String, inout namespaceContext : Node) : String
+        Node parent = namespaceContext;
+        String namespace = null;
+
+        if (prefix.equals("xml")) {
+            namespace = S_XMLNAMESPACEURI;
+        } else {
+            int type;
+
+            while ((null != parent) && (null == namespace)
+                && (((type = parent.getNodeType()) == Node.ELEMENT_NODE)
+                    || (type == Node.ENTITY_REFERENCE_NODE))) {
+
+                if (type == Node.ELEMENT_NODE) {
+                    NamedNodeMap nnm = parent.getAttributes();
+
+                    for (int i = 0; i < nnm.getLength(); i++) {
+                        Node attr = nnm.item(i);
+                        String aname = attr.getNodeName();
+                        boolean isPrefix = aname.startsWith("xmlns:");
+
+                        if (isPrefix || aname.equals("xmlns")) {
+                            int index = aname.indexOf(':');
+                            String p =isPrefix ?aname.substring(index + 1) :"";
+
+                            if (p.equals(prefix)) {
+                                namespace = attr.getNodeValue();
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                parent = parent.getParentNode();
+            }
+        }
+        return namespace;

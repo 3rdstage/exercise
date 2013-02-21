@@ -1,0 +1,50 @@
+class UndoableEditSupport
+!!!10072475.java!!!	UndoableEditSupport()
+	this(null);
+!!!10072603.java!!!	UndoableEditSupport(inout r : Object)
+	realSource = r == null ? this : r;
+	updateLevel = 0;
+	compoundEdit = null;
+	listeners = new Vector<UndoableEditListener>();
+!!!10072731.java!!!	addUndoableEditListener(inout l : UndoableEditListener) : void
+	listeners.addElement(l);
+!!!10072859.java!!!	removeUndoableEditListener(inout l : UndoableEditListener) : void
+	listeners.removeElement(l);
+!!!10072987.java!!!	getUndoableEditListeners() : UndoableEditListener
+        return (UndoableEditListener[])(listeners.toArray(
+                new UndoableEditListener[0]));
+!!!10073115.java!!!	_postEdit(inout e : UndoableEdit) : void
+	UndoableEditEvent ev = new UndoableEditEvent(realSource, e);
+	Enumeration cursor = ((Vector)listeners.clone()).elements();
+	while (cursor.hasMoreElements()) {
+	    ((UndoableEditListener)cursor.nextElement()).
+		undoableEditHappened(ev);	    
+	}
+!!!10073243.java!!!	postEdit(inout e : UndoableEdit) : void
+	if (updateLevel == 0) {
+	    _postEdit(e);
+	} else {
+	    // PENDING(rjrjr) Throw an exception if this fails? 
+	    compoundEdit.addEdit(e);
+	}
+!!!10073371.java!!!	getUpdateLevel() : int
+	return updateLevel;
+!!!10073499.java!!!	beginUpdate() : void
+	if (updateLevel == 0) {
+	    compoundEdit = createCompoundEdit();
+	}
+	updateLevel++;
+!!!10073627.java!!!	createCompoundEdit() : CompoundEdit
+	return new CompoundEdit();
+!!!10073755.java!!!	endUpdate() : void
+	updateLevel--;
+	if (updateLevel == 0) {
+	    compoundEdit.end();
+	    _postEdit(compoundEdit);
+	    compoundEdit = null;
+	}
+!!!10073883.java!!!	toString() : String
+	return super.toString() +
+	    " updateLevel: " + updateLevel +
+	    " listeners: " + listeners +
+	    " compoundEdit: " + compoundEdit;

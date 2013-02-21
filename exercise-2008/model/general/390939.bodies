@@ -1,0 +1,94 @@
+class LookAndFeel
+!!!2256667.java!!!	installColors(inout c : JComponent, in defaultBgName : String, in defaultFgName : String) : void
+        Color bg = c.getBackground();
+	if (bg == null || bg instanceof UIResource) {
+	    c.setBackground(UIManager.getColor(defaultBgName));
+	}
+
+        Color fg = c.getForeground();
+	if (fg == null || fg instanceof UIResource) {
+	    c.setForeground(UIManager.getColor(defaultFgName));
+	} 
+!!!2256795.java!!!	installColorsAndFont(inout c : JComponent, in defaultBgName : String, in defaultFgName : String, in defaultFontName : String) : void
+        Font f = c.getFont();
+	if (f == null || f instanceof UIResource) {
+	    c.setFont(UIManager.getFont(defaultFontName));
+	}
+
+	installColors(c, defaultBgName, defaultFgName);
+!!!2256923.java!!!	installBorder(inout c : JComponent, in defaultBorderName : String) : void
+        Border b = c.getBorder();
+        if (b == null || b instanceof UIResource) {
+            c.setBorder(UIManager.getBorder(defaultBorderName));
+        }
+!!!2257051.java!!!	uninstallBorder(inout c : JComponent) : void
+        if (c.getBorder() instanceof UIResource) {
+            c.setBorder(null);
+        }
+!!!2257179.java!!!	installProperty(inout c : JComponent, in propertyName : String, inout propertyValue : Object) : void
+        c.setUIProperty(propertyName, propertyValue);
+!!!2257307.java!!!	makeKeyBindings(inout keyBindingList : Object) : KeyBinding
+	JTextComponent.KeyBinding[] rv = new JTextComponent.KeyBinding[keyBindingList.length / 2];
+
+	for(int i = 0; i < keyBindingList.length; i += 2) {
+	    KeyStroke keystroke = (keyBindingList[i] instanceof KeyStroke)
+		? (KeyStroke)keyBindingList[i]
+		: KeyStroke.getKeyStroke((String)keyBindingList[i]);
+	    String action = (String)keyBindingList[i+1];
+	    rv[i / 2] = new JTextComponent.KeyBinding(keystroke, action);
+	}
+
+	return rv;
+!!!2257435.java!!!	makeInputMap(inout keys : Object) : InputMap
+	InputMap retMap = new InputMapUIResource();
+	loadKeyBindings(retMap, keys);
+	return retMap;
+!!!2257563.java!!!	makeComponentInputMap(inout c : JComponent, inout keys : Object) : ComponentInputMap
+	ComponentInputMap retMap = new ComponentInputMapUIResource(c);
+	loadKeyBindings(retMap, keys);
+	return retMap;
+!!!2257691.java!!!	loadKeyBindings(inout retMap : InputMap, inout keys : Object) : void
+	if (keys != null) {
+	    for (int counter = 0, maxCounter = keys.length;
+		 counter < maxCounter; counter++) {
+		Object keyStrokeO = keys[counter++];
+		KeyStroke ks = (keyStrokeO instanceof KeyStroke) ?
+		                (KeyStroke)keyStrokeO :
+		                KeyStroke.getKeyStroke((String)keyStrokeO);
+		retMap.put(ks, keys[counter]);
+	    }
+	}
+!!!2257819.java!!!	makeIcon(in baseClass : Class, in gifFile : String) : Object
+        return SwingUtilities2.makeIcon(baseClass, baseClass, gifFile);
+!!!2257947.java!!!	provideErrorFeedback(inout component : Component) : void
+	Toolkit toolkit = null;
+	if (component != null) {
+	    toolkit = component.getToolkit();
+	} else {
+	    toolkit = Toolkit.getDefaultToolkit();
+	}
+	toolkit.beep();
+!!!2258075.java!!!	getDesktopPropertyValue(in systemPropertyName : String, inout fallbackValue : Object) : Object
+	Object value = Toolkit.getDefaultToolkit().getDesktopProperty(systemPropertyName);
+	if (value == null) {
+	    return fallbackValue;
+	} else if (value instanceof Color) {
+	    return new ColorUIResource((Color)value);
+	} else if (value instanceof Font) {
+	    return new FontUIResource((Font)value);
+	}
+	return value;
+!!!2258203.java!!!	getDisabledIcon(inout component : JComponent, inout icon : Icon) : Icon
+        if (icon instanceof ImageIcon) {
+            return new IconUIResource(new ImageIcon(GrayFilter.
+                   createDisabledImage(((ImageIcon)icon).getImage())));
+        }
+        return null;
+!!!2258331.java!!!	getDisabledSelectedIcon(inout component : JComponent, inout icon : Icon) : Icon
+        return getDisabledIcon(component, icon);
+!!!2258843.java!!!	getSupportsWindowDecorations() : boolean
+        return false;
+!!!2259483.java!!!	getDefaults() : UIDefaults
+        return null;
+!!!2259611.java!!!	toString() : String
+	return "[" + getDescription() + " - " + getClass().getName() + "]";

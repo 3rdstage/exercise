@@ -1,0 +1,64 @@
+class ObjectAdapterBase
+!!!1318555.java!!!	ObjectAdapterBase(inout orb : ORB)
+	this.orb = orb ;
+	_iorWrapper = POASystemException.get( orb,
+	    CORBALogDomains.OA_IOR ) ;
+	_lifecycleWrapper = POASystemException.get( orb,
+	    CORBALogDomains.OA_LIFECYCLE ) ;
+	_omgLifecycleWrapper = OMGSystemException.get( orb,
+	    CORBALogDomains.OA_LIFECYCLE ) ;
+	_invocationWrapper = POASystemException.get( orb,
+	    CORBALogDomains.OA_INVOCATION ) ;
+	_omgInvocationWrapper = OMGSystemException.get( orb,
+	    CORBALogDomains.OA_INVOCATION ) ;
+!!!1318683.java!!!	iorWrapper() : POASystemException
+	return _iorWrapper ;
+!!!1318811.java!!!	lifecycleWrapper() : POASystemException
+	return _lifecycleWrapper ;
+!!!1318939.java!!!	omgLifecycleWrapper() : OMGSystemException
+	return _omgLifecycleWrapper ;
+!!!1319067.java!!!	invocationWrapper() : POASystemException
+	return _invocationWrapper ;
+!!!1319195.java!!!	omgInvocationWrapper() : OMGSystemException
+	return _omgInvocationWrapper ;
+!!!1319323.java!!!	initializeTemplate(inout oktemp : ObjectKeyTemplate, inout notifyORB : boolean, inout policies : Policies, in codebase : String, in objectAdapterManagerId : String, inout objectAdapterId : ObjectAdapterId) : void
+	adapterId = oktemp.getAdapterId() ;
+
+	iortemp = IORFactories.makeIORTemplate(oktemp) ;
+
+	// This calls acceptors which create profiles and may
+	// add tagged components to those profiles.
+	orb.getCorbaTransportManager().addToIORTemplate(
+            iortemp, policies,
+	    codebase, objectAdapterManagerId, objectAdapterId);
+
+	adapterTemplate = IORFactories.makeObjectReferenceTemplate( orb, 
+	    iortemp ) ;
+	currentFactory = adapterTemplate ;
+
+	if (notifyORB) {
+	    PIHandler pih = orb.getPIHandler() ;
+	    if (pih != null)
+		// This runs the IORInterceptors.
+		pih.objectAdapterCreated( this ) ;
+	}
+
+	iortemp.makeImmutable() ;
+!!!1319451.java!!!	makeObject(in repId : String, in oid : byte) : Object
+	return currentFactory.make_object( repId, oid ) ;
+!!!1319579.java!!!	getAdapterId() : byte
+	return adapterId ;
+!!!1319707.java!!!	getORB() : ORB
+	return orb ;
+!!!1319963.java!!!	getIORTemplate() : IORTemplate
+	return iortemp ;
+!!!1320347.java!!!	getAdapterTemplate() : ObjectReferenceTemplate
+	return adapterTemplate ;
+!!!1320475.java!!!	getCurrentFactory() : ObjectReferenceFactory
+	return currentFactory ;
+!!!1320603.java!!!	setCurrentFactory(inout factory : ObjectReferenceFactory) : void
+	currentFactory = factory ;
+!!!1321499.java!!!	makeInvocationInfo(in objectId : byte) : OAInvocationInfo
+	OAInvocationInfo info = new OAInvocationInfo( this, objectId ) ;
+	info.setCopierFactory( getObjectCopierFactory() ) ;
+	return info ;

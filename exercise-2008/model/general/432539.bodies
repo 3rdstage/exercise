@@ -1,0 +1,139 @@
+class ImageIcon
+!!!8898715.java!!!	ImageIcon(in filename : String, in description : String)
+	image = Toolkit.getDefaultToolkit().getImage(filename);
+        if (image == null) {
+            return;
+        }
+	this.filename = filename; 
+        this.description = description;
+	loadImage(image);
+!!!8898843.java!!!	ImageIcon(in filename : String)
+        this(filename, filename);
+!!!8898971.java!!!	ImageIcon(inout location : URL, in description : String)
+	image = Toolkit.getDefaultToolkit().getImage(location);
+        if (image == null) {
+            return;
+        } 
+	this.location = location; 
+        this.description = description;
+	loadImage(image);
+!!!8899099.java!!!	ImageIcon(inout location : URL)
+        this(location, location.toExternalForm());
+!!!8899227.java!!!	ImageIcon(inout image : Image, in description : String)
+        this(image);
+        this.description = description;
+!!!8899355.java!!!	ImageIcon(inout image : Image)
+	this.image = image;
+        Object o = image.getProperty("comment", imageObserver);
+        if (o instanceof String) {
+            description = (String) o;
+        }
+	loadImage(image);
+!!!8899483.java!!!	ImageIcon(in imageData : byte, in description : String)
+	this.image = Toolkit.getDefaultToolkit().createImage(imageData);
+        if (image == null) {
+            return;
+        }
+        this.description = description;
+	loadImage(image);
+!!!8899611.java!!!	ImageIcon(in imageData : byte)
+	this.image = Toolkit.getDefaultToolkit().createImage(imageData);
+        if (image == null) {
+            return;
+        }
+        Object o = image.getProperty("comment", imageObserver);
+        if (o instanceof String) {
+            description = (String) o;
+        }
+	loadImage(image);
+!!!8899867.java!!!	loadImage(inout image : Image) : void
+	synchronized(tracker) {
+            int id = getNextID();
+
+	    tracker.addImage(image, id);
+	    try {
+		tracker.waitForID(id, 0);
+	    } catch (InterruptedException e) {
+		System.out.println("INTERRUPTED while loading Image");
+	    }
+            loadStatus = tracker.statusID(id, false);
+	    tracker.removeImage(image, id);
+
+	    width = image.getWidth(imageObserver);
+	    height = image.getHeight(imageObserver);
+	}
+!!!8899995.java!!!	getNextID() : int
+        synchronized(tracker) {
+            return ++mediaTrackerID;
+        }
+!!!8900123.java!!!	getImageLoadStatus() : int
+        return loadStatus;
+!!!8900251.java!!!	getImage() : Image
+	return image;
+!!!8900379.java!!!	setImage(inout image : Image) : void
+	this.image = image;
+	loadImage(image);
+!!!8900507.java!!!	getDescription() : String
+	return description;
+!!!8900635.java!!!	setDescription(in description : String) : void
+	this.description = description;
+!!!8900763.java!!!	paintIcon(inout c : Component, inout g : Graphics, in x : int, in y : int) : void
+        if(imageObserver == null) {
+           g.drawImage(image, x, y, c);
+        } else {
+	   g.drawImage(image, x, y, imageObserver);
+        }
+!!!8900891.java!!!	getIconWidth() : int
+	return width;
+!!!8901019.java!!!	getIconHeight() : int
+	return height;
+!!!8901147.java!!!	setImageObserver(inout observer : ImageObserver) : void
+        imageObserver = observer;
+!!!8901275.java!!!	getImageObserver() : ImageObserver
+        return imageObserver;
+!!!8901403.java!!!	toString() : String
+        if (description != null) {
+            return description;
+        }
+        return super.toString();
+!!!8901531.java!!!	readObject(inout s : ObjectInputStream) : void
+	s.defaultReadObject();
+    
+	int w = s.readInt();
+	int h = s.readInt();
+	int[] pixels = (int[])(s.readObject());
+
+        if (pixels != null) {
+	    Toolkit tk = Toolkit.getDefaultToolkit();
+	    ColorModel cm = ColorModel.getRGBdefault();
+	    image = tk.createImage(new MemoryImageSource(w, h, cm, pixels, 0, w));
+	    loadImage(image);
+        } 
+!!!8901659.java!!!	writeObject(inout s : ObjectOutputStream) : void
+	s.defaultWriteObject();
+
+	int w = getIconWidth();
+	int h = getIconHeight();
+	int[] pixels = image != null? new int[w * h] : null;
+
+        if (image != null) {
+	    try {
+	        PixelGrabber pg = new PixelGrabber(image, 0, 0, w, h, pixels, 0, w);
+	        pg.grabPixels();
+	        if ((pg.getStatus() & ImageObserver.ABORT) != 0) {
+		    throw new IOException("failed to load image contents");
+	        }
+	    }
+	    catch (InterruptedException e) {
+	        throw new IOException("image load interrupted");
+	    }
+        }
+    
+	s.writeInt(w);
+	s.writeInt(h);
+	s.writeObject(pixels);
+!!!8901787.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleImageIcon();
+        }
+        return accessibleContext;

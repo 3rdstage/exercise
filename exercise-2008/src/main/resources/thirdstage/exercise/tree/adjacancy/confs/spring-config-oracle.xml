@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.5.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-2.0.xsd">
+
+	<bean id="requiedAnnotationEnabler" class="org.springframework.beans.factory.annotation.RequiredAnnotationBeanPostProcessor">
+		<description>Make @Required annotation enabled</description>
+	</bean>
+
+	<bean id="defaultDataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+		<property name="driverClassName" value="oracle.jdbc.OracleDriver"/>
+		<property name="url" value="jdbc:oracle:thin:@127.0.0.1:1521:XE"/>
+		<property name="username" value="exercise"/>
+		<property name="password" value="exercisedev"/>
+		<property name="defaultAutoCommit" value="true"/>
+		<property name="initialSize" value="3"/>
+		<property name="maxActive" value="3"/>
+		<property name="maxIdle" value="3"/>
+		<property name="minIdle" value="0"/>
+	</bean>
+
+	<bean id="defaultSqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean">
+		<description>SqlMap setup for iBATIS database layer</description>
+		<property name="configLocation" value="classpath:thirdstage/exercise/tree/adjacancy/confs/sqlmap-config-oracle.xml"/>
+		<property name="dataSource" ref="defaultDataSource"/>
+		<property name="useTransactionAwareDataSource" value="true"/>
+		<property name="transactionConfigClass">
+			<value type="java.lang.Class">com.ibatis.sqlmap.engine.transaction.external.ExternalTransactionConfig</value>
+		</property>		
+	</bean>
+
+	<bean id="defaultTxManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="defaultDataSource"/>
+		<property name="defaultTimeout" value="120"/>
+	</bean>
+
+	<tx:annotation-driven 
+		transaction-manager="defaultTxManager"
+		mode="proxy"
+	/>
+	
+	
+	<!-- DAOs -->
+	<bean id="categoryDao" class="thirdstage.exercise.tree.adjacancy.CategoryIBatisDao">
+		<property name="sqlMapClient" ref="defaultSqlMapClient"/>
+	</bean>
+
+</beans>

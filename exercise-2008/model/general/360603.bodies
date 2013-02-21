@@ -1,0 +1,772 @@
+class Font
+!!!6243867.java!!!	getPeer() : FontPeer
+	return getPeer_NoClientCode();
+!!!6243995.java!!!	getPeer_NoClientCode() : FontPeer
+        if(peer == null) {
+            Toolkit tk = Toolkit.getDefaultToolkit();
+            this.peer = tk.getFontPeer(name, style);
+        }
+        return peer;
+!!!6244123.java!!!	getRequestedAttributes() : Hashtable
+	if (fRequestedAttributes == null) {
+	    fRequestedAttributes = new Hashtable(7, (float)0.9);
+            fRequestedAttributes.put(TextAttribute.TRANSFORM,
+				     IDENT_TX_ATTRIBUTE);
+            fRequestedAttributes.put(TextAttribute.FAMILY, name);
+            fRequestedAttributes.put(TextAttribute.SIZE, new Float(size));
+	    fRequestedAttributes.put(TextAttribute.WEIGHT,
+				     (style & BOLD) != 0 ? 
+				     TextAttribute.WEIGHT_BOLD :
+				     TextAttribute.WEIGHT_REGULAR);
+	    fRequestedAttributes.put(TextAttribute.POSTURE,
+				     (style & ITALIC) != 0 ? 
+				     TextAttribute.POSTURE_OBLIQUE :
+				     TextAttribute.POSTURE_REGULAR);
+            fRequestedAttributes.put(TextAttribute.SUPERSCRIPT,
+                                     new Integer(superscript));
+            fRequestedAttributes.put(TextAttribute.WIDTH,
+                                     new Float(width));
+	}
+	return fRequestedAttributes;
+!!!6244251.java!!!	initializeFont(inout attributes : Hashtable) : void
+        if (attributes != null) {
+	    Object obj = attributes.get(TextAttribute.TRANSFORM);
+	    if (obj instanceof TransformAttribute) {
+		nonIdentityTx = !((TransformAttribute)obj).isIdentity();
+	    } else if (obj instanceof AffineTransform) {
+		nonIdentityTx = !((AffineTransform)obj).isIdentity();
+	    }
+
+            obj = attributes.get(TextAttribute.SUPERSCRIPT);
+            if (obj instanceof Integer) {
+                superscript = ((Integer)obj).intValue();
+
+                // !!! always synthesize superscript
+                nonIdentityTx |= superscript != 0;
+            }
+
+            obj = attributes.get(TextAttribute.WIDTH);
+            if (obj instanceof Integer) {
+                width = ((Float)obj).floatValue();
+
+                // !!! always synthesize width
+                nonIdentityTx |= width != 1;
+            }
+        }
+!!!6244379.java!!!	getFont2D() : Font2D
+	if (FontManager.usingPerAppContextComposites &&
+	    font2DHandle != null &&
+	    font2DHandle.font2D instanceof sun.font.CompositeFont &&
+	    ((sun.font.CompositeFont)(font2DHandle.font2D)).isStdComposite()) {
+	    return FontManager.findFont2D(name, style,
+					  FontManager.LOGICAL_FALLBACK);
+	} else if (font2DHandle == null) {
+	    font2DHandle =
+		FontManager.findFont2D(name, style,
+				       FontManager.LOGICAL_FALLBACK).handle;
+	}
+	/* Do not cache the de-referenced font2D. It must be explicitly
+	 * de-referenced to pick up a valid font in the event that the
+	 * original one is marked invalid
+	 */
+	return font2DHandle.font2D;
+!!!6244507.java!!!	getFont2DHandleForCreatedFont() : Font2DHandle
+        if (font2DHandle != null && createdFont &&
+            !(font2DHandle.font2D instanceof sun.font.CompositeFont)) {
+            return font2DHandle;
+        } else {
+            return null;
+        }
+!!!6244635.java!!!	Font(in name : String, in style : int, in size : int)
+	this.name = (name != null) ? name : "Default";
+	this.style = (style & ~0x03) == 0 ? style : 0;
+	this.size = size;
+        this.pointSize = size;
+!!!6244763.java!!!	Font(in name : String, in style : int, in sizePts : float)
+	this.name = (name != null) ? name : "Default";
+	this.style = (style & ~0x03) == 0 ? style : 0;
+	this.size = (int)(sizePts + 0.5);
+        this.pointSize = sizePts;
+!!!6244891.java!!!	Font(inout fontFile : File, in fontFormat : int, inout isCopy : boolean)
+	this.createdFont = true;
+	/* Font2D instances created by this method track their font file
+	 * so that when the Font2D is GC'd it can also remove the file.
+	 */
+	this.font2DHandle =
+	    FontManager.createFont2D(fontFile, fontFormat, isCopy).handle;
+	this.name = this.font2DHandle.font2D.getFontName(Locale.getDefault());
+	this.style = Font.PLAIN;
+	this.size = 1;
+	this.pointSize = 1f;
+!!!6245019.java!!!	Font(inout attributes : Map, inout created : boolean, inout handle : Font2DHandle)
+	this.createdFont = created;
+	/* Fonts created from a stream will use the same font2D instance
+	 * as the parent.
+	 */
+	if (created) {
+	    this.font2DHandle = handle;
+	}
+	initFromMap(attributes);
+!!!6245147.java!!!	Font(inout attributes : Map)
+	initFromMap(attributes);
+!!!6245275.java!!!	initFromMap(inout attributes : Map) : void
+	this.name = "Dialog";
+        this.pointSize = 12;
+        this.size = 12;
+
+        if((attributes != null) &&
+           (!attributes.equals(EMPTY_MAP)))
+        {
+            Object obj;
+            fRequestedAttributes = new Hashtable(attributes);
+            if ((obj = attributes.get(TextAttribute.FAMILY)) != null) {
+                this.name = (String)obj;
+            }
+
+            if ((obj = attributes.get(TextAttribute.WEIGHT)) != null) {
+                if(obj.equals(TextAttribute.WEIGHT_BOLD)) {
+                    this.style |= BOLD;
+                }
+            }
+
+            if ((obj = attributes.get(TextAttribute.POSTURE)) != null) {
+                if(obj.equals(TextAttribute.POSTURE_OBLIQUE)) {
+                    this.style |= ITALIC;
+                }
+            }
+
+            if ((obj = attributes.get(TextAttribute.SIZE)) != null) {
+                this.pointSize = ((Float)obj).floatValue();
+                this.size = (int)(this.pointSize + 0.5);
+            }
+
+            if ((obj = attributes.get(TextAttribute.TRANSFORM)) != null) {
+		if (obj instanceof TransformAttribute) {
+		    nonIdentityTx = !((TransformAttribute)obj).isIdentity();
+		} else if (obj instanceof AffineTransform) {
+		    nonIdentityTx = !((AffineTransform)obj).isIdentity();
+		}
+	    }
+
+            if ((obj = attributes.get(TextAttribute.SUPERSCRIPT)) != null) {
+                if (obj instanceof Integer) {
+                    superscript = ((Integer)obj).intValue();
+                    nonIdentityTx |= superscript != 0;
+                }
+            }
+
+            if ((obj = attributes.get(TextAttribute.WIDTH)) != null) {
+                if (obj instanceof Float) {
+                    width = ((Float)obj).floatValue();
+                    nonIdentityTx |= width != 1;
+                }
+            }
+        }
+!!!6245403.java!!!	getFont(inout attributes : Map) : Font
+        Font font = (Font)attributes.get(TextAttribute.FONT);
+        if (font != null) {
+            return font;
+        }
+
+	return get(new Key(attributes));
+!!!6245531.java!!!	get(inout key : Key) : Font
+	Font f = null;
+	Map cache = (Map)cacheRef.get();
+	if (cache == null) {
+	    cache = new HashMap();
+	    cacheRef = new SoftReference(cache);
+	} else {
+	    f = (Font)cache.get(key);
+	}
+
+	if (f == null) {
+	    f = new Font(key.attrs);
+	    cache.put(key, f);
+	}
+
+	return f;
+!!!6246043.java!!!	createFont(in fontFormat : int, inout fontStream : InputStream) : Font
+
+	if (fontFormat != Font.TRUETYPE_FONT &&
+	    fontFormat != Font.TYPE1_FONT) {
+	    throw new IllegalArgumentException ("font format not recognized");
+	}
+	final InputStream fStream = fontStream;
+	Object ret = java.security.AccessController.doPrivileged(
+	   new java.security.PrivilegedAction() {
+	      public Object run() {
+		  File tFile = null;
+		  try {		    
+		      tFile = File.createTempFile("+~JF", ".tmp", null);
+		      tFile.deleteOnExit();
+		      BufferedInputStream inStream =
+			  new BufferedInputStream(fStream); 
+		      FileOutputStream outStream = new FileOutputStream(tFile);
+		      int bytesRead = 0;
+		      int bufSize = 8192;
+		      byte [] buf = new byte[bufSize]; 
+		      while (bytesRead != -1) {
+			  bytesRead = inStream.read(buf, 0, bufSize);
+			  if (bytesRead != -1) {
+			      outStream.write(buf, 0, bytesRead);
+			  }
+		      }
+		      /* don't close the input stream */
+		      outStream.close();
+		  } catch (IOException e) {
+		      return e;
+		  }
+		  return tFile;
+	      }
+	  });
+
+	if (ret instanceof File) {
+	    return new Font((File)ret, fontFormat, true);
+	} else if (ret instanceof IOException) {
+	    throw (IOException)ret;
+	} else {
+	    throw new FontFormatException("Couldn't access font stream");
+	}
+!!!6246171.java!!!	createFont(in fontFormat : int, inout fontFile : File) : Font
+	if (fontFormat != Font.TRUETYPE_FONT &&
+	    fontFormat != Font.TYPE1_FONT) {
+	    throw new IllegalArgumentException ("font format not recognized");
+	}
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {
+	    FilePermission filePermission =
+			new FilePermission(fontFile.getPath(), "read");
+	    sm.checkPermission(filePermission);
+	}
+	if (!fontFile.canRead()) {
+	    throw new IOException("Can't read " + fontFile);
+	}
+	return new Font(fontFile, fontFormat, false);
+!!!6246299.java!!!	getTransform() : AffineTransform
+	/* The most common case is the identity transform.  Most callers 
+	 * should call isTransformed() first, to decide if they need to
+	 * get the transform, but some may not.  Here we check to see
+	 * if we have a nonidentity transform, and only do the work to
+	 * fetch and/or compute it if so, otherwise we return a new
+	 * identity transform.
+	 *
+	 * Note that the transform is _not_ necessarily the same as 
+	 * the transform passed in as an Attribute in a Map, as the
+	 * transform returned will also reflect the effects of WIDTH and
+	 * SUPERSCRIPT attributes.  Clients who want the actual transform
+	 * need to call getRequestedAttributes.
+	 */
+	if (nonIdentityTx) {
+            AffineTransform at = null;
+	    Object obj = getRequestedAttributes().get(TextAttribute.TRANSFORM);
+	    if (obj != null) {
+		if( obj instanceof TransformAttribute ){
+		    at = ((TransformAttribute)obj).getTransform();
+		}
+		else {
+		    if ( obj instanceof AffineTransform){
+			at = new AffineTransform((AffineTransform)obj);
+		    }
+		}
+	    } else {
+                at = new AffineTransform();
+            }
+            
+            if (superscript != 0) {
+                // can't get ascent and descent here, recursive call to this fn, so use pointsize
+                // let users combine super- and sub-scripting
+                double trans = 0;
+                int n = 0;
+                boolean up = superscript > 0;
+                int sign = up ? -1 : 1;
+                int ss = up ? superscript : -superscript;
+
+                while ((ss & 7) > n) {
+                    int newn = ss & 7;
+                    trans += sign * (ssinfo[newn] - ssinfo[n]);
+                    ss >>= 3;
+                    sign = -sign;
+                    n = newn;
+                }
+                trans *= pointSize;
+                double scale = Math.pow(2./3., n);
+
+                at.preConcatenate(AffineTransform.getTranslateInstance(0, trans));
+                at.scale(scale, scale);
+
+                // note on placement and italics
+                // We preconcatenate the transform because we don't want to translate along
+                // the italic angle, but purely perpendicular to the baseline.  While this
+                // looks ok for superscripts, it can lead subscripts to stack on each other
+                // and bring the following text too close.  The way we deal with potential
+                // collisions that can occur in the case of italics is by adjusting the
+                // horizontal spacing of the adjacent glyphvectors.  Examine the italic
+                // angle of both vectors, if one is non-zero, compute the minimum ascent
+                // and descent, and then the x position at each for each vector along its
+                // italic angle starting from its (offset) baseline.  Compute the difference
+                // between the x positions and use the maximum difference to adjust the
+                // position of the right gv.
+            }
+
+            if (width != 1f) {
+                at.scale(width, 1f);
+            }
+
+            return at;
+        }
+
+        return new AffineTransform();
+!!!6246427.java!!!	getFamily() : String
+	return getFamily_NoClientCode();
+!!!6246555.java!!!	getFamily_NoClientCode() : String
+      return getFamily(Locale.getDefault());
+!!!6246683.java!!!	getFamily(inout l : Locale) : String
+        if (l == null) {
+            throw new NullPointerException("null locale doesn't mean default");
+        }
+	return getFont2D().getFamilyName(l);
+!!!6246811.java!!!	getPSName() : String
+	return getFont2D().getPostscriptName();
+!!!6246939.java!!!	getName() : String
+	return name;
+!!!6247067.java!!!	getFontName() : String
+      return getFontName(Locale.getDefault());
+!!!6247195.java!!!	getFontName(inout l : Locale) : String
+        if (l == null) {
+            throw new NullPointerException("null locale doesn't mean default");
+        }
+	return getFont2D().getFontName(l);
+!!!6247323.java!!!	getStyle() : int
+	return style;
+!!!6247451.java!!!	getSize() : int
+	return size;
+!!!6247579.java!!!	getSize2D() : float
+	return pointSize;
+!!!6247707.java!!!	isPlain() : boolean
+	return style == 0;
+!!!6247835.java!!!	isBold() : boolean
+	return (style & BOLD) != 0;
+!!!6247963.java!!!	isItalic() : boolean
+	return (style & ITALIC) != 0;
+!!!6248091.java!!!	isTransformed() : boolean
+	return nonIdentityTx;
+!!!6248219.java!!!	getFont(in nm : String) : Font
+	return getFont(nm, null);
+!!!6248347.java!!!	decode(in str : String) : Font
+	String fontName = str;
+	String styleName = "";
+	int fontSize = 12;
+	int fontStyle = Font.PLAIN;
+
+        if (str == null) {
+            return new Font("Dialog", fontStyle, fontSize);
+        }
+	
+	int lastHyphen = str.lastIndexOf('-');
+	int lastSpace = str.lastIndexOf(' ');
+	char sepChar = (lastHyphen > lastSpace) ? '-' : ' ';
+	int sizeIndex = str.lastIndexOf(sepChar);
+	int styleIndex = str.lastIndexOf(sepChar, sizeIndex-1);
+	int strlen = str.length();
+
+	if (sizeIndex > 0 && sizeIndex+1 < strlen) {
+	    try {
+		fontSize =
+		    Integer.valueOf(str.substring(sizeIndex+1)).intValue();
+		if (fontSize <= 0) {
+		    fontSize = 12;
+		}
+	    } catch (NumberFormatException e) {
+		/* It wasn't a valid size, if we didn't also find the
+		 * start of the style string perhaps this is the style */
+		styleIndex = sizeIndex;
+		sizeIndex = strlen;
+		if (str.charAt(sizeIndex-1) == sepChar) {
+		    sizeIndex--;
+		}
+	    }
+	}
+
+	if (styleIndex >= 0 && styleIndex+1 < strlen) {
+	    styleName = str.substring(styleIndex+1, sizeIndex);
+	    styleName = styleName.toLowerCase(Locale.ENGLISH);
+	    if (styleName.equals("bolditalic")) {
+		fontStyle = Font.BOLD | Font.ITALIC;
+	    } else if (styleName.equals("italic")) {
+		fontStyle = Font.ITALIC;
+	    } else if (styleName.equals("bold")) {
+		fontStyle = Font.BOLD;
+	    } else if (styleName.equals("plain")) {
+		fontStyle = Font.PLAIN;
+	    } else {
+		/* this string isn't any of the expected styles, so
+		 * assume its part of the font name
+		 */
+		styleIndex = sizeIndex;
+		if (str.charAt(styleIndex-1) == sepChar) {
+		    styleIndex--;
+		}
+	    }
+	    fontName = str.substring(0, styleIndex);
+
+	} else {
+	    int fontEnd = strlen;
+	    if (styleIndex > 0) {
+		fontEnd = styleIndex;
+	    } else if (sizeIndex > 0) {
+		fontEnd = sizeIndex;
+	    }
+	    if (fontEnd > 0 && str.charAt(fontEnd-1) == sepChar) {
+		fontEnd--;
+	    }
+	    fontName = str.substring(0, fontEnd);
+	}
+
+	return new Font(fontName, fontStyle, fontSize);
+!!!6248475.java!!!	getFont(in nm : String, inout font : Font) : Font
+	String str = null;
+	try {
+	    str =System.getProperty(nm);
+	} catch(SecurityException e) {
+	}
+	if (str == null) {
+	    return font;
+	}
+	return decode ( str );
+!!!6248603.java!!!	hashCode() : int
+	return name.hashCode() ^ style ^ size;
+!!!6248731.java!!!	equals(inout obj : Object) : boolean
+        if (obj == this) {
+	    return true;
+        }
+
+	if (obj != null) {
+	  try {
+	    Font font = (Font)obj;
+	    if ((size == font.size) &&
+		(pointSize == font.pointSize) &&
+		(style == font.style) &&
+                (superscript == font.superscript) &&
+                (width == font.width) &&
+		name.equals(font.name)) {
+		
+		double[] thismat = this.getMatrix();
+		double[] thatmat = font.getMatrix();
+	    
+		return thismat[0] == thatmat[0]
+		    && thismat[1] == thatmat[1]
+		    && thismat[2] == thatmat[2]
+		    && thismat[3] == thatmat[3]
+		    && thismat[4] == thatmat[4]
+		    && thismat[5] == thatmat[5];
+	    }
+	  }
+	  catch (ClassCastException e) {
+	  }
+	}
+	return false;
+!!!6248859.java!!!	toString() : String
+	String	strStyle;
+
+	if (isBold()) {
+	    strStyle = isItalic() ? "bolditalic" : "bold";
+	} else {
+	    strStyle = isItalic() ? "italic" : "plain";
+	}
+
+	return getClass().getName() + "[family=" + getFamily() + ",name=" + name + ",style=" +
+	    strStyle + ",size=" + size + "]";
+!!!6248987.java!!!	writeObject(inout s : ObjectOutputStream) : void
+      s.defaultWriteObject();
+!!!6249115.java!!!	readObject(inout s : ObjectInputStream) : void
+      s.defaultReadObject();
+      if (pointSize == 0) {
+		pointSize = (float)size;
+ 	  }
+      width = 1f; // init transient field
+      initializeFont(fRequestedAttributes);
+!!!6249243.java!!!	getNumGlyphs() : int
+	return  getFont2D().getNumGlyphs();
+!!!6249371.java!!!	getMissingGlyphCode() : int
+	return getFont2D().getMissingGlyphCode();
+!!!6249499.java!!!	getMatrix() : double
+        if (matrix == null) {
+	    double ptSize = this.getSize2D();
+	    if (nonIdentityTx) {
+		AffineTransform tx = getTransform();
+		tx.scale(ptSize, ptSize);
+		tx.getMatrix(matrix = new double[6]);
+	    } else {
+		synchronized (Font.class) {
+		    double[] m = cachedMat;
+		    if (m == null || m[0] != ptSize) {
+			cachedMat = m =
+			    new double[] {ptSize, 0, 0, ptSize, 0, 0 };
+		    }
+		    matrix = m;
+		}
+	    }
+        }
+	return matrix;
+!!!6249627.java!!!	getBaselineFor(in c : char) : byte
+	return getFont2D().getBaselineFor(c);
+!!!6249755.java!!!	getAttributes() : Map
+        return (Map<TextAttribute,?>)getRequestedAttributes().clone();
+!!!6249883.java!!!	getAvailableAttributes() : Attribute
+        Attribute attributes[] = {
+            TextAttribute.FAMILY,
+            TextAttribute.WEIGHT,
+            TextAttribute.POSTURE,
+            TextAttribute.SIZE,
+	    TextAttribute.TRANSFORM,
+            TextAttribute.SUPERSCRIPT,
+            TextAttribute.WIDTH,
+        };
+
+        return attributes;
+!!!6250011.java!!!	deriveFont(in style : int, in size : float) : Font
+	Hashtable newAttributes = (Hashtable)getRequestedAttributes().clone();
+	applyStyle(style, newAttributes);
+	applySize(size, newAttributes);
+        return new Font(newAttributes, createdFont, font2DHandle);
+!!!6250139.java!!!	deriveFont(in style : int, inout trans : AffineTransform) : Font
+	Hashtable newAttributes = (Hashtable)getRequestedAttributes().clone();
+	applyStyle(style, newAttributes);
+	applyTransform(trans, newAttributes);
+        return new Font(newAttributes, createdFont, font2DHandle);
+!!!6250267.java!!!	deriveFont(in size : float) : Font
+	Hashtable newAttributes = (Hashtable)getRequestedAttributes().clone();
+	applySize(size, newAttributes);
+        return new Font(newAttributes, createdFont, font2DHandle);
+!!!6250395.java!!!	deriveFont(inout trans : AffineTransform) : Font
+	Hashtable newAttributes = (Hashtable)getRequestedAttributes().clone();
+	applyTransform(trans, newAttributes);
+        return new Font(newAttributes, createdFont, font2DHandle);
+!!!6250523.java!!!	deriveFont(in style : int) : Font
+	Hashtable newAttributes = (Hashtable)getRequestedAttributes().clone();
+	applyStyle(style, newAttributes);
+        return new Font(newAttributes, createdFont, font2DHandle);
+!!!6250651.java!!!	deriveFont(inout attributes : Map) : Font
+	if (attributes == null || attributes.size() == 0) {
+	    return this;
+	}
+
+        Hashtable newAttrs = new Hashtable(getAttributes());
+	Attribute validAttribs[] = getAvailableAttributes();
+	Object obj;
+
+	for(int i = 0; i < validAttribs.length; i++){
+	  if ((obj = attributes.get(validAttribs[i])) != null) {
+	    newAttrs.put(validAttribs[i],obj);
+	  } 
+	}
+        return new Font(newAttrs, createdFont, font2DHandle);
+!!!6250779.java!!!	canDisplay(in c : char) : boolean
+	return getFont2D().canDisplay(c);
+!!!6250907.java!!!	canDisplay(in codePoint : int) : boolean
+	if (!Character.isValidCodePoint(codePoint)) {
+	    throw new IllegalArgumentException("invalid code point: " + Integer.toHexString(codePoint));
+	}
+	return getFont2D().canDisplay(codePoint);
+!!!6251035.java!!!	canDisplayUpTo(in str : String) : int
+        return canDisplayUpTo(new StringCharacterIterator(str), 0,
+            str.length());
+!!!6251163.java!!!	canDisplayUpTo(in text : char, in start : int, in limit : int) : int
+	while (start < limit && canDisplay(text[start])) {
+	    ++start;
+	}
+
+	return start == limit ? -1 : start;
+!!!6251291.java!!!	canDisplayUpTo(inout iter : CharacterIterator, in start : int, in limit : int) : int
+        for (char c = iter.setIndex(start);
+             iter.getIndex() < limit && canDisplay(c);
+             c = iter.next()) {
+        }
+
+	int result = iter.getIndex();
+	return result == limit ? -1 : result;
+!!!6251419.java!!!	getItalicAngle() : float
+	AffineTransform at = (isTransformed()) ? getTransform() : identityTx;
+	return getFont2D().getItalicAngle(this, at, false, false);
+!!!6251547.java!!!	hasUniformLineMetrics() : boolean
+        return false;   // REMIND always safe, but prevents caller optimize
+!!!6251675.java!!!	defaultLineMetrics(inout frc : FontRenderContext) : FontLineMetrics
+        FontLineMetrics flm = null;
+        if (flmref == null
+            || (flm = (FontLineMetrics)flmref.get()) == null
+            || !flm.frc.equals(frc)) {
+            
+            /* The device transform in the frc is not used in obtaining line
+             * metrics, although it probably should be: REMIND find why not?
+             * The font transform is used but its applied in getFontMetrics, so
+             * just pass identity here
+             */
+            float [] metrics = new float[4];
+            getFont2D().getFontMetrics(this, identityTx,
+                                       frc.isAntiAliased(),
+                                       frc.usesFractionalMetrics(),
+                                       metrics);
+            float ascent  = metrics[0];
+            float descent = metrics[1];
+            float leading = metrics[2];
+            float ssOffset = 0;
+            if (superscript != 0) {
+                ssOffset = (float)getTransform().getTranslateY();
+                ascent -= ssOffset;
+                descent += ssOffset;
+            }
+            float height = ascent + descent + leading;
+
+            int baselineIndex = 0; // need real index, assumes roman for everything
+            float[] baselineOffsets = { 0, (descent/2f - ascent) / 2f, -ascent }; // need real baselines eventually
+
+            // !!! desperately need real data here
+            float strikethroughOffset = ssOffset -(metrics[0] / 2.5f);
+            float strikethroughThickness  = (float)(Math.log(pointSize / 4));
+
+            float underlineOffset = ssOffset + strikethroughThickness / 1.5f;
+            float underlineThickness = strikethroughThickness;
+
+            float italicAngle = getItalicAngle();
+
+            CoreMetrics cm = new CoreMetrics(ascent, descent, leading, height,
+                                             baselineIndex, baselineOffsets,
+                                             strikethroughOffset, strikethroughThickness,
+                                             underlineOffset, underlineThickness,
+                                             ssOffset, italicAngle);
+
+            flm = new FontLineMetrics(0, cm, frc);
+            flmref = new SoftReference(flm);
+        }
+
+        return (FontLineMetrics)flm.clone();
+!!!6251803.java!!!	getLineMetrics(in str : String, inout frc : FontRenderContext) : LineMetrics
+        FontLineMetrics flm = defaultLineMetrics(frc);
+        flm.numchars = str.length();
+        return flm;
+!!!6251931.java!!!	getLineMetrics(in str : String, in beginIndex : int, in limit : int, inout frc : FontRenderContext) : LineMetrics
+        FontLineMetrics flm = defaultLineMetrics(frc);
+        int numChars = limit - beginIndex;
+        flm.numchars = (numChars < 0)? 0: numChars;
+        return flm;
+!!!6252059.java!!!	getLineMetrics(in chars : char, in beginIndex : int, in limit : int, inout frc : FontRenderContext) : LineMetrics
+        FontLineMetrics flm = defaultLineMetrics(frc);
+        int numChars = limit - beginIndex;
+        flm.numchars = (numChars < 0)? 0: numChars;
+        return flm;
+!!!6252187.java!!!	getLineMetrics(inout ci : CharacterIterator, in beginIndex : int, in limit : int, inout frc : FontRenderContext) : LineMetrics
+        FontLineMetrics flm = defaultLineMetrics(frc);
+        int numChars = limit - beginIndex;
+        flm.numchars = (numChars < 0)? 0: numChars;
+        return flm;
+!!!6252315.java!!!	getStringBounds(in str : String, inout frc : FontRenderContext) : Rectangle2D
+      char[] array = str.toCharArray();
+      return getStringBounds(array, 0, array.length, frc);
+!!!6252443.java!!!	getStringBounds(in str : String, in beginIndex : int, in limit : int, inout frc : FontRenderContext) : Rectangle2D
+      String substr = str.substring(beginIndex, limit);
+      return getStringBounds(substr, frc);
+!!!6252571.java!!!	getStringBounds(in chars : char, in beginIndex : int, in limit : int, inout frc : FontRenderContext) : Rectangle2D
+      if (beginIndex < 0) {
+	throw new IndexOutOfBoundsException("beginIndex: " + beginIndex);
+      } 
+      if (limit > chars.length) {
+	throw new IndexOutOfBoundsException("limit: " + limit);
+      }
+      if (beginIndex > limit) {
+	throw new IndexOutOfBoundsException("range length: " + (limit - beginIndex));
+      }
+
+      // this code should be in textlayout
+      // quick check for simple text, assume GV ok to use if simple
+
+      boolean simple = true;
+      for (int i = beginIndex; i < limit; ++i) {
+	char c = chars[i];
+	if (c >= '\u0590' && c <= '\u206f') {
+	  simple = false;
+	  break;
+	}
+      }
+      if (simple) {
+	GlyphVector gv = new StandardGlyphVector(this, chars, beginIndex, limit - beginIndex, frc);
+	return gv.getLogicalBounds();
+      } else {
+	// need char array constructor on textlayout
+	String str = new String(chars, beginIndex, limit - beginIndex);
+	TextLayout tl = new TextLayout(str, this, frc);
+	return new Rectangle2D.Float(0, -tl.getAscent(), tl.getAdvance(), tl.getDescent() + tl.getLeading());
+      }
+!!!6252699.java!!!	getStringBounds(inout ci : CharacterIterator, in beginIndex : int, in limit : int, inout frc : FontRenderContext) : Rectangle2D
+      int start = ci.getBeginIndex();
+      int end = ci.getEndIndex();
+
+      if (beginIndex < start) {
+	throw new IndexOutOfBoundsException("beginIndex: " + beginIndex);
+      } 
+      if (limit > end) {
+	throw new IndexOutOfBoundsException("limit: " + limit);
+      }
+      if (beginIndex > limit) {
+	throw new IndexOutOfBoundsException("range length: " + (limit - beginIndex));
+      }
+
+      char[]  arr = new char[limit - beginIndex];
+
+      ci.setIndex(beginIndex);
+      for(int idx = 0; idx < arr.length; idx++) {
+	arr[idx] = ci.current();
+	ci.next();
+      }
+
+      return getStringBounds(arr,0,arr.length,frc);
+!!!6252827.java!!!	getMaxCharBounds(inout frc : FontRenderContext) : Rectangle2D
+        float [] metrics = new float[4]; 
+
+	getFont2D().getFontMetrics(this, frc, metrics);
+
+        return new Rectangle2D.Float(0, -metrics[0],
+                                metrics[3],
+                                metrics[0] + metrics[1] + metrics[2]);
+!!!6252955.java!!!	createGlyphVector(inout frc : FontRenderContext, in str : String) : GlyphVector
+        return (GlyphVector)new StandardGlyphVector(this, str, frc);
+!!!6253083.java!!!	createGlyphVector(inout frc : FontRenderContext, in chars : char) : GlyphVector
+        return (GlyphVector)new StandardGlyphVector(this, chars, frc);
+!!!6253211.java!!!	createGlyphVector(inout frc : FontRenderContext, inout ci : CharacterIterator) : GlyphVector
+        return (GlyphVector)new StandardGlyphVector(this, ci, frc);
+!!!6253339.java!!!	createGlyphVector(inout frc : FontRenderContext, in glyphCodes : int) : GlyphVector
+        return (GlyphVector)new StandardGlyphVector(this, glyphCodes, frc);
+!!!6253467.java!!!	layoutGlyphVector(inout frc : FontRenderContext, in text : char, in start : int, in limit : int, in flags : int) : GlyphVector
+
+      GlyphLayout gl = GlyphLayout.get(null); // !!! no custom layout engines
+      StandardGlyphVector gv = gl.layout(this, frc, text,
+					 start, limit, flags, null);
+      GlyphLayout.done(gl);
+      return gv;
+!!!6253595.java!!!	applyTransform(inout trans : AffineTransform, inout attributes : Map) : void
+	if (trans == null) {
+	    throw new IllegalArgumentException("transform must not be null");
+	}
+	if (trans.isIdentity()) {
+	    attributes.remove(TextAttribute.TRANSFORM);
+	} else {
+	    attributes.put(TextAttribute.TRANSFORM, new TransformAttribute(trans));
+	}
+!!!6253723.java!!!	applyStyle(in style : int, inout attributes : Map) : void
+        if ((style & BOLD) != 0) {
+            attributes.put(TextAttribute.WEIGHT, TextAttribute.WEIGHT_BOLD);
+        } else {
+            attributes.remove(TextAttribute.WEIGHT);
+        }
+
+        if ((style & ITALIC) != 0) {
+            attributes.put(TextAttribute.POSTURE, TextAttribute.POSTURE_OBLIQUE);
+        } else {
+            attributes.remove(TextAttribute.POSTURE);
+        }
+!!!6253851.java!!!	applySize(in size : float, inout attributes : Map) : void
+        attributes.put(TextAttribute.SIZE, new Float(size));
+!!!6254235.java!!!	finalize() : void
+        if (this.peer != null) {
+            pDispose();
+        }
+        super.finalize();

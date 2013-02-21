@@ -1,0 +1,539 @@
+class AccessibleJTable
+!!!9139099.java!!!	AccessibleJTable()
+            super();
+	    JTable.this.addPropertyChangeListener(this);
+            JTable.this.getSelectionModel().addListSelectionListener(this);
+            TableColumnModel tcm = JTable.this.getColumnModel();
+            tcm.addColumnModelListener(this);
+	    tcm.getSelectionModel().addListSelectionListener(this);
+            JTable.this.getModel().addTableModelListener(this);
+            lastSelectedRow = JTable.this.getSelectedRow();
+            lastSelectedCol = JTable.this.getSelectedColumn();
+!!!9139227.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+	    String name = e.getPropertyName();
+	    Object oldValue = e.getOldValue();
+	    Object newValue = e.getNewValue();
+
+	        // re-set tableModel listeners
+	    if (name.compareTo("model") == 0) {
+
+		if (oldValue != null && oldValue instanceof TableModel) {
+		    ((TableModel) oldValue).removeTableModelListener(this);
+		}
+		if (newValue != null && newValue instanceof TableModel) {
+		    ((TableModel) newValue).addTableModelListener(this);
+		}
+
+	        // re-set selectionModel listeners
+	    } else if (name.compareTo("selectionModel") == 0) {
+
+		Object source = e.getSource();
+		if (source == JTable.this) {	// row selection model
+
+		    if (oldValue != null &&
+			oldValue instanceof ListSelectionModel) {
+			((ListSelectionModel) oldValue).removeListSelectionListener(this);
+		    }
+		    if (newValue != null &&
+			newValue instanceof ListSelectionModel) {
+			((ListSelectionModel) newValue).addListSelectionListener(this);
+		    }
+
+		} else if (source == JTable.this.getColumnModel()) {
+
+		    if (oldValue != null &&
+			oldValue instanceof ListSelectionModel) {
+			((ListSelectionModel) oldValue).removeListSelectionListener(this);
+		    }
+		    if (newValue != null &&
+			newValue instanceof ListSelectionModel) {
+			((ListSelectionModel) newValue).addListSelectionListener(this);
+		    }
+
+		} else {
+		  //	    System.out.println("!!! Bug in source of selectionModel propertyChangeEvent");
+		}
+
+	        // re-set columnModel listeners
+		// and column's selection property listener as well
+	    } else if (name.compareTo("columnModel") == 0) {
+
+		if (oldValue != null && oldValue instanceof TableColumnModel) {
+		    TableColumnModel tcm = (TableColumnModel) oldValue;
+		    tcm.removeColumnModelListener(this);
+		    tcm.getSelectionModel().removeListSelectionListener(this);
+		}
+		if (newValue != null && newValue instanceof TableColumnModel) {
+		    TableColumnModel tcm = (TableColumnModel) newValue;
+		    tcm.addColumnModelListener(this);
+		    tcm.getSelectionModel().addListSelectionListener(this);
+		}
+
+	        // re-se cellEditor listeners
+	    } else if (name.compareTo("tableCellEditor") == 0) {
+
+		if (oldValue != null && oldValue instanceof TableCellEditor) {
+		    ((TableCellEditor) oldValue).removeCellEditorListener((CellEditorListener) this);
+		}
+		if (newValue != null && newValue instanceof TableCellEditor) {
+		    ((TableCellEditor) newValue).addCellEditorListener((CellEditorListener) this);
+		}
+	    }
+!!!9140123.java!!!	tableChanged(inout e : TableModelEvent) : void
+           firePropertyChange(AccessibleContext.ACCESSIBLE_VISIBLE_DATA_PROPERTY,
+                              null, null);
+           if (e != null) {
+	       int firstColumn = e.getColumn();
+	       int lastColumn = e.getColumn();
+	       if (firstColumn == TableModelEvent.ALL_COLUMNS) {
+	           firstColumn = 0;
+	           lastColumn = getColumnCount() - 1;
+	       }
+
+	       // Fire a property change event indicating the table model
+	       // has changed.
+	       AccessibleJTableModelChange change =
+	           new AccessibleJTableModelChange(e.getType(),
+					           e.getFirstRow(),
+					           e.getLastRow(),
+					           firstColumn,
+					           lastColumn);
+	       firePropertyChange(AccessibleContext.ACCESSIBLE_TABLE_MODEL_CHANGED,
+			          null, change);
+            }
+!!!9140251.java!!!	tableRowsInserted(inout e : TableModelEvent) : void
+           firePropertyChange(AccessibleContext.ACCESSIBLE_VISIBLE_DATA_PROPERTY,
+                              null, null);
+
+	   // Fire a property change event indicating the table model
+	   // has changed.
+	   int firstColumn = e.getColumn();
+	   int lastColumn = e.getColumn();
+	   if (firstColumn == TableModelEvent.ALL_COLUMNS) {
+	       firstColumn = 0;
+	       lastColumn = getColumnCount() - 1;
+	   }
+	   AccessibleJTableModelChange change =
+	       new AccessibleJTableModelChange(e.getType(),
+					       e.getFirstRow(),
+					       e.getLastRow(),
+					       firstColumn,
+					       lastColumn);
+	   firePropertyChange(AccessibleContext.ACCESSIBLE_TABLE_MODEL_CHANGED,
+			      null, change);
+!!!9140379.java!!!	tableRowsDeleted(inout e : TableModelEvent) : void
+           firePropertyChange(AccessibleContext.ACCESSIBLE_VISIBLE_DATA_PROPERTY,
+                              null, null);
+
+	   // Fire a property change event indicating the table model
+	   // has changed.
+	   int firstColumn = e.getColumn();
+	   int lastColumn = e.getColumn();
+	   if (firstColumn == TableModelEvent.ALL_COLUMNS) {
+	       firstColumn = 0;
+	       lastColumn = getColumnCount() - 1;
+	   }
+	   AccessibleJTableModelChange change =
+	       new AccessibleJTableModelChange(e.getType(),
+					       e.getFirstRow(),
+					       e.getLastRow(),
+					       firstColumn,
+					       lastColumn);
+	   firePropertyChange(AccessibleContext.ACCESSIBLE_TABLE_MODEL_CHANGED,
+			      null, change);
+!!!9140507.java!!!	columnAdded(inout e : TableColumnModelEvent) : void
+           firePropertyChange(AccessibleContext.ACCESSIBLE_VISIBLE_DATA_PROPERTY,
+                              null, null);
+
+	   // Fire a property change event indicating the table model
+	   // has changed.
+	   int type = AccessibleTableModelChange.INSERT;
+	   AccessibleJTableModelChange change =
+	       new AccessibleJTableModelChange(type,
+					       0,
+					       0,
+					       e.getFromIndex(),
+					       e.getToIndex());
+	   firePropertyChange(AccessibleContext.ACCESSIBLE_TABLE_MODEL_CHANGED,
+			      null, change);
+!!!9140635.java!!!	columnRemoved(inout e : TableColumnModelEvent) : void
+           firePropertyChange(AccessibleContext.ACCESSIBLE_VISIBLE_DATA_PROPERTY,
+                              null, null);
+	   // Fire a property change event indicating the table model
+	   // has changed.
+	   int type = AccessibleTableModelChange.DELETE;
+	   AccessibleJTableModelChange change =
+	       new AccessibleJTableModelChange(type,
+					       0,
+					       0,
+					       e.getFromIndex(),
+					       e.getToIndex());
+	   firePropertyChange(AccessibleContext.ACCESSIBLE_TABLE_MODEL_CHANGED,
+			      null, change);
+!!!9140763.java!!!	columnMoved(inout e : TableColumnModelEvent) : void
+           firePropertyChange(AccessibleContext.ACCESSIBLE_VISIBLE_DATA_PROPERTY,
+                              null, null);
+
+	   // Fire property change events indicating the table model
+	   // has changed.
+	   int type = AccessibleTableModelChange.DELETE;
+	   AccessibleJTableModelChange change =
+	       new AccessibleJTableModelChange(type,
+					       0,
+					       0,
+					       e.getFromIndex(),
+					       e.getFromIndex());
+	   firePropertyChange(AccessibleContext.ACCESSIBLE_TABLE_MODEL_CHANGED,
+			      null, change);
+
+	   int type2 = AccessibleTableModelChange.INSERT;
+	   AccessibleJTableModelChange change2 =
+	       new AccessibleJTableModelChange(type2,
+					       0,
+					       0,
+					       e.getToIndex(),
+					       e.getToIndex());
+	   firePropertyChange(AccessibleContext.ACCESSIBLE_TABLE_MODEL_CHANGED,
+			      null, change2);
+!!!9140891.java!!!	columnMarginChanged(inout e : ChangeEvent) : void
+           firePropertyChange(AccessibleContext.ACCESSIBLE_VISIBLE_DATA_PROPERTY,
+                              null, null);
+!!!9141019.java!!!	columnSelectionChanged(inout e : ListSelectionEvent) : void
+            // we should now re-place our TableColumn listener
+!!!9141147.java!!!	editingStopped(inout e : ChangeEvent) : void
+           // it'd be great if we could figure out which cell, and pass that
+           // somehow as a parameter
+           firePropertyChange(AccessibleContext.ACCESSIBLE_VISIBLE_DATA_PROPERTY,
+                              null, null);
+!!!9141275.java!!!	editingCanceled(inout e : ChangeEvent) : void
+            // nothing to report, 'cause nothing changed
+!!!9141403.java!!!	valueChanged(inout e : ListSelectionEvent) : void
+            firePropertyChange(AccessibleContext.ACCESSIBLE_SELECTION_PROPERTY,
+                               Boolean.valueOf(false), Boolean.valueOf(true));
+
+            int selectedRow = JTable.this.getSelectedRow();
+            int selectedCol = JTable.this.getSelectedColumn();
+            if (selectedRow != lastSelectedRow ||
+                selectedCol != lastSelectedCol) {
+                Accessible oldA = getAccessibleAt(lastSelectedRow,
+                                                  lastSelectedCol);
+                Accessible newA = getAccessibleAt(selectedRow, selectedCol);
+                firePropertyChange(AccessibleContext.ACCESSIBLE_ACTIVE_DESCENDANT_PROPERTY,
+                                   oldA, newA);
+                 lastSelectedRow = selectedRow;
+                 lastSelectedCol = selectedCol;
+             }
+!!!9141531.java!!!	getAccessibleSelection() : AccessibleSelection
+            return this;
+!!!9141659.java!!!	getAccessibleRole() : AccessibleRole
+            return AccessibleRole.TABLE;
+!!!9141787.java!!!	getAccessibleAt(inout p : Point) : Accessible
+            int column = columnAtPoint(p);
+            int row = rowAtPoint(p);
+
+            if ((column != -1) && (row != -1)) {
+                TableColumn aColumn = getColumnModel().getColumn(column);
+                TableCellRenderer renderer = aColumn.getCellRenderer();
+                if (renderer == null) {
+                    Class<?> columnClass = getColumnClass(column);
+                    renderer = getDefaultRenderer(columnClass);
+                }
+                Component component = renderer.getTableCellRendererComponent(
+                                  JTable.this, null, false, false,
+                                  row, column);
+                return new AccessibleJTableCell(JTable.this, row, column,
+                      getAccessibleIndexAt(row, column));
+            }
+            return null;
+!!!9141915.java!!!	getAccessibleChildrenCount() : int
+            return (JTable.this.getColumnCount() * JTable.this.getRowCount());
+!!!9142043.java!!!	getAccessibleChild(in i : int) : Accessible
+            if (i < 0 || i >= getAccessibleChildrenCount()) {
+                return null;
+            } else {
+                // children increase across, and then down, for tables
+                // (arbitrary decision)
+                int column = getAccessibleColumnAtIndex(i);
+                int row = getAccessibleRowAtIndex(i);
+
+                TableColumn aColumn = getColumnModel().getColumn(column);
+                TableCellRenderer renderer = aColumn.getCellRenderer();
+                if (renderer == null) {
+                    Class<?> columnClass = getColumnClass(column);
+                    renderer = getDefaultRenderer(columnClass);
+                }
+                Component component = renderer.getTableCellRendererComponent(
+                                  JTable.this, null, false, false,
+                                  row, column);
+                return new AccessibleJTableCell(JTable.this, row, column,
+                      getAccessibleIndexAt(row, column));
+            }
+!!!9142171.java!!!	getAccessibleSelectionCount() : int
+            int rowsSel = JTable.this.getSelectedRowCount();
+            int colsSel = JTable.this.getSelectedColumnCount();
+
+            if (JTable.this.cellSelectionEnabled) { // a contiguous block
+                return rowsSel * colsSel;
+
+            } else {
+                // a column swath and a row swath, with a shared block
+                if (JTable.this.getRowSelectionAllowed() &&
+                    JTable.this.getColumnSelectionAllowed()) {
+                    return rowsSel * JTable.this.getColumnCount() +
+                           colsSel * JTable.this.getRowCount() -
+                           rowsSel * colsSel;
+
+                // just one or more rows in selection
+                } else if (JTable.this.getRowSelectionAllowed()) {
+                    return rowsSel * JTable.this.getColumnCount();
+
+                // just one or more rows in selection
+                } else if (JTable.this.getColumnSelectionAllowed()) {
+                    return colsSel * JTable.this.getRowCount();
+
+                } else {
+                    return 0;    // JTable doesn't allow selections
+                }
+            }
+!!!9142299.java!!!	getAccessibleSelection(in i : int) : Accessible
+            if (i < 0 || i > getAccessibleSelectionCount()) {
+                return (Accessible) null;
+            }
+
+            int rowsSel = JTable.this.getSelectedRowCount();
+            int colsSel = JTable.this.getSelectedColumnCount();
+            int rowIndicies[] = getSelectedRows();
+            int colIndicies[] = getSelectedColumns();
+            int ttlCols = JTable.this.getColumnCount();
+            int ttlRows = JTable.this.getRowCount();
+            int r;
+            int c;
+
+            if (JTable.this.cellSelectionEnabled) { // a contiguous block
+                r = rowIndicies[i / colsSel];
+                c = colIndicies[i % colsSel];
+                return getAccessibleChild((r * ttlCols) + c);
+            } else {
+
+                // a column swath and a row swath, with a shared block
+                if (JTable.this.getRowSelectionAllowed() &&
+                    JTable.this.getColumnSelectionAllowed()) {
+
+                    // Situation:
+                    //   We have a table, like the 6x3 table below,
+                    //   wherein three colums and one row selected
+                    //   (selected cells marked with "*", unselected "0"):
+                    //
+                    //            0 * 0 * * 0
+                    //            * * * * * *
+                    //            0 * 0 * * 0
+                    //
+
+                    // State machine below walks through the array of
+                    // selected rows in two states: in a selected row,
+                    // and not in one; continuing until we are in a row
+                    // in which the ith selection exists.  Then we return
+                    // the appropriate cell.  In the state machine, we
+                    // always do rows above the "current" selected row first,
+                    // then the cells in the selected row.  If we're done
+                    // with the state machine before finding the requested
+                    // selected child, we handle the rows below the last
+                    // selected row at the end.
+                    //
+                    int curIndex = i;
+                    final int IN_ROW = 0;
+                    final int NOT_IN_ROW = 1;
+                    int state = (rowIndicies[0] == 0 ? IN_ROW : NOT_IN_ROW);
+                    int j = 0;
+                    int prevRow = -1;
+                    while (j < rowIndicies.length) {
+                        switch (state) {
+
+                        case IN_ROW:   // on individual row full of selections
+                            if (curIndex < ttlCols) { // it's here!
+                                c = curIndex % ttlCols;
+                                r = rowIndicies[j];
+                                return getAccessibleChild((r * ttlCols) + c);
+                            } else {                               // not here
+                                curIndex -= ttlCols;
+                            }
+                            // is the next row in table selected or not?
+                            if (j + 1 == rowIndicies.length ||
+                                rowIndicies[j] != rowIndicies[j+1] - 1) {
+                                state = NOT_IN_ROW;
+                                prevRow = rowIndicies[j];
+                            }
+                            j++;  // we didn't return earlier, so go to next row
+                            break;
+
+                        case NOT_IN_ROW:  // sparse bunch of rows of selections
+                            if (curIndex <
+                                (colsSel * (rowIndicies[j] -
+                                (prevRow == -1 ? 0 : (prevRow + 1))))) {
+
+                                // it's here!
+                                c = colIndicies[curIndex % colsSel];
+                                r = (j > 0 ? rowIndicies[j-1] + 1 : 0)
+                                    + curIndex / colsSel;
+                                return getAccessibleChild((r * ttlCols) + c);
+                            } else {                               // not here
+                                curIndex -= colsSel * (rowIndicies[j] -
+                                (prevRow == -1 ? 0 : (prevRow + 1)));
+                            }
+                            state = IN_ROW;
+                            break;
+                        }
+                    }
+                    // we got here, so we didn't find it yet; find it in
+                    // the last sparse bunch of rows
+                    if (curIndex <
+                        (colsSel * (ttlRows -
+                        (prevRow == -1 ? 0 : (prevRow + 1))))) { // it's here!
+                        c = colIndicies[curIndex % colsSel];
+                        r = rowIndicies[j-1] + curIndex / colsSel + 1;
+                        return getAccessibleChild((r * ttlCols) + c);
+                    } else {                               // not here
+                        // we shouldn't get to this spot in the code!
+//                      System.out.println("Bug in AccessibleJTable.getAccessibleSelection()");
+                    }
+
+                // one or more rows selected
+                } else if (JTable.this.getRowSelectionAllowed()) {
+                    c = i % ttlCols;
+                    r = rowIndicies[i / ttlCols];
+                    return getAccessibleChild((r * ttlCols) + c);
+
+                // one or more columns selected
+                } else if (JTable.this.getColumnSelectionAllowed()) {
+                    c = colIndicies[i % colsSel];
+                    r = i / colsSel;
+                    return getAccessibleChild((r * ttlCols) + c);
+                }
+            }
+            return (Accessible) null;
+!!!9142427.java!!!	isAccessibleChildSelected(in i : int) : boolean
+            int column = getAccessibleColumnAtIndex(i);
+            int row = getAccessibleRowAtIndex(i);
+            return JTable.this.isCellSelected(row, column);
+!!!9142555.java!!!	addAccessibleSelection(in i : int) : void
+	    // TIGER - 4495286
+	    int column = getAccessibleColumnAtIndex(i);
+	    int row = getAccessibleRowAtIndex(i);
+	    JTable.this.changeSelection(row, column, true, false);
+!!!9142683.java!!!	removeAccessibleSelection(in i : int) : void
+            if (JTable.this.cellSelectionEnabled) {
+                int column = getAccessibleColumnAtIndex(i);
+                int row = getAccessibleRowAtIndex(i);
+                JTable.this.removeRowSelectionInterval(row, row);
+                JTable.this.removeColumnSelectionInterval(column, column);
+            }
+!!!9142811.java!!!	clearAccessibleSelection() : void
+            JTable.this.clearSelection();
+!!!9142939.java!!!	selectAllAccessibleSelection() : void
+            if (JTable.this.cellSelectionEnabled) {
+                JTable.this.selectAll();
+            }
+!!!9143067.java!!!	getAccessibleRow(in index : int) : int
+	    return getAccessibleRowAtIndex(index);
+!!!9143195.java!!!	getAccessibleColumn(in index : int) : int
+	    return getAccessibleColumnAtIndex(index);
+!!!9143323.java!!!	getAccessibleIndex(in r : int, in c : int) : int
+	    return getAccessibleIndexAt(r, c);
+!!!9143451.java!!!	getAccessibleTable() : AccessibleTable
+            return this;
+!!!9143579.java!!!	getAccessibleCaption() : Accessible
+	    return this.caption;
+!!!9143707.java!!!	setAccessibleCaption(inout a : Accessible) : void
+	    Accessible oldCaption = caption;
+	    this.caption = a;
+	    firePropertyChange(AccessibleContext.ACCESSIBLE_TABLE_CAPTION_CHANGED,
+			       oldCaption, this.caption);
+!!!9143835.java!!!	getAccessibleSummary() : Accessible
+	    return this.summary;
+!!!9143963.java!!!	setAccessibleSummary(inout a : Accessible) : void
+	    Accessible oldSummary = summary;
+	    this.summary = a;
+	    firePropertyChange(AccessibleContext.ACCESSIBLE_TABLE_SUMMARY_CHANGED,
+			       oldSummary, this.summary);
+!!!9144091.java!!!	getAccessibleRowCount() : int
+            return JTable.this.getRowCount();
+!!!9144219.java!!!	getAccessibleColumnCount() : int
+            return JTable.this.getColumnCount();
+!!!9144347.java!!!	getAccessibleAt(in r : int, in c : int) : Accessible
+            return getAccessibleChild((r * getAccessibleColumnCount()) + c);
+!!!9144475.java!!!	getAccessibleRowExtentAt(in r : int, in c : int) : int
+	    return 1;
+!!!9144603.java!!!	getAccessibleColumnExtentAt(in r : int, in c : int) : int
+	    return 1;
+!!!9144731.java!!!	getAccessibleRowHeader() : AccessibleTable
+	    // row headers are not supported
+	    return null;
+!!!9144859.java!!!	setAccessibleRowHeader(inout a : AccessibleTable) : void
+	    // row headers are not supported
+!!!9144987.java!!!	getAccessibleColumnHeader() : AccessibleTable
+            JTableHeader header = JTable.this.getTableHeader();
+            return header == null ? null : new AccessibleTableHeader(header);
+!!!9148059.java!!!	setAccessibleColumnHeader(inout a : AccessibleTable) : void
+	    // XXX not implemented
+!!!9148187.java!!!	getAccessibleRowDescription(in r : int) : Accessible
+	    if (r < 0 || r >= getAccessibleRowCount()) {
+		throw new IllegalArgumentException(new Integer(r).toString());
+	    }
+	    if (rowDescription == null) {
+		return null;
+	    } else {
+		return rowDescription[r];
+	    }
+!!!9148315.java!!!	setAccessibleRowDescription(in r : int, inout a : Accessible) : void
+	    if (r < 0 || r >= getAccessibleRowCount()) {
+		throw new IllegalArgumentException(new Integer(r).toString());
+	    }
+	    if (rowDescription == null) {
+		int numRows = getAccessibleRowCount();
+		rowDescription = new Accessible[numRows];
+	    }
+	    rowDescription[r] = a;
+!!!9148443.java!!!	getAccessibleColumnDescription(in c : int) : Accessible
+	    if (c < 0 || c >= getAccessibleColumnCount()) {
+		throw new IllegalArgumentException(new Integer(c).toString());
+	    }
+	    if (columnDescription == null) {
+		return null;
+	    } else {
+		return columnDescription[c];
+	    }
+!!!9148571.java!!!	setAccessibleColumnDescription(in c : int, inout a : Accessible) : void
+	    if (c < 0 || c >= getAccessibleColumnCount()) {
+		throw new IllegalArgumentException(new Integer(c).toString());
+	    }
+	    if (columnDescription == null) {
+		int numColumns = getAccessibleColumnCount();
+		columnDescription = new Accessible[numColumns];
+	    }
+	    columnDescription[c] = a;
+!!!9148699.java!!!	isAccessibleSelected(in r : int, in c : int) : boolean
+	    return JTable.this.isCellSelected(r, c);
+!!!9148827.java!!!	isAccessibleRowSelected(in r : int) : boolean
+	    return JTable.this.isRowSelected(r);
+!!!9148955.java!!!	isAccessibleColumnSelected(in c : int) : boolean
+	    return JTable.this.isColumnSelected(c);
+!!!9149083.java!!!	getSelectedAccessibleRows() : int
+	    return JTable.this.getSelectedRows();
+!!!9149211.java!!!	getSelectedAccessibleColumns() : int
+	    return JTable.this.getSelectedColumns();
+!!!9149339.java!!!	getAccessibleRowAtIndex(in i : int) : int
+	    int columnCount = getAccessibleColumnCount();
+	    if (columnCount == 0) {
+		return -1;
+	    } else {
+		return (i / columnCount);
+	    }
+!!!9149467.java!!!	getAccessibleColumnAtIndex(in i : int) : int
+	    int columnCount = getAccessibleColumnCount();
+	    if (columnCount == 0) {
+		return -1;
+	    } else {
+		return (i % columnCount);
+	    }
+!!!9149595.java!!!	getAccessibleIndexAt(in r : int, in c : int) : int
+            return ((r * getAccessibleColumnCount()) + c);

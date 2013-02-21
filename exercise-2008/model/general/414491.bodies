@@ -1,0 +1,166 @@
+class BasicDesktopPaneUI
+!!!2450971.java!!!	createUI(inout c : JComponent) : ComponentUI
+        return new BasicDesktopPaneUI();
+!!!2451227.java!!!	getCurrentFramesCache() : Vector
+        synchronized (BasicDesktopPaneUI.class) {
+            AppContext appContext = AppContext.getAppContext();
+            Vector framesCache = (Vector) appContext.get(FRAMES_CACHE_KEY);
+            if(framesCache == null) {
+                framesCache = new Vector();
+                appContext.put(FRAMES_CACHE_KEY,framesCache);
+            }
+            return framesCache;
+        }
+!!!2451355.java!!!	installUI(inout c : JComponent) : void
+	desktop = (JDesktopPane)c;
+	installDefaults();
+	installDesktopManager();
+        installListeners();
+	installKeyboardActions();
+!!!2451483.java!!!	uninstallUI(inout c : JComponent) : void
+	uninstallKeyboardActions();
+        uninstallListeners();
+	uninstallDesktopManager();
+        uninstallDefaults();
+	desktop = null;
+        handler = null;
+!!!2451611.java!!!	installDefaults() : void
+	if (desktop.getBackground() == null || 
+	    desktop.getBackground() instanceof UIResource) {
+	    desktop.setBackground(UIManager.getColor("Desktop.background"));
+	}
+        LookAndFeel.installProperty(desktop, "opaque", Boolean.TRUE);
+!!!2451867.java!!!	installListeners() : void
+        pcl = createPropertyChangeListener();
+        desktop.addPropertyChangeListener(pcl);
+!!!2451995.java!!!	uninstallListeners() : void
+        desktop.removePropertyChangeListener(pcl);
+        pcl = null;
+!!!2452123.java!!!	installDesktopManager() : void
+        desktopManager = desktop.getDesktopManager();
+	if(desktopManager == null) {
+	    desktopManager = new BasicDesktopManager();
+	    desktop.setDesktopManager(desktopManager);
+	}
+!!!2452251.java!!!	uninstallDesktopManager() : void
+	if(desktop.getDesktopManager() instanceof UIResource) {
+	    desktop.setDesktopManager(null);
+	}
+	desktopManager = null;
+!!!2452379.java!!!	installKeyboardActions() : void
+	InputMap inputMap = getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+	if (inputMap != null) {
+	    SwingUtilities.replaceUIInputMap(desktop,
+			JComponent.WHEN_IN_FOCUSED_WINDOW, inputMap);
+	}
+	inputMap = getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+	if (inputMap != null) {
+	    SwingUtilities.replaceUIInputMap(desktop,
+			JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT,
+			inputMap);
+	}
+
+        LazyActionMap.installLazyActionMap(desktop, BasicDesktopPaneUI.class,
+                "DesktopPane.actionMap");
+	registerKeyboardActions();
+!!!2452763.java!!!	getInputMap(in condition : int) : InputMap
+	if (condition == JComponent.WHEN_IN_FOCUSED_WINDOW) {
+	    return createInputMap(condition);
+	}
+	else if (condition == JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT) {
+	    return (InputMap)DefaultLookup.get(desktop, this,
+                    "Desktop.ancestorInputMap");
+	}
+	return null;
+!!!2452891.java!!!	createInputMap(in condition : int) : InputMap
+	if (condition == JComponent.WHEN_IN_FOCUSED_WINDOW) {
+	    Object[] bindings = (Object[])DefaultLookup.get(desktop,
+                    this, "Desktop.windowBindings");
+
+	    if (bindings != null) {
+		return LookAndFeel.makeComponentInputMap(desktop, bindings);
+	    }
+	}
+	return null;
+!!!2453019.java!!!	loadActionMap(inout map : LazyActionMap) : void
+        map.put(new Actions(Actions.RESTORE));
+        map.put(new Actions(Actions.CLOSE));
+        map.put(new Actions(Actions.MOVE));
+        map.put(new Actions(Actions.RESIZE));
+        map.put(new Actions(Actions.LEFT));
+        map.put(new Actions(Actions.SHRINK_LEFT));
+        map.put(new Actions(Actions.RIGHT));
+        map.put(new Actions(Actions.SHRINK_RIGHT));
+        map.put(new Actions(Actions.UP));
+        map.put(new Actions(Actions.SHRINK_UP));
+        map.put(new Actions(Actions.DOWN));
+        map.put(new Actions(Actions.SHRINK_DOWN));
+        map.put(new Actions(Actions.ESCAPE));
+        map.put(new Actions(Actions.MINIMIZE));
+        map.put(new Actions(Actions.MAXIMIZE));
+        map.put(new Actions(Actions.NEXT_FRAME));
+        map.put(new Actions(Actions.PREVIOUS_FRAME));
+        map.put(new Actions(Actions.NAVIGATE_NEXT));
+        map.put(new Actions(Actions.NAVIGATE_PREVIOUS));
+!!!2453147.java!!!	uninstallKeyboardActions() : void
+ 
+      unregisterKeyboardActions();
+      SwingUtilities.replaceUIInputMap(desktop, JComponent.
+				     WHEN_IN_FOCUSED_WINDOW, null);
+      SwingUtilities.replaceUIInputMap(desktop, JComponent.
+				     WHEN_ANCESTOR_OF_FOCUSED_COMPONENT, null);
+      SwingUtilities.replaceUIActionMap(desktop, null);
+!!!2453403.java!!!	getPreferredSize(inout c : JComponent) : Dimension
+return null;
+!!!2453531.java!!!	getMinimumSize(inout c : JComponent) : Dimension
+	return minSize;
+!!!2453659.java!!!	getMaximumSize(inout c : JComponent) : Dimension
+	return maxSize;
+!!!2453787.java!!!	createPropertyChangeListener() : PropertyChangeListener
+        return getHandler();
+!!!2453915.java!!!	getHandler() : Handler
+        if (handler == null) {
+            handler = new Handler();
+        }
+        return handler;
+!!!2461723.java!!!	verifyFramesCache(inout dp : JDesktopPane) : void
+        Vector framesCache = getCurrentFramesCache();
+	// Check whether any internal frames have closed in
+	// which case we have to refresh the frames cache.
+       	boolean framesHaveClosed = false;
+	int len = framesCache.size();
+	for (int i = 0; i < len; i++) {
+	    JComponent c = 
+		(JComponent)framesCache.elementAt(i);
+	    if (c instanceof JInternalFrame) {
+		JInternalFrame f = (JInternalFrame)c;
+		if (f.isClosed()) {
+		    framesHaveClosed = true;
+		    break;
+		}
+	    }
+	    else if (c instanceof JInternalFrame.JDesktopIcon) {
+		JInternalFrame.JDesktopIcon icon = 
+		    (JInternalFrame.JDesktopIcon)c;
+		JInternalFrame f = (JInternalFrame)icon.getInternalFrame();
+		if (f.isClosed()) {
+		    framesHaveClosed = true;
+		    break;
+		}
+	    }
+	} 
+       	JInternalFrame [] allFrames = dp.getAllFrames();
+       	if (framesHaveClosed || allFrames.length != framesCache.size()) {
+	    // Cache frames starting at the lowest layer.
+	    framesCache.clear();
+	    int low = dp.lowestLayer();
+	    int high = dp.highestLayer();
+	    for (int i = high; i >= low; i--) {
+		Component [] comp = dp.getComponentsInLayer(i);
+		if (comp.length > 0) {
+		    for (int j = 0; j < comp.length; j++) {
+			framesCache.addElement(comp[j]);
+		    }
+		}
+	    }
+       	}

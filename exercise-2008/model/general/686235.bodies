@@ -1,0 +1,226 @@
+class DOMAdapter
+!!!4616091.java!!!	DOMAdapter(inout dom : DOM, in namesArray : String, in urisArray : String, in typesArray : int, in namespaceArray : String)
+        if (dom instanceof DOMEnhancedForDTM){
+            _enhancedDOM = (DOMEnhancedForDTM) dom;
+        }
+
+        _dom = dom;
+        _namesArray = namesArray;
+        _urisArray = urisArray;
+        _typesArray = typesArray;
+        _namespaceArray = namespaceArray;
+!!!4616219.java!!!	setupMapping(in names : String, in urisArray : String, in typesArray : int, in namespaces : String) : void
+        _namesArray = names;
+        _urisArray = urisArray;
+        _typesArray = typesArray;
+        _namespaceArray = namespaces;
+!!!4616347.java!!!	getNamesArray() : String
+        return _namesArray;
+!!!4616475.java!!!	getUrisArray() : String
+    	return _urisArray;
+!!!4616603.java!!!	getTypesArray() : int
+    	return _typesArray;
+!!!4616731.java!!!	getNamespaceArray() : String
+        return _namespaceArray;
+!!!4616859.java!!!	getDOMImpl() : DOM
+    	return _dom;
+!!!4616987.java!!!	getMapping() : short
+        if (_mapping == null) {
+            if (_enhancedDOM != null) {
+                _mapping = _enhancedDOM.getMapping(_namesArray, _urisArray,
+                                                   _typesArray);
+            } 
+        }
+        return _mapping;
+!!!4617115.java!!!	getReverse() : int
+	if (_reverse == null) {
+            if (_enhancedDOM != null) {
+	        _reverse = _enhancedDOM.getReverseMapping(_namesArray,
+                                                          _urisArray,
+                                                          _typesArray);
+            }
+	}
+	return _reverse;
+!!!4617243.java!!!	getNSMapping() : short
+	if (_NSmapping == null) {
+            if (_enhancedDOM != null) {
+	        _NSmapping = _enhancedDOM.getNamespaceMapping(_namespaceArray);
+            }
+	}
+	return _NSmapping;
+!!!4617371.java!!!	getNSReverse() : short
+	if (_NSreverse == null) {
+            if (_enhancedDOM != null) {
+	        _NSreverse = _enhancedDOM
+                                  .getReverseNamespaceMapping(_namespaceArray);
+            }
+	}
+	return _NSreverse;
+!!!4617499.java!!!	getIterator() : DTMAxisIterator
+        return _dom.getIterator();
+!!!4617627.java!!!	getStringValue() : String
+        return _dom.getStringValue();
+!!!4617755.java!!!	getChildren(in node : int) : DTMAxisIterator
+        if (_enhancedDOM != null) {
+            return _enhancedDOM.getChildren(node);
+        }
+        else {
+            DTMAxisIterator iterator = _dom.getChildren(node);
+            return iterator.setStartNode(node);
+        }
+!!!4617883.java!!!	setFilter(inout filter : StripFilter) : void
+	_filter = filter;
+!!!4618011.java!!!	getTypedChildren(in type : int) : DTMAxisIterator
+        final int[] reverse = getReverse();
+
+        if (_enhancedDOM != null) {
+            return _enhancedDOM.getTypedChildren(reverse[type]);
+        }
+        else {
+            return _dom.getTypedChildren(type);
+        }      
+!!!4618139.java!!!	getNamespaceAxisIterator(in axis : int, in ns : int) : DTMAxisIterator
+        return _dom.getNamespaceAxisIterator(axis, getNSReverse()[ns]);
+!!!4618267.java!!!	getAxisIterator(in axis : int) : DTMAxisIterator
+        if (_enhancedDOM != null) {
+            return _enhancedDOM.getAxisIterator(axis);
+        }
+        else {
+            return _dom.getAxisIterator(axis);
+        }        
+!!!4618395.java!!!	getTypedAxisIterator(in axis : int, in type : int) : DTMAxisIterator
+        final int[] reverse = getReverse();
+        if (_enhancedDOM != null) {
+            return _enhancedDOM.getTypedAxisIterator(axis, reverse[type]);
+        } else {
+            return _dom.getTypedAxisIterator(axis, type);
+        }      
+!!!4618523.java!!!	getMultiDOMMask() : int
+	return _multiDOMMask;
+!!!4618651.java!!!	setMultiDOMMask(in mask : int) : void
+	_multiDOMMask = mask;
+!!!4618779.java!!!	getNthDescendant(in type : int, in n : int, inout includeself : boolean) : DTMAxisIterator
+        return _dom.getNthDescendant(getReverse()[type], n, includeself);
+!!!4618907.java!!!	getNodeValueIterator(inout iterator : DTMAxisIterator, in type : int, in value : String, inout op : boolean) : DTMAxisIterator
+        return _dom.getNodeValueIterator(iterator, type, value, op);
+!!!4619035.java!!!	orderNodes(inout source : DTMAxisIterator, in node : int) : DTMAxisIterator
+        return _dom.orderNodes(source, node);
+!!!4619163.java!!!	getExpandedTypeID(in node : int) : int
+        if (_enhancedDOM != null) {
+            return getMapping()[_enhancedDOM.getExpandedTypeID2(node)];
+        }
+        else {
+            return getMapping()[_dom.getExpandedTypeID(node)];
+        }
+!!!4619291.java!!!	getNamespaceType(in node : int) : int
+    	return getNSMapping()[_dom.getNSType(node)];
+!!!4619419.java!!!	getNSType(in node : int) : int
+	return _dom.getNSType(node);
+!!!4619547.java!!!	getParent(in node : int) : int
+        return _dom.getParent(node);
+!!!4619675.java!!!	getAttributeNode(in type : int, in element : int) : int
+	return _dom.getAttributeNode(getReverse()[type], element);
+!!!4619803.java!!!	getNodeName(in node : int) : String
+    	if (node == DTM.NULL) {
+    	    return "";
+    	}
+        return _dom.getNodeName(node);
+!!!4619931.java!!!	getNodeNameX(in node : int) : String
+    	if (node == DTM.NULL) {
+    	    return "";
+    	}
+        return _dom.getNodeNameX(node);
+!!!4620059.java!!!	getNamespaceName(in node : int) : String
+    	if (node == DTM.NULL) {
+    	    return "";
+    	}
+        return _dom.getNamespaceName(node);
+!!!4620187.java!!!	getStringValueX(in node : int) : String
+    	
+    	if (_enhancedDOM != null) {
+            return _enhancedDOM.getStringValueX(node);
+        }
+        else {
+            if (node == DTM.NULL) {
+    	        return "";
+    	    }
+            return _dom.getStringValueX(node);
+        }
+!!!4620315.java!!!	copy(in node : int, inout handler : SerializationHandler) : void
+        _dom.copy(node, handler);
+!!!4620443.java!!!	copy(inout nodes : DTMAxisIterator, inout handler : SerializationHandler) : void
+	_dom.copy(nodes, handler);
+!!!4620571.java!!!	shallowCopy(in node : int, inout handler : SerializationHandler) : String
+        if (_enhancedDOM != null) {
+            return _enhancedDOM.shallowCopy(node, handler);
+        }
+        else {
+            return _dom.shallowCopy(node, handler);
+        }
+!!!4620699.java!!!	lessThan(in node1 : int, in node2 : int) : boolean
+        return _dom.lessThan(node1, node2);
+!!!4620827.java!!!	characters(in textNode : int, inout handler : SerializationHandler) : void
+        if (_enhancedDOM != null) {
+            _enhancedDOM.characters(textNode, handler);
+        }
+        else {
+            _dom.characters(textNode, handler);
+        }
+!!!4620955.java!!!	makeNode(in index : int) : Node
+        return _dom.makeNode(index);
+!!!4621083.java!!!	makeNode(inout iter : DTMAxisIterator) : Node
+        return _dom.makeNode(iter);
+!!!4621211.java!!!	makeNodeList(in index : int) : NodeList
+        return _dom.makeNodeList(index);
+!!!4621339.java!!!	makeNodeList(inout iter : DTMAxisIterator) : NodeList
+        return _dom.makeNodeList(iter);
+!!!4621467.java!!!	getLanguage(in node : int) : String
+        return _dom.getLanguage(node);
+!!!4621595.java!!!	getSize() : int
+        return _dom.getSize();
+!!!4621723.java!!!	setDocumentURI(in uri : String) : void
+        if (_enhancedDOM != null) {
+            _enhancedDOM.setDocumentURI(uri);
+        }
+!!!4621851.java!!!	getDocumentURI() : String
+        if (_enhancedDOM != null) {
+            return _enhancedDOM.getDocumentURI();
+        }
+        else {
+            return "";
+        }
+!!!4621979.java!!!	getDocumentURI(in node : int) : String
+        return _dom.getDocumentURI(node);
+!!!4622107.java!!!	getDocument() : int
+        return _dom.getDocument();
+!!!4622235.java!!!	isElement(in node : int) : boolean
+        return(_dom.isElement(node));
+!!!4622363.java!!!	isAttribute(in node : int) : boolean
+        return(_dom.isAttribute(node));
+!!!4622491.java!!!	getNodeIdent(in nodeHandle : int) : int
+    	return _dom.getNodeIdent(nodeHandle);
+!!!4622619.java!!!	getNodeHandle(in nodeId : int) : int
+    	return _dom.getNodeHandle(nodeId);
+!!!4622747.java!!!	getResultTreeFrag(in initSize : int, in rtfType : int) : DOM
+    	if (_enhancedDOM != null) {
+    	    return _enhancedDOM.getResultTreeFrag(initSize, rtfType);
+    	}
+    	else {
+    	    return _dom.getResultTreeFrag(initSize, rtfType);
+    	}
+!!!4622875.java!!!	getResultTreeFrag(in initSize : int, in rtfType : int, inout addToManager : boolean) : DOM
+    	if (_enhancedDOM != null) {
+    	    return _enhancedDOM.getResultTreeFrag(initSize, rtfType,
+                                                  addToManager);
+    	}
+    	else {
+	    return _dom.getResultTreeFrag(initSize, rtfType, addToManager);
+	}
+!!!4623003.java!!!	getOutputDomBuilder() : SerializationHandler
+    	return _dom.getOutputDomBuilder();
+!!!4623131.java!!!	lookupNamespace(in node : int, in prefix : String) : String
+	return _dom.lookupNamespace(node, prefix);
+!!!4623259.java!!!	getUnparsedEntityURI(in entity : String) : String
+        return _dom.getUnparsedEntityURI(entity);
+!!!4623387.java!!!	getElementsWithIDs() : Hashtable
+        return _dom.getElementsWithIDs();

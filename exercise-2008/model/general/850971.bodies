@@ -1,0 +1,108 @@
+class Button
+!!!6160539.java!!!	Button()
+	this("");
+!!!6160667.java!!!	Button(in label : String)
+        GraphicsEnvironment.checkHeadless();
+	this.label = label;
+!!!6160795.java!!!	constructComponentName() : String
+        synchronized (getClass()) {
+	    return base + nameCounter++;
+	}
+!!!6160923.java!!!	addNotify() : void
+        synchronized(getTreeLock()) {
+	    if (peer == null) 
+	        peer = getToolkit().createButton(this);
+	    super.addNotify();
+	}
+!!!6161051.java!!!	getLabel() : String
+	return label;
+!!!6161179.java!!!	setLabel(in label : String) : void
+        boolean testvalid = false;
+
+	synchronized (this) {
+	    if (label != this.label && (this.label == null ||
+					!this.label.equals(label))) {
+	        this.label = label;
+		ButtonPeer peer = (ButtonPeer)this.peer;
+		if (peer != null) {
+		    peer.setLabel(label);
+		}
+		testvalid = true;
+	    }
+	}
+
+	// This could change the preferred size of the Component.
+	if (testvalid && valid) {
+	    invalidate();
+	}
+!!!6161307.java!!!	setActionCommand(in command : String) : void
+        actionCommand = command;
+!!!6161435.java!!!	getActionCommand() : String
+        return (actionCommand == null? label : actionCommand);
+!!!6161563.java!!!	addActionListener(inout l : ActionListener) : void
+	if (l == null) {
+	    return;
+	}
+	actionListener = AWTEventMulticaster.add(actionListener, l);
+        newEventsOnly = true;
+!!!6161691.java!!!	removeActionListener(inout l : ActionListener) : void
+	if (l == null) {
+	    return;
+	}
+	actionListener = AWTEventMulticaster.remove(actionListener, l);
+!!!6161819.java!!!	getActionListeners() : ActionListener
+        return (ActionListener[]) (getListeners(ActionListener.class));
+!!!6161947.java!!!	getListeners(inout listenerType : Class) : T
+	EventListener l = null;
+	if  (listenerType == ActionListener.class) { 
+	    l = actionListener;
+	} else {
+	    return super.getListeners(listenerType);
+	}
+	return AWTEventMulticaster.getListeners(l, listenerType);
+!!!6162075.java!!!	eventEnabled(inout e : AWTEvent) : boolean
+        if (e.id == ActionEvent.ACTION_PERFORMED) {
+            if ((eventMask & AWTEvent.ACTION_EVENT_MASK) != 0 ||
+                actionListener != null) {
+                return true;
+            }
+            return false;
+        }
+        return super.eventEnabled(e);
+!!!6162203.java!!!	processEvent(inout e : AWTEvent) : void
+        if (e instanceof ActionEvent) {
+            processActionEvent((ActionEvent)e);
+            return;
+        }
+	super.processEvent(e);
+!!!6162331.java!!!	processActionEvent(inout e : ActionEvent) : void
+        ActionListener listener = actionListener;
+        if (listener != null) {
+            listener.actionPerformed(e);
+        }
+!!!6162459.java!!!	paramString() : String
+	return super.paramString() + ",label=" + label;
+!!!6162587.java!!!	writeObject(inout s : ObjectOutputStream) : void
+      s.defaultWriteObject();
+
+      AWTEventMulticaster.save(s, actionListenerK, actionListener);
+      s.writeObject(null);
+!!!6162715.java!!!	readObject(inout s : ObjectInputStream) : void
+      GraphicsEnvironment.checkHeadless();
+      s.defaultReadObject();
+
+      Object keyOrNull;
+      while(null != (keyOrNull = s.readObject())) {
+	String key = ((String)keyOrNull).intern();
+
+	if (actionListenerK == key)
+	  addActionListener((ActionListener)(s.readObject()));
+
+	else // skip value for unrecognized key
+	  s.readObject();
+      }
+!!!6162843.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleAWTButton();
+        }
+        return accessibleContext;

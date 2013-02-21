@@ -1,0 +1,37 @@
+class GeneralPathIterator
+!!!6549915.java!!!	GeneralPathIterator(inout path : GeneralPath)
+	this(path, null);
+!!!6550043.java!!!	GeneralPathIterator(inout path : GeneralPath, inout at : AffineTransform)
+        this.path = path;
+	this.affine = at;
+!!!6550171.java!!!	getWindingRule() : int
+	return path.getWindingRule();
+!!!6550299.java!!!	isDone() : boolean
+        return (typeIdx >= path.numTypes);
+!!!6550427.java!!!	next() : void
+	int type = path.pointTypes[typeIdx++];
+	pointIdx += curvesize[type];
+!!!6550555.java!!!	currentSegment(in coords : float) : int
+	int type = path.pointTypes[typeIdx];
+	int numCoords = curvesize[type];
+	if (numCoords > 0 && affine != null) {
+	    affine.transform(path.pointCoords, pointIdx,
+			     coords, 0,
+			     numCoords / 2);
+	} else {
+	    System.arraycopy(path.pointCoords, pointIdx, coords, 0, numCoords);
+	}
+        return type;
+!!!6550683.java!!!	currentSegment(in coords : double) : int
+	int type = path.pointTypes[typeIdx];
+	int numCoords = curvesize[type];
+	if (numCoords > 0 && affine != null) {
+	    affine.transform(path.pointCoords, pointIdx,
+			     coords, 0,
+			     numCoords / 2);
+	} else {
+	    for (int i=0; i < numCoords; i++) {
+		coords[i] = path.pointCoords[pointIdx + i];
+	    }
+	}
+        return type;

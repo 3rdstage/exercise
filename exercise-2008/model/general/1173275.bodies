@@ -1,0 +1,122 @@
+class MetalToolTipUI
+!!!9558427.java!!!	MetalToolTipUI()
+        super();
+!!!9558555.java!!!	createUI(inout c : JComponent) : ComponentUI
+        return sharedInstance;
+!!!9558683.java!!!	installUI(inout c : JComponent) : void
+        super.installUI(c);
+        tip = (JToolTip)c;
+	Font f = c.getFont();
+	smallFont = new Font( f.getName(), f.getStyle(), f.getSize() - 2 );
+	acceleratorDelimiter = UIManager.getString( "MenuItem.acceleratorDelimiter" );
+	if ( acceleratorDelimiter == null ) { acceleratorDelimiter = "-"; }
+!!!9558811.java!!!	uninstallUI(inout c : JComponent) : void
+        super.uninstallUI(c);
+        tip = null;
+!!!9558939.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        JToolTip tip = (JToolTip)c;
+
+	super.paint(g, c);
+
+        Font font = c.getFont();
+        FontMetrics metrics = SwingUtilities2.getFontMetrics(c, g, font);
+	String keyText = getAcceleratorString(tip);
+	String tipText = tip.getTipText();
+	if (tipText == null) {
+	    tipText = "";
+	}
+	if (! (keyText.equals(""))) {  // only draw control key if there is one
+	    g.setFont(smallFont);
+	    g.setColor( MetalLookAndFeel.getPrimaryControlDarkShadow() );
+	    SwingUtilities2.drawString(tip, g, keyText,
+                         SwingUtilities2.stringWidth(
+                         tip, metrics, tipText) + padSpaceBetweenStrings, 
+		         2 + metrics.getAscent());
+	}
+!!!9559067.java!!!	getPreferredSize(inout c : JComponent) : Dimension
+	Dimension d = super.getPreferredSize(c);
+
+	String key = getAcceleratorString((JToolTip)c);
+	if (! (key.equals(""))) {
+            FontMetrics fm = c.getFontMetrics(smallFont);	
+	    d.width += SwingUtilities2.stringWidth(c, fm, key) +
+                            padSpaceBetweenStrings;
+	}
+        return d;
+!!!9559195.java!!!	isAcceleratorHidden() : boolean
+        Boolean b = (Boolean)UIManager.get("ToolTip.hideAccelerator");
+        return b != null && b.booleanValue();
+!!!9559323.java!!!	getAcceleratorString(inout tip : JToolTip) : String
+        this.tip = tip;
+
+        String retValue = getAcceleratorString();
+
+        this.tip = null;
+        return retValue;
+!!!9559451.java!!!	getAcceleratorString() : String
+        if (tip == null || isAcceleratorHidden()) {
+            return "";
+        }
+        JComponent comp = tip.getComponent();
+	if (comp == null) {
+	    return "";
+	}
+
+	KeyStroke[] keys;
+
+	if (comp instanceof JTabbedPane) {
+	  TabbedPaneUI ui = ( (JTabbedPane)(comp) ).getUI();
+	  if (ui instanceof MetalTabbedPaneUI) {		
+	    // if comp is instance of JTabbedPane and have 'metal' look-and-feel
+	    // detect tab the mouse is over now
+	    int rolloverTabIndex = ( (MetalTabbedPaneUI)ui ).getRolloverTabIndex();
+       	    if  (rolloverTabIndex == -1)
+    	      keys = new KeyStroke[0];
+    	    else {
+    	      // detect mnemonic for this tab
+    	      int mnemonic = ((JTabbedPane)comp).getMnemonicAt(rolloverTabIndex);
+    	      if (mnemonic == -1)
+ 	        keys = new KeyStroke[0];
+ 	      else {
+ 	        // and store it as mnemonic for the component
+                KeyStroke keyStroke = KeyStroke.getKeyStroke(mnemonic, Event.ALT_MASK);
+                keys = new KeyStroke[1];
+                keys[0] = keyStroke;
+              }
+            }
+          }
+          else
+            keys = comp.getRegisteredKeyStrokes();
+        }
+	else
+	  keys = comp.getRegisteredKeyStrokes();
+
+	String controlKeyStr = "";
+
+	for (int i = 0; i < keys.length; i++) {
+	  int mod = keys[i].getModifiers();
+	  int condition =  comp.getConditionForKeyStroke(keys[i]);
+
+	  if ( condition == JComponent.WHEN_IN_FOCUSED_WINDOW )
+	  {
+	      controlKeyStr = KeyEvent.getKeyModifiersText(mod) +
+                              acceleratorDelimiter +
+                              KeyEvent.getKeyText(keys[i].getKeyCode());
+	      break;
+	  }
+	}
+
+	/* Special case for menu item since they do not register a
+	   keyboard action for their mnemonics and they always use Alt */
+	if ( controlKeyStr.equals("") && comp instanceof JMenuItem )
+	{
+	    int mnemonic = ((JMenuItem) comp).getMnemonic();
+	    if ( mnemonic != 0 )
+	    {
+	        controlKeyStr =
+                    KeyEvent.getKeyModifiersText(KeyEvent.ALT_MASK) +
+                    acceleratorDelimiter + (char)mnemonic;
+	    }
+	}
+
+	return controlKeyStr;

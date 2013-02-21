@@ -1,0 +1,101 @@
+class terminal_set
+!!!3107483.java!!!	terminal_set()
+ 
+      /* allocate the bitset at what is probably the right size */
+      _elements = new BitSet(terminal.number());
+!!!3107611.java!!!	terminal_set(inout other : terminal_set)
+      not_null(other);
+      _elements = (BitSet)other._elements.clone();
+!!!3107739.java!!!	not_null(inout obj : Object) : void
+      if (obj == null) 
+	throw new internal_error("Null object used in set operation");
+!!!3107867.java!!!	empty() : boolean
+      return equals(EMPTY);
+!!!3107995.java!!!	contains(inout sym : terminal) : boolean
+      not_null(sym); 
+      return _elements.get(sym.index());
+!!!3108123.java!!!	contains(in indx : int) : boolean
+      return _elements.get(indx);
+!!!3108251.java!!!	is_subset_of(inout other : terminal_set) : boolean
+      not_null(other);
+
+      /* make a copy of the other set */
+      BitSet copy_other = (BitSet)other._elements.clone();
+
+      /* and or in */
+      copy_other.or(_elements);
+
+      /* if it hasn't changed, we were a subset */
+      return copy_other.equals(other._elements);
+!!!3108379.java!!!	is_superset_of(inout other : terminal_set) : boolean
+      not_null(other);
+      return other.is_subset_of(this);
+!!!3108507.java!!!	add(inout sym : terminal) : boolean
+      boolean result;
+
+      not_null(sym); 
+
+      /* see if we already have this */ 
+      result = _elements.get(sym.index());
+
+      /* if not we add it */
+      if (!result)
+	_elements.set(sym.index());
+
+      return result;
+!!!3108635.java!!!	remove(inout sym : terminal) : void
+      not_null(sym); 
+      _elements.clear(sym.index());
+!!!3108763.java!!!	add(inout other : terminal_set) : boolean
+      not_null(other);
+
+      /* make a copy */
+      BitSet copy = (BitSet)_elements.clone();
+
+      /* or in the other set */
+      _elements.or(other._elements);
+
+      /* changed if we are not the same as the copy */
+      return !_elements.equals(copy);
+!!!3108891.java!!!	intersects(inout other : terminal_set) : boolean
+       not_null(other);
+
+       /* make a copy of the other set */
+       BitSet copy = (BitSet)other._elements.clone();
+
+       /* xor out our values */
+       copy.xor(this._elements);
+
+       /* see if its different */
+       return !copy.equals(other._elements);
+!!!3109019.java!!!	equals(inout other : terminal_set) : boolean
+      if (other == null) 
+	return false;
+      else
+	return _elements.equals(other._elements);
+!!!3109147.java!!!	equals(inout other : Object) : boolean
+      if (!(other instanceof terminal_set))
+	return false;
+      else
+	return equals((terminal_set)other);
+!!!3109275.java!!!	toString() : String
+      String result;
+      boolean comma_flag;
+      
+      result = "{";
+      comma_flag = false;
+      for (int t = 0; t < terminal.number(); t++)
+	{
+	  if (_elements.get(t))
+	    {
+	      if (comma_flag)
+	        result += ", ";
+	      else
+	        comma_flag = true;
+
+	      result += terminal.find(t).name();
+	    }
+	}
+      result += "}";
+
+      return result;

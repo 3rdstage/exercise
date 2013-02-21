@@ -1,0 +1,1329 @@
+class Character
+!!!6579099.java!!!	Character(in value : char)
+        this.value = value;
+!!!6579355.java!!!	valueOf(in c : char) : Character
+	if(c <= 127) { // must cache
+	    return CharacterCache.cache[(int)c];
+	}
+        return new Character(c);
+!!!6579483.java!!!	charValue() : char
+        return value;
+!!!6579611.java!!!	hashCode() : int
+        return (int)value;
+!!!6579739.java!!!	equals(inout obj : Object) : boolean
+        if (obj instanceof Character) {
+            return value == ((Character)obj).charValue();
+        }
+        return false;
+!!!6579867.java!!!	toString() : String
+        char buf[] = {value};
+        return String.valueOf(buf);
+!!!6579995.java!!!	toString(in c : char) : String
+        return String.valueOf(c);
+!!!6580123.java!!!	getPlane(in ch : int) : int
+        return (ch >>> 16);
+!!!6580251.java!!!	isValidCodePoint(in codePoint : int) : boolean
+        return codePoint >= MIN_CODE_POINT && codePoint <= MAX_CODE_POINT;
+!!!6580379.java!!!	isSupplementaryCodePoint(in codePoint : int) : boolean
+        return codePoint >= MIN_SUPPLEMENTARY_CODE_POINT
+            && codePoint <= MAX_CODE_POINT;
+!!!6580507.java!!!	isHighSurrogate(in ch : char) : boolean
+        return ch >= MIN_HIGH_SURROGATE && ch <= MAX_HIGH_SURROGATE;
+!!!6580635.java!!!	isLowSurrogate(in ch : char) : boolean
+        return ch >= MIN_LOW_SURROGATE && ch <= MAX_LOW_SURROGATE;
+!!!6580763.java!!!	isSurrogatePair(in high : char, in low : char) : boolean
+        return isHighSurrogate(high) && isLowSurrogate(low);
+!!!6580891.java!!!	charCount(in codePoint : int) : int
+        return codePoint >= MIN_SUPPLEMENTARY_CODE_POINT? 2 : 1;
+!!!6581019.java!!!	toCodePoint(in high : char, in low : char) : int
+        return ((high - MIN_HIGH_SURROGATE) << 10)
+            + (low - MIN_LOW_SURROGATE) + MIN_SUPPLEMENTARY_CODE_POINT;
+!!!6581147.java!!!	codePointAt(inout seq : CharSequence, in index : int) : int
+        char c1 = seq.charAt(index++);
+        if (isHighSurrogate(c1)) {
+            if (index < seq.length()) {
+                char c2 = seq.charAt(index);
+                if (isLowSurrogate(c2)) {
+                    return toCodePoint(c1, c2);
+                }
+            }
+        }
+        return c1;
+!!!6581275.java!!!	codePointAt(in a : char, in index : int) : int
+	return codePointAtImpl(a, index, a.length);
+!!!6581403.java!!!	codePointAt(in a : char, in index : int, in limit : int) : int
+	if (index >= limit || limit < 0 || limit > a.length) {
+	    throw new IndexOutOfBoundsException();
+	}
+	return codePointAtImpl(a, index, limit);
+!!!6581531.java!!!	codePointAtImpl(in a : char, in index : int, in limit : int) : int
+        char c1 = a[index++];
+        if (isHighSurrogate(c1)) {
+            if (index < limit) {
+                char c2 = a[index];
+                if (isLowSurrogate(c2)) {
+                    return toCodePoint(c1, c2);
+                }
+            }
+        }
+        return c1;
+!!!6581659.java!!!	codePointBefore(inout seq : CharSequence, in index : int) : int
+        char c2 = seq.charAt(--index);
+        if (isLowSurrogate(c2)) {
+            if (index > 0) {
+                char c1 = seq.charAt(--index);
+                if (isHighSurrogate(c1)) {
+                    return toCodePoint(c1, c2);
+                }
+            }
+        }
+        return c2;
+!!!6581787.java!!!	codePointBefore(in a : char, in index : int) : int
+        return codePointBeforeImpl(a, index, 0);
+!!!6581915.java!!!	codePointBefore(in a : char, in index : int, in start : int) : int
+	if (index <= start || start < 0 || start >= a.length) {
+	    throw new IndexOutOfBoundsException();
+	}
+	return codePointBeforeImpl(a, index, start);
+!!!6582043.java!!!	codePointBeforeImpl(in a : char, in index : int, in start : int) : int
+        char c2 = a[--index];
+        if (isLowSurrogate(c2)) {
+            if (index > start) {
+                char c1 = a[--index];
+                if (isHighSurrogate(c1)) {
+                    return toCodePoint(c1, c2);
+                }
+            }
+        }
+        return c2;
+!!!6582171.java!!!	toChars(in codePoint : int, in dst : char, in dstIndex : int) : int
+        if (codePoint < 0 || codePoint > MAX_CODE_POINT) {
+            throw new IllegalArgumentException();
+        }
+        if (codePoint < MIN_SUPPLEMENTARY_CODE_POINT) {
+            dst[dstIndex] = (char) codePoint;
+            return 1;
+        }
+        toSurrogates(codePoint, dst, dstIndex);
+        return 2;
+!!!6582299.java!!!	toChars(in codePoint : int) : char
+        if (codePoint < 0 || codePoint > MAX_CODE_POINT) {
+            throw new IllegalArgumentException();
+        }
+        if (codePoint < MIN_SUPPLEMENTARY_CODE_POINT) {
+                return new char[] { (char) codePoint };
+        }
+        char[] result = new char[2];
+        toSurrogates(codePoint, result, 0);
+        return result;
+!!!6582427.java!!!	toSurrogates(in codePoint : int, in dst : char, in index : int) : void
+        int offset = codePoint - MIN_SUPPLEMENTARY_CODE_POINT;
+        dst[index+1] = (char)((offset & 0x3ff) + MIN_LOW_SURROGATE);
+        dst[index] = (char)((offset >>> 10) + MIN_HIGH_SURROGATE);
+!!!6582555.java!!!	codePointCount(inout seq : CharSequence, in beginIndex : int, in endIndex : int) : int
+	int length = seq.length();
+	if (beginIndex < 0 || endIndex > length || beginIndex > endIndex) {
+	    throw new IndexOutOfBoundsException();
+	}
+	int n = 0;
+	for (int i = beginIndex; i < endIndex; ) {
+	    n++;
+	    if (isHighSurrogate(seq.charAt(i++))) {
+		if (i < endIndex && isLowSurrogate(seq.charAt(i))) {
+		    i++;
+		}
+	    }
+	}
+	return n;
+!!!6582683.java!!!	codePointCount(in a : char, in offset : int, in count : int) : int
+	if (count > a.length - offset || offset < 0 || count < 0) {
+	    throw new IndexOutOfBoundsException();
+	}
+	return codePointCountImpl(a, offset, count);
+!!!6582811.java!!!	codePointCountImpl(in a : char, in offset : int, in count : int) : int
+	int endIndex = offset + count;
+	int n = 0;
+	for (int i = offset; i < endIndex; ) {
+	    n++;
+	    if (isHighSurrogate(a[i++])) {
+		if (i < endIndex && isLowSurrogate(a[i])) {
+		    i++;
+		}
+	    }
+	}
+	return n;
+!!!6582939.java!!!	offsetByCodePoints(inout seq : CharSequence, in index : int, in codePointOffset : int) : int
+	int length = seq.length();
+	if (index < 0 || index > length) {
+	    throw new IndexOutOfBoundsException();
+	}
+
+	int x = index;
+	if (codePointOffset >= 0) {
+	    int i;
+	    for (i = 0; x < length && i < codePointOffset; i++) {
+		if (isHighSurrogate(seq.charAt(x++))) {
+		    if (x < length && isLowSurrogate(seq.charAt(x))) {
+			x++;
+		    }
+		}
+	    }
+	    if (i < codePointOffset) {
+		throw new IndexOutOfBoundsException();
+	    }
+	} else {
+	    int i;
+	    for (i = codePointOffset; x > 0 && i < 0; i++) {
+		if (isLowSurrogate(seq.charAt(--x))) {
+		    if (x > 0 && isHighSurrogate(seq.charAt(x-1))) {
+			x--;
+		    }
+		}
+	    }
+	    if (i < 0) {
+		throw new IndexOutOfBoundsException();
+	    }
+	}
+	return x;
+!!!6583067.java!!!	offsetByCodePoints(in a : char, in start : int, in count : int, in index : int, in codePointOffset : int) : int
+	if (count > a.length-start || start < 0 || count < 0
+	    || index < start || index > start+count) {
+	    throw new IndexOutOfBoundsException();
+	}
+	return offsetByCodePointsImpl(a, start, count, index, codePointOffset);
+!!!6583195.java!!!	offsetByCodePointsImpl(in a : char, in start : int, in count : int, in index : int, in codePointOffset : int) : int
+	int x = index;
+	if (codePointOffset >= 0) {
+	    int limit = start + count;
+	    int i;
+	    for (i = 0; x < limit && i < codePointOffset; i++) {
+		if (isHighSurrogate(a[x++])) {
+		    if (x < limit && isLowSurrogate(a[x])) {
+			x++;
+		    }
+		}
+	    }
+	    if (i < codePointOffset) {
+		throw new IndexOutOfBoundsException();
+	    }
+	} else {
+	    int i;
+	    for (i = codePointOffset; x > start && i < 0; i++) {
+		if (isLowSurrogate(a[--x])) {
+		    if (x > start && isHighSurrogate(a[x-1])) {
+			x--;
+		    }
+		}
+	    } 
+	    if (i < 0) {
+		throw new IndexOutOfBoundsException();
+	    }
+	}
+	return x;
+!!!6583323.java!!!	isLowerCase(in ch : char) : boolean
+        return isLowerCase((int)ch);
+!!!6583451.java!!!	isLowerCase(in codePoint : int) : boolean
+        boolean bLowerCase = false;
+
+        // codePoint must be in the valid range of codepoints
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            bLowerCase = CharacterDataLatin1.isLowerCase(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                bLowerCase = CharacterData00.isLowerCase(codePoint);
+                break;
+            case(1):
+                bLowerCase = CharacterData01.isLowerCase(codePoint);
+                break;
+            case(2):
+                bLowerCase = CharacterData02.isLowerCase(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                bLowerCase = CharacterDataUndefined.isLowerCase(codePoint);
+                break;
+            case(14): 
+                bLowerCase = CharacterData0E.isLowerCase(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                bLowerCase = CharacterDataPrivateUse.isLowerCase(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // bLowerCase remains false
+                break;
+            }
+        }
+        return bLowerCase;
+!!!6583579.java!!!	isUpperCase(in ch : char) : boolean
+        return isUpperCase((int)ch);
+!!!6583707.java!!!	isUpperCase(in codePoint : int) : boolean
+        boolean bUpperCase = false;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            bUpperCase = CharacterDataLatin1.isUpperCase(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                bUpperCase = CharacterData00.isUpperCase(codePoint);
+                break;
+            case(1):
+                bUpperCase = CharacterData01.isUpperCase(codePoint);
+                break;
+            case(2):
+                bUpperCase = CharacterData02.isUpperCase(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                bUpperCase = CharacterDataUndefined.isUpperCase(codePoint);
+                break;
+            case(14):
+                bUpperCase = CharacterData0E.isUpperCase(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                bUpperCase = CharacterDataPrivateUse.isUpperCase(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // bUpperCase remains false;
+                break;
+            }
+        }
+        return bUpperCase;
+!!!6583835.java!!!	isTitleCase(in ch : char) : boolean
+        return isTitleCase((int)ch);
+!!!6583963.java!!!	isTitleCase(in codePoint : int) : boolean
+        boolean bTitleCase = false;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            bTitleCase = CharacterDataLatin1.isTitleCase(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                bTitleCase = CharacterData00.isTitleCase(codePoint);
+                break;
+            case(1):
+                bTitleCase = CharacterData01.isTitleCase(codePoint);
+                break;
+            case(2):
+                bTitleCase = CharacterData02.isTitleCase(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                bTitleCase = CharacterDataUndefined.isTitleCase(codePoint);
+                break;
+            case(14): 
+                bTitleCase = CharacterData0E.isTitleCase(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                bTitleCase = CharacterDataPrivateUse.isTitleCase(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // bTitleCase remains false;
+                break;
+            }
+        }
+        return bTitleCase;
+!!!6584091.java!!!	isDigit(in ch : char) : boolean
+        return isDigit((int)ch);
+!!!6584219.java!!!	isDigit(in codePoint : int) : boolean
+        boolean bDigit = false;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            bDigit = CharacterDataLatin1.isDigit(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                bDigit = CharacterData00.isDigit(codePoint);
+                break;
+            case(1):
+                bDigit = CharacterData01.isDigit(codePoint);
+                break;
+            case(2):
+                bDigit = CharacterData02.isDigit(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                bDigit = CharacterDataUndefined.isDigit(codePoint);
+                break;
+            case(14):
+                bDigit = CharacterData0E.isDigit(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                bDigit = CharacterDataPrivateUse.isDigit(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // bDigit remains false;
+                break;                          
+            }
+        }
+        return bDigit;
+!!!6584347.java!!!	isDefined(in ch : char) : boolean
+        return isDefined((int)ch);
+!!!6584475.java!!!	isDefined(in codePoint : int) : boolean
+        boolean bDefined = false;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            bDefined = CharacterDataLatin1.isDefined(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                bDefined = CharacterData00.isDefined(codePoint);
+                break;
+            case(1):
+                bDefined = CharacterData01.isDefined(codePoint);
+                break;
+            case(2):
+                bDefined = CharacterData02.isDefined(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                bDefined = CharacterDataUndefined.isDefined(codePoint);
+                break;
+            case(14): 
+                bDefined = CharacterData0E.isDefined(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                bDefined = CharacterDataPrivateUse.isDefined(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // bDefined remains false;
+                break;
+            }
+        }
+        return bDefined;
+!!!6584603.java!!!	isLetter(in ch : char) : boolean
+        return isLetter((int)ch);
+!!!6584731.java!!!	isLetter(in codePoint : int) : boolean
+        boolean bLetter = false;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            bLetter = CharacterDataLatin1.isLetter(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                bLetter = CharacterData00.isLetter(codePoint);
+                break;
+            case(1):
+                bLetter = CharacterData01.isLetter(codePoint);
+                break;
+            case(2):
+                bLetter = CharacterData02.isLetter(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                bLetter = CharacterDataUndefined.isLetter(codePoint);
+                break;
+            case(14):
+                bLetter = CharacterData0E.isLetter(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                bLetter = CharacterDataPrivateUse.isLetter(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // bLetter remains false;
+                break;
+            }
+        }
+        return bLetter;
+!!!6584859.java!!!	isLetterOrDigit(in ch : char) : boolean
+        return isLetterOrDigit((int)ch);
+!!!6584987.java!!!	isLetterOrDigit(in codePoint : int) : boolean
+        boolean bLetterOrDigit = false;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            bLetterOrDigit = CharacterDataLatin1.isLetterOrDigit(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                bLetterOrDigit = CharacterData00.isLetterOrDigit(codePoint);
+                break;
+            case(1):
+                bLetterOrDigit = CharacterData01.isLetterOrDigit(codePoint);
+                break;
+            case(2):
+                bLetterOrDigit = CharacterData02.isLetterOrDigit(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                bLetterOrDigit = CharacterDataUndefined.isLetterOrDigit(codePoint);
+                break;
+            case(14): // Undefined
+                bLetterOrDigit = CharacterData0E.isLetterOrDigit(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                bLetterOrDigit = CharacterDataPrivateUse.isLetterOrDigit(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // bLetterOrDigit remains false;
+                break;
+            }
+        }
+        return bLetterOrDigit;
+!!!6585115.java!!!	isJavaLetter(in ch : char) : boolean
+        return isJavaIdentifierStart(ch);
+!!!6585243.java!!!	isJavaLetterOrDigit(in ch : char) : boolean
+        return isJavaIdentifierPart(ch);
+!!!6585371.java!!!	isJavaIdentifierStart(in ch : char) : boolean
+        return isJavaIdentifierStart((int)ch);
+!!!6585499.java!!!	isJavaIdentifierStart(in codePoint : int) : boolean
+        boolean bJavaStart = false;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            bJavaStart = CharacterDataLatin1.isJavaIdentifierStart(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                bJavaStart = CharacterData00.isJavaIdentifierStart(codePoint);
+                break;
+            case(1):
+                bJavaStart = CharacterData01.isJavaIdentifierStart(codePoint);
+                break;
+            case(2):
+                bJavaStart = CharacterData02.isJavaIdentifierStart(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                bJavaStart = CharacterDataUndefined.isJavaIdentifierStart(codePoint);
+                break;
+            case(14): 
+                bJavaStart = CharacterData0E.isJavaIdentifierStart(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                bJavaStart = CharacterDataPrivateUse.isJavaIdentifierStart(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // bJavaStart remains false;
+                break;
+            }   
+        }
+        return bJavaStart;
+!!!6585627.java!!!	isJavaIdentifierPart(in ch : char) : boolean
+        return isJavaIdentifierPart((int)ch);
+!!!6585755.java!!!	isJavaIdentifierPart(in codePoint : int) : boolean
+        boolean bJavaPart = false;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            bJavaPart = CharacterDataLatin1.isJavaIdentifierPart(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                bJavaPart = CharacterData00.isJavaIdentifierPart(codePoint);
+                break;
+            case(1):
+                bJavaPart = CharacterData01.isJavaIdentifierPart(codePoint);
+                break;
+            case(2):
+                bJavaPart = CharacterData02.isJavaIdentifierPart(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                bJavaPart = CharacterDataUndefined.isJavaIdentifierPart(codePoint);
+                break;
+            case(14): 
+                bJavaPart = CharacterData0E.isJavaIdentifierPart(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                bJavaPart = CharacterDataPrivateUse.isJavaIdentifierPart(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // bJavaPart remains false;
+                break;
+            }
+        }
+        return bJavaPart;
+!!!6585883.java!!!	isUnicodeIdentifierStart(in ch : char) : boolean
+        return isUnicodeIdentifierStart((int)ch);
+!!!6586011.java!!!	isUnicodeIdentifierStart(in codePoint : int) : boolean
+        boolean bUnicodeStart = false;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            bUnicodeStart = CharacterDataLatin1.isUnicodeIdentifierStart(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                bUnicodeStart = CharacterData00.isUnicodeIdentifierStart(codePoint);
+                break;
+            case(1):
+                bUnicodeStart = CharacterData01.isUnicodeIdentifierStart(codePoint);
+                break;
+            case(2):
+                bUnicodeStart = CharacterData02.isUnicodeIdentifierStart(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                bUnicodeStart = CharacterDataUndefined.isUnicodeIdentifierStart(codePoint);
+                break;
+            case(14): 
+                bUnicodeStart = CharacterData0E.isUnicodeIdentifierStart(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                bUnicodeStart = CharacterDataPrivateUse.isUnicodeIdentifierStart(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // bUnicodeStart remains false;
+                break;
+            }
+        }
+        return bUnicodeStart;
+!!!6586139.java!!!	isUnicodeIdentifierPart(in ch : char) : boolean
+        return isUnicodeIdentifierPart((int)ch);
+!!!6586267.java!!!	isUnicodeIdentifierPart(in codePoint : int) : boolean
+        boolean bUnicodePart = false;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            bUnicodePart = CharacterDataLatin1.isUnicodeIdentifierPart(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                bUnicodePart = CharacterData00.isUnicodeIdentifierPart(codePoint);
+                break;
+            case(1):
+                bUnicodePart = CharacterData01.isUnicodeIdentifierPart(codePoint);
+                break;
+            case(2):
+                bUnicodePart = CharacterData02.isUnicodeIdentifierPart(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                bUnicodePart = CharacterDataUndefined.isUnicodeIdentifierPart(codePoint);
+                break;
+            case(14): 
+                bUnicodePart = CharacterData0E.isUnicodeIdentifierPart(codePoint);      
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                bUnicodePart = CharacterDataPrivateUse.isUnicodeIdentifierPart(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                //bUnicodePart remains false;
+                break;
+            }
+        }
+        return bUnicodePart;
+!!!6586395.java!!!	isIdentifierIgnorable(in ch : char) : boolean
+        return isIdentifierIgnorable((int)ch);
+!!!6586523.java!!!	isIdentifierIgnorable(in codePoint : int) : boolean
+        boolean bIdentifierIgnorable = false;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            bIdentifierIgnorable = CharacterDataLatin1.isIdentifierIgnorable(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                bIdentifierIgnorable = CharacterData00.isIdentifierIgnorable(codePoint);
+                break;
+            case(1):
+                bIdentifierIgnorable = CharacterData01.isIdentifierIgnorable(codePoint);
+                break;
+            case(2):
+                bIdentifierIgnorable = CharacterData02.isIdentifierIgnorable(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                bIdentifierIgnorable = CharacterDataUndefined.isIdentifierIgnorable(codePoint);
+                break;
+            case(14): 
+                bIdentifierIgnorable = CharacterData0E.isIdentifierIgnorable(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                bIdentifierIgnorable = CharacterDataPrivateUse.isIdentifierIgnorable(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // bIdentifierIgnorable remains false;
+                break;
+            }
+        }
+        return bIdentifierIgnorable;
+!!!6586651.java!!!	toLowerCase(in ch : char) : char
+        return (char)toLowerCase((int)ch);
+!!!6586779.java!!!	toLowerCase(in codePoint : int) : int
+        int lowerCase = codePoint;
+        int plane = 0;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            lowerCase = CharacterDataLatin1.toLowerCase(codePoint);
+        } else {
+            plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                lowerCase = CharacterData00.toLowerCase(codePoint);
+                break;
+            case(1):
+                lowerCase = CharacterData01.toLowerCase(codePoint);
+                break;
+            case(2):
+                lowerCase = CharacterData02.toLowerCase(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                lowerCase = CharacterDataUndefined.toLowerCase(codePoint);
+                break;
+            case(14):
+                lowerCase = CharacterData0E.toLowerCase(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                lowerCase = CharacterDataPrivateUse.toLowerCase(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // lowerCase remains codePoint;
+                break;
+            }
+        }
+        return lowerCase;
+!!!6586907.java!!!	toUpperCase(in ch : char) : char
+        return (char)toUpperCase((int)ch);
+!!!6587035.java!!!	toUpperCase(in codePoint : int) : int
+        int upperCase = codePoint;
+        int plane = 0;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            upperCase = CharacterDataLatin1.toUpperCase(codePoint);
+        } else {
+            plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                upperCase = CharacterData00.toUpperCase(codePoint);
+                break;
+            case(1):
+                upperCase = CharacterData01.toUpperCase(codePoint);
+                break;
+            case(2):
+                upperCase = CharacterData02.toUpperCase(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                upperCase = CharacterDataUndefined.toUpperCase(codePoint);
+                break;
+            case(14): 
+                upperCase = CharacterData0E.toUpperCase(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                upperCase = CharacterDataPrivateUse.toUpperCase(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // upperCase remains codePoint;
+                break;
+            }
+        }
+        return upperCase;
+!!!6587163.java!!!	toTitleCase(in ch : char) : char
+        return (char)toTitleCase((int)ch);
+!!!6587291.java!!!	toTitleCase(in codePoint : int) : int
+        int titleCase = codePoint;
+        int plane = 0;
+        
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            titleCase = CharacterDataLatin1.toTitleCase(codePoint);
+        } else {
+            plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                titleCase = CharacterData00.toTitleCase(codePoint);
+                break;
+            case(1):
+                titleCase = CharacterData01.toTitleCase(codePoint);
+                break;
+            case(2):
+                titleCase = CharacterData02.toTitleCase(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                titleCase = CharacterDataUndefined.toTitleCase(codePoint);
+                break;
+            case(14): 
+                titleCase = CharacterData0E.toTitleCase(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                titleCase = CharacterDataPrivateUse.toTitleCase(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // titleCase remains codePoint;
+                break;
+            }
+        }
+        return titleCase;
+!!!6587419.java!!!	digit(in ch : char, in radix : int) : int
+        return digit((int)ch, radix);
+!!!6587547.java!!!	digit(in codePoint : int, in radix : int) : int
+        int digit = -1;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            digit = CharacterDataLatin1.digit(codePoint, radix);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                digit = CharacterData00.digit(codePoint, radix);
+                break;
+            case(1):
+                digit = CharacterData01.digit(codePoint, radix);
+                break;
+            case(2):
+                digit = CharacterData02.digit(codePoint, radix);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                digit = CharacterDataUndefined.digit(codePoint, radix);
+                break;
+            case(14): 
+                digit = CharacterData0E.digit(codePoint, radix);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                digit = CharacterDataPrivateUse.digit(codePoint, radix);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // digit remains -1;
+                break;
+            }
+        }
+        return digit;
+!!!6587675.java!!!	getNumericValue(in ch : char) : int
+        return getNumericValue((int)ch);
+!!!6587803.java!!!	getNumericValue(in codePoint : int) : int
+        int numericValue = -1;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            numericValue = CharacterDataLatin1.getNumericValue(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                numericValue = CharacterData00.getNumericValue(codePoint);
+                break;
+            case(1):
+                numericValue = CharacterData01.getNumericValue(codePoint);
+                break;
+            case(2):
+                numericValue = CharacterData02.getNumericValue(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                numericValue = CharacterDataUndefined.getNumericValue(codePoint);
+                break;
+            case(14): 
+                numericValue = CharacterData0E.getNumericValue(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                numericValue = CharacterDataPrivateUse.getNumericValue(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // numericValue remains -1
+                break;
+            }
+        }
+        return numericValue;
+!!!6587931.java!!!	isSpace(in ch : char) : boolean
+        return (ch <= 0x0020) &&
+            (((((1L << 0x0009) |
+            (1L << 0x000A) |
+            (1L << 0x000C) |
+            (1L << 0x000D) |
+            (1L << 0x0020)) >> ch) & 1L) != 0);
+!!!6588059.java!!!	isSpaceChar(in ch : char) : boolean
+        return isSpaceChar((int)ch);
+!!!6588187.java!!!	isSpaceChar(in codePoint : int) : boolean
+        boolean bSpaceChar = false;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <=  FAST_PATH_MAX) {
+            bSpaceChar =  CharacterDataLatin1.isSpaceChar(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                bSpaceChar = CharacterData00.isSpaceChar(codePoint);
+                break;
+            case(1):
+                bSpaceChar = CharacterData01.isSpaceChar(codePoint);
+                break;
+            case(2):
+                bSpaceChar = CharacterData02.isSpaceChar(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                bSpaceChar = CharacterDataUndefined.isSpaceChar(codePoint);
+                break;
+            case(14): 
+                bSpaceChar = CharacterData0E.isSpaceChar(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                bSpaceChar = CharacterDataPrivateUse.isSpaceChar(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // bSpaceChar remains false
+                break;
+            }
+        }
+        return bSpaceChar;
+!!!6588315.java!!!	isWhitespace(in ch : char) : boolean
+        return isWhitespace((int)ch);
+!!!6588443.java!!!	isWhitespace(in codePoint : int) : boolean
+        boolean bWhiteSpace = false;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            bWhiteSpace =  CharacterDataLatin1.isWhitespace(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                bWhiteSpace = CharacterData00.isWhitespace(codePoint);
+                break;
+            case(1):
+                bWhiteSpace = CharacterData01.isWhitespace(codePoint);
+                break;
+            case(2):
+                bWhiteSpace = CharacterData02.isWhitespace(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                bWhiteSpace = CharacterDataUndefined.isWhitespace(codePoint);
+                break;
+            case(14): 
+                bWhiteSpace = CharacterData0E.isWhitespace(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                bWhiteSpace = CharacterDataPrivateUse.isWhitespace(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // bWhiteSpace remains false
+                break;
+            }
+        }
+        return bWhiteSpace;
+!!!6588571.java!!!	isISOControl(in ch : char) : boolean
+        return isISOControl((int)ch);
+!!!6588699.java!!!	isISOControl(in codePoint : int) : boolean
+        return (codePoint >= 0x0000 && codePoint <= 0x001F) || 
+            (codePoint >= 0x007F && codePoint <= 0x009F);
+!!!6588827.java!!!	getType(in ch : char) : int
+        return getType((int)ch);
+!!!6588955.java!!!	getType(in codePoint : int) : int
+        int type = Character.UNASSIGNED;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            type = CharacterDataLatin1.getType(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                type = CharacterData00.getType(codePoint);
+                break;
+            case(1):
+                type = CharacterData01.getType(codePoint);
+                break;
+            case(2):
+                type = CharacterData02.getType(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined      
+                type = CharacterDataUndefined.getType(codePoint);
+                break;
+            case(14): 
+                type = CharacterData0E.getType(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                type = CharacterDataPrivateUse.getType(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // type remains UNASSIGNED
+                break;
+            }
+        }
+        return type;
+!!!6589083.java!!!	forDigit(in digit : int, in radix : int) : char
+        if ((digit >= radix) || (digit < 0)) {
+            return '\0';
+        }
+        if ((radix < Character.MIN_RADIX) || (radix > Character.MAX_RADIX)) {
+            return '\0';
+        }
+        if (digit < 10) {
+            return (char)('0' + digit);
+        }
+        return (char)('a' - 10 + digit);
+!!!6589211.java!!!	getDirectionality(in ch : char) : byte
+        return getDirectionality((int)ch);
+!!!6589339.java!!!	getDirectionality(in codePoint : int) : byte
+        byte directionality = Character.DIRECTIONALITY_UNDEFINED;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+            directionality = CharacterDataLatin1.getDirectionality(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                directionality = CharacterData00.getDirectionality(codePoint);
+                break;
+            case(1):
+                directionality = CharacterData01.getDirectionality(codePoint);
+                break;
+            case(2):
+                directionality = CharacterData02.getDirectionality(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                directionality = CharacterDataUndefined.getDirectionality(codePoint);
+                break;
+            case(14): 
+                directionality = CharacterData0E.getDirectionality(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                directionality = CharacterDataPrivateUse.getDirectionality(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // directionality remains DIRECTIONALITY_UNDEFINED
+                break;
+            }
+        }
+        return directionality;
+!!!6589467.java!!!	isMirrored(in ch : char) : boolean
+        return isMirrored((int)ch);
+!!!6589595.java!!!	isMirrored(in codePoint : int) : boolean
+        boolean bMirrored = false;
+
+        if (codePoint >= MIN_CODE_POINT && codePoint <= FAST_PATH_MAX) {
+           bMirrored = CharacterDataLatin1.isMirrored(codePoint);
+        } else {
+            int plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                bMirrored = CharacterData00.isMirrored(codePoint);
+                break;
+            case(1):
+                bMirrored = CharacterData01.isMirrored(codePoint);
+                break;
+            case(2):
+                bMirrored = CharacterData02.isMirrored(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                bMirrored = CharacterDataUndefined.isMirrored(codePoint);
+                break;
+            case(14): 
+                bMirrored = CharacterData0E.isMirrored(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                bMirrored = CharacterDataPrivateUse.isMirrored(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // bMirrored remains false
+                break;
+            }
+        }
+        return bMirrored;
+!!!6589723.java!!!	compareTo(inout anotherCharacter : Character) : int
+        return this.value - anotherCharacter.value;
+!!!6589851.java!!!	toUpperCaseEx(in codePoint : int) : int
+        int upperCase = codePoint;
+        int plane = 0;
+
+        assert isValidCodePoint(codePoint);
+
+        if (codePoint <= FAST_PATH_MAX) {
+            upperCase = CharacterDataLatin1.toUpperCaseEx(codePoint);
+        } else {
+            plane = getPlane(codePoint);
+            switch(plane) {
+            case(0):
+                upperCase = CharacterData00.toUpperCaseEx(codePoint);
+                break;
+            case(1):
+                upperCase = CharacterData01.toUpperCase(codePoint);
+                break;
+            case(2):
+                upperCase = CharacterData02.toUpperCase(codePoint);
+                break;
+            case(3): // Undefined
+            case(4): // Undefined
+            case(5): // Undefined
+            case(6): // Undefined
+            case(7): // Undefined
+            case(8): // Undefined
+            case(9): // Undefined
+            case(10): // Undefined
+            case(11): // Undefined
+            case(12): // Undefined
+            case(13): // Undefined
+                upperCase = CharacterDataUndefined.toUpperCase(codePoint);
+                break;
+            case(14):
+                upperCase = CharacterData0E.toUpperCase(codePoint);
+                break;
+            case(15): // Private Use
+            case(16): // Private Use
+                upperCase = CharacterDataPrivateUse.toUpperCase(codePoint);
+                break;
+            default:
+                // the argument's plane is invalid, and thus is an invalid codepoint
+                // upperCase remains codePoint;
+                break;
+            }
+        }
+        return upperCase;
+!!!6589979.java!!!	toUpperCaseCharArray(in codePoint : int) : char
+        char[] upperCase = null;
+
+        // As of Unicode 4.0, 1:M uppercasings only happen in the BMP.
+        assert isValidCodePoint(codePoint) &&
+               !isSupplementaryCodePoint(codePoint);
+
+        if (codePoint <= FAST_PATH_MAX) {
+            upperCase = CharacterDataLatin1.toUpperCaseCharArray(codePoint);
+        } else {
+            upperCase = CharacterData00.toUpperCaseCharArray(codePoint);
+        }
+        return upperCase;
+!!!6590107.java!!!	reverseBytes(in ch : char) : char
+        return (char) (((ch & 0xFF00) >> 8) | (ch << 8));

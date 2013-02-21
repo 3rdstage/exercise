@@ -1,0 +1,51 @@
+class MotifButtonUI
+!!!2353947.java!!!	createUI(inout c : JComponent) : ComponentUI
+	return motifButtonUI;
+!!!2354075.java!!!	createButtonListener(inout b : AbstractButton) : BasicButtonListener
+	return new MotifButtonListener(b);
+!!!2354203.java!!!	installDefaults(inout b : AbstractButton) : void
+	super.installDefaults(b);
+	if(!defaults_initialized) {
+	    selectColor = UIManager.getColor(getPropertyPrefix() + "select");
+	    defaults_initialized = true;
+	}
+        LookAndFeel.installProperty(b, "opaque", Boolean.FALSE);
+!!!2354331.java!!!	uninstallDefaults(inout b : AbstractButton) : void
+	super.uninstallDefaults(b);
+	defaults_initialized = false;
+!!!2354459.java!!!	getSelectColor() : Color
+	return selectColor;
+!!!2354587.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        fillContentArea( g, (AbstractButton)c , c.getBackground() );   
+	super.paint(g,c);
+!!!2354715.java!!!	paintIcon(inout g : Graphics, inout c : JComponent, inout iconRect : Rectangle) : void
+        Shape oldClip = g.getClip();
+        Rectangle newClip =
+            AbstractBorder.getInteriorRectangle(c, c.getBorder(), 0, 0,
+                                                c.getWidth(), c.getHeight());
+
+        Rectangle r = oldClip.getBounds();
+        newClip =
+            SwingUtilities.computeIntersection(r.x, r.y, r.width, r.height,
+                                               newClip);
+        g.setClip(newClip);
+        super.paintIcon(g, c, iconRect);
+        g.setClip(oldClip);
+!!!2354843.java!!!	paintFocus(inout g : Graphics, inout b : AbstractButton, inout viewRect : Rectangle, inout textRect : Rectangle, inout iconRect : Rectangle) : void
+	// focus painting is handled by the border
+!!!2354971.java!!!	paintButtonPressed(inout g : Graphics, inout b : AbstractButton) : void
+
+        fillContentArea( g, b , selectColor );
+
+!!!2355099.java!!!	fillContentArea(inout g : Graphics, inout b : AbstractButton, inout fillColor : Color) : void
+
+        if (b.isContentAreaFilled()) {
+	    Insets margin = b.getMargin();
+	    Insets insets = b.getInsets();
+	    Dimension size = b.getSize();
+	    g.setColor(fillColor);
+	    g.fillRect(insets.left - margin.left,
+		       insets.top - margin.top, 
+		       size.width - (insets.left-margin.left) - (insets.right - margin.right),
+		       size.height - (insets.top-margin.top) - (insets.bottom - margin.bottom));
+	}

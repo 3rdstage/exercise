@@ -1,0 +1,116 @@
+class RMINotifClient
+!!!8429083.java!!!	RMINotifClient(inout cl : ClassLoader, inout env : Map)
+	    super(cl, env);
+!!!8429211.java!!!	fetchNotifs(in clientSequenceNumber : long, in maxNotifications : int, in timeout : long) : NotificationResult
+	    IOException org;
+
+	    while (true) { // used for a successful re-connection
+		try {
+		    return connection.fetchNotifications(clientSequenceNumber,
+							 maxNotifications,
+							 timeout);
+		} catch (IOException ioe) {
+		    org = ioe;
+		    
+		    // inform of IOException
+		    try {
+			communicatorAdmin.gotIOException(ioe);
+			
+			// The connection should be re-established.
+			continue;
+		    } catch (IOException ee) {
+			// No more fetch, the Exception will be re-thrown.
+			break;
+		    } // never reached
+		} // never reached
+	    }
+
+	    // specially treating for an UnmarshalException 
+	    if (org instanceof UnmarshalException) {
+		UnmarshalException ume = (UnmarshalException)org;
+		
+		if (ume.detail instanceof ClassNotFoundException)
+		    throw (ClassNotFoundException) ume.detail;
+		
+		/* In Sun's RMI implementation, if a method return
+		   contains an unserializable object, then we get
+		   UnmarshalException wrapping WriteAbortedException
+		   wrapping NotSerializableException.  In that case we
+		   extract the NotSerializableException so that our
+		   caller can realize it should try to skip past the
+		   notification that presumably caused it.  It's not
+		   certain that every other RMI implementation will
+		   generate this exact exception sequence.  If not, we
+		   will not detect that the problem is due to an
+		   unserializable object, and we will stop trying to
+		   receive notifications from the server.  It's not
+		   clear we can do much better.  */
+		if (ume.detail instanceof WriteAbortedException) {
+		    WriteAbortedException wae =
+			(WriteAbortedException) ume.detail;
+		    if (wae.detail instanceof IOException)
+			throw (IOException) wae.detail;
+		}
+	    } else if (org instanceof MarshalException) {
+		// IIOP will throw MarshalException wrapping a NotSerializableException
+		// when a server fails to serialize a response.
+		MarshalException me = (MarshalException)org;
+		if (me.detail instanceof NotSerializableException) {
+		    throw (NotSerializableException)me.detail;
+		}
+	    }
+
+	    // Not serialization problem, simply re-throw the orginal exception
+	    throw org;
+!!!8429339.java!!!	addListenerForMBeanRemovedNotif() : Integer
+	    MarshalledObject sFilter = null;
+	    NotificationFilterSupport clientFilter =
+		new NotificationFilterSupport();
+	    clientFilter.enableType(
+		MBeanServerNotification.UNREGISTRATION_NOTIFICATION);
+	    sFilter = new MarshalledObject(clientFilter);
+
+	    Integer[] listenerIDs;
+	    final ObjectName[] names = new ObjectName[] {delegateName};
+	    final MarshalledObject[] filters =
+		new MarshalledObject[] {sFilter};
+	    final Subject[] subjects = new Subject[] {null};
+	    try {
+		listenerIDs =
+		    connection.addNotificationListeners(names,
+							filters,
+							subjects);
+
+	    } catch (IOException ioe) {
+		communicatorAdmin.gotIOException(ioe);
+
+		listenerIDs =
+		    connection.addNotificationListeners(names,
+							filters,
+							subjects);
+	    }
+	    return listenerIDs[0];
+!!!8429467.java!!!	removeListenerForMBeanRemovedNotif(inout id : Integer) : void
+	    try {
+		connection.removeNotificationListeners(delegateName,
+						       new Integer[] {id},
+						       null);
+	    } catch (IOException ioe) {
+		communicatorAdmin.gotIOException(ioe);
+
+		connection.removeNotificationListeners(delegateName,
+						       new Integer[] {id},
+						       null);
+	    }
+
+!!!8429595.java!!!	lostNotifs(in message : String, in number : long) : void
+	    final String notifType = JMXConnectionNotification.NOTIFS_LOST;
+
+	    final JMXConnectionNotification n =
+		new JMXConnectionNotification(notifType,
+					      RMIConnector.this,
+					      connectionId,
+					      clientNotifCounter++,
+					      message,
+					      new Long(number));
+	    sendNotification(n);

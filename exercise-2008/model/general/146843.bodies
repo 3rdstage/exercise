@@ -1,0 +1,90 @@
+class EnumSet
+!!!260123.java!!!	EnumSet(inout elementType : Class<E>, inout universe : Enum)
+        this.elementType = elementType;
+        this.universe    = universe;
+!!!260251.java!!!	noneOf(inout elementType : Class<E>) : EnumSet
+        Enum[] universe = elementType.getEnumConstants();
+        if (universe == null)
+            throw new ClassCastException(elementType + " not an enum");
+
+        if (universe.length <= 64)
+            return new RegularEnumSet<E>(elementType, universe);
+        else
+            return new JumboEnumSet<E>(elementType, universe);
+!!!260379.java!!!	allOf(inout elementType : Class<E>) : EnumSet
+        EnumSet<E> result = noneOf(elementType);
+        result.addAll();
+        return result;
+!!!260635.java!!!	copyOf(inout s : EnumSet) : EnumSet
+        return s.clone();
+!!!260763.java!!!	copyOf(inout c : Collection) : EnumSet
+        if (c instanceof EnumSet) {
+            return ((EnumSet<E>)c).clone();
+        } else {
+            if (c.isEmpty())
+                throw new IllegalArgumentException("Collection is empty");
+            Iterator<E> i = c.iterator();
+            E first = i.next();
+            EnumSet<E> result = EnumSet.of(first);
+            while (i.hasNext())
+                result.add(i.next());
+            return result;
+        }
+!!!260891.java!!!	complementOf(inout s : EnumSet) : EnumSet
+        EnumSet<E> result = copyOf(s);
+        result.complement();
+        return result;
+!!!261019.java!!!	of(inout e : E) : EnumSet
+        EnumSet<E> result = noneOf(e.getDeclaringClass());
+        result.add(e);
+        return result;
+!!!261147.java!!!	of(inout e1 : E, inout e2 : E) : EnumSet
+        EnumSet<E> result = noneOf(e1.getDeclaringClass());
+        result.add(e1);
+        result.add(e2);
+        return result;
+!!!261275.java!!!	of(inout e1 : E, inout e2 : E, inout e3 : E) : EnumSet
+        EnumSet<E> result = noneOf(e1.getDeclaringClass());
+        result.add(e1);
+        result.add(e2);
+        result.add(e3);
+        return result;
+!!!261403.java!!!	of(inout e1 : E, inout e2 : E, inout e3 : E, inout e4 : E) : EnumSet
+        EnumSet<E> result = noneOf(e1.getDeclaringClass());
+        result.add(e1);
+        result.add(e2);
+        result.add(e3);
+        result.add(e4);
+        return result;
+!!!261531.java!!!	of(inout e1 : E, inout e2 : E, inout e3 : E, inout e4 : E, inout e5 : E) : EnumSet
+        EnumSet<E> result = noneOf(e1.getDeclaringClass());
+        result.add(e1);
+        result.add(e2);
+        result.add(e3);
+        result.add(e4);
+        result.add(e5);
+        return result;
+!!!261659.java!!!	of(inout first : E, inout  : E...rest) : EnumSet
+        EnumSet<E> result = noneOf(first.getDeclaringClass());
+        result.add(first);
+        for (E e : rest)
+            result.add(e);
+        return result;
+!!!261787.java!!!	range(inout from : E, inout to : E) : EnumSet
+        if (from.compareTo(to) > 0)
+            throw new IllegalArgumentException(from + " > " + to);
+        EnumSet<E> result = noneOf(from.getDeclaringClass());
+        result.addRange(from, to);
+        return result;
+!!!262043.java!!!	clone() : EnumSet
+        try {
+            return (EnumSet<E>) super.clone();
+        } catch(CloneNotSupportedException e) {
+            throw new AssertionError(e);
+        }
+!!!262299.java!!!	typeCheck(inout e : E) : void
+        Class eClass = e.getClass();
+        if (eClass != elementType && eClass.getSuperclass() != elementType)
+            throw new ClassCastException(eClass + " != " + elementType);
+!!!262683.java!!!	writeReplace() : Object
+        return new SerializationProxy<E>(this);

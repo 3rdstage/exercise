@@ -1,0 +1,99 @@
+class PasswordView
+!!!9859099.java!!!	PasswordView(inout elem : Element)
+	super(elem);
+!!!9859227.java!!!	drawUnselectedText(inout g : Graphics, in x : int, in y : int, in p0 : int, in p1 : int) : int
+
+	Container c = getContainer();
+	if (c instanceof JPasswordField) {
+	    JPasswordField f = (JPasswordField) c;
+	    if (! f.echoCharIsSet()) {
+		return super.drawUnselectedText(g, x, y, p0, p1);
+	    }
+            if (f.isEnabled()) {
+                g.setColor(f.getForeground());
+            }
+            else {
+                g.setColor(f.getDisabledTextColor());
+            }
+	    char echoChar = f.getEchoChar();
+	    int n = p1 - p0;
+	    for (int i = 0; i < n; i++) {
+		x = drawEchoCharacter(g, x, y, echoChar);
+	    }
+	}
+	return x;
+!!!9859355.java!!!	drawSelectedText(inout g : Graphics, in x : int, in y : int, in p0 : int, in p1 : int) : int
+	g.setColor(selected);
+	Container c = getContainer();
+	if (c instanceof JPasswordField) {
+	    JPasswordField f = (JPasswordField) c;
+	    if (! f.echoCharIsSet()) {
+		return super.drawSelectedText(g, x, y, p0, p1);
+	    }
+	    char echoChar = f.getEchoChar();
+	    int n = p1 - p0;
+	    for (int i = 0; i < n; i++) {
+		x = drawEchoCharacter(g, x, y, echoChar);
+	    }
+	}
+	return x;
+!!!9859483.java!!!	drawEchoCharacter(inout g : Graphics, in x : int, in y : int, in c : char) : int
+	ONE[0] = c;
+        SwingUtilities2.drawChars(Utilities.getJComponent(this),
+                                  g, ONE, 0, 1, x, y);
+	return x + g.getFontMetrics().charWidth(c);
+!!!9859611.java!!!	modelToView(in pos : int, inout a : Shape, inout b : Bias) : Shape
+	Container c = getContainer();
+	if (c instanceof JPasswordField) {
+	    JPasswordField f = (JPasswordField) c;
+	    if (! f.echoCharIsSet()) {
+		return super.modelToView(pos, a, b);
+	    }
+	    char echoChar = f.getEchoChar();
+	    FontMetrics m = f.getFontMetrics(f.getFont());
+	    
+	    Rectangle alloc = adjustAllocation(a).getBounds();
+	    int dx = (pos - getStartOffset()) * m.charWidth(echoChar);
+	    alloc.x += dx;
+	    alloc.width = 1;
+	    return alloc;
+	}
+	return null;
+!!!9859739.java!!!	viewToModel(in fx : float, in fy : float, inout a : Shape, inout bias : Bias) : int
+	bias[0] = Position.Bias.Forward;
+	int n = 0;
+	Container c = getContainer();
+	if (c instanceof JPasswordField) {
+	    JPasswordField f = (JPasswordField) c;
+	    if (! f.echoCharIsSet()) {
+		return super.viewToModel(fx, fy, a, bias);
+	    }
+	    char echoChar = f.getEchoChar();
+	    FontMetrics m = f.getFontMetrics(f.getFont());
+	    a = adjustAllocation(a);
+	    Rectangle alloc = (a instanceof Rectangle) ? (Rectangle)a :
+                              a.getBounds();
+	    n = ((int)fx - alloc.x) / m.charWidth(echoChar);
+	    if (n < 0) {
+		n = 0;
+	    }
+	    else if (n > (getStartOffset() + getDocument().getLength())) {
+		n = getDocument().getLength() - getStartOffset();
+	    }
+	}
+	return getStartOffset() + n;
+!!!9859867.java!!!	getPreferredSpan(in axis : int) : float
+	switch (axis) {
+	case View.X_AXIS:
+            Container c = getContainer();
+            if (c instanceof JPasswordField) {
+                JPasswordField f = (JPasswordField) c;
+                if (f.echoCharIsSet()) {
+                    char echoChar = f.getEchoChar();
+                    FontMetrics m = f.getFontMetrics(f.getFont());
+                    Document doc = getDocument();
+                    return m.charWidth(echoChar) * getDocument().getLength();
+                }
+            }
+        }
+        return super.getPreferredSpan(axis);

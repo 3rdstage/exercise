@@ -1,0 +1,52 @@
+class FilteredAbsoluteLocationPath
+!!!4375195.java!!!	FilteredAbsoluteLocationPath()
+	_path = null;
+!!!4375323.java!!!	FilteredAbsoluteLocationPath(inout path : Expression)
+	_path = path;
+	if (path != null) {
+	    _path.setParent(this);
+	}
+!!!4375451.java!!!	setParser(inout parser : Parser) : void
+	super.setParser(parser);
+	if (_path != null) {
+	    _path.setParser(parser);
+	}
+!!!4375579.java!!!	getPath() : Expression
+	return(_path);
+!!!4375707.java!!!	toString() : String
+	return "FilteredAbsoluteLocationPath(" +
+	    (_path != null ? _path.toString() : "null") + ')';
+!!!4375835.java!!!	typeCheck(inout stable : SymbolTable) : Type
+	if (_path != null) {
+	    final Type ptype = _path.typeCheck(stable);
+	    if (ptype instanceof NodeType) {		// promote to node-set
+		_path = new CastExpr(_path, Type.NodeSet);
+	    }
+	}
+	return _type = Type.NodeSet;	
+!!!4375963.java!!!	translate(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	final ConstantPoolGen cpg = classGen.getConstantPool();
+	final InstructionList il = methodGen.getInstructionList();
+	if (_path != null) {
+	    final int initDFI = cpg.addMethodref(DUP_FILTERED_ITERATOR,
+						"<init>",
+						"("
+						+ NODE_ITERATOR_SIG
+						+ ")V");
+	    // Create new Dup Filter Iterator
+	    il.append(new NEW(cpg.addClass(DUP_FILTERED_ITERATOR)));
+	    il.append(DUP);
+
+	    // Compile relative path iterator(s)
+	    _path.translate(classGen, methodGen);
+
+	    // Initialize Dup Filter Iterator with iterator from the stack
+	    il.append(new INVOKESPECIAL(initDFI));
+	}
+	else {
+	    final int git = cpg.addInterfaceMethodref(DOM_INTF,
+						      "getIterator",
+						      "()"+NODE_ITERATOR_SIG);
+	    il.append(methodGen.loadDOM());
+	    il.append(new INVOKEINTERFACE(git, 1));
+	}

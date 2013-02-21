@@ -1,0 +1,628 @@
+class WindowsPreferences
+!!!8084123.java!!!	WindowsRegOpenKey1(in hKey : int, in subKey : byte, in securityMask : int) : int
+        int[] result = WindowsRegOpenKey(hKey, subKey, securityMask);
+        if (result[ERROR_CODE] == ERROR_SUCCESS) { 
+            return result;
+        } else if (result[ERROR_CODE] == ERROR_FILE_NOT_FOUND) {
+            logger().warning("Trying to recreate Windows registry node " +
+            byteArrayToString(subKey) + " at root 0x" + 
+            Integer.toHexString(hKey) + ".");
+            // Try recreation
+            int handle = WindowsRegCreateKeyEx(hKey, subKey)[NATIVE_HANDLE];
+            WindowsRegCloseKey(handle);
+            return WindowsRegOpenKey(hKey, subKey, securityMask);
+        } else if (result[ERROR_CODE] != ERROR_ACCESS_DENIED) {
+            long sleepTime = INIT_SLEEP_TIME;
+            for (int i = 0; i < MAX_ATTEMPTS; i++) {
+            try {
+                Thread.sleep(sleepTime);
+            } catch(InterruptedException e) {
+                return result;
+            }
+            sleepTime *= 2;
+            result = WindowsRegOpenKey(hKey, subKey, securityMask);
+            if (result[ERROR_CODE] == ERROR_SUCCESS) { 
+                return result;
+            }
+            }
+        }
+        return result;                
+!!!8084507.java!!!	WindowsRegCreateKeyEx1(in hKey : int, in subKey : byte) : int
+        int[] result = WindowsRegCreateKeyEx(hKey, subKey);
+        if (result[ERROR_CODE] == ERROR_SUCCESS) { 
+                return result;
+            } else {    
+                long sleepTime = INIT_SLEEP_TIME;
+                for (int i = 0; i < MAX_ATTEMPTS; i++) {
+                try {
+                    Thread.sleep(sleepTime);
+                } catch(InterruptedException e) {
+                    return result;
+                }
+                sleepTime *= 2;
+                result = WindowsRegCreateKeyEx(hKey, subKey);
+                if (result[ERROR_CODE] == ERROR_SUCCESS) { 
+                return result;
+                }
+            }
+        }
+        return result;                
+!!!8084891.java!!!	WindowsRegFlushKey1(in hKey : int) : int
+        int result = WindowsRegFlushKey(hKey);
+        if (result == ERROR_SUCCESS) { 
+                return result;
+            } else {    
+                long sleepTime = INIT_SLEEP_TIME;
+                for (int i = 0; i < MAX_ATTEMPTS; i++) {
+                try {
+                    Thread.sleep(sleepTime);
+                } catch(InterruptedException e) {
+                    return result;
+                }
+                sleepTime *= 2;
+                result = WindowsRegFlushKey(hKey);
+                if (result == ERROR_SUCCESS) { 
+                return result;
+                }
+            }
+        }
+        return result;                
+!!!8085275.java!!!	WindowsRegSetValueEx1(in hKey : int, in valueName : byte, in value : byte) : int
+        int result = WindowsRegSetValueEx(hKey, valueName, value); 
+        if (result == ERROR_SUCCESS) { 
+                return result;
+            } else {    
+                long sleepTime = INIT_SLEEP_TIME;
+                for (int i = 0; i < MAX_ATTEMPTS; i++) {
+                try {
+                    Thread.sleep(sleepTime);
+                } catch(InterruptedException e) {
+                    return result;
+                }
+                sleepTime *= 2;
+                result = WindowsRegSetValueEx(hKey, valueName, value); 
+                if (result == ERROR_SUCCESS) { 
+                return result;
+                }
+            }
+        }
+        return result;                
+!!!8085659.java!!!	WindowsRegQueryInfoKey1(in hKey : int) : int
+        int[] result = WindowsRegQueryInfoKey(hKey);
+        if (result[ERROR_CODE] == ERROR_SUCCESS) { 
+                return result;
+            } else {    
+                long sleepTime = INIT_SLEEP_TIME;
+                for (int i = 0; i < MAX_ATTEMPTS; i++) {
+                try {
+                    Thread.sleep(sleepTime);
+                } catch(InterruptedException e) {
+                    return result;
+                }
+                sleepTime *= 2;
+                result = WindowsRegQueryInfoKey(hKey);
+                if (result[ERROR_CODE] == ERROR_SUCCESS) { 
+                return result;
+                }
+            }
+        }
+        return result;                
+!!!8085915.java!!!	WindowsRegEnumKeyEx1(in hKey : int, in subKeyIndex : int, in maxKeyLength : int) : byte
+        byte[] result = WindowsRegEnumKeyEx(hKey, subKeyIndex, maxKeyLength);
+        if (result != null) { 
+                return result;
+            } else {    
+                long sleepTime = INIT_SLEEP_TIME;
+                for (int i = 0; i < MAX_ATTEMPTS; i++) {
+                try {
+                    Thread.sleep(sleepTime);
+                } catch(InterruptedException e) {
+                    return result;
+                }
+                sleepTime *= 2;
+                result = WindowsRegEnumKeyEx(hKey, subKeyIndex, maxKeyLength);
+                if (result != null) { 
+                return result;
+                }
+            }
+        }
+        return result;                
+!!!8086171.java!!!	WindowsRegEnumValue1(in hKey : int, in valueIndex : int, in maxValueNameLength : int) : byte
+        byte[] result = WindowsRegEnumValue(hKey, valueIndex, 
+                                                            maxValueNameLength);
+        if (result != null) { 
+                return result;
+            } else {    
+                long sleepTime = INIT_SLEEP_TIME;
+                for (int i = 0; i < MAX_ATTEMPTS; i++) {
+                try {
+                    Thread.sleep(sleepTime);
+                } catch(InterruptedException e) {
+                    return result;
+                }
+                sleepTime *= 2;
+                result = WindowsRegEnumValue(hKey, valueIndex, 
+                                                            maxValueNameLength);
+                if (result != null) { 
+                return result;
+                }
+            }
+        }
+        return result;                
+!!!8086299.java!!!	WindowsPreferences(inout parent : WindowsPreferences, in name : String)
+        super(parent, name);    
+        int parentNativeHandle = parent.openKey(KEY_CREATE_SUB_KEY, KEY_READ);
+        if (parentNativeHandle == NULL_NATIVE_HANDLE) {
+            // if here, openKey failed and logged 
+            isBackingStoreAvailable = false;
+            return;
+        }    
+        int[] result = 
+               WindowsRegCreateKeyEx1(parentNativeHandle, toWindowsName(name));
+        if (result[ERROR_CODE] != ERROR_SUCCESS) {
+            logger().warning("Could not create windows registry "
+            + "node " + byteArrayToString(windowsAbsolutePath()) + 
+            " at root 0x" + Integer.toHexString(rootNativeHandle()) +
+            ". Windows RegCreateKeyEx(...) returned error code " + 
+            result[ERROR_CODE] + ".");
+            isBackingStoreAvailable = false;
+            return;
+        }    
+        newNode = (result[DISPOSITION] == REG_CREATED_NEW_KEY);
+        closeKey(parentNativeHandle);
+        closeKey(result[NATIVE_HANDLE]);        
+!!!8086427.java!!!	WindowsPreferences(in rootNativeHandle : int, in rootDirectory : byte)
+        super(null,"");
+        int[] result = 
+                WindowsRegCreateKeyEx1(rootNativeHandle, rootDirectory);
+        if (result[ERROR_CODE] != ERROR_SUCCESS) {
+            logger().warning("Could not open/create prefs root node " +
+            byteArrayToString(windowsAbsolutePath()) + " at root 0x" + 
+            Integer.toHexString(rootNativeHandle()) +
+            ". Windows RegCreateKeyEx(...) returned error code " + 
+            result[ERROR_CODE] + ".");
+            isBackingStoreAvailable = false;
+            return;
+        }
+        // Check if a new node
+        newNode = (result[DISPOSITION] == REG_CREATED_NEW_KEY);
+        closeKey(result[NATIVE_HANDLE]);
+!!!8086555.java!!!	windowsAbsolutePath() : byte
+        ByteArrayOutputStream bstream = new ByteArrayOutputStream();
+        bstream.write(WINDOWS_ROOT_PATH, 0, WINDOWS_ROOT_PATH.length-1);
+        StringTokenizer tokenizer = new StringTokenizer(absolutePath(),"/");
+        while (tokenizer.hasMoreTokens()) {
+            bstream.write((byte)'\\');
+            String nextName = tokenizer.nextToken();
+            byte[] windowsNextName = toWindowsName(nextName);
+            bstream.write(windowsNextName, 0, windowsNextName.length-1);
+        }
+        bstream.write(0);
+        return bstream.toByteArray();
+!!!8086683.java!!!	openKey(in securityMask : int) : int
+        return openKey(securityMask, securityMask);
+!!!8086811.java!!!	openKey(in mask1 : int, in mask2 : int) : int
+        return openKey(windowsAbsolutePath(), mask1,  mask2);
+!!!8086939.java!!!	openKey(in windowsAbsolutePath : byte, in mask1 : int, in mask2 : int) : int
+        /*  Check if key's path is short enough be opened at once
+            otherwise use a path-splitting procedure */
+        if (windowsAbsolutePath.length <= MAX_WINDOWS_PATH_LENGTH + 1) {
+             int[] result = WindowsRegOpenKey1(rootNativeHandle(),
+                                               windowsAbsolutePath, mask1);
+             if (result[ERROR_CODE] == ERROR_ACCESS_DENIED && mask2 != mask1)
+                 result = WindowsRegOpenKey1(rootNativeHandle(),
+                                             windowsAbsolutePath, mask2);
+
+             if (result[ERROR_CODE] != ERROR_SUCCESS) {
+                logger().warning("Could not open windows "
+                + "registry node " + byteArrayToString(windowsAbsolutePath()) + 
+                " at root 0x" + Integer.toHexString(rootNativeHandle()) + 
+                ". Windows RegOpenKey(...) returned error code " + 
+                result[ERROR_CODE] + ".");
+                result[NATIVE_HANDLE] = NULL_NATIVE_HANDLE;
+                if (result[ERROR_CODE] == ERROR_ACCESS_DENIED) {
+                    throw new SecurityException("Could not open windows "
+                + "registry node " + byteArrayToString(windowsAbsolutePath()) + 
+                " at root 0x" + Integer.toHexString(rootNativeHandle()) + 
+                ": Access denied");
+                }
+             }        
+             return result[NATIVE_HANDLE];         
+        } else {
+            return openKey(rootNativeHandle(), windowsAbsolutePath, mask1, mask2);
+        }    
+!!!8087067.java!!!	openKey(in nativeHandle : int, in windowsRelativePath : byte, in mask1 : int, in mask2 : int) : int
+    /* If the path is short enough open at once. Otherwise split the path */
+        if (windowsRelativePath.length <= MAX_WINDOWS_PATH_LENGTH + 1 ) {
+             int[] result = WindowsRegOpenKey1(nativeHandle,
+                                               windowsRelativePath, mask1);
+             if (result[ERROR_CODE] == ERROR_ACCESS_DENIED && mask2 != mask1)
+                 result = WindowsRegOpenKey1(nativeHandle,
+                                             windowsRelativePath, mask2);
+
+             if (result[ERROR_CODE] != ERROR_SUCCESS) {
+                logger().warning("Could not open windows "
+                + "registry node " + byteArrayToString(windowsAbsolutePath()) + 
+                " at root 0x" + Integer.toHexString(nativeHandle) + 
+                ". Windows RegOpenKey(...) returned error code " + 
+                result[ERROR_CODE] + ".");
+                result[NATIVE_HANDLE] = NULL_NATIVE_HANDLE;
+             }        
+             return result[NATIVE_HANDLE];         
+        } else {
+            int separatorPosition = -1;
+            // Be greedy - open the longest possible path 
+            for (int i = MAX_WINDOWS_PATH_LENGTH; i > 0; i--) {
+                if (windowsRelativePath[i] == ((byte)'\\')) {
+                    separatorPosition = i;
+                    break;
+                }
+            }    
+            // Split the path and do the recursion
+            byte[] nextRelativeRoot = new byte[separatorPosition+1];
+            System.arraycopy(windowsRelativePath, 0, nextRelativeRoot,0,
+                                                      separatorPosition);
+            nextRelativeRoot[separatorPosition] = 0;
+            byte[] nextRelativePath = new byte[windowsRelativePath.length -
+                                      separatorPosition - 1];
+            System.arraycopy(windowsRelativePath, separatorPosition+1, 
+                             nextRelativePath, 0, nextRelativePath.length);
+            int nextNativeHandle = openKey(nativeHandle, nextRelativeRoot,
+                                           mask1, mask2);
+            if (nextNativeHandle == NULL_NATIVE_HANDLE) {
+                return NULL_NATIVE_HANDLE;
+            }    
+            int result = openKey(nextNativeHandle, nextRelativePath,
+                                 mask1,mask2);
+            closeKey(nextNativeHandle);
+            return result;
+        }    
+!!!8087195.java!!!	closeKey(in nativeHandle : int) : void
+        int result = WindowsRegCloseKey(nativeHandle);
+        if (result != ERROR_SUCCESS) {
+            logger().warning("Could not close windows "
+            + "registry node " + byteArrayToString(windowsAbsolutePath()) + 
+            " at root 0x" + Integer.toHexString(rootNativeHandle()) + 
+            ". Windows RegCloseKey(...) returned error code " + result + ".");                 
+        }
+!!!8087323.java!!!	putSpi(in javaName : String, in value : String) : void
+    int nativeHandle = openKey(KEY_SET_VALUE);
+    if (nativeHandle == NULL_NATIVE_HANDLE) {
+        isBackingStoreAvailable = false;
+        return;
+    }
+    int result =  WindowsRegSetValueEx1(nativeHandle, 
+                          toWindowsName(javaName), toWindowsValueString(value));
+    if (result != ERROR_SUCCESS) {
+        logger().warning("Could not assign value to key " +
+        byteArrayToString(toWindowsName(javaName))+ " at Windows registry node " 
+       + byteArrayToString(windowsAbsolutePath()) + " at root 0x" 
+       + Integer.toHexString(rootNativeHandle()) + 
+       ". Windows RegSetValueEx(...) returned error code " + result + ".");
+        isBackingStoreAvailable = false;
+        }
+    closeKey(nativeHandle);
+!!!8087451.java!!!	getSpi(in javaName : String) : String
+ 
+    int nativeHandle = openKey(KEY_QUERY_VALUE);
+    if (nativeHandle == NULL_NATIVE_HANDLE) {
+        return null;
+    }
+    Object resultObject =  WindowsRegQueryValueEx(nativeHandle, 
+                                                  toWindowsName(javaName));
+    if (resultObject == null) {
+        closeKey(nativeHandle);
+        return null;
+    }    
+    closeKey(nativeHandle);
+    return toJavaValueString((byte[]) resultObject);
+!!!8087579.java!!!	removeSpi(in key : String) : void
+ 
+        int nativeHandle = openKey(KEY_SET_VALUE);
+        if (nativeHandle == NULL_NATIVE_HANDLE) {
+        return;
+        }
+        int result = 
+            WindowsRegDeleteValue(nativeHandle, toWindowsName(key));
+        if (result != ERROR_SUCCESS && result != ERROR_FILE_NOT_FOUND) {
+            logger().warning("Could not delete windows registry "
+            + "value " + byteArrayToString(windowsAbsolutePath())+ "\\" + 
+            toWindowsName(key) + " at root 0x" + 
+            Integer.toHexString(rootNativeHandle()) +
+            ". Windows RegDeleteValue(...) returned error code " + 
+            result + ".");
+            isBackingStoreAvailable = false;
+        } 
+        closeKey(nativeHandle);
+!!!8087707.java!!!	keysSpi() : String
+        // Find out the number of values
+        int nativeHandle = openKey(KEY_QUERY_VALUE);
+        if (nativeHandle == NULL_NATIVE_HANDLE) {
+            throw new BackingStoreException("Could not open windows"
+            + "registry node " + byteArrayToString(windowsAbsolutePath()) + 
+            " at root 0x" + Integer.toHexString(rootNativeHandle()) + ".");
+        }
+        int[] result =  WindowsRegQueryInfoKey1(nativeHandle);
+        if (result[ERROR_CODE] != ERROR_SUCCESS) {
+            String info = "Could not query windows"
+            + "registry node " + byteArrayToString(windowsAbsolutePath()) + 
+            " at root 0x" + Integer.toHexString(rootNativeHandle()) +
+            ". Windows RegQueryInfoKeyEx(...) returned error code " + 
+            result[ERROR_CODE] + ".";
+            logger().warning(info);
+            throw new BackingStoreException(info);
+        }    
+        int maxValueNameLength = result[MAX_VALUE_NAME_LENGTH];
+        int valuesNumber = result[VALUES_NUMBER];
+        if (valuesNumber == 0) {
+            closeKey(nativeHandle);
+            return new String[0];
+       }
+       // Get the values
+       String[] valueNames = new String[valuesNumber];
+       for (int i = 0; i < valuesNumber; i++) {
+            byte[] windowsName = WindowsRegEnumValue1(nativeHandle, i, 
+                                                        maxValueNameLength+1);
+            if (windowsName == null) {
+                String info = 
+                "Could not enumerate value #" + i + "  of windows node " + 
+                byteArrayToString(windowsAbsolutePath()) + " at root 0x" + 
+                Integer.toHexString(rootNativeHandle()) + ".";
+                logger().warning(info);
+                throw new BackingStoreException(info);
+            }
+            valueNames[i] = toJavaName(windowsName);
+        }
+        closeKey(nativeHandle);
+        return valueNames;    
+!!!8087835.java!!!	childrenNamesSpi() : String
+        // Open key
+        int nativeHandle = openKey(KEY_ENUMERATE_SUB_KEYS| KEY_QUERY_VALUE);
+        if (nativeHandle == NULL_NATIVE_HANDLE) {
+            throw new BackingStoreException("Could not open windows"
+            + "registry node " + byteArrayToString(windowsAbsolutePath()) + 
+            " at root 0x" + Integer.toHexString(rootNativeHandle()) + ".");
+        }        
+        // Get number of children
+        int[] result =  WindowsRegQueryInfoKey1(nativeHandle);
+        if (result[ERROR_CODE] != ERROR_SUCCESS) {
+            String info = "Could not query windows"
+            + "registry node " + byteArrayToString(windowsAbsolutePath()) + 
+            " at root 0x" + Integer.toHexString(rootNativeHandle()) +
+            ". Windows RegQueryInfoKeyEx(...) returned error code " + 
+            result[ERROR_CODE] + ".";
+            logger().warning(info);
+            throw new BackingStoreException(info);
+        }    
+        int maxKeyLength = result[MAX_KEY_LENGTH];
+        int subKeysNumber = result[SUBKEYS_NUMBER];
+        if (subKeysNumber == 0) {
+            closeKey(nativeHandle);
+            return new String[0];
+        }
+        String[] subkeys = new String[subKeysNumber];
+        String[] children = new String[subKeysNumber];
+        // Get children
+        for (int i = 0; i < subKeysNumber; i++) {
+            byte[] windowsName = WindowsRegEnumKeyEx1(nativeHandle, i, 
+                                                                maxKeyLength+1);
+            if (windowsName == null) {
+                String info = 
+                "Could not enumerate key #" + i + "  of windows node " + 
+                byteArrayToString(windowsAbsolutePath()) + " at root 0x" + 
+                Integer.toHexString(rootNativeHandle()) + ". ";
+                logger().warning(info);
+                throw new BackingStoreException(info);
+            }
+            String javaName = toJavaName(windowsName);
+            children[i] = javaName;
+        }
+        closeKey(nativeHandle);
+        return children;
+!!!8087963.java!!!	flush() : void
+       
+	if (isRemoved()) {
+	    parent.flush();
+	    return;
+	}
+        if (!isBackingStoreAvailable) {
+            throw new BackingStoreException(
+                                       "flush(): Backing store not available.");
+        }
+        int nativeHandle = openKey(KEY_READ);
+        if (nativeHandle == NULL_NATIVE_HANDLE) {
+            throw new BackingStoreException("Could not open windows"
+            + "registry node " + byteArrayToString(windowsAbsolutePath()) + 
+            " at root 0x" + Integer.toHexString(rootNativeHandle()) + ".");
+        }
+        int result = WindowsRegFlushKey1(nativeHandle);
+        if (result != ERROR_SUCCESS) {
+            String info = "Could not flush windows "
+            + "registry node " + byteArrayToString(windowsAbsolutePath()) 
+            + " at root 0x" + Integer.toHexString(rootNativeHandle()) + 
+            ". Windows RegFlushKey(...) returned error code " + result + ".";
+            logger().warning(info);
+            throw new BackingStoreException(info);
+        }                
+        closeKey(nativeHandle);
+!!!8088091.java!!!	sync() : void
+        if (isRemoved())
+            throw new IllegalStateException("Node has been removed");         
+        flush();
+!!!8088219.java!!!	childSpi(in name : String) : AbstractPreferences
+            return new WindowsPreferences(this, name);
+!!!8088347.java!!!	removeNodeSpi() : void
+        int parentNativeHandle = 
+                         ((WindowsPreferences)parent()).openKey(DELETE);
+        if (parentNativeHandle == NULL_NATIVE_HANDLE) {
+            throw new BackingStoreException("Could not open parent windows"
+            + "registry node of " + byteArrayToString(windowsAbsolutePath()) + 
+            " at root 0x" + Integer.toHexString(rootNativeHandle()) + ".");
+        }
+        int result = 
+                WindowsRegDeleteKey(parentNativeHandle, toWindowsName(name()));
+        if (result != ERROR_SUCCESS) {
+            String info = "Could not delete windows "
+            + "registry node " + byteArrayToString(windowsAbsolutePath()) + 
+            " at root 0x" + Integer.toHexString(rootNativeHandle()) +
+            ". Windows RegDeleteKeyEx(...) returned error code " + 
+            result + ".";
+            logger().warning(info);
+            throw new BackingStoreException(info);
+        }
+        closeKey(parentNativeHandle);
+!!!8088475.java!!!	toJavaName(in windowsNameArray : byte) : String
+        String windowsName = byteArrayToString(windowsNameArray);
+        // check if Alt64
+        if ((windowsName.length()>1) && 
+                                   (windowsName.substring(0,2).equals("/!"))) {
+            return toJavaAlt64Name(windowsName);
+        }
+        StringBuffer javaName = new StringBuffer();
+        char ch;
+        // Decode from simple encoding
+        for (int i = 0; i < windowsName.length(); i++){
+            if ((ch = windowsName.charAt(i)) == '/') {
+                char next = ' ';
+                if ((windowsName.length() > i + 1) && 
+                   ((next = windowsName.charAt(i+1)) >= 'A') && (next <= 'Z')) {
+                ch = next;
+                i++;
+                } else  if ((windowsName.length() > i + 1) && (next == '/')) {
+                ch = '\\';
+                i++;
+                }
+            } else if (ch == '\\') {
+                ch = '/';
+            }
+            javaName.append(ch);
+        }
+        return javaName.toString();
+!!!8088603.java!!!	toJavaAlt64Name(in windowsName : String) : String
+        byte[] byteBuffer = 
+                          Base64.altBase64ToByteArray(windowsName.substring(2));
+        StringBuffer result = new StringBuffer();
+        for (int i = 0; i < byteBuffer.length; i++) {
+            int firstbyte = (byteBuffer[i++] & 0xff);
+            int secondbyte =  (byteBuffer[i] & 0xff);
+            result.append((char)((firstbyte << 8) + secondbyte));
+        }
+        return result.toString();
+!!!8088731.java!!!	toWindowsName(in javaName : String) : byte
+        StringBuffer windowsName = new StringBuffer();
+        for (int i = 0; i < javaName.length(); i++) {
+            char ch =javaName.charAt(i);
+            if ((ch < 0x0020)||(ch > 0x007f)) {
+                // If a non-trivial character encountered, use altBase64
+                return toWindowsAlt64Name(javaName);
+            }
+            if (ch == '\\') {
+                windowsName.append("//");
+            } else if (ch == '/') {
+                windowsName.append('\\');
+            } else if ((ch >= 'A') && (ch <='Z')) {
+                windowsName.append("/" + ch);
+            } else {
+                windowsName.append(ch);
+            }
+        }
+        return stringToByteArray(windowsName.toString());
+!!!8088859.java!!!	toWindowsAlt64Name(in javaName : String) : byte
+        byte[] javaNameArray = new byte[2*javaName.length()];
+        // Convert to byte pairs
+        int counter = 0;
+        for (int i = 0; i < javaName.length();i++) {
+            	int ch = javaName.charAt(i);
+                javaNameArray[counter++] = (byte)(ch >>> 8);
+	        javaNameArray[counter++] = (byte)ch; 
+        }
+    
+        return stringToByteArray(
+                           "/!" + Base64.byteArrayToAltBase64(javaNameArray));
+!!!8088987.java!!!	toJavaValueString(in windowsNameArray : byte) : String
+        // Use modified native2ascii algorithm
+        String windowsName = byteArrayToString(windowsNameArray);
+        StringBuffer javaName = new StringBuffer();
+        char ch;
+        for (int i = 0; i < windowsName.length(); i++){
+            if ((ch = windowsName.charAt(i)) == '/') {
+                char next = ' ';
+                
+                if (windowsName.length() > i + 1 && 
+                                    (next = windowsName.charAt(i + 1)) == 'u') {
+                    if (windowsName.length() < i + 6){
+                        break;
+                    } else {
+                        ch = (char)Integer.parseInt
+                                      (windowsName.substring(i + 2, i + 6), 16);
+                        i += 5;
+                    }
+                } else  
+                if ((windowsName.length() > i + 1) && 
+                          ((windowsName.charAt(i+1)) >= 'A') && (next <= 'Z')) {
+                ch = next;
+                i++;
+                } else  if ((windowsName.length() > i + 1) && 
+                                               (next == '/')) {
+                ch = '\\';
+                i++;
+                }
+            } else if (ch == '\\') {
+                ch = '/';
+            }
+            javaName.append(ch);
+        }
+        return javaName.toString();
+!!!8089115.java!!!	toWindowsValueString(in javaName : String) : byte
+        StringBuffer windowsName = new StringBuffer();
+        for (int i = 0; i < javaName.length(); i++) {
+            char ch =javaName.charAt(i);
+            if ((ch < 0x0020)||(ch > 0x007f)){
+                // write \udddd
+                windowsName.append("/u");
+                String hex = Integer.toHexString(javaName.charAt(i));
+                StringBuffer hex4 = new StringBuffer(hex);
+                hex4.reverse();
+                int len = 4 - hex4.length();
+                for (int j = 0; j < len; j++){
+                    hex4.append('0');
+                }
+                for (int j = 0; j < 4; j++){
+                    windowsName.append(hex4.charAt(3 - j));
+                }
+            } else if (ch == '\\') {
+                windowsName.append("//");
+            } else if (ch == '/') {
+                windowsName.append('\\');
+            } else if ((ch >= 'A') && (ch <='Z')) {
+                windowsName.append("/" + ch);
+            } else {
+                windowsName.append(ch);
+            }
+        }
+        return stringToByteArray(windowsName.toString());
+!!!8089243.java!!!	rootNativeHandle() : int
+        return (isUserNode()? USER_ROOT_NATIVE_HANDLE :
+                              SYSTEM_ROOT_NATIVE_HANDLE); 
+!!!8089371.java!!!	stringToByteArray(in str : String) : byte
+        byte[] result = new byte[str.length()+1];
+        for (int i = 0; i < str.length(); i++) {
+            result[i] = (byte) str.charAt(i);
+        }    
+        result[str.length()] = 0; 
+        return result;
+!!!8089499.java!!!	byteArrayToString(in array : byte) : String
+        StringBuffer result = new StringBuffer();
+        for (int i = 0; i < array.length - 1; i++) {
+            result.append((char)array[i]);
+        }    
+        return result.toString();
+!!!8089627.java!!!	flushSpi() : void
+        // assert false;
+!!!8089755.java!!!	syncSpi() : void
+        // assert false;
+!!!8089883.java!!!	logger() : Logger
+        if (logger == null) {
+            logger = Logger.getLogger("java.util.prefs");
+        }
+        return logger;

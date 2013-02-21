@@ -1,0 +1,33 @@
+class SyntheticImage
+!!!9338011.java!!!	SyntheticImage(in w : int, in h : int)
+ width = w; height = h;
+!!!9338139.java!!!	computeRow(in y : int, in row : int) : void
+        int p = 255-255*y/(height-1);
+        p = (pixMask<<24)|(p<<16)|(p<<8)|p;
+        for (int i = row.length; --i>=0; ) row[i] = p;
+!!!9338267.java!!!	addConsumer(inout ic : ImageConsumer) : void
+        for (SyntheticImageGenerator ics = root; ics != null; ics = ics.next)
+            if (ics.ic == ic) return;
+        root = new SyntheticImageGenerator(ic, root, this);
+!!!9338395.java!!!	isConsumer(inout ic : ImageConsumer) : boolean
+        for (SyntheticImageGenerator ics = root; ics != null; ics = ics.next)
+            if (ics.ic == ic) return true;
+        return false;
+!!!9338523.java!!!	removeConsumer(inout ic : ImageConsumer) : void
+        SyntheticImageGenerator prev = null;
+        for (SyntheticImageGenerator ics = root; ics != null; ics = ics.next) {
+            if (ics.ic == ic) {
+                ics.useful = false;
+                if (prev!=null) prev.next = ics.next;
+                else root = ics.next;
+                return;
+            }
+            prev = ics;
+        }
+!!!9338651.java!!!	startProduction(inout ic : ImageConsumer) : void
+        addConsumer(ic);
+        for (SyntheticImageGenerator ics = root; ics != null; ics = ics.next)
+            if (ics.useful && !ics.isAlive())
+                ics.start();
+!!!9338779.java!!!	isStatic() : boolean
+ return true;

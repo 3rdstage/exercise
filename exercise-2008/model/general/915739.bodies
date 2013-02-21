@@ -1,0 +1,62 @@
+class ProcessImpl
+!!!7028507.java!!!	start(in cmdarray : String, inout environment : Map, in dir : String, inout redirectErrorStream : boolean) : Process
+	String envblock = ProcessEnvironment.toEnvironmentBlock(environment);
+	return new ProcessImpl(cmdarray, envblock, dir, redirectErrorStream);
+!!!7028635.java!!!	ProcessImpl(in cmd : String, in envblock : String, in path : String, inout redirectErrorStream : boolean)
+	// Win32 CreateProcess requires cmd[0] to be normalized
+	cmd[0] = new File(cmd[0]).getPath();
+
+	StringBuilder cmdbuf = new StringBuilder(80);
+	for (int i = 0; i < cmd.length; i++) {
+            if (i > 0) {
+                cmdbuf.append(' ');
+            }
+	    String s = cmd[i];
+	    if (s.indexOf(' ') >= 0 || s.indexOf('\t') >= 0) {
+	        if (s.charAt(0) != '"') {
+		    cmdbuf.append('"');
+		    cmdbuf.append(s);
+		    if (s.endsWith("\\")) {
+			cmdbuf.append("\\");
+		    }
+		    cmdbuf.append('"');
+                } else if (s.endsWith("\"")) {
+		    /* The argument has already been quoted. */
+		    cmdbuf.append(s);
+		} else {
+		    /* Unmatched quote for the argument. */
+		    throw new IllegalArgumentException();
+		}
+	    } else {
+	        cmdbuf.append(s);
+	    }
+	}
+	String cmdstr = cmdbuf.toString();
+
+	stdin_fd  = new FileDescriptor();
+	stdout_fd = new FileDescriptor();
+	stderr_fd = new FileDescriptor();
+
+	handle = create(cmdstr, envblock, path, redirectErrorStream,
+			stdin_fd, stdout_fd, stderr_fd);
+
+	java.security.AccessController.doPrivileged(
+				    new java.security.PrivilegedAction() {
+	    public Object run() {
+		stdin_stream =
+		    new BufferedOutputStream(new FileOutputStream(stdin_fd));
+		stdout_stream =
+		    new BufferedInputStream(new FileInputStream(stdout_fd));
+		stderr_stream =
+		    new FileInputStream(stderr_fd);
+		return null;
+	    }
+	});
+!!!7028763.java!!!	getOutputStream() : OutputStream
+	return stdin_stream;
+!!!7028891.java!!!	getInputStream() : InputStream
+	return stdout_stream;
+!!!7029019.java!!!	getErrorStream() : InputStream
+	return stderr_stream;
+!!!7029147.java!!!	finalize() : void
+	close();

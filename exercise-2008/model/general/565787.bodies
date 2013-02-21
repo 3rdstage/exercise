@@ -1,0 +1,99 @@
+class VersionHelper12
+!!!3585051.java!!!	loadClass(in className : String) : Class
+	ClassLoader cl = getContextClassLoader();
+	return Class.forName(className, true, cl);
+!!!3585179.java!!!	loadClass(in className : String, inout cl : ClassLoader) : Class
+	return Class.forName(className, true, cl);
+!!!3585307.java!!!	loadClass(in className : String, in codebase : String) : Class
+	ClassLoader cl;
+
+	ClassLoader parent = getContextClassLoader();
+	cl = URLClassLoader.newInstance(getUrlArray(codebase), parent);
+
+	return Class.forName(className, true, cl);
+!!!3585435.java!!!	getJndiProperty(in i : int) : String
+	return (String) AccessController.doPrivileged(
+	    new PrivilegedAction() {
+		public Object run() {
+		    try {
+			return System.getProperty(PROPS[i]);
+		    } catch (SecurityException e) {
+			return null;
+		    }
+	        }
+	    }
+	);
+!!!3585563.java!!!	getJndiProperties() : String
+	if (getSystemPropsFailed) {
+	    return null;	// after one failure, don't bother trying again
+	}
+	Properties sysProps = (Properties) AccessController.doPrivileged(
+	    new PrivilegedAction() {
+		public Object run() {
+		    try {
+			return System.getProperties();
+		    } catch (SecurityException e) {
+			getSystemPropsFailed = true;
+			return null;
+		    }
+		}
+	    }
+	);
+	if (sysProps == null) {
+	    return null;
+	}
+	String[] jProps = new String[PROPS.length];
+	for (int i = 0; i < PROPS.length; i++) {
+	    jProps[i] = sysProps.getProperty(PROPS[i]);
+	}
+	return jProps;
+!!!3585691.java!!!	getResourceAsStream(in c : Class, in name : String) : InputStream
+	return (InputStream) AccessController.doPrivileged(
+	    new PrivilegedAction() {
+		public Object run() {
+	            return c.getResourceAsStream(name);
+	        }
+	    }
+	);
+!!!3585819.java!!!	getJavaHomeLibStream(in filename : String) : InputStream
+	return (InputStream) AccessController.doPrivileged(
+	    new PrivilegedAction() {
+		public Object run() {
+		    try {
+			String javahome = System.getProperty("java.home");
+			if (javahome == null) {
+			    return null;
+			}
+			String pathname = javahome + java.io.File.separator +
+			    "lib" + java.io.File.separator + filename;
+			return new java.io.FileInputStream(pathname);
+		    } catch (Exception e) {
+			return null;
+		    }
+		}
+	    }
+	);
+!!!3585947.java!!!	getResources(in cl : ClassLoader, in name : String) : NamingEnumeration
+	Enumeration urls;
+	try {
+	    urls = (Enumeration) AccessController.doPrivileged(
+		new PrivilegedExceptionAction() {
+		    public Object run() throws IOException {
+			return (cl == null)
+			    ? ClassLoader.getSystemResources(name)
+			    : cl.getResources(name);
+		    }
+		}
+	    );
+	} catch (PrivilegedActionException e) {
+	    throw (IOException)e.getException();
+	}
+	return new InputStreamEnumeration(urls);
+!!!3586075.java!!!	getContextClassLoader() : ClassLoader
+	return (ClassLoader) AccessController.doPrivileged(
+	    new PrivilegedAction() {
+		public Object run() {
+		    return Thread.currentThread().getContextClassLoader();
+		}
+	    }
+	);

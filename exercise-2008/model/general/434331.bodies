@@ -1,0 +1,306 @@
+class BasicFileChooserUI
+!!!2618011.java!!!	installUI(inout c : JComponent) : void
+	accessoryPanel = new JPanel(new BorderLayout());
+	filechooser = (JFileChooser) c;
+
+	createModel();
+
+	clearIconCache();
+
+	installDefaults(filechooser);
+	installComponents(filechooser);
+	installListeners(filechooser);
+	filechooser.applyComponentOrientation(filechooser.getComponentOrientation());
+!!!2618139.java!!!	uninstallUI(inout c : JComponent) : void
+	uninstallListeners((JFileChooser) filechooser);
+	uninstallComponents((JFileChooser) filechooser);
+	uninstallDefaults((JFileChooser) filechooser);
+
+	if(accessoryPanel != null) {
+	    accessoryPanel.removeAll();
+	}
+
+	accessoryPanel = null;
+	getFileChooser().removeAll();
+
+        handler = null;
+!!!2618523.java!!!	installListeners(inout fc : JFileChooser) : void
+	propertyChangeListener = createPropertyChangeListener(fc);
+	if(propertyChangeListener != null) {
+	    fc.addPropertyChangeListener(propertyChangeListener);
+	}
+	fc.addPropertyChangeListener(getModel());
+
+	InputMap inputMap = getInputMap(JComponent.
+					WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+	SwingUtilities.replaceUIInputMap(fc, JComponent.
+					 WHEN_ANCESTOR_OF_FOCUSED_COMPONENT, inputMap);
+	ActionMap actionMap = getActionMap();
+	SwingUtilities.replaceUIActionMap(fc, actionMap);
+!!!2618651.java!!!	getInputMap(in condition : int) : InputMap
+	if (condition == JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT) {
+	    return (InputMap)DefaultLookup.get(getFileChooser(), this,
+                    "FileChooser.ancestorInputMap");
+	}
+	return null;
+!!!2618779.java!!!	getActionMap() : ActionMap
+	return createActionMap();
+!!!2618907.java!!!	createActionMap() : ActionMap
+	ActionMap map = new ActionMapUIResource();
+
+	Action refreshAction = new UIAction(FilePane.ACTION_REFRESH) {
+	    public void actionPerformed(ActionEvent evt) {
+		getFileChooser().rescanCurrentDirectory();
+	    }
+	};
+
+        map.put(FilePane.ACTION_APPROVE_SELECTION, getApproveSelectionAction());
+	map.put(FilePane.ACTION_CANCEL, getCancelSelectionAction());
+	map.put(FilePane.ACTION_REFRESH, refreshAction);
+        map.put(FilePane.ACTION_CHANGE_TO_PARENT_DIRECTORY,
+		getChangeToParentDirectoryAction());
+	return map;
+!!!2619035.java!!!	uninstallListeners(inout fc : JFileChooser) : void
+	if(propertyChangeListener != null) {
+	    fc.removePropertyChangeListener(propertyChangeListener);
+	}
+	fc.removePropertyChangeListener(getModel());
+	SwingUtilities.replaceUIInputMap(fc, JComponent.
+					 WHEN_ANCESTOR_OF_FOCUSED_COMPONENT, null);
+	SwingUtilities.replaceUIActionMap(fc, null);
+!!!2619163.java!!!	installDefaults(inout fc : JFileChooser) : void
+	installIcons(fc);
+	installStrings(fc);
+	usesSingleFilePane = UIManager.getBoolean("FileChooser.usesSingleFilePane");
+	readOnly           = UIManager.getBoolean("FileChooser.readOnly");
+	TransferHandler th = fc.getTransferHandler();
+	if (th == null || th instanceof UIResource) {
+	    fc.setTransferHandler(defaultTransferHandler);
+	}
+        LookAndFeel.installProperty(fc, "opaque", Boolean.FALSE);
+!!!2619291.java!!!	installIcons(inout fc : JFileChooser) : void
+	directoryIcon    = UIManager.getIcon("FileView.directoryIcon");
+	fileIcon         = UIManager.getIcon("FileView.fileIcon");
+	computerIcon     = UIManager.getIcon("FileView.computerIcon");
+	hardDriveIcon    = UIManager.getIcon("FileView.hardDriveIcon");
+	floppyDriveIcon  = UIManager.getIcon("FileView.floppyDriveIcon");
+
+	newFolderIcon    = UIManager.getIcon("FileChooser.newFolderIcon");
+	upFolderIcon     = UIManager.getIcon("FileChooser.upFolderIcon");
+	homeFolderIcon   = UIManager.getIcon("FileChooser.homeFolderIcon");
+	detailsViewIcon  = UIManager.getIcon("FileChooser.detailsViewIcon");
+	listViewIcon     = UIManager.getIcon("FileChooser.listViewIcon");
+!!!2619419.java!!!	installStrings(inout fc : JFileChooser) : void
+
+        Locale l = fc.getLocale();
+	newFolderErrorText = UIManager.getString("FileChooser.newFolderErrorText",l);
+	newFolderErrorSeparator = UIManager.getString("FileChooser.newFolderErrorSeparator",l);
+
+	fileDescriptionText = UIManager.getString("FileChooser.fileDescriptionText",l);
+	directoryDescriptionText = UIManager.getString("FileChooser.directoryDescriptionText",l);
+
+	saveButtonText   = UIManager.getString("FileChooser.saveButtonText",l);
+	openButtonText   = UIManager.getString("FileChooser.openButtonText",l);
+	saveDialogTitleText = UIManager.getString("FileChooser.saveDialogTitleText",l);
+	openDialogTitleText = UIManager.getString("FileChooser.openDialogTitleText",l);
+	cancelButtonText = UIManager.getString("FileChooser.cancelButtonText",l);
+	updateButtonText = UIManager.getString("FileChooser.updateButtonText",l);
+	helpButtonText   = UIManager.getString("FileChooser.helpButtonText",l);
+	directoryOpenButtonText = UIManager.getString("FileChooser.directoryOpenButtonText",l);
+
+	saveButtonMnemonic   = getMnemonic("FileChooser.saveButtonMnemonic", l);
+	openButtonMnemonic   = getMnemonic("FileChooser.openButtonMnemonic", l);
+	cancelButtonMnemonic = getMnemonic("FileChooser.cancelButtonMnemonic", l);
+	updateButtonMnemonic = getMnemonic("FileChooser.updateButtonMnemonic", l);
+	helpButtonMnemonic   = getMnemonic("FileChooser.helpButtonMnemonic", l);
+	directoryOpenButtonMnemonic = getMnemonic("FileChooser.directoryOpenButtonMnemonic", l);
+
+	saveButtonToolTipText   = UIManager.getString("FileChooser.saveButtonToolTipText",l);
+	openButtonToolTipText   = UIManager.getString("FileChooser.openButtonToolTipText",l);
+	cancelButtonToolTipText = UIManager.getString("FileChooser.cancelButtonToolTipText",l);
+	updateButtonToolTipText = UIManager.getString("FileChooser.updateButtonToolTipText",l);
+	helpButtonToolTipText   = UIManager.getString("FileChooser.helpButtonToolTipText",l);
+	directoryOpenButtonToolTipText = UIManager.getString("FileChooser.directoryOpenButtonToolTipText",l);
+!!!2619547.java!!!	uninstallDefaults(inout fc : JFileChooser) : void
+	uninstallIcons(fc);
+	uninstallStrings(fc);
+	if (fc.getTransferHandler() instanceof UIResource) {
+	    fc.setTransferHandler(null);
+	}
+!!!2619675.java!!!	uninstallIcons(inout fc : JFileChooser) : void
+	directoryIcon    = null;
+	fileIcon         = null;
+	computerIcon     = null;
+	hardDriveIcon    = null;
+	floppyDriveIcon  = null;
+
+	newFolderIcon    = null;
+	upFolderIcon     = null;
+	homeFolderIcon   = null;
+	detailsViewIcon  = null;
+	listViewIcon     = null;
+!!!2619803.java!!!	uninstallStrings(inout fc : JFileChooser) : void
+	saveButtonText   = null;
+	openButtonText   = null;
+	cancelButtonText = null;
+	updateButtonText = null;
+	helpButtonText   = null;
+	directoryOpenButtonText = null;
+
+	saveButtonToolTipText = null;
+	openButtonToolTipText = null;
+	cancelButtonToolTipText = null;
+	updateButtonToolTipText = null;
+	helpButtonToolTipText = null;
+	directoryOpenButtonToolTipText = null;
+!!!2619931.java!!!	createModel() : void
+	model = new BasicDirectoryModel(getFileChooser());
+	if (model != null) {
+	    model.invalidateFileCache();
+	}
+!!!2620059.java!!!	getModel() : BasicDirectoryModel
+	return model;
+!!!2620187.java!!!	createPropertyChangeListener(inout fc : JFileChooser) : PropertyChangeListener
+	return null;
+!!!2620315.java!!!	getFileName() : String
+	return null;
+!!!2620443.java!!!	getDirectoryName() : String
+	return null;
+!!!2621083.java!!!	getFileChooser() : JFileChooser
+	return filechooser;
+!!!2621211.java!!!	getAccessoryPanel() : JPanel
+	return accessoryPanel;
+!!!2621339.java!!!	getApproveButton(inout fc : JFileChooser) : JButton
+	return null;
+!!!2621467.java!!!	getApproveButtonToolTipText(inout fc : JFileChooser) : String
+	String tooltipText = fc.getApproveButtonToolTipText();
+	if(tooltipText != null) {
+	    return tooltipText;
+	}
+
+	if(fc.getDialogType() == JFileChooser.OPEN_DIALOG) {
+	    return openButtonToolTipText;
+	} else if(fc.getDialogType() == JFileChooser.SAVE_DIALOG) {
+	    return saveButtonToolTipText;
+	}
+	return null;
+!!!2621595.java!!!	clearIconCache() : void
+	fileView.clearIconCache();
+!!!2621723.java!!!	getHandler() : Handler
+        if (handler == null) {
+            handler = new Handler();
+        }
+        return handler;
+!!!2621851.java!!!	createDoubleClickListener(inout fc : JFileChooser, inout list : JList) : MouseListener
+	return new Handler(list);
+!!!2621979.java!!!	createListSelectionListener(inout fc : JFileChooser) : ListSelectionListener
+        return getHandler();
+!!!2623643.java!!!	isDirectorySelected() : boolean
+	return directorySelected;
+!!!2623771.java!!!	setDirectorySelected(inout b : boolean) : void
+	directorySelected = b;
+!!!2623899.java!!!	getDirectory() : File
+	return directory;
+!!!2624027.java!!!	setDirectory(inout f : File) : void
+	directory = f;
+!!!2624155.java!!!	getMnemonic(in key : String, inout l : Locale) : int
+	Object value = UIManager.get(key, l);
+
+	if (value instanceof Integer) {
+	    return (Integer)value;
+	}
+	if (value instanceof String) {
+	    try {
+		return Integer.parseInt((String)value);
+	    } catch (NumberFormatException nfe) { }
+	}
+        return 0;
+!!!2624283.java!!!	getAcceptAllFileFilter(inout fc : JFileChooser) : FileFilter
+	return acceptAllFileFilter;
+!!!2624411.java!!!	getFileView(inout fc : JFileChooser) : FileView
+	return fileView;
+!!!2624539.java!!!	getDialogTitle(inout fc : JFileChooser) : String
+	String dialogTitle = fc.getDialogTitle();
+	if (dialogTitle != null) {
+	    return dialogTitle;
+	} else if (fc.getDialogType() == JFileChooser.OPEN_DIALOG) {
+	    return openDialogTitleText;
+	} else if (fc.getDialogType() == JFileChooser.SAVE_DIALOG) {
+	    return saveDialogTitleText;
+	} else {
+	    return getApproveButtonText(fc);
+	}
+!!!2624667.java!!!	getApproveButtonMnemonic(inout fc : JFileChooser) : int
+	int mnemonic = fc.getApproveButtonMnemonic();
+	if (mnemonic > 0) {
+	    return mnemonic;
+	} else if (fc.getDialogType() == JFileChooser.OPEN_DIALOG) {
+	    return openButtonMnemonic;
+	} else if (fc.getDialogType() == JFileChooser.SAVE_DIALOG) {
+	    return saveButtonMnemonic;
+	} else {
+	    return mnemonic;
+	}
+!!!2624795.java!!!	getApproveButtonText(inout fc : JFileChooser) : String
+	String buttonText = fc.getApproveButtonText();
+	if (buttonText != null) {
+	    return buttonText;
+	} else if (fc.getDialogType() == JFileChooser.OPEN_DIALOG) {
+	    return openButtonText;
+	} else if (fc.getDialogType() == JFileChooser.SAVE_DIALOG) {
+	    return saveButtonText;
+	} else {
+	    return null;
+	}
+!!!2624923.java!!!	getNewFolderAction() : Action
+	if (newFolderAction == null) {
+	    newFolderAction = new NewFolderAction();
+	    // Note: Don't return null for readOnly, it might
+	    // break older apps.
+	    if (readOnly) {
+		newFolderAction.setEnabled(false);
+	    }
+	}
+	return newFolderAction;
+!!!2625051.java!!!	getGoHomeAction() : Action
+	return goHomeAction;
+!!!2625179.java!!!	getChangeToParentDirectoryAction() : Action
+	return changeToParentDirectoryAction;
+!!!2625307.java!!!	getApproveSelectionAction() : Action
+	return approveSelectionAction;
+!!!2625435.java!!!	getCancelSelectionAction() : Action
+	return cancelSelectionAction;
+!!!2625563.java!!!	getUpdateAction() : Action
+	return updateAction;
+!!!2626715.java!!!	resetGlobFilter() : void
+	if (actualFileFilter != null) {
+	    JFileChooser chooser = getFileChooser();
+	    FileFilter currentFilter = chooser.getFileFilter();
+	    if (currentFilter != null && currentFilter.equals(globFilter)) {
+		chooser.setFileFilter(actualFileFilter);
+		chooser.removeChoosableFileFilter(globFilter);
+	    }
+	    actualFileFilter = null;
+	}
+!!!2626843.java!!!	isGlobPattern(in filename : String) : boolean
+	return ((File.separatorChar == '\\' && (filename.indexOf('*') >= 0
+						  || filename.indexOf('?') >= 0))
+		|| (File.separatorChar == '/' && (filename.indexOf('*') >= 0
+						  || filename.indexOf('?') >= 0
+						  || filename.indexOf('[') >= 0)));
+!!!2627867.java!!!	changeDirectory(inout dir : File) : void
+	JFileChooser fc = getFileChooser();
+	// Traverse shortcuts on Windows
+	if (dir != null && File.separatorChar == '\\' && dir.getPath().endsWith(".lnk")) {
+	    try {
+		File linkedTo = ShellFolder.getShellFolder(dir).getLinkLocation();
+		if (linkedTo != null && fc.isTraversable(linkedTo)) {
+		    dir = linkedTo;
+		} else {
+		    return;
+		}
+	    } catch (FileNotFoundException ex) {
+		return;
+	    }
+	}
+	fc.setCurrentDirectory(dir);

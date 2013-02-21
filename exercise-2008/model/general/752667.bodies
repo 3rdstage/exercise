@@ -1,0 +1,249 @@
+class DOMParser
+!!!5258651.java!!!	DOMParser(inout config : XMLParserConfiguration)
+        super(config);
+!!!5258779.java!!!	DOMParser()
+        this(null, null);
+!!!5258907.java!!!	DOMParser(inout symbolTable : SymbolTable)
+        this(symbolTable, null);
+!!!5259035.java!!!	DOMParser(inout symbolTable : SymbolTable, inout grammarPool : XMLGrammarPool)
+        super((XMLParserConfiguration)ObjectFactory.createObject(
+        "com.sun.org.apache.xerces.internal.xni.parser.XMLParserConfiguration",
+        "com.sun.org.apache.xerces.internal.parsers.XIncludeParserConfiguration"
+        ));
+        
+        // set properties
+        fConfiguration.addRecognizedProperties(RECOGNIZED_PROPERTIES);
+        if (symbolTable != null) {
+            fConfiguration.setProperty(SYMBOL_TABLE, symbolTable);
+        }
+        if (grammarPool != null) {
+            fConfiguration.setProperty(XMLGRAMMAR_POOL, grammarPool);
+        }
+        
+!!!5259163.java!!!	parse(in systemId : String) : void
+        
+        // parse document
+        XMLInputSource source = new XMLInputSource(null, systemId, null);
+        try {
+            parse(source);
+        }
+        
+        // wrap XNI exceptions as SAX exceptions
+        catch (XMLParseException e) {
+            Exception ex = e.getException();
+            if (ex == null) {
+                // must be a parser exception; mine it for locator info and throw
+                // a SAXParseException
+                LocatorImpl locatorImpl = new LocatorImpl();
+                locatorImpl.setPublicId(e.getPublicId());
+                locatorImpl.setSystemId(e.getExpandedSystemId());
+                locatorImpl.setLineNumber(e.getLineNumber());
+                locatorImpl.setColumnNumber(e.getColumnNumber());
+                throw new SAXParseException(e.getMessage(), locatorImpl);
+            }
+            if (ex instanceof SAXException) {
+                // why did we create an XMLParseException?
+                throw (SAXException)ex;
+            }
+            if (ex instanceof IOException) {
+                throw (IOException)ex;
+            }
+            throw new SAXException(ex);
+        }
+        catch (XNIException e) {
+            e.printStackTrace();
+            Exception ex = e.getException();
+            if (ex == null) {
+                throw new SAXException(e.getMessage());
+            }
+            if (ex instanceof SAXException) {
+                throw (SAXException)ex;
+            }
+            if (ex instanceof IOException) {
+                throw (IOException)ex;
+            }
+            throw new SAXException(ex);
+        }
+        
+!!!5259291.java!!!	parse(inout inputSource : InputSource) : void
+        
+        // parse document
+        try {
+            XMLInputSource xmlInputSource =
+            new XMLInputSource(inputSource.getPublicId(),
+            inputSource.getSystemId(),
+            null);
+            xmlInputSource.setByteStream(inputSource.getByteStream());
+            xmlInputSource.setCharacterStream(inputSource.getCharacterStream());
+            xmlInputSource.setEncoding(inputSource.getEncoding());
+            parse(xmlInputSource);
+        }
+        
+        // wrap XNI exceptions as SAX exceptions
+        catch (XMLParseException e) {
+            Exception ex = e.getException();
+            if (ex == null) {
+                // must be a parser exception; mine it for locator info and throw
+                // a SAXParseException
+                LocatorImpl locatorImpl = new LocatorImpl();
+                locatorImpl.setPublicId(e.getPublicId());
+                locatorImpl.setSystemId(e.getExpandedSystemId());
+                locatorImpl.setLineNumber(e.getLineNumber());
+                locatorImpl.setColumnNumber(e.getColumnNumber());
+                throw new SAXParseException(e.getMessage(), locatorImpl);
+            }
+            if (ex instanceof SAXException) {
+                // why did we create an XMLParseException?
+                throw (SAXException)ex;
+            }
+            if (ex instanceof IOException) {
+                throw (IOException)ex;
+            }
+            throw new SAXException(ex);
+        }
+        catch (XNIException e) {
+            Exception ex = e.getException();
+            if (ex == null) {
+                throw new SAXException(e.getMessage());
+            }
+            if (ex instanceof SAXException) {
+                throw (SAXException)ex;
+            }
+            if (ex instanceof IOException) {
+                throw (IOException)ex;
+            }
+            throw new SAXException(ex);
+        }
+        
+!!!5259419.java!!!	setEntityResolver(inout resolver : EntityResolver) : void
+        
+        try {
+            if(resolver instanceof EntityResolver2){
+                fConfiguration.setProperty(ENTITY_RESOLVER, new EntityResolver2Wrapper((EntityResolver2)resolver));
+            }else{
+                fConfiguration.setProperty(ENTITY_RESOLVER, new EntityResolverWrapper(resolver));
+            }
+        }
+        catch (XMLConfigurationException e) {
+            // do nothing
+        }
+        
+!!!5259547.java!!!	getEntityResolver() : EntityResolver
+        
+        EntityResolver entityResolver = null;
+        try {
+            XMLEntityResolver xmlEntityResolver =
+            (XMLEntityResolver)fConfiguration.getProperty(ENTITY_RESOLVER);
+            if (xmlEntityResolver != null){
+                if(xmlEntityResolver instanceof EntityResolverWrapper) {
+                    entityResolver = ((EntityResolverWrapper)xmlEntityResolver).getEntityResolver();
+                }else if(xmlEntityResolver instanceof EntityResolver2Wrapper){
+                    entityResolver = ((EntityResolver2Wrapper)xmlEntityResolver).getEntityResolver();
+                }
+            }
+        }catch (XMLConfigurationException e) {
+            // do nothing
+        }
+        return entityResolver;
+        
+!!!5259675.java!!!	setErrorHandler(inout errorHandler : ErrorHandler) : void
+        
+        try {
+            fConfiguration.setProperty(ERROR_HANDLER,
+            new ErrorHandlerWrapper(errorHandler));
+        }
+        catch (XMLConfigurationException e) {
+            // do nothing
+        }
+        
+!!!5259803.java!!!	getErrorHandler() : ErrorHandler
+        
+        ErrorHandler errorHandler = null;
+        try {
+            XMLErrorHandler xmlErrorHandler =
+            (XMLErrorHandler)fConfiguration.getProperty(ERROR_HANDLER);
+            if (xmlErrorHandler != null &&
+            xmlErrorHandler instanceof ErrorHandlerWrapper) {
+                errorHandler = ((ErrorHandlerWrapper)xmlErrorHandler).getErrorHandler();
+            }
+        }
+        catch (XMLConfigurationException e) {
+            // do nothing
+        }
+        return errorHandler;
+        
+!!!5259931.java!!!	setFeature(in featureId : String, inout state : boolean) : void
+        
+        try {
+            fConfiguration.setFeature(featureId, state);
+        }
+        catch (XMLConfigurationException e) {
+            String message = e.getMessage();
+            if (e.getType() == XMLConfigurationException.NOT_RECOGNIZED) {
+                throw new SAXNotRecognizedException(message);
+            }
+            else {
+                throw new SAXNotSupportedException(message);
+            }
+        }
+        
+!!!5260059.java!!!	getFeature(in featureId : String) : boolean
+        
+        try {
+            return fConfiguration.getFeature(featureId);
+        }
+        catch (XMLConfigurationException e) {
+            String message = e.getMessage();
+            if (e.getType() == XMLConfigurationException.NOT_RECOGNIZED) {
+                throw new SAXNotRecognizedException(message);
+            }
+            else {
+                throw new SAXNotSupportedException(message);
+            }
+        }
+        
+!!!5260187.java!!!	setProperty(in propertyId : String, inout value : Object) : void
+        
+        try {
+            fConfiguration.setProperty(propertyId, value);
+        }
+        catch (XMLConfigurationException e) {
+            String message = e.getMessage();
+            if (e.getType() == XMLConfigurationException.NOT_RECOGNIZED) {
+                throw new SAXNotRecognizedException(message);
+            }
+            else {
+                throw new SAXNotSupportedException(message);
+            }
+        }
+        
+!!!5260315.java!!!	getProperty(in propertyId : String) : Object
+        
+        if (propertyId.equals(CURRENT_ELEMENT_NODE)) {
+            boolean deferred = false;
+            try {
+                deferred = getFeature(DEFER_NODE_EXPANSION);
+            }
+            catch (XMLConfigurationException e){
+                // ignore
+            }
+            if (deferred) {
+                throw new SAXNotSupportedException("Current element node cannot be queried when node expansion is deferred.");
+            }
+            return (fCurrentNode!=null &&
+            fCurrentNode.getNodeType() == Node.ELEMENT_NODE)? fCurrentNode:null;
+        }
+        
+        try {
+            return fConfiguration.getProperty(propertyId);
+        }
+        catch (XMLConfigurationException e) {
+            String message = e.getMessage();
+            if (e.getType() == XMLConfigurationException.NOT_RECOGNIZED) {
+                throw new SAXNotRecognizedException(message);
+            }
+            else {
+                throw new SAXNotSupportedException(message);
+            }
+        }
+        

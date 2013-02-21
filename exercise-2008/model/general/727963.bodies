@@ -1,0 +1,160 @@
+class PrologDispatcher
+!!!4951579.java!!!	dispatch(inout complete : boolean) : boolean
+
+            try {
+                boolean again;
+                do {
+                    again = false;
+                    switch (fScannerState) {
+                        case SCANNER_STATE_PROLOG: {
+                            fEntityScanner.skipSpaces();
+                            if (fEntityScanner.skipChar('<')) {
+                                setScannerState(SCANNER_STATE_START_OF_MARKUP);
+                                again = true;
+                            }
+                            else if (fEntityScanner.skipChar('&')) {
+                                setScannerState(SCANNER_STATE_REFERENCE);
+                                again = true;
+                            }
+                            else {
+                                setScannerState(SCANNER_STATE_CONTENT);
+                                again = true;
+                            }
+                            break;
+                        }
+                        case SCANNER_STATE_START_OF_MARKUP: {
+                            fMarkupDepth++;
+                            if (fEntityScanner.skipChar('!')) {
+                                if (fEntityScanner.skipChar('-')) {
+                                    if (!fEntityScanner.skipChar('-')) {
+                                        reportFatalError("InvalidCommentStart",
+                                                         null);
+                                    }
+                                    setScannerState(SCANNER_STATE_COMMENT);
+                                    again = true;
+                                }
+                                else if (fEntityScanner.skipString("DOCTYPE")) {
+                                    setScannerState(SCANNER_STATE_DOCTYPE);
+                                    again = true;
+                                }
+                                else {
+                                    reportFatalError("MarkupNotRecognizedInProlog",
+                                                     null);
+                                }
+                            }
+                            else if (isValidNameStartChar(fEntityScanner.peekChar())) {
+                                setScannerState(SCANNER_STATE_ROOT_ELEMENT);
+                                setDispatcher(fContentDispatcher);
+                                return true;
+                            }
+                            else if (fEntityScanner.skipChar('?')) {
+                                setScannerState(SCANNER_STATE_PI);
+                                again = true;
+                            }
+                            else if (isValidNameStartHighSurrogate(fEntityScanner.peekChar())) {
+                                setScannerState(SCANNER_STATE_ROOT_ELEMENT);
+                                setDispatcher(fContentDispatcher);
+                                return true;
+                            }
+                            else {
+                                reportFatalError("MarkupNotRecognizedInProlog",
+                                                 null);
+                            }
+                            break;
+                        }
+                        case SCANNER_STATE_COMMENT: {
+                            scanComment();
+                            setScannerState(SCANNER_STATE_PROLOG);
+                            break;
+                        }
+                        case SCANNER_STATE_PI: {
+                            scanPI();
+                            setScannerState(SCANNER_STATE_PROLOG);
+                            break;
+                        }
+                        case SCANNER_STATE_DOCTYPE: {
+                            if (fDisallowDoctype) {
+                                reportFatalError("DoctypeNotAllowed", null);
+                            }
+                            if (fSeenDoctypeDecl) {
+                                reportFatalError("AlreadySeenDoctype", null);
+                            }
+                            fSeenDoctypeDecl = true;
+
+                            // scanDoctypeDecl() sends XNI doctypeDecl event that 
+                            // in SAX is converted to startDTD() event.
+                            if (scanDoctypeDecl()) {
+                                setScannerState(SCANNER_STATE_DTD_INTERNAL_DECLS);
+                                setDispatcher(fDTDDispatcher);
+                                return true;
+                            }
+                            
+                            // handle external subset
+                            if (fDoctypeSystemId != null) {
+                                if (((fValidation || fLoadExternalDTD) 
+                                    && (fValidationManager == null || !fValidationManager.isCachedDTD()))) {
+                                    setScannerState(SCANNER_STATE_DTD_EXTERNAL);
+                                    setDispatcher(fDTDDispatcher);
+                                    return true;
+                                }
+                            }
+                            else if (fExternalSubsetSource != null) {
+                                if (((fValidation || fLoadExternalDTD) 
+                                    && (fValidationManager == null || !fValidationManager.isCachedDTD()))) {
+                                    // This handles the case of a DOCTYPE that had neither an internal subset or an external subset.
+                                    fDTDScanner.setInputSource(fExternalSubsetSource);
+                                    fExternalSubsetSource = null;
+                                    setScannerState(SCANNER_STATE_DTD_EXTERNAL_DECLS);
+                                    setDispatcher(fDTDDispatcher);
+                                    return true;
+                                }                       	
+                            }
+                            
+                            // Send endDTD() call if: 
+                            // a) systemId is null or if an external subset resolver could not locate an external subset.
+                            // b) "load-external-dtd" and validation are false
+                            // c) DTD grammar is cached
+                                
+                            // in XNI this results in 3 events:  doctypeDecl, startDTD, endDTD
+                            // in SAX this results in 2 events: startDTD, endDTD
+                            fDTDScanner.setInputSource(null);
+                            setScannerState(SCANNER_STATE_PROLOG);
+                            break;
+                        }
+                        case SCANNER_STATE_CONTENT: {
+                            reportFatalError("ContentIllegalInProlog", null);
+                            fEntityScanner.scanChar();
+                        }
+                        case SCANNER_STATE_REFERENCE: {
+                            reportFatalError("ReferenceIllegalInProlog", null);
+                        }
+                    }
+                } while (complete || again);
+
+                if (complete) {
+                    if (fEntityScanner.scanChar() != '<') {
+                        reportFatalError("RootElementRequired", null);
+                    }
+                    setScannerState(SCANNER_STATE_ROOT_ELEMENT);
+                    setDispatcher(fContentDispatcher);
+                }
+            }
+            // encoding errors
+            catch (MalformedByteSequenceException e) {
+                fErrorReporter.reportError(e.getDomain(), e.getKey(), 
+                    e.getArguments(), XMLErrorReporter.SEVERITY_FATAL_ERROR);
+                return false;
+            }
+            catch (CharConversionException e) {
+                reportFatalError("CharConversionFailure", null);
+                return false;
+            }
+            // premature end of file
+            catch (EOFException e) {
+                reportFatalError("PrematureEOF", null);
+                return false;
+                //throw e;
+            }
+
+            return true;
+

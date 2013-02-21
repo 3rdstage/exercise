@@ -1,0 +1,120 @@
+class SynthToolBarUI
+!!!9756827.java!!!	createUI(inout c : JComponent) : ComponentUI
+	return new SynthToolBarUI();
+!!!9756955.java!!!	installDefaults() : void
+        toolBar.setLayout(createLayout());
+        updateStyle(toolBar);
+!!!9757083.java!!!	installListeners() : void
+        super.installListeners();
+        toolBar.addPropertyChangeListener(this);
+!!!9757211.java!!!	uninstallListeners() : void
+        super.uninstallListeners();
+        toolBar.removePropertyChangeListener(this);
+!!!9757339.java!!!	updateStyle(inout c : JToolBar) : void
+        SynthContext context = getContext(c, ENABLED);
+        SynthStyle oldStyle = style;
+
+        style = SynthLookAndFeel.updateStyle(context, this);
+        if (oldStyle != style) {
+            handleIcon =
+                style.getIcon(context, "ToolBar.handleIcon");
+            if (oldStyle != null) {
+                uninstallKeyboardActions();
+                installKeyboardActions();
+            }
+        }
+        context.dispose();
+
+        context = getContext(c, Region.TOOL_BAR_CONTENT, ENABLED);
+        contentStyle = SynthLookAndFeel.updateStyle(context, this);
+        context.dispose();
+
+        context = getContext(c, Region.TOOL_BAR_DRAG_WINDOW, ENABLED);
+        dragWindowStyle = SynthLookAndFeel.updateStyle(context, this);
+        context.dispose();
+!!!9757467.java!!!	uninstallDefaults() : void
+        SynthContext context = getContext(toolBar, ENABLED);
+
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+
+        handleIcon = null;
+
+        context = getContext(toolBar, Region.TOOL_BAR_CONTENT, ENABLED);
+        contentStyle.uninstallDefaults(context);
+        context.dispose();
+        contentStyle = null;
+
+        context = getContext(toolBar, Region.TOOL_BAR_DRAG_WINDOW, ENABLED);
+        dragWindowStyle.uninstallDefaults(context);
+        context.dispose();
+        dragWindowStyle = null;
+
+        toolBar.setLayout(null);
+!!!9757851.java!!!	createLayout() : LayoutManager
+        return new SynthToolBarLayoutManager();
+!!!9757979.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9758107.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c,
+                    SynthLookAndFeel.getRegion(c), style, state);
+!!!9758235.java!!!	getContext(inout c : JComponent, inout region : Region) : SynthContext
+        return getContext(c, region, getComponentState(c, region));
+!!!9758363.java!!!	getContext(inout c : JComponent, inout region : Region, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c, region,
+                                       dragWindowStyle, state);
+!!!9758491.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9758619.java!!!	getComponentState(inout c : JComponent) : int
+        return SynthLookAndFeel.getComponentState(c);
+!!!9758747.java!!!	getComponentState(inout c : JComponent, inout region : Region) : int
+        return SynthLookAndFeel.getComponentState(c);
+!!!9758875.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintToolBarBackground(context,
+                          g, 0, 0, c.getWidth(), c.getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9759003.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9759131.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        context.getPainter().paintToolBarBorder(context, g, x, y, w, h);
+!!!9759643.java!!!	paint(inout context : SynthContext, inout g : Graphics) : void
+        if (handleIcon != null && toolBar.isFloatable()) {
+            int startX = toolBar.getComponentOrientation().isLeftToRight() ?
+                0 : toolBar.getWidth() -
+                    SynthIcon.getIconWidth(handleIcon, context);
+            SynthIcon.paintIcon(handleIcon, context, g, startX, 0,
+                    SynthIcon.getIconWidth(handleIcon, context),
+                    SynthIcon.getIconHeight(handleIcon, context));
+        }
+
+        SynthContext subcontext = getContext(toolBar, Region.TOOL_BAR_CONTENT);
+        paintContent(subcontext, g, contentRect);
+        subcontext.dispose();
+!!!9759771.java!!!	paintContent(inout context : SynthContext, inout g : Graphics, inout bounds : Rectangle) : void
+        SynthLookAndFeel.updateSubregion(context, g, bounds);
+        context.getPainter().paintToolBarContentBackground(context, g,
+                             bounds.x, bounds.y, bounds.width, bounds.height);
+        context.getPainter().paintToolBarContentBorder(context, g,
+                             bounds.x, bounds.y, bounds.width, bounds.height);
+!!!9759899.java!!!	paintDragWindow(inout g : Graphics) : void
+        int w = dragWindow.getWidth();
+        int h = dragWindow.getHeight();
+        SynthContext context = getContext(toolBar,Region.TOOL_BAR_DRAG_WINDOW);
+        SynthLookAndFeel.updateSubregion(context, g, new Rectangle(
+                         0, 0, w, h));
+        context.getPainter().paintToolBarDragWindowBackground(context,
+                                                           g, 0, 0, w, h);
+        context.getPainter().paintToolBarDragWindowBorder(context, g, 0,0,w,h);
+        context.dispose();
+!!!9760027.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+        if (SynthLookAndFeel.shouldUpdateStyle(e)) {
+            updateStyle((JToolBar)e.getSource());
+        }

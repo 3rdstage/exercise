@@ -1,0 +1,224 @@
+class JFormattedTextField
+!!!8962715.java!!!	JFormattedTextField()
+        super();
+        enableEvents(AWTEvent.FOCUS_EVENT_MASK);
+        setFocusLostBehavior(COMMIT_OR_REVERT);
+!!!8962843.java!!!	JFormattedTextField(inout value : Object)
+        this();
+        setValue(value);
+!!!8962971.java!!!	JFormattedTextField(inout format : Format)
+        this();
+        setFormatterFactory(getDefaultFormatterFactory(format));
+!!!8963099.java!!!	JFormattedTextField(inout formatter : AbstractFormatter)
+        this(new DefaultFormatterFactory(formatter));
+!!!8963227.java!!!	JFormattedTextField(inout factory : AbstractFormatterFactory)
+        this();
+        setFormatterFactory(factory);
+!!!8963355.java!!!	JFormattedTextField(inout factory : AbstractFormatterFactory, inout currentValue : Object)
+        this(currentValue);
+        setFormatterFactory(factory);
+!!!8963483.java!!!	setFocusLostBehavior(in behavior : int) : void
+        if (behavior != COMMIT && behavior != COMMIT_OR_REVERT &&
+            behavior != PERSIST && behavior != REVERT) {
+            throw new IllegalArgumentException("setFocusLostBehavior must be one of: JFormattedTextField.COMMIT, JFormattedTextField.COMMIT_OR_REVERT, JFormattedTextField.PERSIST or JFormattedTextField.REVERT");
+        }
+        focusLostBehavior = behavior;
+!!!8963611.java!!!	getFocusLostBehavior() : int
+        return focusLostBehavior;
+!!!8963739.java!!!	setFormatterFactory(inout tf : AbstractFormatterFactory) : void
+        AbstractFormatterFactory oldFactory = factory;
+
+        factory = tf;
+        firePropertyChange("formatterFactory", oldFactory, tf);
+        setValue(getValue(), true, false);
+!!!8963867.java!!!	getFormatterFactory() : AbstractFormatterFactory
+        return factory;
+!!!8963995.java!!!	setFormatter(inout format : AbstractFormatter) : void
+        AbstractFormatter oldFormat = this.format;
+
+        if (oldFormat != null) {
+            oldFormat.uninstall();
+        }
+        setEditValid(true);
+        this.format = format;
+        if (format != null) {
+            format.install(this);
+        }
+        setEdited(false);
+        firePropertyChange("textFormatter", oldFormat, format);
+!!!8964123.java!!!	getFormatter() : AbstractFormatter
+        return format;
+!!!8964251.java!!!	setValue(inout value : Object) : void
+        if (value != null && getFormatterFactory() == null) {
+            setFormatterFactory(getDefaultFormatterFactory(value));
+        }
+        setValue(value, true, true);
+!!!8964379.java!!!	getValue() : Object
+        return value;
+!!!8964507.java!!!	commitEdit() : void
+        AbstractFormatter format = getFormatter();
+
+        if (format != null) {
+            setValue(format.stringToValue(getText()), false, true);
+        }
+!!!8964635.java!!!	setEditValid(inout isValid : boolean) : void
+        if (isValid != editValid) {
+            editValid = isValid;
+            firePropertyChange("editValid", Boolean.valueOf(!isValid),
+                               Boolean.valueOf(isValid));
+        }
+!!!8964763.java!!!	isEditValid() : boolean
+        return editValid;
+!!!8964891.java!!!	invalidEdit() : void
+	UIManager.getLookAndFeel().provideErrorFeedback(JFormattedTextField.this);
+!!!8965019.java!!!	processInputMethodEvent(inout e : InputMethodEvent) : void
+	AttributedCharacterIterator text = e.getText();
+	int commitCount = e.getCommittedCharacterCount();
+
+	// Keep track of the composed text
+	if (text != null) {
+	    int begin = text.getBeginIndex();
+	    int end = text.getEndIndex();
+	    composedTextExists = ((end - begin) > commitCount);
+	} else {
+	    composedTextExists = false;
+	}
+
+	super.processInputMethodEvent(e);
+!!!8965147.java!!!	processFocusEvent(inout e : FocusEvent) : void
+        super.processFocusEvent(e);
+
+	// ignore temporary focus event
+	if (e.isTemporary()) {
+	    return;
+	}
+
+        if (isEdited() && e.getID() == FocusEvent.FOCUS_LOST) {
+	    InputContext ic = getInputContext();
+	    if (focusLostHandler == null) {
+		focusLostHandler = new FocusLostHandler();
+	    }
+	    
+	    // if there is a composed text, process it first
+	    if ((ic != null) && composedTextExists) {
+		ic.endComposition();
+		EventQueue.invokeLater(focusLostHandler);
+	    } else {
+		focusLostHandler.run();
+	    }
+        }
+        else if (!isEdited()) {
+            // reformat
+            setValue(getValue(), true, true);
+        }
+!!!8965403.java!!!	getActions() : Action
+        return TextAction.augmentList(super.getActions(), defaultActions);
+!!!8965531.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!8965659.java!!!	setDocument(inout doc : Document) : void
+        if (documentListener != null && getDocument() != null) {
+            getDocument().removeDocumentListener(documentListener);
+        }
+        super.setDocument(doc);
+        if (documentListener == null) {
+            documentListener = new DocumentHandler();
+        }
+        doc.addDocumentListener(documentListener);
+!!!8965787.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!8965915.java!!!	setFormatterActions(inout actions : Action) : void
+        if (actions == null) {
+            if (textFormatterActionMap != null) {
+                textFormatterActionMap.clear();
+            }
+        }
+        else {
+            if (textFormatterActionMap == null) {
+                ActionMap map = getActionMap();
+
+                textFormatterActionMap = new ActionMap();
+                while (map != null) {
+                    ActionMap parent = map.getParent();
+
+                    if (parent instanceof UIResource || parent == null) {
+                        map.setParent(textFormatterActionMap);
+                        textFormatterActionMap.setParent(parent);
+                        break;
+                    }
+                    map = parent;
+                }
+            }
+            for (int counter = actions.length - 1; counter >= 0;
+                 counter--) {
+                Object key = actions[counter].getValue(Action.NAME);
+
+                if (key != null) {
+                    textFormatterActionMap.put(key, actions[counter]);
+                }
+            }
+        }
+!!!8966043.java!!!	setValue(inout value : Object, inout createFormat : boolean, inout firePC : boolean) : void
+        Object oldValue = this.value;
+
+        this.value = value;
+
+        if (createFormat) {
+            AbstractFormatterFactory factory = getFormatterFactory();
+            AbstractFormatter atf;
+
+            if (factory != null) {
+                atf = factory.getFormatter(this);
+            }
+            else {
+                atf = null;
+            }
+            setFormatter(atf);
+        }
+        else {
+            // Assumed to be valid
+            setEditValid(true);
+        }
+
+        setEdited(false);
+
+	if (firePC) {
+	    firePropertyChange("value", oldValue, value);
+	}
+!!!8966171.java!!!	setEdited(inout edited : boolean) : void
+        this.edited = edited;
+!!!8966299.java!!!	isEdited() : boolean
+        return edited;
+!!!8966427.java!!!	getDefaultFormatterFactory(inout type : Object) : AbstractFormatterFactory
+        if (type instanceof DateFormat) {
+            return new DefaultFormatterFactory(new DateFormatter
+                                               ((DateFormat)type));
+        }
+        if (type instanceof NumberFormat) {
+            return new DefaultFormatterFactory(new NumberFormatter(
+                                               (NumberFormat)type));
+        }
+        if (type instanceof Format) {
+            return new DefaultFormatterFactory(new InternationalFormatter(
+                                               (Format)type));
+        }
+        if (type instanceof Date) {
+            return new DefaultFormatterFactory(new DateFormatter());
+        }
+        if (type instanceof Number) {
+            AbstractFormatter displayFormatter = new NumberFormatter();
+	    ((NumberFormatter)displayFormatter).setValueClass(type.getClass());
+            AbstractFormatter editFormatter = new NumberFormatter(
+                                  new DecimalFormat("#.#"));
+	    ((NumberFormatter)editFormatter).setValueClass(type.getClass());
+
+            return new DefaultFormatterFactory(displayFormatter,
+                                               displayFormatter,editFormatter);
+        }
+        return new DefaultFormatterFactory(new DefaultFormatter());

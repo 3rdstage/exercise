@@ -1,0 +1,60 @@
+class Unknown
+!!!3666587.java!!!	getUnknownAttributes() : Unknown
+    Unknown[] unknowns = new Unknown[unknown_attributes.size()];
+    Iterator  entries  = unknown_attributes.values().iterator();
+
+    for(int i=0; entries.hasNext(); i++)
+      unknowns[i] = (Unknown)entries.next();
+
+    unknown_attributes.clear();
+    return unknowns;
+!!!3666715.java!!!	Unknown(inout c : Unknown)
+    this(c.getNameIndex(), c.getLength(), c.getBytes(), c.getConstantPool());
+!!!3666843.java!!!	Unknown(in name_index : int, in length : int, in bytes : byte, inout constant_pool : ConstantPool)
+    super(Constants.ATTR_UNKNOWN, name_index, length, constant_pool);
+    this.bytes = bytes;
+
+    name = ((ConstantUtf8)constant_pool.getConstant(name_index,
+						    Constants.CONSTANT_Utf8)).getBytes();
+    unknown_attributes.put(name, this);
+!!!3666971.java!!!	Unknown(in name_index : int, in length : int, inout file : DataInputStream, inout constant_pool : ConstantPool)
+    this(name_index, length, (byte [])null, constant_pool);
+
+    if(length > 0) {
+      bytes = new byte[length];
+      file.readFully(bytes);
+    }
+!!!3667099.java!!!	accept(inout v : Visitor) : void
+    v.visitUnknown(this);
+!!!3667227.java!!!	dump(inout file : DataOutputStream) : void
+    super.dump(file);
+    if(length > 0)
+      file.write(bytes, 0, length);
+!!!3667355.java!!!	getBytes() : byte
+ return bytes;
+!!!3667483.java!!!	getName() : String
+ return name;
+!!!3667611.java!!!	setBytes(in bytes : byte) : void
+    this.bytes = bytes;
+!!!3667739.java!!!	toString() : String
+    if(length == 0 || bytes == null)
+      return "(Unknown attribute " + name + ")";
+
+    String hex;
+    if(length > 10) {
+      byte[] tmp = new byte[10];
+      System.arraycopy(bytes, 0, tmp, 0, 10);
+      hex = Utility.toHexString(tmp) + "... (truncated)";
+    }
+    else
+      hex = Utility.toHexString(bytes);
+
+    return "(Unknown attribute " + name + ": " + hex + ")";
+!!!3667867.java!!!	copy(inout constant_pool : ConstantPool) : Attribute
+    Unknown c = (Unknown)clone();
+
+    if(bytes != null)
+      c.bytes = (byte[])bytes.clone();
+
+    c.constant_pool = constant_pool;
+    return c;

@@ -1,0 +1,76 @@
+class DragFixHandler
+!!!2983067.java!!!	mousePressed(inout e : MouseEvent) : void
+            if (SwingUtilities2.shouldIgnore(e, list)) {
+                return;
+            }
+
+            boolean dragEnabled = list.getDragEnabled();
+            boolean grabFocus = true;
+
+            // different behavior if drag is enabled
+            if (dragEnabled) {
+                int row = SwingUtilities2.loc2IndexFileList(list, e.getPoint());
+                // if we have a valid row and this is a drag initiating event
+                if (row != -1 && DragRecognitionSupport.mousePressed(e)) {
+                    dragPressDidSelection = false;
+
+                    if (e.isControlDown()) {
+                        // do nothing for control - will be handled on release
+                        // or when drag starts
+                        return;
+                    } else if (!e.isShiftDown() && list.isSelectedIndex(row)) {
+                        // clicking on something that's already selected
+                        // and need to make it the lead now
+                        list.addSelectionInterval(row, row);
+                        return;
+                    }
+
+                    // could be a drag initiating event - don't grab focus
+                    grabFocus = false;
+
+                    dragPressDidSelection = true;
+                }
+            } else {
+                // When drag is enabled mouse drags won't change the selection
+                // in the list, so we only set the isAdjusting flag when it's
+                // not enabled
+                list.setValueIsAdjusting(true);
+            }
+
+            if (grabFocus) {
+                SwingUtilities2.adjustFocus(list);
+            }
+
+            adjustSelection(e);
+!!!2983195.java!!!	dragStarting(inout me : MouseEvent) : void
+            if (me.isControlDown()) {
+                int row = SwingUtilities2.loc2IndexFileList(list, me.getPoint());
+                list.addSelectionInterval(row, row);
+            }
+!!!2983323.java!!!	mouseDragged(inout e : MouseEvent) : void
+            if (SwingUtilities2.shouldIgnore(e, list)) {
+                return;
+            }
+
+            if (list.getDragEnabled()) {
+                DragRecognitionSupport.mouseDragged(e, this);
+                return;
+            }
+
+            mouseDraggedImpl(e);
+!!!2983451.java!!!	mouseReleased(inout e : MouseEvent) : void
+            if (SwingUtilities2.shouldIgnore(e, list)) {
+                return;
+            }
+
+            if (list.getDragEnabled()) {
+                MouseEvent me = DragRecognitionSupport.mouseReleased(e);
+                if (me != null) {
+                    SwingUtilities2.adjustFocus(list);
+                    if (!dragPressDidSelection) {
+                        adjustSelection(me);
+                    }
+                }
+            } else {
+                list.setValueIsAdjusting(false);
+            }

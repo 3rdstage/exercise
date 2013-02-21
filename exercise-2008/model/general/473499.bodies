@@ -1,0 +1,96 @@
+class DesktopProperty
+!!!2921755.java!!!	flushUnreferencedProperties() : void
+        WeakPCL pcl;
+
+        while ((pcl = (WeakPCL)queue.poll()) != null) {
+            pcl.dispose();
+        }
+!!!2921883.java!!!	setUpdatePending(inout update : boolean) : void
+	updatePending = update;
+!!!2922011.java!!!	isUpdatePending() : boolean
+	return updatePending;
+!!!2922139.java!!!	updateAllUIs() : void
+	// Check if the current UI is WindowsLookAndfeel and flush the XP style map.
+	// Note: Change the package test if this class is moved to a different package.
+	Class uiClass = UIManager.getLookAndFeel().getClass();
+ 	if (uiClass.getPackage().equals(DesktopProperty.class.getPackage())) {
+	    XPStyle.invalidateStyle();
+ 	}
+        Frame appFrames[] = Frame.getFrames();
+	for (int j=0; j < appFrames.length; j++) {
+	    updateWindowUI(appFrames[j]);			    
+	}
+!!!2922267.java!!!	updateWindowUI(inout window : Window) : void
+        SwingUtilities.updateComponentTreeUI(window);
+	Window ownedWins[] = window.getOwnedWindows();
+	for (int i=0; i < ownedWins.length; i++) {
+	    updateWindowUI(ownedWins[i]);
+	}
+!!!2922395.java!!!	DesktopProperty(in key : String, inout fallback : Object, inout toolkit : Toolkit)
+        this.key = key;
+        this.fallback = fallback;
+        this.toolkit = toolkit;
+        // The only sure fire way to clear our references is to create a
+        // Thread and wait for a reference to be added to the queue.
+        // Because it is so rare that you will actually change the look
+        // and feel, this stepped is forgoed and a middle ground of
+        // flushing references from the constructor is instead done.
+        // The implication is that once one DesktopProperty is created
+        // there will most likely be n (number of DesktopProperties created
+        // by the LookAndFeel) WeakPCLs around, but this number will not
+        // grow past n.
+        flushUnreferencedProperties();
+!!!2922523.java!!!	createValue(inout table : UIDefaults) : Object
+        if (value == null) {
+            value = configureValue(getValueFromDesktop());
+            if (value == null) {
+                value = configureValue(getDefaultValue());
+            }
+        }
+        return value;
+!!!2922651.java!!!	getValueFromDesktop() : Object
+        if (this.toolkit == null) {
+            this.toolkit = Toolkit.getDefaultToolkit();
+        }
+        Object value = toolkit.getDesktopProperty(getKey());
+        pcl = new WeakPCL(this, toolkit, getKey(), UIManager.getLookAndFeel());
+        toolkit.addPropertyChangeListener(getKey(), pcl);
+        return value;
+!!!2922779.java!!!	getDefaultValue() : Object
+        return fallback;
+!!!2922907.java!!!	invalidate() : void
+        if (pcl != null) {
+            toolkit.removePropertyChangeListener(getKey(), pcl);
+            toolkit = null;
+            pcl = null;
+            value = null;
+        }
+!!!2923035.java!!!	updateUI() : void
+	if (!isUpdatePending()) {
+            setUpdatePending(true);
+            Runnable uiUpdater = new Runnable() {
+                public void run() {
+                    updateAllUIs();
+		    setUpdatePending(false);
+                }
+            };
+            SwingUtilities.invokeLater(uiUpdater);
+	}
+!!!2923163.java!!!	configureValue(inout value : Object) : Object
+        if (value != null) {
+            if (value instanceof Color) {
+                return new ColorUIResource((Color)value);
+            }
+            else if (value instanceof Font) {
+                return new FontUIResource((Font)value);
+            }
+            else if (value instanceof UIDefaults.LazyValue) {
+                value = ((UIDefaults.LazyValue)value).createValue(null);
+            }
+            else if (value instanceof UIDefaults.ActiveValue) {
+                value = ((UIDefaults.ActiveValue)value).createValue(null);
+            }
+        }
+        return value;
+!!!2923291.java!!!	getKey() : String
+        return key;

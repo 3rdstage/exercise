@@ -1,0 +1,130 @@
+class SubList
+!!!150299.java!!!	SubList(inout list : AbstractList, in fromIndex : int, in toIndex : int)
+        if (fromIndex < 0)
+            throw new IndexOutOfBoundsException("fromIndex = " + fromIndex);
+        if (toIndex > list.size())
+            throw new IndexOutOfBoundsException("toIndex = " + toIndex);
+        if (fromIndex > toIndex)
+            throw new IllegalArgumentException("fromIndex(" + fromIndex +
+                                               ") > toIndex(" + toIndex + ")");
+        l = list;
+        offset = fromIndex;
+        size = toIndex - fromIndex;
+        expectedModCount = l.modCount;
+!!!150427.java!!!	set(in index : int, inout element : E) : E
+        rangeCheck(index);
+        checkForComodification();
+        return l.set(index+offset, element);
+!!!150555.java!!!	get(in index : int) : E
+        rangeCheck(index);
+        checkForComodification();
+        return l.get(index+offset);
+!!!150683.java!!!	size() : int
+        checkForComodification();
+        return size;
+!!!150811.java!!!	add(in index : int, inout element : E) : void
+        if (index<0 || index>size)
+            throw new IndexOutOfBoundsException();
+        checkForComodification();
+        l.add(index+offset, element);
+        expectedModCount = l.modCount;
+        size++;
+        modCount++;
+!!!150939.java!!!	remove(in index : int) : E
+        rangeCheck(index);
+        checkForComodification();
+        E result = l.remove(index+offset);
+        expectedModCount = l.modCount;
+        size--;
+        modCount++;
+        return result;
+!!!151067.java!!!	removeRange(in fromIndex : int, in toIndex : int) : void
+        checkForComodification();
+        l.removeRange(fromIndex+offset, toIndex+offset);
+        expectedModCount = l.modCount;
+        size -= (toIndex-fromIndex);
+        modCount++;
+!!!151195.java!!!	addAll(inout c : Collection) : boolean
+        return addAll(size, c);
+!!!151323.java!!!	addAll(in index : int, inout c : Collection) : boolean
+        if (index<0 || index>size)
+            throw new IndexOutOfBoundsException(
+                "Index: "+index+", Size: "+size);
+        int cSize = c.size();
+        if (cSize==0)
+            return false;
+
+        checkForComodification();
+        l.addAll(offset+index, c);
+        expectedModCount = l.modCount;
+        size += cSize;
+        modCount++;
+        return true;
+!!!151451.java!!!	iterator() : Iterator
+        return listIterator();
+!!!151579.java!!!	listIterator(in index : int) : ListIterator
+        checkForComodification();
+        if (index<0 || index>size)
+            throw new IndexOutOfBoundsException(
+                "Index: "+index+", Size: "+size);
+
+        return new ListIterator<E>() {
+            private ListIterator<E> i = l.listIterator(index+offset);
+
+            public boolean hasNext() {
+                return nextIndex() < size;
+            }
+
+            public E next() {
+                if (hasNext())
+                    return i.next();
+                else
+                    throw new NoSuchElementException();
+            }
+
+            public boolean hasPrevious() {
+                return previousIndex() >= 0;
+            }
+
+            public E previous() {
+                if (hasPrevious())
+                    return i.previous();
+                else
+                    throw new NoSuchElementException();
+            }
+
+            public int nextIndex() {
+                return i.nextIndex() - offset;
+            }
+
+            public int previousIndex() {
+                return i.previousIndex() - offset;
+            }
+
+            public void remove() {
+                i.remove();
+                expectedModCount = l.modCount;
+                size--;
+                modCount++;
+            }
+
+            public void set(E o) {
+                i.set(o);
+            }
+
+            public void add(E o) {
+                i.add(o);
+                expectedModCount = l.modCount;
+                size++;
+                modCount++;
+            }
+        };
+!!!151707.java!!!	subList(in fromIndex : int, in toIndex : int) : List
+        return new SubList<E>(this, fromIndex, toIndex);
+!!!151835.java!!!	rangeCheck(in index : int) : void
+        if (index<0 || index>=size)
+            throw new IndexOutOfBoundsException("Index: "+index+
+                                                ",Size: "+size);
+!!!151963.java!!!	checkForComodification() : void
+        if (l.modCount != expectedModCount)
+            throw new ConcurrentModificationException();

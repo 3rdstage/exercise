@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd" >
+<sqlMap namespace="Menu">
+
+	<resultMap class="thirdstage.exercise.sql.tree.case1.entities.Menu" id="result">
+		<result property="id" column="id"/>
+		<result property="name" column="name"/>
+		<result property="parentMenu.id" column="parentId"/>
+		<result property="sequence" column="seq"/>
+		<result property="level" column="level"/>
+		<result property="namePath" column="namePath"/>
+	</resultMap>
+
+	<select id="getAllMenusSorted" resultMap="result">
+with vMenu("id", "level", seqPath, namePath) as (
+	select "id", 1 as "level",
+	       convert(varchar(1000), cast(seq as int) + 1000000),
+           convert(varchar(1000), name)
+	from Menu where parentId is null
+	union all
+	select a."id", b."level" + 1,
+           convert(varchar(1000), b.seqPath + '/' + cast((cast(a.seq as int) + 1000000) as varchar)),
+           convert(varchar(1000), b.namePath + '/' + a.name)
+	from Menu as a inner join vMenu as b on a.parentId = b."id"
+)
+select a."id", a."name", a.parentId, a.seq, b."level", b.seqPath, b.namePath
+from Menu as a inner join vMenu as b on b."id" = a."id"
+order by b.seqPath
+	</select>
+	
+	<select id="getSubMenusSorted" resultMap="result" parameterClass="string">
+with vMenu("id", "level", seqPath, namePath) as (
+	select "id", 1 as "level",
+	       convert(varchar(1000), cast(seq as int) + 1000000),
+           convert(varchar(1000), name)
+	from Menu where "id" = #value#
+	union all
+	select a."id", b."level" + 1,
+           convert(varchar(1000), b.seqPath + '/' + cast((cast(a.seq as int) + 1000000) as varchar)),
+           convert(varchar(1000), b.namePath + '/' + a.name)
+	from Menu as a inner join vMenu as b on a.parentId = b."id"
+)
+select a."id", a."name", a.parentId, a.seq, b."level", b.seqPath, b.namePath
+from Menu as a inner join vMenu as b on b."id" = a."id"
+order by b.seqPath
+	</select>
+	
+	<select id="getAncestorMenus" resultMap="result" parameterClass="string">
+with vMenu("id", parentId, reverseSeq) as(
+	select "id", parentId, 1 as reverseSeq
+	from Menu where "id" = #value#
+	union all
+	select a."id", a.parentId, b.reverseSeq + 1
+	from Menu as a inner join vMenu as b on b.parentId = a."id"
+)
+select a."id", a."name", a.parentId, a.seq
+from Menu as a inner join vMenu as b on b."id" = a."id" order by b.reverseSeq desc
+	</select>
+</sqlMap>

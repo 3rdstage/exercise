@@ -1,0 +1,68 @@
+class ObjectType
+!!!4518043.java!!!	ObjectType(in javaClassName : String)
+	_javaClassName = javaClassName;
+
+	try {
+          _clazz = ObjectFactory.findProviderClass(
+            javaClassName, ObjectFactory.findClassLoader(), true);
+	}
+	catch (ClassNotFoundException e) {
+	  _clazz = null;
+	}
+!!!4518171.java!!!	ObjectType(inout clazz : Class)
+        _clazz = clazz;
+        _javaClassName = clazz.getName();	
+!!!4518299.java!!!	hashCode() : int
+        return toString().hashCode();
+!!!4518427.java!!!	equals(inout obj : Object) : boolean
+        return (obj instanceof ObjectType);
+!!!4518555.java!!!	getJavaClassName() : String
+	return _javaClassName;
+!!!4518683.java!!!	getJavaClass() : Class
+        return _clazz;	
+!!!4518811.java!!!	toString() : String
+	return _javaClassName;
+!!!4518939.java!!!	identicalTo(inout other : Type) : boolean
+	return this == other;
+!!!4519067.java!!!	toSignature() : String
+	final StringBuffer result = new StringBuffer("L");
+	result.append(_javaClassName.replace('.', '/')).append(';');
+	return result.toString();
+!!!4519195.java!!!	toJCType() : Type
+	return Util.getJCRefType(toSignature());
+!!!4519323.java!!!	translateTo(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout type : Type) : void
+	if (type == Type.String) {
+	    translateTo(classGen, methodGen, (StringType) type);
+	}
+	else {
+	    ErrorMsg err = new ErrorMsg(ErrorMsg.DATA_CONVERSION_ERR,
+					toString(), type.toString());
+	    classGen.getParser().reportError(Constants.FATAL, err);
+	}
+!!!4519451.java!!!	translateTo(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout type : StringType) : void
+	final ConstantPoolGen cpg = classGen.getConstantPool();
+	final InstructionList il = methodGen.getInstructionList();
+
+	il.append(DUP);
+	final BranchHandle ifNull = il.append(new IFNULL(null));
+	il.append(new INVOKEVIRTUAL(cpg.addMethodref(_javaClassName,
+						    "toString",
+						    "()" + STRING_SIG)));
+	final BranchHandle gotobh = il.append(new GOTO(null));
+	ifNull.setTarget(il.append(POP));
+	il.append(new PUSH(cpg, ""));
+	gotobh.setTarget(il.append(NOP));
+!!!4519579.java!!!	translateTo(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout clazz : Class) : void
+        if (clazz.isAssignableFrom(_clazz))
+	    methodGen.getInstructionList().append(NOP);
+	else {
+	    ErrorMsg err = new ErrorMsg(ErrorMsg.DATA_CONVERSION_ERR,
+			       toString(), clazz.getClass().toString());
+	    classGen.getParser().reportError(Constants.FATAL, err);	  	
+	}
+!!!4519707.java!!!	translateFrom(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout clazz : Class) : void
+	methodGen.getInstructionList().append(NOP);
+!!!4519835.java!!!	LOAD(in slot : int) : Instruction
+	return new ALOAD(slot);
+!!!4519963.java!!!	STORE(in slot : int) : Instruction
+	return new ASTORE(slot);

@@ -1,0 +1,2522 @@
+class JSPTokenizer
+!!!10477467.java!!!	addBlockMarker(inout marker : BlockMarker) : void
+		if(containsTagName(marker.getTagName()))
+			return;
+		fBlockMarkers.add(marker);
+!!!10477595.java!!!	addNestablePrefix(inout marker : TagMarker) : void
+		fNestablePrefixes.add(marker);
+!!!10477723.java!!!	getNestablePrefixes() : List
+		return fNestablePrefixes;
+!!!10477851.java!!!	isNestable(in tagName : String) : boolean
+		//Iterator blocks = fNestablePrefixes.iterator();
+		//while(blocks.hasNext()) {
+		//	TagMarker marker = (TagMarker)blocks.next();
+		//	String markerName = marker.getTagName();
+		//	if(tagName.length() > markerName.length() + 1 && tagName.startsWith(markerName) && tagName.charAt(markerName.length()) == ':') {
+		//		return marker.isGlobal() || getOffset() >= marker.getMarker().getStart();
+		//	}
+		//}
+		//return false;
+		return true;
+!!!10477979.java!!!	removeNestablePrefix(in name : String) : void
+		if (fNestablePrefixes != null) {
+			Iterator nestables = fNestablePrefixes.iterator();
+			while (nestables.hasNext()) {
+				if (((TagMarker) nestables.next()).getTagName().equalsIgnoreCase(name))
+					nestables.remove();
+			}
+		}
+!!!10478107.java!!!	removeBlockMarker(inout marker : BlockMarker) : void
+		fBlockMarkers.remove(marker);
+!!!10478235.java!!!	removeBlockMarker(in tagname : String) : void
+		if (fBlockMarkers != null) {
+			Iterator blocks = fBlockMarkers.iterator();
+			while (blocks.hasNext()) {
+				if (((BlockMarker) blocks.next()).getTagName().equals(tagname))
+					blocks.remove();
+			}
+		}
+!!!10478363.java!!!	assembleEmbeddedTagSequence(in startType : String, in endTagName : String) : void
+		assembleEmbeddedContainer(startType, null, endTagName);
+!!!10478491.java!!!	assembleEmbeddedContainer(in startType : String, in endTypes : String) : void
+		assembleEmbeddedContainer(startType, endTypes, null);
+!!!10478619.java!!!	assembleEmbeddedContainer(in startType : String, in endType : String) : void
+		assembleEmbeddedContainer(startType, new String[]{endType}, null);
+!!!10478747.java!!!	assembleEmbeddedContainer(in startType : String, in endTypes : String, in endTagName : String) : void
+		// the context of the region being added to the embedded container
+		internalContext = startType;
+		// keep track of where this container began; to provide relative indeces for the regions
+		int containerStart = yychar;
+		boolean notFinished = true;
+		// keep track of where we seem to be so that the endTagName can be checked
+		boolean isInEndTag = false;
+		boolean isInFirstTag = true;
+		// create the embedded container and setup its "type"
+		if (fEmbeddedContainer == null) {
+			fEmbeddedContainer = new ContextRegionContainer();
+			fEmbeddedContainer.setType(fEmbeddedHint);
+			fEmbeddedContainer.setStart(containerStart);
+			// TODO: parent region needs to be set .... but not sure where to get it from 
+			//		fEmbeddedContainer.setParent(parentRegion);
+		}
+		containerStart = fEmbeddedContainer.getStart();
+		while (notFinished) {
+			// add the region to the container
+			if (internalContext != null && internalContext != PROXY_CONTEXT) {
+				ITextRegion newToken = fRegionFactory.createToken(internalContext, yychar - containerStart, yylength(), yylength());
+				fEmbeddedContainer.getRegions().add(newToken);
+				fEmbeddedContainer.setLength(fEmbeddedContainer.getLength() + yylength());
+				fEmbeddedContainer.setTextLength(fEmbeddedContainer.getTextLength() + yylength());
+				// DW, 4/16/2003 token regions no longer have parents
+				//newToken.setParent(fEmbeddedContainer);
+			}
+			try {
+				// longscan determines whether to attempt a blockTagScan within the embedded container
+				boolean longscan = false;
+				// save the tokenizer state in case of a block tag scan
+				int previousState = yystate();
+				String previousCurrentTagName = fCurrentTagName;
+				int previousPostState = fEmbeddedPostState;
+				String previousEmbeddedHint = fEmbeddedHint;
+				// determine if a block tag scan is necessary
+				if (internalContext == XML_TAG_NAME) {
+					internalTagName = yytext();
+					if(!isNestable(internalTagName)) {
+						internalTagName = null;
+						// snagged a tag name we shouldn't have
+						fEmbeddedPostState = ST_ABORT_EMBEDDED;
+						notFinished = false;
+					}
+				}
+				else if (internalContext == XML_TAG_OPEN || internalContext == XML_END_TAG_OPEN) {
+					internalTagName = null;
+				}
+				// do upkeep for endTagName usage; must be here since the next token could be the close
+				if (internalContext == XML_END_TAG_OPEN) {
+					isInEndTag = true;
+				} else if (internalContext == XML_TAG_CLOSE) {
+					isInFirstTag = isInEndTag = false;
+				} else {
+				 	ITextRegionList embeddedRegions = fEmbeddedContainer.getRegions();
+					if (embeddedRegions.size() > 2 && (embeddedRegions.get(embeddedRegions.size()-1)).getType() == XML_TAG_CLOSE && (embeddedRegions.get(embeddedRegions.size() - 3)).getType() == XML_TAG_OPEN && internalTagName != null) {
+						if (containsTagName(internalTagName)) {
+							longscan = true;
+							yybegin(ST_BLOCK_TAG_SCAN);
+						}
+					}
+				}
+				if (longscan)
+					fCurrentTagName = internalTagName;
+				// read the next region and context
+				internalContext = primGetNextToken();
+				if (longscan) {
+					// Returning from a block tag scan requires restoring some state variables
+					// as well as handling the block region and setting up for normal scanning
+					// inside the embedded container
+					ITextRegion newToken = fRegionFactory.createToken(internalContext, yychar - containerStart, yylength(), yylength());
+					fEmbeddedContainer.getRegions().add(newToken);
+					fEmbeddedContainer.setLength(fEmbeddedContainer.getLength() + yylength());
+					fEmbeddedContainer.setTextLength(fEmbeddedContainer.getTextLength() + yylength());
+					// DW, 4/16/2003 token regions no longer have parents
+					// newToken.setParent(fEmbeddedContainer);
+					longscan = false;
+					fEmbeddedPostState = previousPostState;
+					fEmbeddedHint = previousEmbeddedHint;
+					fCurrentTagName = previousCurrentTagName;
+					yybegin(previousState);
+					internalContext = primGetNextToken();
+				}
+			} catch (IOException e) {
+				// primGetNextToken() calls may throw an IOException
+				// catch and do nothing since the isEOF check below
+				// will properly exit if the input was too short
+			} catch (Exception f) {
+				// some other exception happened; never should
+				Logger.logException(f);
+			}
+			boolean isEndingType = yystate() == ST_ABORT_EMBEDDED;
+			if(!isEndingType) {
+				// check for ending context
+				if (endTagName == null) {
+					for (int i = 0; i < endTypes.length; i++) {
+						isEndingType = isEndingType || (internalContext == endTypes[i]);
+					}
+				}
+				else {
+					isEndingType = ((isInEndTag && internalContext == XML_TAG_CLOSE) || (isInFirstTag && internalContext == XML_EMPTY_TAG_CLOSE)) && internalTagName != null && internalTagName.equals(endTagName);
+				}
+			}
+			ITextRegionList embeddedList = fEmbeddedContainer.getRegions();
+			notFinished = notFinished && ((!isEndingType) && !isEOF() && (endTagName != null || internalContext != UNDEFINED) && !(internalContext == PROXY_CONTEXT && (embeddedList.get(embeddedList.size()-1)).getType() == UNDEFINED));
+		}
+		// finish adding the last context
+		if (internalContext != null && internalContext != PROXY_CONTEXT) {
+			ITextRegion newToken = fRegionFactory.createToken(internalContext, yychar - containerStart, yylength(), yylength());
+			fEmbeddedContainer.getRegions().add(newToken);
+			// DW, 4/16/2003 token regions no longer have parents
+			//newToken.setParent(fEmbeddedContainer);
+			fEmbeddedContainer.setLength(yychar - containerStart + yylength());
+			fEmbeddedContainer.setTextLength(yychar - containerStart + yylength());
+		}
+		yybegin(fEmbeddedPostState);
+!!!10478875.java!!!	isCaseSensitiveBlocking() : boolean
+		return fIsCaseSensitiveBlocking;
+!!!10479003.java!!!	setCaseSensitiveBlocking(inout newValue : boolean) : void
+		fIsCaseSensitiveBlocking = newValue;
+!!!10479131.java!!!	getBlockMarkerAllowsJSP() : boolean
+		return getBlockMarkerAllowsJSP(fCurrentTagName);
+!!!10479259.java!!!	getBlockMarkerAllowsJSP(in name : String) : boolean
+		Iterator iterator = fBlockMarkers.iterator();
+		while(iterator.hasNext()) {
+			BlockMarker marker = (BlockMarker)iterator.next();
+			boolean casesensitive = marker.isCaseSensitive();
+			if(casesensitive && marker.getTagName().equals(name))
+				return marker.allowsJSP();
+			else if(!casesensitive && marker.getTagName().equalsIgnoreCase(name))
+				return marker.allowsJSP();
+		}
+		return true;
+!!!10479387.java!!!	getBlockMarkerCaseSensitivity() : boolean
+		return getBlockMarkerCaseSensitivity(fCurrentTagName);
+!!!10479515.java!!!	getBlockMarkerCaseSensitivity(in name : String) : boolean
+		Iterator iterator = fBlockMarkers.iterator();
+		while(iterator.hasNext()) {
+			BlockMarker marker = (BlockMarker)iterator.next();
+			boolean casesensitive = marker.isCaseSensitive();
+			if(casesensitive && marker.getTagName().equals(name))
+				return casesensitive;
+			else if(!casesensitive && marker.getTagName().equalsIgnoreCase(name))
+				return casesensitive;
+		}
+		return true;
+!!!10479643.java!!!	getBlockMarkerContext() : String
+		return getBlockMarkerContext(fCurrentTagName);
+!!!10479771.java!!!	getBlockMarkerContext(in name : String) : String
+		Iterator iterator = fBlockMarkers.iterator();
+		while(iterator.hasNext()) {
+			BlockMarker marker = (BlockMarker)iterator.next();
+			if(marker.getTagName().equals(name))
+				return marker.getContext();
+		}
+		return BLOCK_TEXT;
+!!!10479899.java!!!	getBlockMarkers() : List
+		return fBlockMarkers;
+!!!10480027.java!!!	getOffset() : int
+		return fOffset + yychar;
+!!!10480155.java!!!	isBlockMarker() : boolean
+		return isBlockMarker(fCurrentTagName);
+!!!10480283.java!!!	isBlockMarker(in tagName : String) : boolean
+		if (!fIsBlockingEnabled)
+			return false;
+		return containsTagName(tagName);
+!!!10480411.java!!!	beginBlockTagScan(in newTagName : String) : void
+		beginBlockMarkerScan(newTagName, BLOCK_TEXT);
+!!!10480539.java!!!	beginBlockMarkerScan(in newTagName : String, in blockcontext : String) : void
+		yybegin(ST_BLOCK_TAG_SCAN);
+		fCurrentTagName = newTagName;
+!!!10480667.java!!!	doScan(in searchString : String, inout requireTailSeparator : boolean, inout allowJSP : boolean, inout allowCDATA : boolean, in searchContext : String, in exitState : int, in immediateFallbackState : int) : String
+	boolean stillSearching = true;
+	// Disable further block (probably)
+	fIsBlockingEnabled = false;
+	int searchStringLength = searchString.length();
+	int n = 0;
+	char lastCheckChar;
+	int i;
+	boolean same = false;
+	// Check for JSP starts ("<%") if the tag is global like SCRIPT or STYLE
+	boolean checkJSPs = allowJSP && !fForbidJSP;
+	boolean checkedForJSPsOnce = !checkJSPs;
+	boolean checkedJSPsAtStartOnce = false;
+	
+	while (stillSearching) {
+		n = 0;
+		// Ensure that enough data from the input exists to compare against the search String.
+		n = yy_advance();
+		while(n != YYEOF && yy_currentPos < searchStringLength)
+			n = yy_advance();
+//		c = (char) n;
+		// If the input was too short or we've exhausted the input, stop immediately.
+		if (n == YYEOF && checkedForJSPsOnce) {
+			stillSearching = false;
+		}
+		else {
+			/**
+			 * Look for starting JSPs "<%"
+			 */
+			checkedForJSPsOnce = true;
+			// 1) yy_currentPos - searchStringLength : There's at least searchStringLength of input available; once that's read, check for JSPs
+			// ---
+			// Look for a JSP beginning at current-searchStringLength; if so, backup and switch scanner states to handle it.
+			// Ensure that we've not encountered a complete block (<%%>) that was *shorter* than the closeTagString and
+			// thus found twice at current-targetLength [since the first scan would have come out this far anyway].
+			if(checkJSPs && yy_currentPos > searchStringLength && yy_currentPos - searchStringLength != fLastInternalBlockStart && 
+				yy_buffer[yy_currentPos - searchStringLength] == '<' && yy_buffer[yy_currentPos - searchStringLength + 1] == '%') {
+				fLastInternalBlockStart = yy_markedPos = yy_currentPos - searchStringLength;
+				yy_currentPos = yy_markedPos + 1;
+				int resumeState = yystate();
+				yybegin(ST_BLOCK_TAG_INTERNAL_SCAN);
+				if(yy_markedPos == yy_startRead) {
+					String jspContext = primGetNextToken();
+					yybegin(resumeState);
+					return jspContext;
+				}
+				return searchContext;
+			}
+			// 2) yy_currentPos - jspstarter.length : There's not searchStringLength of input available; check for a JSP 2 spots back in what we could read
+			// ---
+			// Look for a JSP beginning at the current position; this case wouldn't be handled by the preceding section
+			// since it relies upon *having* closeTagStringLength amount of input to work as designed.  Must be sure we don't
+			// spill over the end of the buffer while checking.
+			else if(checkJSPs && yy_startRead != fLastInternalBlockStart && yy_currentPos > 0 && yy_currentPos < yy_buffer.length - 1 &&
+					yy_buffer[yy_currentPos - 1] == '<' && yy_buffer[yy_currentPos] == '%') {
+				fLastInternalBlockStart = yy_markedPos = yy_currentPos - 1;
+				yy_currentPos = yy_markedPos + 1;
+				int resumeState = yystate();
+				yybegin(ST_BLOCK_TAG_INTERNAL_SCAN);
+				if(yy_markedPos == yy_startRead) {
+					String jspContext = primGetNextToken();
+					yybegin(resumeState);
+					return jspContext;
+				}
+				return searchContext;
+			}
+			// 3) yy_currentPos..(yy_currentPos+jspStartlength-1) : Check at the start of the block one time
+			// ---
+			// Look for a JSP beginning immediately in the block area; this case wouldn't be handled by the preceding section
+			// since it relies upon yy_currentPos equaling exactly the previous end +1 to work as designed.
+			else if(checkJSPs && !checkedJSPsAtStartOnce && yy_startRead != fLastInternalBlockStart && yy_startRead > 0 &&
+					yy_startRead < yy_buffer.length - 1 && yy_buffer[yy_startRead] == '<' && yy_buffer[yy_startRead + 1] == '%') {
+				checkedJSPsAtStartOnce = true;
+				fLastInternalBlockStart = yy_markedPos = yy_startRead;
+				yy_currentPos = yy_markedPos + 1;
+				int resumeState = yystate();
+				yybegin(ST_BLOCK_TAG_INTERNAL_SCAN);
+				if(yy_markedPos == yy_startRead) {
+					String jspContext = primGetNextToken();
+					yybegin(resumeState);
+					return jspContext;
+				}
+				return searchContext;
+			}
+
+
+			/**
+			 * Look for starting CDATA "<![CDATA["
+			 */
+			// 1) yy_currentPos - searchStringLength: There's at least searchStringLength of input available; once that's read, check for CDATA
+			// ---
+			// Look for a CDATA beginning at current-searchStringLength; if so, backup and switch scanner states to handle it.
+			// Ensure that we've not encountered a complete block (<[!CDATA[]]>) that was *shorter* than the closeTagString and
+			// thus found twice at current-targetLength [since the first scan would have come out this far anyway].
+/*			if(checkCDATA && yy_currentPos > searchStringLength && yy_currentPos + searchStringLength < yy_buffer.length && yy_currentPos - searchStringLength != fLastInternalBlockStart && 
+				charsMatch(cdataStarter, yy_buffer, 0, yy_currentPos - searchStringLength)) {
+				fLastInternalBlockStart = yy_markedPos = yy_currentPos - searchStringLength;
+				yy_currentPos = yy_markedPos + 1;
+				int resumeState = yystate();
+				// go to a state where CDATA can be found
+				if (fEmbeddedContainer == null) {
+					fEmbeddedContainer = new ContextRegionContainer();
+					fEmbeddedContainer.setType(searchContext);
+					fEmbeddedContainer.setStart(yychar);
+				}
+				ITextRegion newToken = fRegionFactory.createToken(searchContext, yychar, yylength(), yylength());
+				fEmbeddedContainer.getRegions().add(newToken);
+				fEmbeddedContainer.setLength(fEmbeddedContainer.getLength() + yylength());
+				fEmbeddedContainer.setTextLength(fEmbeddedContainer.getTextLength() + yylength());
+				yybegin(YYINITIAL);
+				String context = primGetNextToken();
+				if(context.equals(XMLRegionContexts.XML_CDATA_OPEN)) {
+					assembleEmbeddedContainer(XMLRegionContexts.XML_CDATA_OPEN, XMLRegionContexts.XML_CDATA_CLOSE);
+				}
+				yybegin(resumeState);
+				return searchContext;
+			}
+*//*
+			// 2) yy_currentPos - cdataStarter.length: There's not searchStringLength of input available; check for a CDATA right here spots back in what we could read
+			// ---
+			// Look for a JSP beginning at the current position; this case wouldn't be handled by the preceding section
+			// since it relies upon *having* closeTagStringLength amount of input to work as designed.  Must be sure we don't
+			// spill over the end of the buffer while checking.
+			else if(checkCDATA && yy_startRead != fLastInternalBlockStart && yy_currentPos > 0 && yy_currentPos < yy_buffer.length - 1 &&
+					yy_buffer[yy_currentPos - 1] == '<' && yy_buffer[yy_currentPos] == '%') {
+				fLastInternalBlockStart = yy_markedPos = yy_currentPos - 1;
+				yy_currentPos = yy_markedPos + 1;
+				int resumeState = yystate();
+				yybegin(ST_BLOCK_TAG_INTERNAL_SCAN);
+				if(yy_markedPos == yy_startRead) {
+					String jspContext = primGetNextToken();
+					yybegin(resumeState);
+					return jspContext;
+				}
+				return searchContext;
+			}
+			// 3) yy_currentPos : Check at the start of the block one time
+			// ---
+			// Look for a JSP beginning immediately in the block area; this case wouldn't be handled by the preceding section
+			// since it relies upon yy_currentPos equaling exactly the previous end +1 to work as designed.
+			else if(checkCDATA && !checkedForCDATAOnce && yy_startRead != fLastInternalBlockStart && yy_startRead > 0 &&
+					yy_startRead < yy_buffer.length - 1 && yy_buffer[yy_startRead] == '<' && yy_buffer[yy_startRead + 1] == '%') {
+				checkedForCDATAOnce = true;
+				fLastInternalBlockStart = yy_markedPos = yy_startRead;
+				yy_currentPos = yy_markedPos + 1;
+				int resumeState = yystate();
+				yybegin(ST_BLOCK_TAG_INTERNAL_SCAN);
+				if(yy_markedPos == yy_startRead) {
+					String jspContext = primGetNextToken();
+					yybegin(resumeState);
+					return jspContext;
+				}
+				return searchContext;
+			}
+*/
+			// Check the characters in the target versus the last targetLength characters read from the buffer
+			// and see if it matches
+			if (n == YYEOF) {
+				stillSearching = false;
+			}
+			else {
+				same = true;
+				// safety check for array accesses
+				if(yy_currentPos >= searchStringLength && yy_currentPos <= yy_buffer.length) {
+					for(i = 0; i < searchStringLength; i++) {
+						if(same && fIsCaseSensitiveBlocking)
+							same = yy_buffer[i + yy_currentPos - searchStringLength] == searchString.charAt(i);
+						else if(same && !fIsCaseSensitiveBlocking)
+							same = Character.toLowerCase(yy_buffer[i + yy_currentPos - searchStringLength]) == Character.toLowerCase(searchString.charAt(i));
+					}
+				}
+				// safety check failed; no match is possible right now
+				else {
+					same = false;
+				}
+			}
+			if (same && requireTailSeparator && yy_currentPos < yy_buffer.length) {
+				// Additional check for close tags to ensure that targetString="</script" doesn't match
+				// "</scriptS"
+				lastCheckChar = yy_buffer[yy_currentPos];
+				// Succeed on "</script>" and "</script "
+				if(lastCheckChar == '>' || Character.isWhitespace(lastCheckChar))
+					stillSearching = false;
+			}
+			else {
+				stillSearching = !same || (yy_currentPos < yy_startRead + searchStringLength);
+			}
+		}
+	}
+	if (n != YYEOF || same) {
+		// We've stopped short of the end or definitely found a match
+		yy_markedPos = yy_currentPos - searchStringLength;
+		yy_currentPos = yy_markedPos + 1;
+		// If the searchString occurs at the very beginning of what would have
+		// been a Block, resume scanning normally immediately
+		if (yy_markedPos == yy_startRead) {
+			yybegin(immediateFallbackState);
+			return primGetNextToken();
+		}
+	}
+	else {
+		// We ran through the rest of the input
+		yy_markedPos = yy_currentPos;
+		yy_currentPos++;
+	}
+	yybegin(exitState);
+	// If the ending occurs at the very beginning of what would have
+	// been a Block, resume scanning normally immediately
+	if(yy_markedPos == yy_startRead)
+		return primGetNextToken();
+	return searchContext;
+!!!10480795.java!!!	doBlockTagScan() : String
+	fIsCaseSensitiveBlocking = getBlockMarkerCaseSensitivity();
+	return doScan("</" + fCurrentTagName, true, getBlockMarkerAllowsJSP(), true, getBlockMarkerContext(fCurrentTagName), YYINITIAL, YYINITIAL);
+!!!10480923.java!!!	getNextToken() : ITextRegion
+		fEmbeddedContainer = null;
+		// load the starting non-whitespace token (assume that it is so)
+		if (fShouldLoadBuffered) {
+			if (fBufferedEmbeddedContainer != null) {
+				ITextRegion container = fBufferedEmbeddedContainer;
+				fBufferedEmbeddedContainer = null;
+				fShouldLoadBuffered = false;
+				return container;
+			}
+			context = fBufferedContext;
+			start = fBufferedStart;
+			textLength = length = fBufferedLength;
+			fShouldLoadBuffered = false;
+		} else {
+			context = primGetNextToken();
+			if (context == PROXY_CONTEXT) {
+				return fEmbeddedContainer;
+			} else if (context == XML_TAG_NAME || f_context == JSP_ROOT_TAG_NAME || f_context == JSP_DIRECTIVE_NAME) {
+				if(containsTagName(yy_buffer, yy_startRead, yy_markedPos-yy_startRead))
+					fCurrentTagName = yytext();
+				else
+					fCurrentTagName = null;
+			} else if (context == XML_TAG_OPEN) {
+				fIsBlockingEnabled = true;
+			} else if (context == XML_END_TAG_OPEN) {
+				fIsBlockingEnabled = false;
+			}
+			start = yychar;
+			textLength = length = yylength();
+			if (yy_atEOF) {
+				fTokenCount++;
+				return null;
+			}
+		}
+		// store the next token
+		f_context = primGetNextToken();
+		if (f_context == PROXY_CONTEXT) {
+			fBufferedEmbeddedContainer = fEmbeddedContainer;
+			fShouldLoadBuffered = true;
+		} else if (f_context == XML_TAG_NAME || f_context == JSP_ROOT_TAG_NAME || f_context == JSP_DIRECTIVE_NAME) {
+			if(containsTagName(yy_buffer, yy_startRead, yy_markedPos-yy_startRead))
+				fCurrentTagName = yytext();
+			else
+				fCurrentTagName = null;
+		} else if (f_context == XML_TAG_OPEN) {
+			fIsBlockingEnabled = true;
+		} else if (f_context == XML_END_TAG_OPEN) {
+			fIsBlockingEnabled = false;
+		}
+		fBufferedContext = f_context;
+		fBufferedStart = yychar;
+		fBufferedLength = yylength();
+		fShouldLoadBuffered = true;
+		if (fBufferedContext == WHITE_SPACE) {
+			fShouldLoadBuffered = false;
+			length += fBufferedLength;
+		}
+		if (context == null) {
+			// EOF
+			if (Debug.debugTokenizer) {
+				System.out.println(getClass().getName() + " discovered " + fTokenCount + " tokens."); //$NON-NLS-2$//$NON-NLS-1$
+			}
+			return null;
+		}
+		fTokenCount++;
+		return fRegionFactory.createToken(context, start, textLength, length, null, fCurrentTagName);
+!!!10481051.java!!!	JSPTokenizer()
+		super();
+!!!10481179.java!!!	JSPTokenizer(in charArray : char)
+			this(new CharArrayReader(charArray));
+!!!10481307.java!!!	reset(in charArray : char) : void
+		reset(new CharArrayReader(charArray), 0);
+!!!10481435.java!!!	reset(in charArray : char, in newOffset : int) : void
+		reset(new CharArrayReader(charArray), newOffset);
+!!!10481563.java!!!	reset(inout in : InputStream) : void
+		reset(new java.io.InputStreamReader(in), 0);
+!!!10481691.java!!!	reset(inout in : InputStream, in newOffset : int) : void
+		reset(new java.io.InputStreamReader(in), newOffset);
+!!!10481819.java!!!	reset(inout in : Reader) : void
+		reset(in, 0);
+!!!10481947.java!!!	reset(inout in : Reader, in newOffset : int) : void
+		if (Debug.debugTokenizer) {
+			System.out.println("resetting tokenizer");//$NON-NLS-1$
+		}
+		fOffset = newOffset;
+	
+		/* the input device */
+		yy_reader = in;
+	
+		/* the current state of the DFA */
+		yy_state = 0;
+	
+		/* the current lexical state */
+		yy_lexical_state = YYINITIAL;
+	
+		/* this buffer contains the current text to be matched and is
+		the source of the yytext() string */
+		java.util.Arrays.fill(yy_buffer, (char)0);
+	
+		/* the textposition at the last accepting state */
+		yy_markedPos = 0;
+	
+		/* the textposition at the last state to be included in yytext */
+		yy_pushbackPos = 0;
+	
+		/* the current text position in the buffer */
+		yy_currentPos = 0;
+	
+		/* startRead marks the beginning of the yytext() string in the buffer */
+		yy_startRead = 0;
+	
+		/** 
+		 * endRead marks the last character in the buffer, that has been read
+		 * from input 
+		 */
+		yy_endRead = 0;
+	
+		/* number of newlines encountered up to the start of the matched text */
+		yyline = 0;
+	
+		/* the number of characters up to the start of the matched text */
+		yychar = 0;
+	
+		/* yy_atEOF == true <=> the scanner has returned a value for EOF */
+		yy_atEOF = false;
+	
+		/* denotes if the user-EOF-code has already been executed */
+		yy_eof_done = false;
+	
+	
+		/* user vars: */
+		fTokenCount = 0;
+	 
+		fShouldLoadBuffered = false;
+		fBufferedContext = null;
+		fBufferedStart = 1;
+		fBufferedLength = 0;
+		fStateStack = new IntStack();
+	
+		fLastInternalBlockStart = -1;
+	
+		context = null;
+		start = 0;
+		textLength = 0;
+		length = 0;
+	
+		fEmbeddedContainer = null;
+		
+		fELlevel = 0;
+!!!10482075.java!!!	newInstance() : BlockTokenizer
+		JSPTokenizer newInstance = new JSPTokenizer();
+		// global tagmarkers can be shared; they have no state and 
+		// are never destroyed (e.g. 'release')
+		for(int i = 0; i < fBlockMarkers.size(); i++) {
+			BlockMarker blockMarker = (BlockMarker) fBlockMarkers.get(i);
+			if(blockMarker.isGlobal())
+				newInstance.addBlockMarker(blockMarker);
+		}
+		for(int i = 0; i < fNestablePrefixes.size(); i++) {
+			TagMarker marker = (TagMarker) fNestablePrefixes.get(i);
+			if(marker.isGlobal())
+				newInstance.addNestablePrefix(marker);
+		}
+		return newInstance;
+!!!10482203.java!!!	scanXMLCommentText() : String
+		// Scan for '-->' and return the text up to that point as
+		//   XML_COMMENT_TEXT unless the string occurs IMMEDIATELY, in which
+		//  case change to the ST_XML_COMMENT_END state and return the next
+		//  context as usual.
+		return doScan("-->", false, true, true, XML_COMMENT_TEXT, ST_XML_COMMENT_END, ST_XML_COMMENT_END);
+!!!10482331.java!!!	scanJSPCommentText() : String
+		// Scan for '--%>' and return the text up to that point as
+		//   JSP_COMMENT_TEXT unless the string occurs IMMEDIATELY, in which
+		//  case change to the ST_JSP_COMMENT_END state and return the next
+		//  context as usual.
+		return doScan("--%>", false, false, true, JSP_COMMENT_TEXT, ST_JSP_COMMENT_END, ST_JSP_COMMENT_END);
+!!!10482459.java!!!	JSPTokenizer(inout in : Reader)
+    this.yy_reader = in;
+!!!10482587.java!!!	JSPTokenizer(inout in : InputStream)
+    this(new java.io.InputStreamReader(in));
+!!!10482715.java!!!	yy_unpack(in packed : String) : int
+    int [] trans = new int[29580];
+    int i = 0;  /* index in packed string  */
+    int j = 0;  /* index in unpacked array */
+    while (i < 7346) {
+      int count = packed.charAt(i++);
+      int value = packed.charAt(i++);
+      value--;
+      do trans[j++] = value; while (--count > 0);
+    }
+    return trans;
+!!!10482843.java!!!	yy_unpack_cmap(in packed : String) : char
+    char [] map = new char[0x10000];
+    int i = 0;  /* index in packed string  */
+    int j = 0;  /* index in unpacked array */
+    while (i < 1376) {
+      int  count = packed.charAt(i++);
+      char value = packed.charAt(i++);
+      do map[j++] = value; while (--count > 0);
+    }
+    return map;
+!!!10482971.java!!!	yy_advance() : int
+
+    /* standard case */
+    if (yy_currentPos < yy_endRead) return yy_buffer[yy_currentPos++];
+
+    /* if the eof is reached, we don't need to work hard */ 
+    if (yy_atEOF) return YYEOF;
+
+    /* otherwise: need to refill the buffer */
+
+    /* first: make room (if you can) */
+    if (yy_startRead > 0) {
+      System.arraycopy(yy_buffer, yy_startRead, 
+                       yy_buffer, 0, 
+                       yy_endRead-yy_startRead);
+
+      /* translate stored positions */
+      yy_endRead-= yy_startRead;
+      yy_currentPos-= yy_startRead;
+      yy_markedPos-= yy_startRead;
+      yy_pushbackPos-= yy_startRead;
+      yy_startRead = 0;
+    }
+
+    /* is the buffer big enough? */
+    if (yy_currentPos >= yy_buffer.length) {
+      /* if not: blow it up */
+      char newBuffer[] = new char[yy_currentPos*2];
+      System.arraycopy(yy_buffer, 0, newBuffer, 0, yy_buffer.length);
+      yy_buffer = newBuffer;
+    }
+
+    /* finally: fill the buffer with new input */
+    int numRead = yy_reader.read(yy_buffer, yy_endRead, 
+                                            yy_buffer.length-yy_endRead);
+
+    if ( numRead == -1 ) return YYEOF;
+
+    yy_endRead+= numRead;
+
+    return yy_buffer[yy_currentPos++];
+!!!10483099.java!!!	yyclose() : void
+    yy_atEOF = true;            /* indicate end of file */
+    yy_endRead = yy_startRead;  /* invalidate buffer    */
+    yy_reader.close();
+!!!10483227.java!!!	yystate() : int
+    return yy_lexical_state;
+!!!10483355.java!!!	yybegin(in newState : int) : void
+    yy_lexical_state = newState;
+!!!10483483.java!!!	yytext() : String
+    return new String( yy_buffer, yy_startRead, yy_markedPos-yy_startRead );
+!!!10483611.java!!!	yylength() : int
+    return yy_markedPos-yy_startRead;
+!!!10483739.java!!!	yy_ScanError(in errorCode : int) : void
+    try {
+      Logger.log(Logger.ERROR, YY_ERROR_MSG[errorCode]);
+    }
+    catch (ArrayIndexOutOfBoundsException e) {
+      Logger.log(Logger.ERROR, YY_ERROR_MSG[YY_UNKNOWN_ERROR]);
+    }
+    // DO NOT EXIT the VM on an error
+    // System.exit(1);
+!!!10483867.java!!!	yypushback(in number : int) : void
+    if ( number > yylength() )
+      yy_ScanError(YY_PUSHBACK_2BIG);
+
+    yy_markedPos -= number;
+!!!10483995.java!!!	containsTagName(in markerTagName : char, in offset : int, in tagnameLength : int) : boolean
+		for(int j = 0; j < fBlockMarkers.size(); j++) {
+			BlockMarker marker = (BlockMarker)fBlockMarkers.get(j);
+			if(marker.getTagName().length() == tagnameLength) {
+				boolean matchesSoFar = true;
+				for(int i = 0; i < tagnameLength && matchesSoFar; i++) {
+					if(marker.isCaseSensitive()) {
+						if(marker.getTagName().charAt(i) != markerTagName[i + offset])
+							matchesSoFar = false;
+					}
+					else {
+						if(Character.toLowerCase(marker.getTagName().charAt(i)) != Character.toLowerCase(markerTagName[i + offset]))
+							matchesSoFar = false;
+					}
+				}
+				if(matchesSoFar)
+					return true;
+			}
+		}
+		return false;
+!!!10484123.java!!!	getRegions() : List
+		List tokens = new ArrayList();
+		ITextRegion region = null;
+		try {
+			region = getNextToken();
+			while(region != null) {
+				if (region != null) {
+					tokens.add(region);
+				}
+				region = getNextToken();
+			}
+		}
+		catch (StackOverflowError e) {
+			Logger.logException(getClass().getName()+": input could not be tokenized correctly at position " + getOffset(), e);//$NON-NLS-1$
+			throw e;
+		}
+		catch (Exception e) {
+			// Since this is convenience method and NOT the recommended 
+			// way of getting tokens, many errors are simply hidden
+			Logger.logException("Exception not handled retrieving regions: " + e.getLocalizedMessage(), e);//$NON-NLS-1$
+		}
+		return tokens;
+!!!10484251.java!!!	dump(in s : String) : void
+		if (Debug.debugTokenizer) {
+			System.out.println(s + " (" + yychar + "-" + //$NON-NLS-2$//$NON-NLS-1$
+				(yylength() + yychar) + "):\'" +//$NON-NLS-1$
+					StringUtils.escape(yytext()) + "\'");//$NON-NLS-1$
+		}
+!!!10484379.java!!!	isEOF() : boolean
+		return yy_atEOF;
+!!!10484507.java!!!	containsTagName(in markerTagName : String) : boolean
+	Iterator blocks = fBlockMarkers.iterator();
+	while(blocks.hasNext()) {
+		BlockMarker marker = (BlockMarker)blocks.next();
+		if(marker.isCaseSensitive()) {
+			if(marker.getTagName().equals(markerTagName))
+				return true;
+		}
+		else {
+			if(marker.getTagName().equalsIgnoreCase(markerTagName))
+				return true;
+		}
+	}
+	return false;
+!!!10484635.java!!!	yy_do_eof() : void
+    if (!yy_eof_done) {
+      yy_eof_done = true;
+    // do nothing, this is the downstream parser's job
+
+    }
+!!!10484763.java!!!	primGetNextToken() : String
+    int yy_input;
+    int yy_action;
+
+    yy_pushbackPos = -1;
+    boolean yy_was_pushback;
+
+    while (true) {
+
+      yychar+= yylength();
+
+      boolean yy_counted = false;
+      for (yy_currentPos = yy_startRead; yy_currentPos < yy_markedPos;
+                                                      yy_currentPos++) {
+        switch (yy_buffer[yy_currentPos]) {
+        case '\r':
+          yyline++;
+          yy_counted = true;
+          break;
+        case '\n':
+          if (yy_counted)
+            yy_counted = false;
+          else {
+            yyline++;
+          }
+          break;
+        default:
+          yy_counted = false;
+        }
+      }
+
+      if (yy_counted) {
+        if ( yy_advance() == '\n' ) yyline--;
+        if ( !yy_atEOF ) yy_currentPos--;
+      }
+
+      yy_action = -1;
+
+      yy_currentPos = yy_startRead = yy_markedPos;
+
+      yy_state = yy_lexical_state;
+
+      yy_was_pushback = false;
+
+      yy_forAction: {
+        while (true) {
+    
+          yy_input = yy_advance();
+
+          if ( yy_input == YYEOF ) break yy_forAction;
+
+          int yy_next = yytrans[ yy_rowMap[yy_state] + yycmap[yy_input] ];
+          if (yy_next == -1) break yy_forAction;
+          yy_state = yy_next;
+
+          int yy_attributes = YY_ATTRIBUTE[yy_state];
+          if ( (yy_attributes & 2) > 0 )
+            yy_pushbackPos = yy_currentPos;
+
+          if ( (yy_attributes & 1) > 0 ) {
+            yy_was_pushback = (yy_attributes & 4) > 0;
+            yy_action = yy_state; 
+            yy_markedPos = yy_currentPos; 
+            if ( (yy_attributes & 8) > 0 ) break yy_forAction;
+          }
+
+        }
+      }
+
+      if (yy_was_pushback)
+        yy_markedPos = yy_pushbackPos;
+
+      switch (yy_action) {    
+
+        case 599: 
+        case 604: 
+        case 611: 
+        case 616: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("jsp directive tag name");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+	fEmbeddedPostState = ST_XML_EQUALS;
+        yybegin(ST_XML_ATTRIBUTE_NAME);
+        return JSP_DIRECTIVE_NAME;
+ }
+        case 632: break;
+        case 563: 
+        case 565: 
+        case 566: 
+        case 567: 
+        case 568: 
+        case 569: 
+        case 570: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nCDATA start");//$NON-NLS-1$
+	fStateStack.push(yystate());
+	yybegin(ST_CDATA_TEXT);
+	return XML_CDATA_OPEN;
+ }
+        case 633: break;
+        case 555: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("jsp:root tag name");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+	fEmbeddedPostState = ST_XML_EQUALS;
+        yybegin(ST_XML_ATTRIBUTE_NAME);
+        return JSP_ROOT_TAG_NAME;
+ }
+        case 634: break;
+        case 547: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("element");//$NON-NLS-1$
+	yybegin(ST_XML_ELEMENT_DECLARATION);
+	return XML_ELEMENT_DECLARATION;
+ }
+        case 635: break;
+        case 546: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("attlist");//$NON-NLS-1$
+	yybegin(ST_XML_ATTLIST_DECLARATION);
+	return XML_ATTLIST_DECLARATION;
+ }
+        case 636: break;
+        case 545: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("doctype");//$NON-NLS-1$
+	yybegin(ST_XML_DOCTYPE_DECLARATION);
+	return XML_DOCTYPE_DECLARATION;
+ }
+        case 637: break;
+        case 531: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("doctype external id");//$NON-NLS-1$
+	fEmbeddedHint = XML_DOCTYPE_EXTERNAL_ID_PUBREF;
+	yybegin(ST_XML_DOCTYPE_ID_PUBLIC);
+	return XML_DOCTYPE_EXTERNAL_ID_PUBLIC;
+ }
+        case 638: break;
+        case 530: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("doctype external id");//$NON-NLS-1$
+	fEmbeddedHint = XML_DOCTYPE_EXTERNAL_ID_SYSREF;
+	yybegin(ST_XML_DOCTYPE_ID_SYSTEM);
+	return XML_DOCTYPE_EXTERNAL_ID_SYSTEM;
+ }
+        case 639: break;
+        case 524: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("DHTML processing instruction target");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+	fEmbeddedPostState = ST_XML_EQUALS;
+        yybegin(ST_DHTML_ATTRIBUTE_NAME);
+        return XML_TAG_NAME;
+ }
+        case 640: break;
+        case 501: 
+        case 540: 
+        case 541: 
+          { 
+	return JSP_VBL_QUOTED_CONTENT;
+ }
+        case 641: break;
+        case 491: 
+        case 536: 
+        case 537: 
+          { 
+	return JSP_EL_QUOTED_CONTENT;
+ }
+        case 642: break;
+        case 483: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nJSP comment close");//$NON-NLS-1$
+	yybegin(YYINITIAL);
+	return JSP_COMMENT_CLOSE;
+ }
+        case 643: break;
+        case 470: 
+          { 
+	if (Debug.debugTokenizer) {
+		System.out.println("begin embedded region: " + fEmbeddedHint);//$NON-NLS-1$
+	}
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_VALUE;
+	fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+	fStateStack.push(yystate());
+	if(yylength() > 2)
+		yypushback(yylength() -2);
+	if(Debug.debugTokenizer)
+		dump("VBL in attr value");//$NON-NLS-1$
+	yybegin(ST_JSP_VBL);
+	fELlevel++;
+	assembleEmbeddedContainer(JSP_VBL_OPEN, new String[]{JSP_VBL_CLOSE});
+	fStateStack.pop();
+	yybegin(ST_XML_ATTRIBUTE_NAME);
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+	fEmbeddedPostState = ST_XML_EQUALS;
+	return PROXY_CONTEXT;
+ }
+        case 644: break;
+        case 469: 
+          { 
+	if (Debug.debugTokenizer) {
+		System.out.println("begin embedded region: " + fEmbeddedHint);//$NON-NLS-1$
+	}
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_VALUE;
+	fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+	fStateStack.push(yystate());
+	if(yylength() > 2)
+		yypushback(yylength() -2);
+	if(Debug.debugTokenizer)
+		dump("EL in attr value");//$NON-NLS-1$
+	yybegin(ST_JSP_EL);
+	fELlevel++;
+	assembleEmbeddedContainer(JSP_EL_OPEN, new String[]{JSP_EL_CLOSE});
+	fStateStack.pop();
+	yybegin(ST_XML_ATTRIBUTE_NAME);
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+	fEmbeddedPostState = ST_XML_EQUALS;
+	return PROXY_CONTEXT;
+ }
+        case 645: break;
+        case 464: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nCharRef");//$NON-NLS-1$
+	return XML_CHAR_REFERENCE;
+ }
+        case 646: break;
+        case 461: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\ncomment start");//$NON-NLS-1$
+	fEmbeddedHint = XML_COMMENT_TEXT;
+	fEmbeddedPostState = ST_XML_COMMENT;
+	yybegin(ST_XML_COMMENT);
+	return XML_COMMENT_OPEN;
+ }
+        case 647: break;
+        case 460: 
+        case 478: 
+        case 481: 
+        case 484: 
+        case 485: 
+        case 487: 
+        case 489: 
+        case 492: 
+        case 494: 
+        case 495: 
+        case 497: 
+        case 499: 
+        case 502: 
+          { 
+	/* JSP comment begun (anywhere)
+	 * A consequence of the start anywhere possibility is that the
+	 *  incoming state must be checked to see if it's erroneous
+	 *  due to the order of precedence generated
+	 */
+	// begin sanity checks
+	if(yystate() == ST_JSP_CONTENT) {
+		// at the beginning?!
+		yypushback(3);
+		return JSP_CONTENT;
+	}
+	else if(yystate() == ST_BLOCK_TAG_SCAN) {
+		yypushback(4);
+		return doBlockTagScan();
+	}
+	else if(yystate() == ST_XML_COMMENT) {
+		yypushback(4);
+		return scanXMLCommentText();
+	}
+	else if(yystate() == ST_JSP_COMMENT) {
+		yypushback(4);
+		return scanJSPCommentText();
+	}
+	else if(yystate() == ST_BLOCK_TAG_INTERNAL_SCAN)  {
+		yybegin(ST_JSP_COMMENT);
+		assembleEmbeddedContainer(JSP_COMMENT_OPEN, JSP_COMMENT_CLOSE);
+		if(yystate() == ST_BLOCK_TAG_INTERNAL_SCAN)
+			yybegin(ST_BLOCK_TAG_SCAN);
+		return PROXY_CONTEXT;
+	}
+	// finished sanity checks
+	if(yystate()==YYINITIAL) {
+		// the simple case, just a regular scriptlet out in content
+		if(Debug.debugTokenizer)
+			dump("\nJSP comment start");//$NON-NLS-1$
+		yybegin(ST_JSP_COMMENT);
+		return JSP_COMMENT_OPEN;
+	}
+	else {
+		if (Debug.debugTokenizer) {
+			System.out.println("begin embedded region: " + fEmbeddedHint);//$NON-NLS-1$
+		}
+		if(Debug.debugTokenizer)
+			dump("JSP comment start");//$NON-NLS-1$
+		if(yystate() == ST_XML_ATTRIBUTE_VALUE_DQUOTED)
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_VALUE_DQUOTED;
+		else if(yystate() == ST_XML_ATTRIBUTE_VALUE_SQUOTED)
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_VALUE_SQUOTED;
+		else if(yystate() == ST_CDATA_TEXT) {
+			fEmbeddedPostState = ST_CDATA_TEXT;
+			fEmbeddedHint = XML_CDATA_TEXT;
+		}
+		yybegin(ST_JSP_COMMENT);
+		// the comment container itself will act as comment text
+		fEmbeddedHint = JSP_COMMENT_TEXT;
+		assembleEmbeddedContainer(JSP_COMMENT_OPEN, JSP_COMMENT_CLOSE);
+		if(yystate() == ST_BLOCK_TAG_INTERNAL_SCAN) {
+			yybegin(ST_BLOCK_TAG_SCAN);
+			return BLOCK_TEXT;
+		}
+		/*
+		 * required help for successive embedded regions; mark this one as a
+		 * comment so it will be otherwise ignored but preserved (which is why
+		 * we can't use white-space)
+		 */
+		if(yystate() == ST_XML_TAG_NAME) {
+			fEmbeddedHint = XML_TAG_NAME;
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+		}
+		else if((yystate() == ST_XML_ATTRIBUTE_NAME || yystate() == ST_XML_EQUALS)) {
+			fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+			fEmbeddedPostState = ST_XML_EQUALS;
+		}
+		else if(yystate() == ST_XML_ATTRIBUTE_VALUE) {
+			fEmbeddedHint = XML_TAG_ATTRIBUTE_VALUE;
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+		}
+		return PROXY_CONTEXT;
+	}
+ }
+        case 648: break;
+        case 382: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("XML processing instruction target");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+	fEmbeddedPostState = ST_XML_EQUALS;
+        yybegin(ST_XML_PI_ATTRIBUTE_NAME);
+        return XML_TAG_NAME;
+ }
+        case 649: break;
+        case 381: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("comment end");//$NON-NLS-1$
+	fEmbeddedHint = UNDEFINED;
+	yybegin(YYINITIAL);
+	return XML_COMMENT_CLOSE;
+ }
+        case 650: break;
+        case 380: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("CDATA end");//$NON-NLS-1$
+	yybegin(fStateStack.pop());
+	return XML_CDATA_CLOSE;
+ }
+        case 651: break;
+        case 379: 
+          { 
+	yybegin(ST_JSP_VBL);
+	if(yylength() > 2)
+		yypushback(yylength() - 2);
+	fELlevel++;
+	fEmbeddedHint = XML_CONTENT;
+	fEmbeddedPostState = YYINITIAL;
+	assembleEmbeddedContainer(JSP_VBL_OPEN, JSP_VBL_CLOSE);
+	fEmbeddedHint = XML_CONTENT;
+	yybegin(YYINITIAL);
+	return PROXY_CONTEXT;
+ }
+        case 652: break;
+        case 378: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nPEReference");//$NON-NLS-1$
+	return XML_PE_REFERENCE;
+ }
+        case 653: break;
+        case 377: 
+          { 
+	yybegin(ST_JSP_EL);
+	if(yylength() > 2)
+		yypushback(yylength() - 2);
+	fELlevel++;
+	fEmbeddedHint = XML_CONTENT;
+	fEmbeddedPostState = YYINITIAL;
+	assembleEmbeddedContainer(JSP_EL_OPEN, JSP_EL_CLOSE);
+	fEmbeddedHint = XML_CONTENT;
+	yybegin(YYINITIAL);
+	return PROXY_CONTEXT;
+ }
+        case 654: break;
+        case 374: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nEntityRef");//$NON-NLS-1$
+	return XML_ENTITY_REFERENCE;
+ }
+        case 655: break;
+        case 368: 
+        case 406: 
+        case 413: 
+        case 419: 
+        case 423: 
+        case 427: 
+        case 431: 
+        case 436: 
+        case 441: 
+        case 444: 
+        case 448: 
+        case 452: 
+        case 457: 
+          { 
+	/* JSP expression begun (anywhere)
+	 * A consequence of the start anywhere possibility is that the
+	 *  incoming state must be checked to see if it's erroneous
+	 *  due to the order of precedence generated
+	 */
+	// begin sanity checks
+	if(yystate() == ST_JSP_CONTENT) {
+		// at the beginning?!
+		yypushback(2);
+		return JSP_CONTENT;
+	}
+	else if(yystate() == ST_BLOCK_TAG_SCAN) {
+		yypushback(3);
+		return doBlockTagScan();
+	}
+	else if(yystate() == ST_XML_COMMENT) {
+		yypushback(3);
+		return scanXMLCommentText();
+	}
+	else if(yystate() == ST_JSP_COMMENT) {
+		yypushback(3);
+		return scanJSPCommentText();
+	}
+	// end sanity checks
+	fStateStack.push(yystate());
+	if(fStateStack.peek()==YYINITIAL) {
+		// the simple case, just an expression out in content
+		if(Debug.debugTokenizer)
+			dump("\nJSP expression start");//$NON-NLS-1$
+		yybegin(ST_JSP_CONTENT);
+		return JSP_EXPRESSION_OPEN;
+	}
+	else {
+		if (Debug.debugTokenizer) {
+			System.out.println("begin embedded region: " + fEmbeddedHint);//$NON-NLS-1$
+		}
+		if(Debug.debugTokenizer)
+			dump("JSP expression start");//$NON-NLS-1$
+		if(yystate() == ST_XML_ATTRIBUTE_VALUE_DQUOTED)
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_VALUE_DQUOTED;
+		else if(yystate() == ST_XML_ATTRIBUTE_VALUE_SQUOTED)
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_VALUE_SQUOTED;
+		else if(yystate() == ST_CDATA_TEXT) {
+			fEmbeddedPostState = ST_CDATA_TEXT;
+			fEmbeddedHint = XML_CDATA_TEXT;
+		}
+		yybegin(ST_JSP_CONTENT);
+		assembleEmbeddedContainer(JSP_EXPRESSION_OPEN, JSP_CLOSE);
+		if(yystate() == ST_BLOCK_TAG_INTERNAL_SCAN) {
+			yybegin(ST_BLOCK_TAG_SCAN);
+			return BLOCK_TEXT;
+		}
+		// required help for successive embedded regions
+		if(yystate() == ST_XML_TAG_NAME) {
+			fEmbeddedHint = XML_TAG_NAME;
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+		}
+		else if((yystate() == ST_XML_ATTRIBUTE_NAME || yystate() == ST_XML_EQUALS)) {
+			fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+			fEmbeddedPostState = ST_XML_EQUALS;
+		}
+		else if(yystate() == ST_XML_ATTRIBUTE_VALUE) {
+			fEmbeddedHint = XML_TAG_ATTRIBUTE_VALUE;
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+		}
+		return PROXY_CONTEXT;
+	}
+ }
+        case 656: break;
+        case 367: 
+        case 405: 
+        case 412: 
+        case 418: 
+        case 422: 
+        case 426: 
+        case 430: 
+        case 435: 
+        case 440: 
+        case 443: 
+        case 447: 
+        case 451: 
+        case 456: 
+          { 
+	/* JSP declaration begun (anywhere)
+	 * A consequence of the start anywhere possibility is that the
+	 *  incoming state must be checked to see if it's erroneous
+	 *  due to the order of precedence generated
+	 */
+	// begin sanity checks
+	if(yystate() == ST_JSP_CONTENT) {
+		// at the beginning?!
+		yypushback(2);
+		return JSP_CONTENT;
+	}
+	else if(yystate() == ST_BLOCK_TAG_SCAN) {
+		yypushback(3);
+		return doBlockTagScan();
+	}
+	else if(yystate() == ST_XML_COMMENT) {
+		yypushback(3);
+		return scanXMLCommentText();
+	}
+	else if(yystate() == ST_JSP_COMMENT) {
+		yypushback(3);
+		return scanJSPCommentText();
+	}
+	// end sanity checks
+	fStateStack.push(yystate());
+	if(fStateStack.peek()==YYINITIAL) {
+		// the simple case, just a declaration out in content
+		if(Debug.debugTokenizer)
+			dump("\nJSP declaration start");//$NON-NLS-1$
+		yybegin(ST_JSP_CONTENT);
+		return JSP_DECLARATION_OPEN;
+	}
+	else {
+		if (Debug.debugTokenizer) {
+			System.out.println("begin embedded region: " + fEmbeddedHint);//$NON-NLS-1$
+		}
+		if(Debug.debugTokenizer)
+			dump("JSP declaration start");//$NON-NLS-1$
+		if(yystate() == ST_XML_ATTRIBUTE_VALUE_DQUOTED)
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_VALUE_DQUOTED;
+		else if(yystate() == ST_XML_ATTRIBUTE_VALUE_SQUOTED)
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_VALUE_SQUOTED;
+		else if(yystate() == ST_CDATA_TEXT) {
+			fEmbeddedPostState = ST_CDATA_TEXT;
+			fEmbeddedHint = XML_CDATA_TEXT;
+		}
+		yybegin(ST_JSP_CONTENT);
+		assembleEmbeddedContainer(JSP_DECLARATION_OPEN, JSP_CLOSE);
+		if(yystate() == ST_BLOCK_TAG_INTERNAL_SCAN) {
+			yybegin(ST_BLOCK_TAG_SCAN);
+			return BLOCK_TEXT;
+		}
+		// required help for successive embedded regions
+		if(yystate() == ST_XML_TAG_NAME) {
+			fEmbeddedHint = XML_TAG_NAME;
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+		}
+		else if((yystate() == ST_XML_ATTRIBUTE_NAME || yystate() == ST_XML_EQUALS)) {
+			fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+			fEmbeddedPostState = ST_XML_EQUALS;
+		}
+		else if(yystate() == ST_XML_ATTRIBUTE_VALUE) {
+			fEmbeddedHint = XML_TAG_ATTRIBUTE_VALUE;
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+		}
+		return PROXY_CONTEXT;
+	}
+ }
+        case 657: break;
+        case 366: 
+          { 
+	fStateStack.push(yystate());
+	if(fStateStack.peek()==YYINITIAL) {
+		if(Debug.debugTokenizer)
+			dump("\nJSP directive start");//$NON-NLS-1$
+		yybegin(ST_JSP_DIRECTIVE_NAME);
+		return JSP_DIRECTIVE_OPEN;
+	}
+	else {
+		if (Debug.debugTokenizer) {
+			System.out.println("begin embedded region: " + fEmbeddedHint);//$NON-NLS-1$
+		}
+		if(Debug.debugTokenizer)
+			dump("JSP directive start");//$NON-NLS-1$
+		yybegin(ST_JSP_DIRECTIVE_NAME);
+		assembleEmbeddedContainer(JSP_DIRECTIVE_OPEN, new String[]{JSP_DIRECTIVE_CLOSE, JSP_CLOSE});
+		if(yystate() == ST_BLOCK_TAG_INTERNAL_SCAN) {
+			yybegin(ST_BLOCK_TAG_SCAN);
+			return BLOCK_TEXT;
+		}
+		return PROXY_CONTEXT;
+	}
+ }
+        case 658: break;
+        case 356: 
+          { 
+	yybegin(ST_JSP_VBL_DQUOTES_END);
+	return JSP_VBL_QUOTED_CONTENT;
+ }
+        case 659: break;
+        case 352: 
+          { 
+	yybegin(ST_JSP_VBL_SQUOTES_END);
+	return JSP_VBL_QUOTED_CONTENT;
+ }
+        case 660: break;
+        case 350: 
+          { 
+	fELlevel++;
+	if(fELlevel == 1) {
+		return JSP_VBL_OPEN;
+	}
+ }
+        case 661: break;
+        case 340: 
+          { 
+	yybegin(ST_JSP_EL_DQUOTES_END);
+	return JSP_EL_QUOTED_CONTENT;
+ }
+        case 662: break;
+        case 336: 
+          { 
+	yybegin(ST_JSP_EL_SQUOTES_END);
+	return JSP_EL_QUOTED_CONTENT;
+ }
+        case 663: break;
+        case 334: 
+          { 
+	//System.out.println(JSP_EL_CONTENT+ ":[" + yytext() + "]");
+	return JSP_EL_CONTENT;
+ }
+        case 664: break;
+        case 333: 
+          { 
+	fELlevel++;
+	if(fELlevel == 1) {
+		return JSP_EL_OPEN;
+	}
+ }
+        case 665: break;
+        case 330: 
+          { 
+	int enterState = yystate();
+	yybegin(ST_JSP_DQUOTED_VBL);
+	assembleEmbeddedContainer(JSP_VBL_OPEN, new String[]{JSP_VBL_CLOSE, XML_TAG_ATTRIBUTE_VALUE_DQUOTE});
+	// abort early when an unescaped double quote is found in the VBL
+	if(fEmbeddedContainer.getLastRegion().getType().equals(XML_TAG_ATTRIBUTE_VALUE_DQUOTE)) {
+		yybegin(ST_ABORT_EMBEDDED);
+		fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+	}
+	else {
+		yybegin(enterState);
+	}
+	return PROXY_CONTEXT;
+ }
+        case 666: break;
+        case 329: 
+          { 
+	int enterState = yystate();
+	yybegin(ST_JSP_DQUOTED_EL);
+	assembleEmbeddedContainer(JSP_EL_OPEN, new String[]{JSP_EL_CLOSE, XML_TAG_ATTRIBUTE_VALUE_DQUOTE});
+	// abort early when an unescaped double quote is found in the EL
+	if(fEmbeddedContainer.getLastRegion().getType().equals(XML_TAG_ATTRIBUTE_VALUE_DQUOTE)) {
+		yybegin(ST_ABORT_EMBEDDED);
+		fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+	}
+	else {
+		yybegin(enterState);
+	}
+	return PROXY_CONTEXT;
+ }
+        case 667: break;
+        case 327: 
+          { 
+	int enterState = yystate();
+	yybegin(ST_JSP_SQUOTED_VBL);
+	assembleEmbeddedContainer(JSP_VBL_OPEN, new String[]{JSP_VBL_CLOSE, XML_TAG_ATTRIBUTE_VALUE_SQUOTE});
+	// abort early when an unescaped single quote is found in the VBL
+	if(fEmbeddedContainer.getLastRegion().getType().equals(XML_TAG_ATTRIBUTE_VALUE_SQUOTE)) {
+		yybegin(ST_ABORT_EMBEDDED);
+		fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+	}
+	else {
+		yybegin(enterState);
+	}
+	return PROXY_CONTEXT;
+ }
+        case 668: break;
+        case 326: 
+          { 
+	int enterState = yystate();
+	yybegin(ST_JSP_SQUOTED_EL);
+	assembleEmbeddedContainer(JSP_EL_OPEN, new String[]{JSP_EL_CLOSE, XML_TAG_ATTRIBUTE_VALUE_SQUOTE});
+	// abort early when an unescaped single quote is found in the EL
+	if(fEmbeddedContainer.getLastRegion().getType().equals(XML_TAG_ATTRIBUTE_VALUE_SQUOTE)) {
+		yybegin(ST_ABORT_EMBEDDED);
+		fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+	}
+	else {
+		yybegin(enterState);
+	}
+	return PROXY_CONTEXT;
+ }
+        case 669: break;
+        case 325: 
+          { 
+	if (Debug.debugTokenizer) {
+		System.out.println("begin embedded region: " + fEmbeddedHint);//$NON-NLS-1$
+	}
+	int incomingState = yystate();
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_VALUE;
+	fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+	if(Debug.debugTokenizer)
+		dump("JSP attribute value start - end tag");//$NON-NLS-1$
+	yybegin(ST_XML_TAG_NAME);
+	assembleEmbeddedContainer(XML_END_TAG_OPEN, new String[]{XML_TAG_CLOSE,XML_EMPTY_TAG_CLOSE});
+	if(yystate() != ST_ABORT_EMBEDDED)
+        yybegin(incomingState);
+	return PROXY_CONTEXT;
+ }
+        case 670: break;
+        case 284: 
+        case 296: 
+        case 302: 
+          { 
+	return XML_DOCTYPE_INTERNAL_SUBSET;
+ }
+        case 671: break;
+        case 272: 
+          { 
+	String tagName = yytext().substring(1);
+	// pushback to just after the opening bracket
+	yypushback(yylength() - 1);
+	/*
+	 * If this tag can not be nested or we're already searching for an
+	 * attribute name, equals, or value, return immediately.
+	 */
+	if (!isNestable(tagName) || (!fStateStack.empty() && (fStateStack.peek() == ST_XML_ATTRIBUTE_NAME || fStateStack.peek() == ST_XML_EQUALS || fStateStack.peek() == ST_XML_ATTRIBUTE_VALUE))) {
+		yybegin(ST_XML_TAG_NAME);
+		return XML_TAG_OPEN;
+	}
+	if(Debug.debugTokenizer)
+		dump("tag in place of attr value");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_VALUE;
+	fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+	fStateStack.push(yystate());
+	// embedded container should be looking for the name (again) next
+	yybegin(ST_XML_TAG_NAME);
+	assembleEmbeddedTagSequence(XML_TAG_OPEN, tagName); // ?
+	fStateStack.pop();
+	yybegin(ST_XML_ATTRIBUTE_NAME);
+	return PROXY_CONTEXT;
+ }
+        case 672: break;
+        case 270: 
+          { 
+	String tagName = yytext().substring(1);
+	// pushback to just after the opening bracket
+	yypushback(yylength() - 1);
+	/*
+	 * If this tag can not be nested or we're already searching for an
+	 * attribute name, equals, or value, return immediately.
+	 */
+	if (!isNestable(tagName) || (!fStateStack.empty() && (fStateStack.peek() == ST_XML_ATTRIBUTE_NAME || fStateStack.peek() == ST_XML_EQUALS || fStateStack.peek() == ST_XML_ATTRIBUTE_VALUE))) {
+		yybegin(ST_XML_TAG_NAME);
+		return XML_TAG_OPEN;
+	}
+	if(Debug.debugTokenizer)
+		dump("tag in place of attr name");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+	fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+	fStateStack.push(yystate());
+	// embedded container should be looking for the name (again) next
+	yybegin(ST_XML_TAG_NAME);
+	assembleEmbeddedTagSequence(XML_TAG_OPEN, tagName); // ?
+	fStateStack.pop();
+	yybegin(ST_XML_EQUALS);
+	return PROXY_CONTEXT;
+ }
+        case 673: break;
+        case 268: 
+          { 
+        yybegin(YYINITIAL);
+	fEmbeddedHint = UNDEFINED;
+	if(Debug.debugTokenizer)
+		dump("empty tag close");//$NON-NLS-1$
+        return XML_EMPTY_TAG_CLOSE;
+ }
+        case 674: break;
+        case 125: 
+          { 
+	if (Debug.debugTokenizer) {
+		System.out.println("begin embedded region: " + fEmbeddedHint);//$NON-NLS-1$
+	}
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_VALUE;
+	fEmbeddedPostState = ST_XML_ATTRIBUTE_VALUE_DQUOTED;
+	yybegin(ST_XML_ATTRIBUTE_VALUE_DQUOTED);
+	fStateStack.push(yystate());
+	if(Debug.debugTokenizer)
+		dump("JSP attribute value start - complex double quoted");//$NON-NLS-1$
+	assembleEmbeddedContainer(XML_TAG_ATTRIBUTE_VALUE_DQUOTE, XML_TAG_ATTRIBUTE_VALUE_DQUOTE);
+	fStateStack.pop();
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+	fEmbeddedPostState = ST_XML_EQUALS;
+	yybegin(ST_XML_ATTRIBUTE_NAME);
+	return PROXY_CONTEXT;
+ }
+        case 675: break;
+        case 123: 
+          { 
+	if (Debug.debugTokenizer) {
+		System.out.println("begin embedded region: " + fEmbeddedHint);//$NON-NLS-1$
+	}
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_VALUE;
+	fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+	fStateStack.push(yystate());
+	if(Debug.debugTokenizer)
+		dump("JSP tag embedded name start - start tag");//$NON-NLS-1$
+	yybegin(ST_XML_TAG_NAME);
+	assembleEmbeddedContainer(XML_TAG_OPEN, new String[]{XML_TAG_CLOSE,XML_EMPTY_TAG_CLOSE});
+	fStateStack.pop();
+        yybegin(ST_XML_ATTRIBUTE_NAME);
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+	fEmbeddedPostState = ST_XML_EQUALS;
+	return PROXY_CONTEXT;
+ }
+        case 676: break;
+        case 122: 
+        case 127: 
+        case 128: 
+        case 274: 
+        case 278: 
+        case 279: 
+        case 387: 
+        case 390: 
+        case 468: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("attr value");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+	fEmbeddedPostState = ST_XML_EQUALS;
+        yybegin(ST_XML_ATTRIBUTE_NAME);
+        return XML_TAG_ATTRIBUTE_VALUE;
+ }
+        case 677: break;
+        case 121: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("equals");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_VALUE;
+	fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+        yybegin(ST_XML_ATTRIBUTE_VALUE);
+        return XML_TAG_ATTRIBUTE_EQUALS;
+ }
+        case 678: break;
+        case 120: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("attr name");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+	fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+        yybegin(ST_XML_EQUALS);
+        return XML_TAG_ATTRIBUTE_NAME;
+ }
+        case 679: break;
+        case 116: 
+        case 117: 
+        case 118: 
+        case 269: 
+        case 386: 
+        case 467: 
+        case 506: 
+        case 507: 
+        case 525: 
+        case 526: 
+        case 543: 
+        case 544: 
+        case 556: 
+        case 564: 
+        case 571: 
+        case 572: 
+        case 573: 
+        case 574: 
+        case 576: 
+        case 582: 
+        case 583: 
+        case 584: 
+        case 585: 
+        case 586: 
+        case 592: 
+        case 593: 
+        case 594: 
+        case 595: 
+        case 596: 
+        case 602: 
+        case 603: 
+        case 605: 
+        case 606: 
+        case 612: 
+        case 613: 
+        case 614: 
+        case 615: 
+        case 621: 
+        case 622: 
+        case 623: 
+        case 624: 
+        case 627: 
+        case 628: 
+        case 630: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("tag name");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+	fEmbeddedPostState = ST_XML_EQUALS;
+        yybegin(ST_XML_ATTRIBUTE_NAME);
+        return XML_TAG_NAME;
+ }
+        case 680: break;
+        case 114: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("tag close");//$NON-NLS-1$
+	fEmbeddedHint = UNDEFINED;
+	if(isBlockMarker()) {
+		fEmbeddedHint = getBlockMarkerContext();
+		fEmbeddedPostState = ST_BLOCK_TAG_SCAN;
+        	yybegin(ST_BLOCK_TAG_SCAN);
+	}
+	else
+        	yybegin(YYINITIAL);
+        return XML_TAG_CLOSE;
+ }
+        case 681: break;
+        case 107: 
+        case 111: 
+        case 264: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("attr value");//$NON-NLS-1$
+        yybegin(ST_JSP_DIRECTIVE_ATTRIBUTE_NAME);
+        return XML_TAG_ATTRIBUTE_VALUE;
+ }
+        case 682: break;
+        case 106: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("equals");//$NON-NLS-1$
+        yybegin(ST_JSP_DIRECTIVE_ATTRIBUTE_VALUE);
+        return XML_TAG_ATTRIBUTE_EQUALS;
+ }
+        case 683: break;
+        case 105: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("attr name");//$NON-NLS-1$
+        yybegin(ST_JSP_DIRECTIVE_EQUALS);
+        return XML_TAG_ATTRIBUTE_NAME;
+ }
+        case 684: break;
+        case 102: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("JSP directive name");//$NON-NLS-1$
+	yybegin(ST_JSP_DIRECTIVE_NAME_WHITESPACE);
+	return JSP_DIRECTIVE_NAME;
+ }
+        case 685: break;
+        case 98: 
+        case 99: 
+        case 100: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("JSP code content");//$NON-NLS-1$
+	return doScan("%>", false, false, false, JSP_CONTENT, ST_JSP_CONTENT, ST_JSP_CONTENT);
+ }
+        case 686: break;
+        case 94: 
+        case 96: 
+        case 97: 
+        case 254: 
+        case 255: 
+        case 258: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("DHTML processing instruction attribute value");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+	fEmbeddedPostState = ST_XML_EQUALS;
+        yybegin(ST_DHTML_ATTRIBUTE_NAME);
+        return XML_TAG_ATTRIBUTE_VALUE;
+ }
+        case 687: break;
+        case 93: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("DHTML processing instruction '='");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_VALUE;
+	fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+        yybegin(ST_DHTML_ATTRIBUTE_VALUE);
+        return XML_TAG_ATTRIBUTE_EQUALS;
+ }
+        case 688: break;
+        case 92: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("DHTML processing instruction attribute name");//$NON-NLS-1$
+        yybegin(ST_DHTML_EQUALS);
+        return XML_TAG_ATTRIBUTE_NAME;
+ }
+        case 689: break;
+        case 90: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("DHTML processing instruction end");//$NON-NLS-1$
+	fEmbeddedHint = UNDEFINED;
+        yybegin(YYINITIAL);
+        return XML_PI_CLOSE;
+ }
+        case 690: break;
+        case 84: 
+        case 86: 
+        case 245: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("XML processing instruction attribute value");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+	fEmbeddedPostState = ST_XML_EQUALS;
+        yybegin(ST_XML_PI_ATTRIBUTE_NAME);
+        return XML_TAG_ATTRIBUTE_VALUE;
+ }
+        case 691: break;
+        case 83: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("XML processing instruction '='");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_VALUE;
+	fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+        yybegin(ST_XML_PI_ATTRIBUTE_VALUE);
+        return XML_TAG_ATTRIBUTE_EQUALS;
+ }
+        case 692: break;
+        case 50: 
+        case 200: 
+        case 201: 
+        case 204: 
+        case 214: 
+        case 215: 
+        case 218: 
+        case 219: 
+        case 361: 
+        case 364: 
+        case 439: 
+        case 450: 
+        case 455: 
+          { 
+	return JSP_VBL_CONTENT;
+ }
+        case 693: break;
+        case 43: 
+        case 179: 
+        case 180: 
+        case 183: 
+        case 193: 
+        case 194: 
+        case 197: 
+        case 198: 
+        case 331: 
+        case 345: 
+        case 348: 
+        case 416: 
+        case 417: 
+        case 429: 
+        case 434: 
+          { 
+	return JSP_EL_CONTENT;
+ }
+        case 694: break;
+        case 35: 
+        case 159: 
+        case 160: 
+        case 322: 
+        case 411: 
+        case 414: 
+        case 482: 
+        case 514: 
+        case 533: 
+        case 549: 
+        case 558: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("attlist contentspec");//$NON-NLS-1$
+	return XML_ATTLIST_DECL_CONTENT;
+ }
+        case 695: break;
+        case 33: 
+        case 152: 
+        case 153: 
+        case 312: 
+        case 404: 
+        case 407: 
+        case 479: 
+        case 513: 
+        case 532: 
+        case 548: 
+        case 557: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("elementdecl contentspec");//$NON-NLS-1$
+	return XML_ELEMENT_DECL_CONTENT;
+ }
+        case 696: break;
+        case 22: 
+        case 112: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("inappropriate tag name");//$NON-NLS-1$
+	if(!fStateStack.empty() && (fStateStack.peek()==ST_XML_ATTRIBUTE_VALUE_SQUOTED||fStateStack.peek()==ST_XML_ATTRIBUTE_VALUE_DQUOTED)) {
+		yybegin(ST_ABORT_EMBEDDED);
+		yypushback(yylength()-1);
+		return XML_TAG_ATTRIBUTE_VALUE;
+	}
+	yybegin(YYINITIAL);
+        return XML_CONTENT;
+ }
+        case 697: break;
+        case 18: 
+        case 104: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("white space");//$NON-NLS-1$
+	yybegin(ST_JSP_DIRECTIVE_ATTRIBUTE_NAME);
+	return WHITE_SPACE;
+ }
+        case 698: break;
+        case 5: 
+        case 8: 
+        case 9: 
+        case 10: 
+        case 12: 
+        case 13: 
+        case 14: 
+        case 15: 
+        case 17: 
+        case 19: 
+        case 20: 
+        case 21: 
+        case 23: 
+        case 24: 
+        case 25: 
+        case 26: 
+        case 27: 
+        case 28: 
+        case 29: 
+        case 30: 
+        case 31: 
+        case 32: 
+        case 34: 
+        case 40: 
+        case 41: 
+        case 73: 
+        case 170: 
+        case 175: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("white space");//$NON-NLS-1$
+        return WHITE_SPACE;
+ }
+        case 699: break;
+        case 0: 
+        case 57: 
+        case 60: 
+        case 62: 
+        case 226: 
+        case 228: 
+        case 229: 
+        case 231: 
+        case 233: 
+        case 371: 
+        case 372: 
+        case 373: 
+        case 463: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nXML content");//$NON-NLS-1$
+	return XML_CONTENT;
+ }
+        case 700: break;
+        case 58: 
+        case 101: 
+        case 113: 
+        case 119: 
+        case 129: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nstart tag open");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_NAME;
+	fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+        yybegin(ST_XML_TAG_NAME);
+        return XML_TAG_OPEN;
+ }
+        case 701: break;
+        case 59: 
+        case 61: 
+        case 65: 
+        case 66: 
+        case 67: 
+        case 71: 
+        case 72: 
+        case 81: 
+        case 85: 
+        case 87: 
+        case 88: 
+        case 89: 
+        case 91: 
+        case 95: 
+        case 103: 
+        case 108: 
+        case 109: 
+        case 110: 
+        case 115: 
+        case 124: 
+        case 131: 
+        case 132: 
+        case 133: 
+        case 134: 
+        case 136: 
+        case 137: 
+        case 139: 
+        case 140: 
+        case 141: 
+        case 144: 
+        case 145: 
+        case 146: 
+        case 149: 
+        case 150: 
+        case 151: 
+        case 156: 
+        case 157: 
+        case 158: 
+        case 164: 
+        case 167: 
+        case 172: 
+        case 173: 
+        case 177: 
+        case 178: 
+        case 185: 
+        case 186: 
+        case 188: 
+        case 189: 
+        case 195: 
+        case 199: 
+        case 206: 
+        case 207: 
+        case 209: 
+        case 210: 
+        case 216: 
+        case 220: 
+          { 
+	if (Debug.debugTokenizer)
+		System.out.println("!!!unexpected!!!: \"" + yytext() + "\":" + //$NON-NLS-2$//$NON-NLS-1$
+			yychar + "-" + (yychar + yylength()));//$NON-NLS-1$
+	return UNDEFINED;
+ }
+        case 702: break;
+        case 63: 
+        case 64: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("CDATA text");//$NON-NLS-1$
+	fEmbeddedPostState = ST_CDATA_TEXT;
+	fEmbeddedHint = XML_CDATA_TEXT;
+	String returnedContext = doScan("]]>", false, true, true, XML_CDATA_TEXT, ST_CDATA_END,  ST_CDATA_END);//$NON-NLS-1$
+	if(returnedContext == XML_CDATA_TEXT)
+		yybegin(ST_CDATA_END);
+	return returnedContext;
+ }
+        case 703: break;
+        case 68: 
+        case 187: 
+        case 190: 
+        case 208: 
+        case 211: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("LINE FEED");//$NON-NLS-1$
+	return WHITE_SPACE;
+ }
+        case 704: break;
+        case 69: 
+        case 70: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("comment content");//$NON-NLS-1$
+	return scanXMLCommentText();
+ }
+        case 705: break;
+        case 74: 
+        case 75: 
+        case 76: 
+        case 239: 
+        case 240: 
+        case 383: 
+        case 466: 
+        case 505: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("processing instruction target");//$NON-NLS-1$
+	fEmbeddedHint = XML_CONTENT;
+        yybegin(ST_PI_WS);
+        return XML_TAG_NAME;
+ }
+        case 706: break;
+        case 77: 
+          { 
+        yybegin(ST_PI_CONTENT);
+        return WHITE_SPACE;
+ }
+        case 707: break;
+        case 78: 
+        case 79: 
+        case 80: 
+          { 
+		// block scan until close is found
+	return doScan("?>", false, false, false, XML_PI_CONTENT, ST_XML_PI_TAG_CLOSE, ST_XML_PI_TAG_CLOSE);
+ }
+        case 708: break;
+        case 82: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("XML processing instruction attribute name");//$NON-NLS-1$
+        yybegin(ST_XML_PI_EQUALS);
+        return XML_TAG_ATTRIBUTE_NAME;
+ }
+        case 709: break;
+        case 126: 
+          { 
+	if (Debug.debugTokenizer) {
+		System.out.println("begin embedded region: " + fEmbeddedHint);//$NON-NLS-1$
+	}
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_VALUE;
+	fEmbeddedPostState = ST_XML_ATTRIBUTE_VALUE_SQUOTED;
+	yybegin(ST_XML_ATTRIBUTE_VALUE_SQUOTED);
+	fStateStack.push(yystate());
+	if(Debug.debugTokenizer)
+		dump("JSP attribute value start - complex single quoted");//$NON-NLS-1$
+	assembleEmbeddedContainer(XML_TAG_ATTRIBUTE_VALUE_SQUOTE, XML_TAG_ATTRIBUTE_VALUE_SQUOTE);
+	fStateStack.pop();
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+	fEmbeddedPostState = ST_XML_EQUALS;
+        yybegin(ST_XML_ATTRIBUTE_NAME);
+	return PROXY_CONTEXT;
+ }
+        case 710: break;
+        case 130: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("declaration end");//$NON-NLS-1$
+	if (Debug.debugTokenizer) {
+		if(fStateStack.peek()!=YYINITIAL)
+			System.out.println("end embedded region");//$NON-NLS-1$
+	}
+	yybegin(fStateStack.pop());
+	return XML_DECLARATION_CLOSE;
+ }
+        case 711: break;
+        case 135: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("doctype type");//$NON-NLS-1$
+	yybegin(ST_XML_DOCTYPE_EXTERNAL_ID);
+	return XML_DOCTYPE_NAME;
+ }
+        case 712: break;
+        case 138: 
+        case 142: 
+        case 289: 
+        case 293: 
+        case 399: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("doctype public reference");//$NON-NLS-1$
+	fEmbeddedHint = UNDEFINED;
+	fEmbeddedPostState = YYINITIAL;
+	yybegin(ST_XML_DOCTYPE_ID_SYSTEM);
+	return XML_DOCTYPE_EXTERNAL_ID_PUBREF;
+ }
+        case 713: break;
+        case 143: 
+        case 147: 
+        case 299: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("doctype system reference");//$NON-NLS-1$
+	fEmbeddedHint = UNDEFINED;
+	fEmbeddedPostState = YYINITIAL;
+	yybegin(ST_XML_DECLARATION_CLOSE);
+	return XML_DOCTYPE_EXTERNAL_ID_SYSREF;
+ }
+        case 714: break;
+        case 148: 
+        case 305: 
+        case 309: 
+        case 402: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("elementdecl name");//$NON-NLS-1$
+	fEmbeddedHint = UNDEFINED;
+	fEmbeddedPostState = YYINITIAL;
+	yybegin(ST_XML_ELEMENT_DECLARATION_CONTENT);
+	return XML_ELEMENT_DECL_NAME;
+ }
+        case 715: break;
+        case 154: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("elementdecl close");//$NON-NLS-1$
+	if (Debug.debugTokenizer) {
+		if(fStateStack.peek()!=YYINITIAL)
+			System.out.println("end embedded region");//$NON-NLS-1$
+	}
+	yybegin(fStateStack.pop());
+	return XML_DECLARATION_CLOSE;
+ }
+        case 716: break;
+        case 155: 
+        case 315: 
+        case 319: 
+        case 409: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("attlist name");//$NON-NLS-1$
+	fEmbeddedHint = UNDEFINED;
+	fEmbeddedPostState = YYINITIAL;
+	yybegin(ST_XML_ATTLIST_DECLARATION_CONTENT);
+	return XML_ATTLIST_DECL_NAME;
+ }
+        case 717: break;
+        case 161: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("attlist close");//$NON-NLS-1$
+	if (Debug.debugTokenizer) {
+		if(fStateStack.peek()!=YYINITIAL)
+			System.out.println("end embedded region");//$NON-NLS-1$
+	}
+	yybegin(fStateStack.pop());
+	return XML_DECLARATION_CLOSE;
+ }
+        case 718: break;
+        case 165: 
+        case 166: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nJSP comment text");//$NON-NLS-1$
+	return scanJSPCommentText();
+ }
+        case 719: break;
+        case 168: 
+        case 174: 
+          { 
+	return XML_TAG_ATTRIBUTE_VALUE;
+ }
+        case 720: break;
+        case 169: 
+          { 
+	if (Debug.debugTokenizer) {
+		System.out.println("begin embedded region: " + fEmbeddedHint);//$NON-NLS-1$
+	}
+	int incomingState = yystate();
+	fEmbeddedHint = XML_TAG_ATTRIBUTE_VALUE;
+	fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+	if(Debug.debugTokenizer)
+		dump("tag inside of JSP attribute value start");//$NON-NLS-1$
+	yybegin(ST_XML_TAG_NAME);
+	assembleEmbeddedContainer(XML_TAG_OPEN, new String[]{XML_TAG_CLOSE,XML_EMPTY_TAG_CLOSE});
+	if(yystate() != ST_ABORT_EMBEDDED)
+        yybegin(incomingState);
+	return PROXY_CONTEXT;
+ }
+        case 721: break;
+        case 171: 
+          { 
+	return XML_TAG_ATTRIBUTE_VALUE_SQUOTE;
+ }
+        case 722: break;
+        case 176: 
+          { 
+	return XML_TAG_ATTRIBUTE_VALUE_DQUOTE;
+ }
+        case 723: break;
+        case 181: 
+          { 
+	yybegin(ST_JSP_EL_DQUOTES);
+	return JSP_EL_DQUOTE;
+ }
+        case 724: break;
+        case 182: 
+          { 
+	yybegin(ST_JSP_EL_SQUOTES);
+	return JSP_EL_SQUOTE;
+ }
+        case 725: break;
+        case 184: 
+          { 
+	fELlevel--;
+	if(fELlevel == 0) {
+		yybegin(YYINITIAL);
+		return JSP_EL_CLOSE;
+	}
+	return JSP_EL_CONTENT;
+ }
+        case 726: break;
+        case 191: 
+          { 
+	yybegin(ST_JSP_EL);
+	return JSP_EL_SQUOTE;
+ }
+        case 727: break;
+        case 192: 
+          { 
+	yybegin(ST_JSP_EL);
+	return JSP_EL_DQUOTE;
+ }
+        case 728: break;
+        case 196: 
+          { 
+	return JSP_EL_CLOSE;
+ }
+        case 729: break;
+        case 202: 
+          { 
+	yybegin(ST_JSP_VBL_DQUOTES);
+	return JSP_VBL_DQUOTE;
+ }
+        case 730: break;
+        case 203: 
+          { 
+	yybegin(ST_JSP_VBL_SQUOTES);
+	return JSP_VBL_SQUOTE;
+ }
+        case 731: break;
+        case 205: 
+          { 
+	fELlevel--;
+	if(fELlevel == 0) {
+		yybegin(YYINITIAL);
+		return JSP_VBL_CLOSE;
+	}
+	return JSP_VBL_CONTENT;
+ }
+        case 732: break;
+        case 212: 
+          { 
+	yybegin(ST_JSP_VBL);
+	return JSP_VBL_SQUOTE;
+ }
+        case 733: break;
+        case 213: 
+          { 
+	yybegin(ST_JSP_VBL);
+	return JSP_VBL_DQUOTE;
+ }
+        case 734: break;
+        case 217: 
+          { 
+	return JSP_VBL_CLOSE;
+ }
+        case 735: break;
+        case 221: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nend tag open");//$NON-NLS-1$
+	fEmbeddedHint = XML_TAG_NAME;
+	fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+        yybegin(ST_XML_TAG_NAME);
+        return XML_END_TAG_OPEN;
+ }
+        case 736: break;
+        case 222: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nprocessing instruction start");//$NON-NLS-1$
+	yybegin(ST_PI);
+        return XML_PI_OPEN;
+ }
+        case 737: break;
+        case 223: 
+        case 234: 
+        case 311: 
+        case 321: 
+        case 332: 
+        case 337: 
+        case 341: 
+        case 344: 
+        case 347: 
+        case 349: 
+        case 353: 
+        case 357: 
+        case 360: 
+        case 363: 
+          { 
+	/* JSP scriptlet begun (anywhere)
+	 * A consequence of the start anywhere possibility is that the
+	 *  incoming state must be checked to see if it's erroneous
+	 *  due to the order of precedence generated
+	 */
+	// begin sanity checks
+	if(yystate() == ST_JSP_CONTENT) {
+		// at the beginning?!
+		yypushback(1);
+		return JSP_CONTENT;
+	}
+	else if(yystate() == ST_BLOCK_TAG_SCAN) {
+		yypushback(2);
+		return doBlockTagScan();
+	}
+	else if(yystate() == ST_XML_COMMENT) {
+		yypushback(2);
+		return scanXMLCommentText();
+	}
+	else if(yystate() == ST_JSP_COMMENT) {
+		yypushback(2);
+		return scanJSPCommentText();
+	}
+	// finished sanity checks
+	fStateStack.push(yystate());
+	if(fStateStack.peek()==YYINITIAL) {
+		// the simple case, just a regular scriptlet out in content
+		if(Debug.debugTokenizer)
+			dump("\nJSP scriptlet start");//$NON-NLS-1$
+		yybegin(ST_JSP_CONTENT);
+		return JSP_SCRIPTLET_OPEN;
+	}
+	else {
+		if (Debug.debugTokenizer) {
+			System.out.println("begin embedded region: " + fEmbeddedHint);//$NON-NLS-1$
+		}
+		if(Debug.debugTokenizer)
+			dump("JSP scriptlet start");//$NON-NLS-1$
+		if(yystate() == ST_XML_ATTRIBUTE_VALUE_DQUOTED)
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_VALUE_DQUOTED;
+		else if(yystate() == ST_XML_ATTRIBUTE_VALUE_SQUOTED)
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_VALUE_SQUOTED;
+		else if(yystate() == ST_CDATA_TEXT) {
+			fEmbeddedPostState = ST_CDATA_TEXT;
+			fEmbeddedHint = XML_CDATA_TEXT;
+		}
+		yybegin(ST_JSP_CONTENT);
+		assembleEmbeddedContainer(JSP_SCRIPTLET_OPEN, JSP_CLOSE);
+		if(yystate() == ST_BLOCK_TAG_INTERNAL_SCAN) {
+			yybegin(ST_BLOCK_TAG_SCAN);
+			return BLOCK_TEXT;
+		}
+		// required help for successive embedded regions
+		if(yystate() == ST_XML_TAG_NAME) {
+			fEmbeddedHint = XML_TAG_NAME;
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+		}
+		else if((yystate() == ST_XML_ATTRIBUTE_NAME || yystate() == ST_XML_EQUALS)) {
+			fEmbeddedHint = XML_TAG_ATTRIBUTE_NAME;
+			fEmbeddedPostState = ST_XML_EQUALS;
+		}
+		else if(yystate() == ST_XML_ATTRIBUTE_VALUE) {
+			fEmbeddedHint = XML_TAG_ATTRIBUTE_VALUE;
+			fEmbeddedPostState = ST_XML_ATTRIBUTE_NAME;
+		}
+		return PROXY_CONTEXT;
+	}
+ }
+        case 738: break;
+        case 224: 
+          { 
+	fStateStack.push(yystate());
+	if(Debug.debugTokenizer)
+		dump("\ndeclaration start");//$NON-NLS-1$
+        yybegin(ST_XML_DECLARATION);
+	return XML_DECLARATION_OPEN;
+ }
+        case 739: break;
+        case 238: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("processing instruction end");//$NON-NLS-1$
+	fEmbeddedHint = UNDEFINED;
+        yybegin(YYINITIAL);
+        return XML_PI_CLOSE;
+ }
+        case 740: break;
+        case 241: 
+          { 
+		// ended with nothing inside
+		fEmbeddedHint = UNDEFINED;
+        yybegin(YYINITIAL);
+        return XML_PI_CLOSE;
+ }
+        case 741: break;
+        case 242: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("XML processing instruction end");//$NON-NLS-1$
+	fEmbeddedHint = UNDEFINED;
+        yybegin(YYINITIAL);
+        return XML_PI_CLOSE;
+ }
+        case 742: break;
+        case 259: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("JSP end");//$NON-NLS-1$
+	if (Debug.debugTokenizer) {
+		if(fStateStack.peek()!=YYINITIAL)
+			System.out.println("end embedded region");//$NON-NLS-1$
+	}
+	yybegin(fStateStack.pop());
+	return JSP_CLOSE;
+ }
+        case 743: break;
+        case 261: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("JSP end");//$NON-NLS-1$
+	if (Debug.debugTokenizer) {
+		if(fStateStack.peek()!=YYINITIAL)
+			System.out.println("end embedded region");//$NON-NLS-1$
+	}
+	yybegin(fStateStack.pop());
+	return JSP_DIRECTIVE_CLOSE;
+ }
+        case 744: break;
+        case 162: 
+        case 163: 
+          { 
+		return doBlockTagScan();
+	 }
+        case 745: break;
+        default: 
+          if (yy_input == YYEOF && yy_startRead == yy_currentPos) {
+            yy_atEOF = true;
+            yy_do_eof();
+              return null;
+          } 
+          else {
+            yy_ScanError(YY_NO_MATCH);
+          }
+      }
+    }

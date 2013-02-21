@@ -1,0 +1,238 @@
+class DefaultTreeCellEditor
+!!!9767451.java!!!	DefaultTreeCellEditor(inout tree : JTree, inout renderer : DefaultTreeCellRenderer)
+	this(tree, renderer, null);
+!!!9767579.java!!!	DefaultTreeCellEditor(inout tree : JTree, inout renderer : DefaultTreeCellRenderer, inout editor : TreeCellEditor)
+	this.renderer = renderer;
+	realEditor = editor;
+	if(realEditor == null)
+	    realEditor = createTreeCellEditor();
+	editingContainer = createContainer();
+	setTree(tree);
+	setBorderSelectionColor(UIManager.getColor
+				("Tree.editorBorderSelectionColor"));
+!!!9767707.java!!!	setBorderSelectionColor(inout newColor : Color) : void
+	borderSelectionColor = newColor;
+!!!9767835.java!!!	getBorderSelectionColor() : Color
+	return borderSelectionColor;
+!!!9767963.java!!!	setFont(inout font : Font) : void
+	this.font = font;
+!!!9768091.java!!!	getFont() : Font
+	return font;
+!!!9768219.java!!!	getTreeCellEditorComponent(inout tree : JTree, inout value : Object, inout isSelected : boolean, inout expanded : boolean, inout leaf : boolean, in row : int) : Component
+	setTree(tree);
+	lastRow = row;
+	determineOffset(tree, value, isSelected, expanded, leaf, row);
+
+        if (editingComponent != null) {
+            editingContainer.remove(editingComponent);
+        }
+	editingComponent = realEditor.getTreeCellEditorComponent(tree, value,
+					isSelected, expanded,leaf, row);
+
+
+        // this is kept for backwards compatability but isn't really needed
+        // with the current BasicTreeUI implementation.
+	TreePath        newPath = tree.getPathForRow(row);
+
+	canEdit = (lastPath != null && newPath != null &&
+		   lastPath.equals(newPath));
+
+	Font            font = getFont();
+
+	if(font == null) {
+	    if(renderer != null)
+		font = renderer.getFont();
+	    if(font == null)
+		font = tree.getFont();
+	}
+	editingContainer.setFont(font);
+        prepareForEditing();
+	return editingContainer;
+!!!9768347.java!!!	getCellEditorValue() : Object
+	return realEditor.getCellEditorValue();
+!!!9768475.java!!!	isCellEditable(inout event : EventObject) : boolean
+	boolean            retValue = false;
+        boolean            editable = false;
+
+        if (event != null) {
+            if (event.getSource() instanceof JTree) {
+                setTree((JTree)event.getSource());
+                if (event instanceof MouseEvent) {
+                    TreePath path = tree.getPathForLocation(
+                                         ((MouseEvent)event).getX(),
+                                         ((MouseEvent)event).getY());
+                    editable = (lastPath != null && path != null &&
+                               lastPath.equals(path));
+		    if (path!=null) {
+			lastRow = tree.getRowForPath(path);
+			Object value = path.getLastPathComponent();
+			boolean isSelected = tree.isRowSelected(lastRow);
+			boolean expanded = tree.isExpanded(path);
+			TreeModel treeModel = tree.getModel();
+			boolean leaf = treeModel.isLeaf(value);
+			determineOffset(tree, value, isSelected,
+					expanded, leaf, lastRow);
+		    }
+                }
+            }
+        }
+	if(!realEditor.isCellEditable(event))
+	    return false;
+	if(canEditImmediately(event))
+	    retValue = true;
+	else if(editable && shouldStartEditingTimer(event)) {
+	    startEditingTimer();
+	}
+	else if(timer != null && timer.isRunning())
+	    timer.stop();
+	if(retValue)
+	    prepareForEditing();
+	return retValue;
+!!!9768603.java!!!	shouldSelectCell(inout event : EventObject) : boolean
+	return realEditor.shouldSelectCell(event);
+!!!9768731.java!!!	stopCellEditing() : boolean
+	if(realEditor.stopCellEditing()) {
+            cleanupAfterEditing();
+	    return true;
+	}
+	return false;
+!!!9768859.java!!!	cancelCellEditing() : void
+	realEditor.cancelCellEditing();
+        cleanupAfterEditing();
+!!!9768987.java!!!	addCellEditorListener(inout l : CellEditorListener) : void
+	realEditor.addCellEditorListener(l);
+!!!9769115.java!!!	removeCellEditorListener(inout l : CellEditorListener) : void
+	realEditor.removeCellEditorListener(l);
+!!!9769243.java!!!	getCellEditorListeners() : CellEditorListener
+        return ((DefaultCellEditor)realEditor).getCellEditorListeners();
+!!!9769371.java!!!	valueChanged(inout e : TreeSelectionEvent) : void
+	if(tree != null) {
+	    if(tree.getSelectionCount() == 1)
+		lastPath = tree.getSelectionPath();
+	    else
+		lastPath = null;
+	}
+	if(timer != null) {
+	    timer.stop();
+	}
+!!!9769499.java!!!	actionPerformed(inout e : ActionEvent) : void
+	if(tree != null && lastPath != null) {
+	    tree.startEditingAtPath(lastPath);
+	}
+!!!9769627.java!!!	setTree(inout newTree : JTree) : void
+	if(tree != newTree) {
+	    if(tree != null)
+		tree.removeTreeSelectionListener(this);
+	    tree = newTree;
+	    if(tree != null)
+		tree.addTreeSelectionListener(this);
+	    if(timer != null) {
+		timer.stop();
+	    }
+	}
+!!!9769755.java!!!	shouldStartEditingTimer(inout event : EventObject) : boolean
+	if((event instanceof MouseEvent) &&
+	    SwingUtilities.isLeftMouseButton((MouseEvent)event)) {
+	    MouseEvent        me = (MouseEvent)event;
+
+	    return (me.getClickCount() == 1 &&
+		    inHitRegion(me.getX(), me.getY()));
+	}
+	return false;
+!!!9769883.java!!!	startEditingTimer() : void
+	if(timer == null) {
+	    timer = new Timer(1200, this);
+	    timer.setRepeats(false);
+	}
+	timer.start();
+!!!9770011.java!!!	canEditImmediately(inout event : EventObject) : boolean
+	if((event instanceof MouseEvent) &&
+	   SwingUtilities.isLeftMouseButton((MouseEvent)event)) {
+	    MouseEvent       me = (MouseEvent)event;
+
+	    return ((me.getClickCount() > 2) &&
+		    inHitRegion(me.getX(), me.getY()));
+	}
+ 	return (event == null);
+!!!9770139.java!!!	inHitRegion(in x : int, in y : int) : boolean
+	if(lastRow != -1 && tree != null) {
+	    Rectangle bounds = tree.getRowBounds(lastRow);
+	    ComponentOrientation treeOrientation = tree.getComponentOrientation();
+	    
+	    if ( treeOrientation.isLeftToRight() ) {
+		if (bounds != null && x <= (bounds.x + offset) &&
+		    offset < (bounds.width - 5)) {
+		    return false;
+		}
+	    } else if ( bounds != null &&
+			( x >= (bounds.x+bounds.width-offset+5) ||
+			  x <= (bounds.x + 5) ) &&
+			offset < (bounds.width - 5) ) {
+		return false;
+	    }
+	}
+	return true;
+!!!9770267.java!!!	determineOffset(inout tree : JTree, inout value : Object, inout isSelected : boolean, inout expanded : boolean, inout leaf : boolean, in row : int) : void
+	if(renderer != null) {
+	    if(leaf)
+		editingIcon = renderer.getLeafIcon();
+	    else if(expanded)
+		editingIcon = renderer.getOpenIcon();
+	    else
+		editingIcon = renderer.getClosedIcon();
+	    if(editingIcon != null)
+		offset = renderer.getIconTextGap() +
+		         editingIcon.getIconWidth();
+	    else
+		offset = renderer.getIconTextGap();
+	}
+	else {
+	    editingIcon = null;
+	    offset = 0;
+	}
+!!!9770395.java!!!	prepareForEditing() : void
+        if (editingComponent != null) {
+            editingContainer.add(editingComponent);
+        }
+!!!9770523.java!!!	createContainer() : Container
+	return new EditorContainer();
+!!!9770651.java!!!	createTreeCellEditor() : TreeCellEditor
+	Border              aBorder = UIManager.getBorder("Tree.editorBorder");
+	DefaultCellEditor   editor = new DefaultCellEditor
+	    (new DefaultTextField(aBorder)) {
+	    public boolean shouldSelectCell(EventObject event) {
+		boolean retValue = super.shouldSelectCell(event);
+		return retValue;
+	    }
+	};
+
+	// One click to edit.
+	editor.setClickCountToStart(1);
+	return editor;
+!!!9770779.java!!!	cleanupAfterEditing() : void
+	if (editingComponent != null) {
+	    editingContainer.remove(editingComponent);
+        }
+	editingComponent = null;
+!!!9770907.java!!!	writeObject(inout s : ObjectOutputStream) : void
+	Vector      values = new Vector();
+
+	s.defaultWriteObject();
+	// Save the realEditor, if its Serializable.
+	if(realEditor != null && realEditor instanceof Serializable) {
+	    values.addElement("realEditor");
+	    values.addElement(realEditor);
+	}
+	s.writeObject(values);
+!!!9771035.java!!!	readObject(inout s : ObjectInputStream) : void
+	s.defaultReadObject();
+
+	Vector          values = (Vector)s.readObject();
+	int             indexCounter = 0;
+	int             maxCounter = values.size();
+
+	if(indexCounter < maxCounter && values.elementAt(indexCounter).
+	   equals("realEditor")) {
+	    realEditor = (TreeCellEditor)values.elementAt(++indexCounter);
+	    indexCounter++;
+	}

@@ -1,0 +1,49 @@
+class InitialLdapContext
+!!!8520475.java!!!	InitialLdapContext()
+	super(null);
+!!!8520603.java!!!	InitialLdapContext(inout environment : Hashtable, inout connCtls : Control)
+	super(true); // don't initialize yet
+
+	// Clone environment since caller owns it.
+	Hashtable env = (environment == null)
+	    ? new Hashtable(11)
+	    : (Hashtable)environment.clone();
+
+	// Put connect controls into environment.  Copy them first since
+	// caller owns the array.
+	if (connCtls != null) {
+	    Control[] copy = new Control[connCtls.length];
+	    System.arraycopy(connCtls, 0, copy, 0, connCtls.length);
+	    env.put(BIND_CONTROLS_PROPERTY, copy);
+	}
+	// set version to LDAPv3
+	env.put("java.naming.ldap.version", "3");
+
+	// Initialize with updated environment
+	init(env);
+!!!8520731.java!!!	getDefaultLdapInitCtx() : LdapContext
+	Context answer = getDefaultInitCtx();
+
+	if (!(answer instanceof LdapContext)) {
+	    if (answer == null) {
+		throw new NoInitialContextException();
+	    } else {
+		throw new NotContextException(
+		    "Not an instance of LdapContext");
+	    }
+	}
+	return (LdapContext)answer;
+!!!8520859.java!!!	extendedOperation(inout request : ExtendedRequest) : ExtendedResponse
+	return getDefaultLdapInitCtx().extendedOperation(request);
+!!!8520987.java!!!	newInstance(inout reqCtls : Control) : LdapContext
+	    return getDefaultLdapInitCtx().newInstance(reqCtls);
+!!!8521115.java!!!	reconnect(inout connCtls : Control) : void
+	getDefaultLdapInitCtx().reconnect(connCtls);
+!!!8521243.java!!!	getConnectControls() : Control
+	return getDefaultLdapInitCtx().getConnectControls();
+!!!8521371.java!!!	setRequestControls(inout requestControls : Control) : void
+	    getDefaultLdapInitCtx().setRequestControls(requestControls);
+!!!8521499.java!!!	getRequestControls() : Control
+	return getDefaultLdapInitCtx().getRequestControls();
+!!!8521627.java!!!	getResponseControls() : Control
+	return getDefaultLdapInitCtx().getResponseControls();

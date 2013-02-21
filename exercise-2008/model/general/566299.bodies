@@ -1,0 +1,120 @@
+class Repository
+!!!3587483.java!!!	lookupClass(in class_name : String) : JavaClass
+    if(class_name == null || class_name.equals(""))
+      throw new RuntimeException("Invalid class name");
+
+    class_name = class_name.replace('/', '.');
+
+    JavaClass clazz = (JavaClass)classes.get(class_name);
+
+    if(clazz == null) {
+      try {
+	InputStream is = class_path.getInputStream(class_name);
+	clazz = new ClassParser(is, class_name).parse();
+	class_name = clazz.getClassName();
+      } catch(IOException e) { return null; }
+
+      classes.put(class_name, clazz);
+    }
+
+    return clazz;
+!!!3587611.java!!!	lookupClassFile(in class_name : String) : ClassFile
+    try {
+      return class_path.getClassFile(class_name);
+    } catch(IOException e) { return null; }
+!!!3587739.java!!!	clearCache() : void
+    classes = new HashMap();
+    OBJECT  = lookupClass("java.lang.Object");
+
+    if(OBJECT == null)
+      System.err.println("Warning: java.lang.Object not found on CLASSPATH!");
+    else
+      classes.put("java.lang.Object", OBJECT);
+!!!3587867.java!!!	addClass(inout clazz : JavaClass) : JavaClass
+    String    name = clazz.getClassName();
+    JavaClass cl   = (JavaClass)classes.get(name);
+
+    if(cl == null)
+      classes.put(name, cl = clazz);
+
+    return cl;
+!!!3587995.java!!!	removeClass(in clazz : String) : void
+    classes.remove(clazz);
+!!!3588123.java!!!	removeClass(inout clazz : JavaClass) : void
+    removeClass(clazz.getClassName());
+!!!3588251.java!!!	getSuperClass(inout clazz : JavaClass) : JavaClass
+    if(clazz == OBJECT)
+      return null;
+
+    return lookupClass(clazz.getSuperclassName());
+!!!3588379.java!!!	getSuperClasses(inout clazz : JavaClass) : JavaClass
+    ClassVector vec = new ClassVector();
+
+    for(clazz = getSuperClass(clazz); clazz != null; clazz = getSuperClass(clazz))
+      vec.addElement(clazz);
+
+    return vec.toArray();
+!!!3588507.java!!!	getSuperClasses(in class_name : String) : JavaClass
+    JavaClass jc = lookupClass(class_name);
+    return (jc == null? null : getSuperClasses(jc));
+!!!3588635.java!!!	getInterfaces(inout clazz : JavaClass) : JavaClass
+    ClassVector vec   = new ClassVector();
+    ClassQueue  queue = new ClassQueue();
+
+    queue.enqueue(clazz);
+
+    while(!queue.empty()) {
+      clazz = queue.dequeue();
+
+      String   s          = clazz.getSuperclassName();
+      String[] interfaces = clazz.getInterfaceNames();
+
+      if(clazz.isInterface())
+	vec.addElement(clazz);
+      else if(!s.equals("java.lang.Object"))
+	queue.enqueue(lookupClass(s));
+      
+      for(int i=0; i < interfaces.length; i++)
+	queue.enqueue(lookupClass(interfaces[i]));
+    }
+
+    return vec.toArray();
+!!!3588763.java!!!	getInterfaces(in class_name : String) : JavaClass
+    return getInterfaces(lookupClass(class_name));
+!!!3588891.java!!!	instanceOf(inout clazz : JavaClass, inout super_class : JavaClass) : boolean
+    if(clazz == super_class)
+      return true;
+
+    JavaClass[] super_classes = getSuperClasses(clazz);
+
+    for(int i=0; i < super_classes.length; i++)
+      if(super_classes[i] == super_class)
+	return true;
+
+    if(super_class.isInterface())
+      return implementationOf(clazz, super_class);
+
+    return false;
+!!!3589019.java!!!	instanceOf(in clazz : String, in super_class : String) : boolean
+    return instanceOf(lookupClass(clazz), lookupClass(super_class));
+!!!3589147.java!!!	instanceOf(inout clazz : JavaClass, in super_class : String) : boolean
+    return instanceOf(clazz, lookupClass(super_class));
+!!!3589275.java!!!	instanceOf(in clazz : String, inout super_class : JavaClass) : boolean
+    return instanceOf(lookupClass(clazz), super_class);
+!!!3589403.java!!!	implementationOf(inout clazz : JavaClass, inout inter : JavaClass) : boolean
+    if(clazz == inter)
+      return true;
+
+    JavaClass[] super_interfaces = getInterfaces(clazz);
+
+    for(int i=0; i < super_interfaces.length; i++)
+      if(super_interfaces[i] == inter)
+	return true;
+
+    return false;
+!!!3589531.java!!!	implementationOf(in clazz : String, in inter : String) : boolean
+    return implementationOf(lookupClass(clazz), lookupClass(inter));
+!!!3589659.java!!!	implementationOf(inout clazz : JavaClass, in inter : String) : boolean
+    return implementationOf(clazz, lookupClass(inter));
+!!!3589787.java!!!	implementationOf(in clazz : String, inout inter : JavaClass) : boolean
+    return implementationOf(lookupClass(clazz), inter);

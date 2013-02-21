@@ -1,0 +1,443 @@
+class GTKStyleFactory
+!!!2303387.java!!!	isLabelBearing(inout id : Region) : boolean
+        return (id == Region.BUTTON || id == Region.CHECK_BOX ||
+                id == Region.CHECK_BOX_MENU_ITEM || id == Region.MENU ||
+                id == Region.MENU_ITEM || id == Region.RADIO_BUTTON ||
+                id == Region.RADIO_BUTTON_MENU_ITEM ||
+                id == Region.TABBED_PANE_TAB ||
+                id == Region.TOGGLE_BUTTON || id == Region.TOOL_TIP);
+!!!2303515.java!!!	gtkClassFor(inout region : Region) : String
+        String name = (String)REGION_MAP.get(region);
+
+        if (name == null) {
+            // There are no GTK equivalents for some GTK classes, force
+            // a match.
+            return "XXX";
+        }
+        return name;
+!!!2303643.java!!!	gtkSuperclass(in gtkClass : String) : String
+        return (String)GTK_CLASS_MAP.get(gtkClass);
+!!!2303771.java!!!	GTKStyleFactory()
+        this(null);
+!!!2303899.java!!!	GTKStyleFactory(inout baseStyle : GTKStyle)
+        _tmpList = new BakedArrayList(5);
+        _resolvedStyles = new HashMap();
+        _tmpPath = new StringBuffer();
+        _mergedStyleMap = new HashMap();
+        _defaultStyle = (baseStyle == null ? new GTKStyle() : baseStyle);
+        _labelStyleList = new BakedArrayList(2);
+!!!2304027.java!!!	addStyle(inout style : DefaultSynthStyle, in path : String, in type : int) : void
+        // GTK only supports * and ?, escape everything else.
+        int length = path.length();
+        StringBuffer buffer = new StringBuffer(length * 2);
+        for (int counter = 0; counter < length; counter++) {
+            char aChar = path.charAt(counter);
+
+            if (aChar == '*') {
+                buffer.append(".*");
+            }
+            else if (aChar == '?') {
+                buffer.append('.');
+            }
+            else if (Character.isLetterOrDigit(aChar)) {
+                buffer.append(aChar);
+            }
+            else {
+                buffer.append('\\');
+                buffer.append(aChar);
+            }
+        }
+        path = buffer.toString();
+
+        switch (type) {
+        case WIDGET:
+            if (_widgetStyles == null) {
+                _widgetStyles = new ArrayList(1);
+            }
+            _widgetStyles.add(StyleAssociation.createStyleAssociation(
+                                  path, style));
+            break;
+        case WIDGET_CLASS:
+            if (_widgetClassStyles == null) {
+                _widgetClassStyles = new ArrayList(1);
+            }
+            _widgetClassStyles.add(StyleAssociation.createStyleAssociation(
+                                       path, style));
+            break;
+        case CLASS:
+            if (_classStyles == null) {
+                _classStyles = new ArrayList(1);
+            }
+            _classStyles.add(StyleAssociation.createStyleAssociation(
+                                 path, style));
+            break;
+        default:
+            throw new IllegalArgumentException("type must be one of " +
+                                              "CLASS, WIDGET_CLASS or WIDGET");
+        }
+!!!2304155.java!!!	getStyle(in gtkWidgetClassName : String) : SynthStyle
+        if (!GTK_CLASS_MAP.containsKey(gtkWidgetClassName)) {
+            throw new IllegalArgumentException("Invalid class name: " +
+                                               gtkWidgetClassName);
+        }
+        BakedArrayList matches = _tmpList;
+
+        matches.clear();
+        if (_classStyles != null) {
+            getClassMatches(matches, gtkWidgetClassName);
+        }
+        matches.add(_defaultStyle);
+
+        return getStyle(matches);
+!!!2304283.java!!!	getStyle(inout c : JComponent, inout id : Region) : SynthStyle
+        if ((id == Region.FORMATTED_TEXT_FIELD &&
+               c.getName() == "Spinner.formattedTextField") ||
+               (id == Region.ARROW_BUTTON &&
+                (c.getName() == "Spinner.previousButton" ||
+                 c.getName() == "Spinner.nextButton"))){
+            // Force all the widgets of a spinner to be treated like a spinner
+            id = Region.SPINNER;
+            Container parent = c.getParent();
+            if (parent != null) {
+                parent = parent.getParent();
+                if (parent instanceof JSpinner) {
+                    c = (JComponent)parent;
+                }
+            }
+        }
+        else if (id == Region.LABEL && c.getName() == "ComboBox.renderer") {
+            id = Region.TEXT_FIELD;
+        }
+        SynthStyle style = _getStyle(c, id);
+
+        if (isLabelBearing(id)) {
+            style = getMergedStyle(c, id, style);
+        }
+        return style;
+!!!2304411.java!!!	_getStyle(inout c : JComponent, inout id : Region) : SynthStyle
+        BakedArrayList matches = _tmpList;
+
+        matches.clear();
+        getMatchingStyles(matches, c, id);
+
+        return getStyle(matches);
+!!!2304539.java!!!	getStyle(inout matches : BakedArrayList) : SynthStyle
+        // Use a cached Style if possible, otherwise create a new one.
+        matches.cacheHashCode();
+        SynthStyle style = getCachedStyle(matches);
+
+        if (style == null) {
+            style = mergeStyles(matches);
+
+            if (style != null) {
+                cacheStyle(matches, style);
+            }
+        }
+        return style;
+!!!2304667.java!!!	getMatchingStyles(inout matches : List, inout c : JComponent, inout id : Region) : void
+        // TableHeaderer.renderer is special cased as it descends from
+        // DefaultTableCellRenderer which does NOT pass along the property
+        // change that would trigger the style to be refetched.
+        if (c != null && (c.getParent() != null ||
+                          c.getName() == "TableHeader.renderer" || 
+                          c.getName() == "Slider.label") ||
+                          c.getName() == "ComboBox.list") {
+            // First match on WIDGET
+            if (_widgetStyles != null) {
+                getMatches(getPath(WIDGET, c, id), _widgetStyles, matches, c,
+                           id);
+            }
+            // Then match on WIDGET_CLASS
+            if (_widgetClassStyles != null) {
+                getMatches(getPath(WIDGET_CLASS, c, id), _widgetClassStyles,
+                           matches, c, id);
+            }
+            // Lastly match on CLASS
+            if (_classStyles != null) {
+                getClassMatches(matches, c, id);
+            }
+        }
+        if (id == Region.TOOL_TIP) {
+            matches.add(getToolTipStyle());
+        }
+        else if (id == Region.PROGRESS_BAR && GTKLookAndFeel.is2_2()) {
+            matches.add(getProgressBarStyle());
+        }
+        else if ((id == Region.MENU || id == Region.MENU_ITEM ||
+                  id == Region.POPUP_MENU_SEPARATOR ||
+                  id == Region.CHECK_BOX_MENU_ITEM ||
+                  id == Region.RADIO_BUTTON_MENU_ITEM ||
+                  id == Region.MENU_ITEM_ACCELERATOR) &&
+                 GTKLookAndFeel.is2_2()) {
+            matches.add(getMenuItemStyle());
+        }
+        matches.add(_defaultStyle);
+!!!2304795.java!!!	getMatches(inout path : CharSequence, inout styles : List, inout matches : List, inout c : JComponent, inout id : Region) : void
+        for (int counter = styles.size() - 1; counter >= 0; counter--){
+            StyleAssociation sa = (StyleAssociation)styles.get(counter);
+
+            if (sa.matches(path) && matches.indexOf(sa.getStyle()) == -1) {
+                matches.add(sa.getStyle());
+            }
+        }
+!!!2304923.java!!!	getClassMatches(inout matches : List, inout c : JComponent, inout id : Region) : void
+        getClassMatches(matches, getClass(c, id));
+!!!2305051.java!!!	getClassMatches(inout matches : List, inout gtkClassName : Object) : void
+        if (_depth == null) {
+            _depth = new int[4];
+        }
+        int[] sDepth = _depth;
+        int matched = 0;
+        int startMatchLength = matches.size();
+
+        for (int counter = _classStyles.size() - 1; counter >= 0; counter--){
+            StyleAssociation sa = (StyleAssociation)_classStyles.get(counter);
+            Object klass = gtkClassName;
+
+            while (klass != null) {
+                if (sa.matches(getClassName(klass))) {
+                    int depth = 0;
+                    while ((klass = getSuperclass(klass)) != null) {
+                        depth++;
+                    }
+                    if (matched == 0) {
+                        sDepth[0] = depth;
+                        matches.add(sa.getStyle());
+                    }
+                    else {
+                        int sCounter = 0;
+                        while (sCounter < matched && depth < sDepth[sCounter]){
+                            sCounter++;
+                        }
+                        matches.add(sCounter + startMatchLength,
+                                       sa.getStyle());
+                        if (matched + 1 == sDepth.length) {
+                            int[] newDepth = new int[sDepth.length * 2];
+                            System.arraycopy(sDepth, 0, newDepth, 0,
+                                             sDepth.length);
+                            _depth = newDepth;
+                            sDepth = newDepth;
+                        }
+                        if (sCounter < matched) {
+                            System.arraycopy(sDepth, 0, sDepth, 0, sCounter);
+                            System.arraycopy(sDepth, sCounter, sDepth,
+                                             sCounter + 1, matched - sCounter);
+                        }
+                        sDepth[sCounter] = depth;
+                    }
+                    matched++;
+                    break;
+                }
+                klass = getSuperclass(klass);
+            }
+        }
+!!!2305179.java!!!	cacheStyle(inout styles : List, inout style : SynthStyle) : void
+        BakedArrayList cachedStyles = new BakedArrayList(styles);
+
+        _resolvedStyles.put(cachedStyles, style);
+!!!2305307.java!!!	getCachedStyle(inout styles : List) : SynthStyle
+        if (styles.size() == 0) {
+            return null;
+        }
+        return (SynthStyle)_resolvedStyles.get(styles);
+!!!2305435.java!!!	mergeStyles(inout styles : List) : SynthStyle
+        int size = styles.size();
+
+        if (size == 0) {
+            return null;
+        }
+        else if (size == 1) {
+            return (SynthStyle)((DefaultSynthStyle)styles.get(0)).clone();
+        }
+        // NOTE: merging is done backwards as DefaultSynthStyleFactory reverses
+        // order, that is, the most specific style is first.
+        DefaultSynthStyle style = (DefaultSynthStyle)styles.get(size - 1);
+
+        style = (DefaultSynthStyle)style.clone();
+        for (int counter = size - 2; counter >= 0; counter--) {
+            style = ((DefaultSynthStyle)styles.get(counter)).addTo(style);
+        }
+        return style;
+!!!2305563.java!!!	getPath(in type : int, inout c : Component, inout id : Region) : CharSequence
+        _tmpPath.setLength(0);
+
+        if (type == WIDGET && id == Region.TOOL_TIP) {
+            if (c.getName() == null) {
+                _tmpPath.append("gtk-tooltips");
+            }
+            else {
+                _tmpPath.append(c.getName());
+            }
+        }
+        else {
+            _getPath(_tmpPath, type, c, id);
+        }
+
+        if (_isLabel) {
+            if (_tmpPath.length() > 0) {
+                _tmpPath.append('.');
+            }
+            _tmpPath.append(getName(c, Region.LABEL));
+        }
+        return _tmpPath;
+!!!2305691.java!!!	_getPath(inout path : StringBuffer, in type : int, inout c : Component, inout id : Region) : void
+        if (c instanceof JComponent) {
+            boolean isSubregion = (id != null && id.isSubregion());
+
+            if (isSubregion) {
+                _getPath(path, type, c, null);
+            }
+            else {
+                _getPath(path, type, c.getParent(), id);
+            }
+            String key = null;
+
+            if (type == WIDGET && !isSubregion) {
+                key = c.getName();
+            }
+            if (key == null) {
+                if (isSubregion) {
+                    key = getName(c, id);
+                }
+                else {
+                    Region region = SynthLookAndFeel.getRegion((JComponent)c);
+
+                    if (region != null) {
+                        key = getName(c, region);
+                    }
+                }
+            }
+            if (path.length() > 0) {
+                path.append('.');
+            }
+            path.append(key);
+        }
+!!!2305819.java!!!	getClass(inout c : JComponent, inout id : Region) : Object
+        if (_isLabel) {
+            id = Region.LABEL;
+        }
+        else if (id == Region.ROOT_PANE) {
+            Object name = getRootPaneParentType(c);
+
+            if (name != null) {
+                return name;
+            }
+        }
+        String klass = gtkClassFor(id);
+        if (klass == "GtkLabel") {
+            if (c.getName() == "TableHeader.renderer") {
+                return "GtkButton";
+            }
+        }
+        return klass;
+!!!2305947.java!!!	getMergedStyle(inout c : JComponent, inout id : Region, inout style : SynthStyle) : SynthStyle
+        SynthStyle labelStyle;
+        try {
+            _isLabel = true;
+            labelStyle = (GTKStyle)_getStyle(c, id);
+        } finally {
+            _isLabel = false;
+        }
+        _labelStyleList.clear();
+        _labelStyleList.add(style);
+        _labelStyleList.add(labelStyle);
+        _labelStyleList.cacheHashCode();
+
+        GTKStyle mergedStyle = (GTKStyle)_mergedStyleMap.get(_labelStyleList);
+
+        if (mergedStyle == null) {
+            mergedStyle = (GTKStyle)((DefaultSynthStyle)style).clone();
+            mergedStyle.addLabelProperties((GTKStyle)labelStyle);
+            _mergedStyleMap.put(_labelStyleList, mergedStyle);
+            _labelStyleList = new BakedArrayList(2);
+        }
+        return mergedStyle;
+!!!2306075.java!!!	getSuperclass(inout klass : Object) : Object
+        return gtkSuperclass((String)klass);
+!!!2306203.java!!!	getClassName(inout klass : Object) : String
+        return (String)klass;
+!!!2306331.java!!!	getName(inout c : Component, inout region : Region) : String
+        if (region == Region.ROOT_PANE && c != null) {
+            String name = getRootPaneParentType(c);
+
+            if (name != null) {
+                return name;
+            }
+        }
+        return gtkClassFor(region);
+!!!2306459.java!!!	getRootPaneParentType(inout c : Component) : String
+        Component parent = c.getParent();
+
+        if (parent instanceof Frame) {
+            return "GtkWindow";
+        }
+        else if (parent instanceof Dialog) {
+            return "GtkDialog";
+        }
+        else if (parent instanceof Window) {
+            return "GtkWindow";
+        }
+        else if (parent instanceof JInternalFrame) {
+            return "GtkFrame";
+        }
+        return null;
+!!!2306587.java!!!	getProgressBarStyle() : GTKStyle
+        if (_pbStyle == null) {
+            Color[] moColors = new Color[GTKColorType.MAX_COUNT];
+            Color[] normalColors = new Color[GTKColorType.MAX_COUNT];
+            moColors[GTKColorType.BACKGROUND.getID()] = new ColorUIResource(
+                0x4B6983);
+            normalColors[GTKColorType.BACKGROUND.getID()] = 
+                  new ColorUIResource(0xBAB5AB);
+            _pbStyle = new GTKStyle(new GTKStyle.GTKStateInfo[]
+                { new GTKStyle.GTKStateInfo(SynthConstants.ENABLED,
+                                            null, normalColors, null),
+                  new GTKStyle.GTKStateInfo(SynthConstants.MOUSE_OVER,
+                                            null, moColors, null)
+                }, null, null, GTKStyle.UNDEFINED_THICKNESS,
+                GTKStyle.UNDEFINED_THICKNESS, null);
+        }
+        return _pbStyle;
+!!!2306715.java!!!	getMenuItemStyle() : GTKStyle
+        if (_menuItemStyle == null) {
+            Color[] moColors = new Color[GTKColorType.MAX_COUNT];
+            Color[] selectedColors = new Color[GTKColorType.MAX_COUNT];
+            moColors[GTKColorType.BACKGROUND.getID()] = new ColorUIResource(
+                0x9db8d2);
+            moColors[GTKColorType.FOREGROUND.getID()] = GTKStyle.WHITE_COLOR;
+            moColors[GTKColorType.TEXT_FOREGROUND.getID()] =
+                                  new ColorUIResource(0xFFFFFF);
+            selectedColors[GTKColorType.TEXT_FOREGROUND.getID()] = 
+                  new ColorUIResource(0xFFFFFF);
+            _menuItemStyle = new GTKStyle(new GTKStyle.GTKStateInfo[]
+                { 
+                  new GTKStyle.GTKStateInfo(SynthConstants.MOUSE_OVER,
+                                            null, moColors, null),
+                  new GTKStyle.GTKStateInfo(SynthConstants.SELECTED,
+                                            null, selectedColors, null),
+                }, null, null, GTKStyle.UNDEFINED_THICKNESS,
+                GTKStyle.UNDEFINED_THICKNESS, null);
+        }
+        return _menuItemStyle;
+!!!2306843.java!!!	getToolTipStyle() : GTKStyle
+        if (_tooltipStyle == null) {
+            Color[] ttColors = new Color[GTKColorType.MAX_COUNT];
+            if (GTKLookAndFeel.is2_2()) {
+                ttColors[GTKColorType.BACKGROUND.getID()] =
+                                 new ColorUIResource(0xEEE1B3);
+                ttColors[GTKColorType.FOREGROUND.getID()] = 
+                                 new ColorUIResource(0x000000);
+            }
+            else {
+                ttColors[GTKColorType.BACKGROUND.getID()] =
+                                 new ColorUIResource(0xFFFFC0);
+                ttColors[GTKColorType.FOREGROUND.getID()] = 
+                                 new ColorUIResource(0x000000);
+            }
+            _tooltipStyle = new GTKStyle(new GTKStyle.GTKStateInfo[] {
+                new GTKStyle.GTKStateInfo(SynthConstants.ENABLED,
+                null, ttColors, null)}, null, null,
+                GTKStyle.UNDEFINED_THICKNESS, GTKStyle.UNDEFINED_THICKNESS,
+                null);
+        }
+        return _tooltipStyle;

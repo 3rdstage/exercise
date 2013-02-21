@@ -1,0 +1,163 @@
+class Robot
+!!!6346523.java!!!	Robot()
+        if (GraphicsEnvironment.isHeadless()) {
+            throw new AWTException("headless environment");
+        }
+        init(GraphicsEnvironment.getLocalGraphicsEnvironment()
+            .getDefaultScreenDevice());
+!!!6346651.java!!!	Robot(inout screen : GraphicsDevice)
+	checkIsScreenDevice(screen);
+        init(screen);
+!!!6346779.java!!!	init(inout screen : GraphicsDevice) : void
+        checkRobotAllowed();
+        Toolkit toolkit = Toolkit.getDefaultToolkit();
+        if (toolkit instanceof ComponentFactory) {
+            peer = ((ComponentFactory)toolkit).createRobot(this, screen);
+        }
+!!!6346907.java!!!	checkRobotAllowed() : void
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkPermission(SecurityConstants.CREATE_ROBOT_PERMISSION);
+	}
+!!!6347035.java!!!	checkIsScreenDevice(inout device : GraphicsDevice) : void
+        if (device == null || device.getType() != GraphicsDevice.TYPE_RASTER_SCREEN) {
+            throw new IllegalArgumentException("not a valid screen device");
+        }
+!!!6347163.java!!!	mouseMove(in x : int, in y : int) : void
+	peer.mouseMove(x,y);
+	afterEvent();
+!!!6347291.java!!!	mousePress(in buttons : int) : void
+	checkButtonsArgument(buttons);
+	peer.mousePress(buttons);
+	afterEvent();
+!!!6347419.java!!!	mouseRelease(in buttons : int) : void
+	checkButtonsArgument(buttons);
+	peer.mouseRelease(buttons);
+	afterEvent();
+!!!6347547.java!!!	checkButtonsArgument(in buttons : int) : void
+	if ( (buttons|LEGAL_BUTTON_MASK) != LEGAL_BUTTON_MASK ) {
+	    throw new IllegalArgumentException("Invalid combination of button flags");
+	}
+!!!6347675.java!!!	mouseWheel(in wheelAmt : int) : void
+        peer.mouseWheel(wheelAmt);
+        afterEvent();
+!!!6347803.java!!!	keyPress(in keycode : int) : void
+	checkKeycodeArgument(keycode);
+	peer.keyPress(keycode);
+	afterEvent();
+!!!6347931.java!!!	keyRelease(in keycode : int) : void
+	checkKeycodeArgument(keycode);
+	peer.keyRelease(keycode);
+	afterEvent();
+!!!6348059.java!!!	checkKeycodeArgument(in keycode : int) : void
+	// rather than build a big table or switch statement here, we'll
+	// just check that the key isn't VK_UNDEFINED and assume that the
+	// peer implementations will throw an exception for other bogus
+	// values e.g. -1, 999999
+	if (keycode == KeyEvent.VK_UNDEFINED) {
+	    throw new IllegalArgumentException("Invalid key code");
+	}
+!!!6348187.java!!!	getPixelColor(in x : int, in y : int) : Color
+	Color color = new Color(peer.getRGBPixel(x,y));
+	return color;
+!!!6348315.java!!!	createScreenCapture(inout screenRect : Rectangle) : BufferedImage
+	checkScreenCaptureAllowed();
+	checkValidRect(screenRect);
+
+	BufferedImage image;
+	DataBufferInt buffer;
+	WritableRaster raster;
+
+    if (screenCapCM == null) {
+        /*
+         * Fix for 4285201 
+         * Create a DirectColorModel equivalent to the default RGB ColorModel,
+         * except with no Alpha component.
+         */
+
+        screenCapCM = new DirectColorModel(24,
+                         /* red mask */    0x00FF0000,
+                         /* green mask */  0x0000FF00,
+                         /* blue mask */   0x000000FF);
+    }
+
+	int pixels[];
+    int[] bandmasks = new int[3];
+
+	pixels = peer.getRGBPixels(screenRect);
+	buffer = new DataBufferInt(pixels, pixels.length);
+
+    bandmasks[0] = screenCapCM.getRedMask();
+    bandmasks[1] = screenCapCM.getGreenMask();
+    bandmasks[2] = screenCapCM.getBlueMask();
+
+	raster = Raster.createPackedRaster(buffer, screenRect.width, screenRect.height, screenRect.width, bandmasks, null);
+
+	image = new BufferedImage(screenCapCM, raster, false, null);
+
+	return image;
+!!!6348443.java!!!	checkValidRect(inout rect : Rectangle) : void
+	if (rect.width <= 0 || rect.height <= 0) {
+	    throw new IllegalArgumentException("Rectangle width and height must be > 0");
+	}
+!!!6348571.java!!!	checkScreenCaptureAllowed() : void
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkPermission(
+		SecurityConstants.READ_DISPLAY_PIXELS_PERMISSION);
+	}
+!!!6348699.java!!!	afterEvent() : void
+	autoWaitForIdle();
+	autoDelay();
+!!!6348827.java!!!	isAutoWaitForIdle() : boolean
+	return isAutoWaitForIdle;
+!!!6348955.java!!!	setAutoWaitForIdle(inout isOn : boolean) : void
+	isAutoWaitForIdle = isOn;
+!!!6349083.java!!!	autoWaitForIdle() : void
+	if (isAutoWaitForIdle) {
+	    waitForIdle();
+	}
+!!!6349211.java!!!	getAutoDelay() : int
+	return autoDelay;
+!!!6349339.java!!!	setAutoDelay(in ms : int) : void
+	checkDelayArgument(ms);
+	autoDelay = ms;
+!!!6349467.java!!!	autoDelay() : void
+	delay(autoDelay);
+!!!6349595.java!!!	delay(in ms : int) : void
+	checkDelayArgument(ms);
+	try {
+	    Thread.sleep(ms);
+	} catch(InterruptedException ite) {
+	    ite.printStackTrace();
+	}
+!!!6349723.java!!!	checkDelayArgument(in ms : int) : void
+	if (ms < 0 || ms > MAX_DELAY) {
+	    throw new IllegalArgumentException("Delay must be to 0 to 60,000ms");
+	}
+!!!6349851.java!!!	waitForIdle() : void
+	checkNotDispatchThread();
+	// post a dummy event to the queue so we know when
+	// all the events before it have been processed
+	try {
+            SunToolkit.flushPendingEvents();
+	    EventQueue.invokeAndWait( new Runnable() { 
+					    public void run() {
+						// dummy implementation
+					    }
+					} );
+	} catch(InterruptedException ite) {
+	    System.err.println("Robot.waitForIdle, non-fatal exception caught:");
+	    ite.printStackTrace();
+	} catch(InvocationTargetException ine) {
+	    System.err.println("Robot.waitForIdle, non-fatal exception caught:");
+	    ine.printStackTrace();
+	}
+!!!6349979.java!!!	checkNotDispatchThread() : void
+	    
+	if (EventQueue.isDispatchThread()) {
+	    throw new IllegalThreadStateException("Cannot call method from the event dispatcher thread");
+	}
+!!!6350107.java!!!	toString() : String
+	String params = "autoDelay = "+getAutoDelay()+", "+"autoWaitForIdle = "+isAutoWaitForIdle();
+	return getClass().getName() + "[ " + params + " ]";

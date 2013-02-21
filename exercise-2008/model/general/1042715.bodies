@@ -1,0 +1,208 @@
+class RelationNotification
+!!!8368923.java!!!	RelationNotification(in theNtfType : String, inout theSrcObj : Object, in TheSeqNbr : long, in theTimeStamp : long, in theMsg : String, in theRelId : String, in theRelTypeName : String, inout theRelObjName : ObjectName, inout theUnregMBeanList : List)
+
+	super(theNtfType, theSrcObj, TheSeqNbr, theTimeStamp, theMsg);
+
+	// Can throw IllegalArgumentException
+	initMembers(1,
+		    theNtfType,
+		    theSrcObj,
+		    TheSeqNbr,
+		    theTimeStamp,
+		    theMsg,
+		    theRelId,
+		    theRelTypeName,
+		    theRelObjName,
+		    theUnregMBeanList,
+		    null,
+		    null,
+		    null);
+	return;
+!!!8369051.java!!!	RelationNotification(in theNtfType : String, inout theSrcObj : Object, in TheSeqNbr : long, in theTimeStamp : long, in theMsg : String, in theRelId : String, in theRelTypeName : String, inout theRelObjName : ObjectName, in theRoleName : String, inout theNewRoleValue : List, inout theOldRoleValue : List)
+
+	super(theNtfType, theSrcObj, TheSeqNbr, theTimeStamp, theMsg);
+
+	// Can throw IllegalArgumentException
+	initMembers(2,
+		    theNtfType,
+		    theSrcObj,
+		    TheSeqNbr,
+		    theTimeStamp,
+		    theMsg,
+		    theRelId,
+		    theRelTypeName,
+		    theRelObjName,
+		    null,
+		    theRoleName,
+		    theNewRoleValue,
+		    theOldRoleValue);
+	return;
+!!!8369179.java!!!	getRelationId() : String
+	return relationId;
+!!!8369307.java!!!	getRelationTypeName() : String
+	return  relationTypeName;
+!!!8369435.java!!!	getObjectName() : ObjectName
+	return relationObjName;
+!!!8369563.java!!!	getMBeansToUnregister() : List
+	List result = null;
+	if (unregisterMBeanList != null) {
+	    result = (List)((ArrayList)unregisterMBeanList).clone();
+	} else {
+	    result = Collections.EMPTY_LIST;
+	}
+	return result;
+!!!8369691.java!!!	getRoleName() : String
+	String result = null;
+	if (roleName != null) {
+	    result = roleName;
+	}
+	return result;
+!!!8369819.java!!!	getOldRoleValue() : List
+	List result = null;
+	if (oldRoleValue != null) {
+	    result = (List)((ArrayList)oldRoleValue).clone();
+	} else {
+	    result = Collections.EMPTY_LIST;
+	}
+	return result;
+!!!8369947.java!!!	getNewRoleValue() : List
+	List result = null;
+	if (newRoleValue != null) {
+	    result = (List)((ArrayList)newRoleValue).clone();
+	} else {
+	    result = Collections.EMPTY_LIST;
+	}
+	return result;
+!!!8370075.java!!!	initMembers(in theNtfKind : int, in theNtfType : String, inout theSrcObj : Object, in TheSeqNbr : long, in theTimeStamp : long, in theMsg : String, in theRelId : String, in theRelTypeName : String, inout theRelObjName : ObjectName, inout theUnregMBeanList : List, in theRoleName : String, inout theNewRoleValue : List, inout theOldRoleValue : List) : void
+
+      boolean badInitFlg = false;
+
+      if (theNtfType == null ||	  
+	  theSrcObj == null ||
+	  (!(theSrcObj instanceof RelationService)) ||
+	  theRelId == null ||
+	  theRelTypeName == null) {
+
+	  badInitFlg = true;
+      }
+
+      if (theNtfKind == 1) {
+
+       if ((!(theNtfType.equals(RelationNotification.RELATION_BASIC_CREATION)))
+	   &&
+	   (!(theNtfType.equals(RelationNotification.RELATION_MBEAN_CREATION)))
+	   &&
+	   (!(theNtfType.equals(RelationNotification.RELATION_BASIC_REMOVAL)))
+	   &&
+	   (!(theNtfType.equals(RelationNotification.RELATION_MBEAN_REMOVAL)))
+	   ) {
+
+	      // Creation/removal
+	      badInitFlg = true;
+         }
+
+       } else if (theNtfKind == 2) {
+
+       if (((!(theNtfType.equals(RelationNotification.RELATION_BASIC_UPDATE)))
+	    &&
+	    (!(theNtfType.equals(RelationNotification.RELATION_MBEAN_UPDATE))))
+	   || theRoleName == null ||
+	   theOldRoleValue == null ||
+	   theNewRoleValue == null) {
+
+	   // Role update
+	   badInitFlg = true;
+       }
+      }
+
+    if (badInitFlg) {
+	// Revisit [cebro] Localize message
+	String excMsg = "Invalid parameter.";
+	throw new IllegalArgumentException(excMsg);
+    }
+
+    relationId = theRelId;
+    relationTypeName = theRelTypeName;
+    relationObjName = theRelObjName;
+    if (theUnregMBeanList != null) {
+	unregisterMBeanList = new ArrayList(theUnregMBeanList);
+    }
+    if (theRoleName != null) {
+	roleName = theRoleName;
+    }
+    if (theOldRoleValue != null) {
+	oldRoleValue = new ArrayList(theOldRoleValue);
+    }
+    if (theNewRoleValue != null) {
+	newRoleValue = new ArrayList(theNewRoleValue);
+    }
+    return;
+!!!8370203.java!!!	readObject(inout in : ObjectInputStream) : void
+      if (compat)
+      {
+        // Read an object serialized in the old serial form
+        //
+        ObjectInputStream.GetField fields = in.readFields();
+	newRoleValue = (List) fields.get("myNewRoleValue", null);
+	if (fields.defaulted("myNewRoleValue"))
+        {
+          throw new NullPointerException("newRoleValue");
+        }
+	oldRoleValue = (List) fields.get("myOldRoleValue", null);
+	if (fields.defaulted("myOldRoleValue"))
+        {
+          throw new NullPointerException("oldRoleValue");
+        }
+	relationId = (String) fields.get("myRelId", null);
+	if (fields.defaulted("myRelId"))
+        {
+          throw new NullPointerException("relationId");
+        }
+	relationObjName = (ObjectName) fields.get("myRelObjName", null);
+	if (fields.defaulted("myRelObjName"))
+        {
+          throw new NullPointerException("relationObjName");
+        }
+	relationTypeName = (String) fields.get("myRelTypeName", null);
+	if (fields.defaulted("myRelTypeName"))
+        {
+          throw new NullPointerException("relationTypeName");
+        }
+	roleName = (String) fields.get("myRoleName", null);
+	if (fields.defaulted("myRoleName"))
+        {
+          throw new NullPointerException("roleName");
+        }
+	unregisterMBeanList = (List) fields.get("myUnregMBeanList", null);
+	if (fields.defaulted("myUnregMBeanList"))
+        {
+          throw new NullPointerException("unregisterMBeanList");
+        }
+      }
+      else
+      {
+        // Read an object serialized in the new serial form
+        //
+        in.defaultReadObject();
+      }
+!!!8370331.java!!!	writeObject(inout out : ObjectOutputStream) : void
+      if (compat)
+      {
+        // Serializes this instance in the old serial form
+        //
+        ObjectOutputStream.PutField fields = out.putFields();
+	fields.put("myNewRoleValue", newRoleValue);
+	fields.put("myOldRoleValue", oldRoleValue);
+	fields.put("myRelId", relationId);
+	fields.put("myRelObjName", relationObjName);
+	fields.put("myRelTypeName", relationTypeName);
+	fields.put("myRoleName",roleName);
+	fields.put("myUnregMBeanList", unregisterMBeanList);
+	out.writeFields();
+      }
+      else
+      {
+        // Serializes this instance in the new serial form
+        //
+        out.defaultWriteObject();
+      }

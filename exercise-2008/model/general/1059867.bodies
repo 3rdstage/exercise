@@ -1,0 +1,153 @@
+class ContinuationDirContext
+!!!8542491.java!!!	ContinuationDirContext(inout cpe : CannotProceedException, inout env : Hashtable)
+	super(cpe, env);
+!!!8542619.java!!!	getTargetContext(inout name : Name) : DirContextNamePair
+
+	if (cpe.getResolvedObj() == null)
+	    throw (NamingException)cpe.fillInStackTrace();
+
+	Context ctx = NamingManager.getContext(cpe.getResolvedObj(),
+					       cpe.getAltName(),
+					       cpe.getAltNameCtx(),
+					       env);
+	if (ctx == null)
+	    throw (NamingException)cpe.fillInStackTrace();
+
+	if (ctx instanceof DirContext)
+	    return new DirContextNamePair((DirContext)ctx, name);
+
+	if (ctx instanceof Resolver) {
+	    Resolver res = (Resolver)ctx;
+	    ResolveResult rr = res.resolveToClass(name, DirContext.class);
+
+	    // Reached a DirContext; return result.
+	    DirContext dctx = (DirContext)rr.getResolvedObj();
+	    return (new DirContextNamePair(dctx, rr.getRemainingName()));
+	}
+
+	// Resolve all the way using lookup().  This may allow the operation
+	// to succeed if it doesn't require the penultimate context.
+	Object ultimate = ctx.lookup(name);
+	if (ultimate instanceof DirContext) {
+	    return (new DirContextNamePair((DirContext)ultimate,
+					  new CompositeName()));
+	}
+
+	throw (NamingException)cpe.fillInStackTrace();
+!!!8542747.java!!!	getTargetContext(in name : String) : DirContextStringPair
+
+	if (cpe.getResolvedObj() == null)
+	    throw (NamingException)cpe.fillInStackTrace();
+
+	Context ctx = NamingManager.getContext(cpe.getResolvedObj(),
+					       cpe.getAltName(),
+					       cpe.getAltNameCtx(),
+					       env);
+
+	if (ctx instanceof DirContext)
+	    return new DirContextStringPair((DirContext)ctx, name);
+
+	if (ctx instanceof Resolver) {
+	    Resolver res = (Resolver)ctx;
+	    ResolveResult rr = res.resolveToClass(name, DirContext.class);
+
+	    // Reached a DirContext; return result.
+	    DirContext dctx = (DirContext)rr.getResolvedObj();
+	    Name tmp = rr.getRemainingName();
+	    String remains = (tmp != null) ? tmp.toString() : "";
+	    return (new DirContextStringPair(dctx, remains));
+	}
+
+	// Resolve all the way using lookup().  This may allow the operation
+	// to succeed if it doesn't require the penultimate context.
+	Object ultimate = ctx.lookup(name);
+	if (ultimate instanceof DirContext) {
+	    return (new DirContextStringPair((DirContext)ultimate, ""));
+	}
+
+	throw (NamingException)cpe.fillInStackTrace();
+!!!8542875.java!!!	getAttributes(in name : String) : Attributes
+	DirContextStringPair res = getTargetContext(name);
+	return res.getDirContext().getAttributes(res.getString());
+!!!8543003.java!!!	getAttributes(in name : String, in attrIds : String) : Attributes
+	    DirContextStringPair res = getTargetContext(name);
+	    return res.getDirContext().getAttributes(res.getString(), attrIds);
+!!!8543131.java!!!	getAttributes(inout name : Name) : Attributes
+	DirContextNamePair res = getTargetContext(name);
+	return res.getDirContext().getAttributes(res.getName());
+!!!8543259.java!!!	getAttributes(inout name : Name, in attrIds : String) : Attributes
+	    DirContextNamePair res = getTargetContext(name);
+	    return res.getDirContext().getAttributes(res.getName(), attrIds);
+!!!8543387.java!!!	modifyAttributes(inout name : Name, in mod_op : int, inout attrs : Attributes) : void
+	    DirContextNamePair res = getTargetContext(name);
+	    res.getDirContext().modifyAttributes(res.getName(), mod_op, attrs);
+!!!8543515.java!!!	modifyAttributes(in name : String, in mod_op : int, inout attrs : Attributes) : void
+	    DirContextStringPair res = getTargetContext(name);
+	    res.getDirContext().modifyAttributes(res.getString(), mod_op, attrs);
+!!!8543643.java!!!	modifyAttributes(inout name : Name, inout mods : ModificationItem) : void
+	    DirContextNamePair res = getTargetContext(name);
+	    res.getDirContext().modifyAttributes(res.getName(), mods);
+!!!8543771.java!!!	modifyAttributes(in name : String, inout mods : ModificationItem) : void
+	    DirContextStringPair res = getTargetContext(name);
+	    res.getDirContext().modifyAttributes(res.getString(), mods);
+!!!8543899.java!!!	bind(inout name : Name, inout obj : Object, inout attrs : Attributes) : void
+	    DirContextNamePair res = getTargetContext(name);
+	    res.getDirContext().bind(res.getName(), obj, attrs);
+!!!8544027.java!!!	bind(in name : String, inout obj : Object, inout attrs : Attributes) : void
+	    DirContextStringPair res = getTargetContext(name);
+	    res.getDirContext().bind(res.getString(), obj, attrs);
+!!!8544155.java!!!	rebind(inout name : Name, inout obj : Object, inout attrs : Attributes) : void
+	    DirContextNamePair res = getTargetContext(name);
+	    res.getDirContext().rebind(res.getName(), obj, attrs);
+!!!8544283.java!!!	rebind(in name : String, inout obj : Object, inout attrs : Attributes) : void
+	    DirContextStringPair res = getTargetContext(name);
+	    res.getDirContext().rebind(res.getString(), obj, attrs);
+!!!8544411.java!!!	createSubcontext(inout name : Name, inout attrs : Attributes) : DirContext
+	    DirContextNamePair res = getTargetContext(name);
+	    return res.getDirContext().createSubcontext(res.getName(), attrs);
+!!!8544539.java!!!	createSubcontext(in name : String, inout attrs : Attributes) : DirContext
+	    DirContextStringPair res = getTargetContext(name);
+	    return
+		res.getDirContext().createSubcontext(res.getString(), attrs);
+!!!8544667.java!!!	search(inout name : Name, inout matchingAttributes : Attributes, in attributesToReturn : String) : NamingEnumeration
+	    DirContextNamePair res = getTargetContext(name);
+	    return res.getDirContext().search(res.getName(), matchingAttributes,
+					     attributesToReturn);
+!!!8544795.java!!!	search(in name : String, inout matchingAttributes : Attributes, in attributesToReturn : String) : NamingEnumeration
+	    DirContextStringPair res = getTargetContext(name);
+	    return res.getDirContext().search(res.getString(),
+					     matchingAttributes,
+					     attributesToReturn);
+!!!8544923.java!!!	search(inout name : Name, inout matchingAttributes : Attributes) : NamingEnumeration
+	    DirContextNamePair res = getTargetContext(name);
+	    return res.getDirContext().search(res.getName(), matchingAttributes);
+!!!8545051.java!!!	search(in name : String, inout matchingAttributes : Attributes) : NamingEnumeration
+	    DirContextStringPair res = getTargetContext(name);
+	    return res.getDirContext().search(res.getString(),
+					     matchingAttributes);
+!!!8545179.java!!!	search(inout name : Name, in filter : String, inout cons : SearchControls) : NamingEnumeration
+	    DirContextNamePair res = getTargetContext(name);
+	    return res.getDirContext().search(res.getName(), filter, cons);
+!!!8545307.java!!!	search(in name : String, in filter : String, inout cons : SearchControls) : NamingEnumeration
+	    DirContextStringPair res = getTargetContext(name);
+	    return res.getDirContext().search(res.getString(), filter, cons);
+!!!8545435.java!!!	search(inout name : Name, in filterExpr : String, inout args : Object, inout cons : SearchControls) : NamingEnumeration
+	    DirContextNamePair res = getTargetContext(name);
+	    return res.getDirContext().search(res.getName(), filterExpr, args,
+					     cons);
+!!!8545563.java!!!	search(in name : String, in filterExpr : String, inout args : Object, inout cons : SearchControls) : NamingEnumeration
+	    DirContextStringPair res = getTargetContext(name);
+	    return res.getDirContext().search(res.getString(), filterExpr, args,
+					     cons);
+!!!8545691.java!!!	getSchema(in name : String) : DirContext
+	DirContextStringPair res = getTargetContext(name);
+	return res.getDirContext().getSchema(res.getString());
+!!!8545819.java!!!	getSchema(inout name : Name) : DirContext
+	DirContextNamePair res = getTargetContext(name);
+	return res.getDirContext().getSchema(res.getName());
+!!!8545947.java!!!	getSchemaClassDefinition(in name : String) : DirContext
+	DirContextStringPair res = getTargetContext(name);
+	return res.getDirContext().getSchemaClassDefinition(res.getString());
+!!!8546075.java!!!	getSchemaClassDefinition(inout name : Name) : DirContext
+	DirContextNamePair res = getTargetContext(name);
+	return res.getDirContext().getSchemaClassDefinition(res.getName());

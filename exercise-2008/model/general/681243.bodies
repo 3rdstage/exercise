@@ -1,0 +1,118 @@
+class NamespaceMappings
+!!!5707419.java!!!	NamespaceMappings()
+        initNamespaces();
+!!!5707547.java!!!	initNamespaces() : void
+ 
+
+        // Define the default namespace (initially maps to "" uri)
+        Stack stack;
+        m_namespaces.put(EMPTYSTRING, stack = new Stack());
+        stack.push(EMPTYSTRING);
+        m_prefixStack.push(EMPTYSTRING);
+
+        m_namespaces.put(XML_PREFIX, stack = new Stack());
+        stack.push("http://www.w3.org/XML/1998/namespace");
+        m_prefixStack.push(XML_PREFIX);
+
+        m_nodeStack.push(new Integer(-1));
+
+!!!5707675.java!!!	lookupNamespace(in prefix : String) : String
+        final Stack stack = (Stack) m_namespaces.get(prefix);
+        return stack != null && !stack.isEmpty() ? (String) stack.peek() : null;
+!!!5707803.java!!!	lookupPrefix(in uri : String) : String
+        String foundPrefix = null;
+        Enumeration prefixes = m_namespaces.keys();
+        while (prefixes.hasMoreElements())
+        {
+            String prefix = (String) prefixes.nextElement();
+            String uri2 = lookupNamespace(prefix);
+            if (uri2 != null && uri2.equals(uri))
+            {
+                foundPrefix = prefix;
+                break;
+            }
+        }
+        return foundPrefix;
+!!!5707931.java!!!	popNamespace(in prefix : String) : boolean
+        // Prefixes "xml" and "xmlns" cannot be redefined
+        if (prefix.startsWith(XML_PREFIX))
+        {
+            return false;
+        }
+
+        Stack stack;
+        if ((stack = (Stack) m_namespaces.get(prefix)) != null)
+        {
+            stack.pop();
+            return true;
+        }
+        return false;
+!!!5708059.java!!!	pushNamespace(in prefix : String, in uri : String, in elemDepth : int) : boolean
+        // Prefixes "xml" and "xmlns" cannot be redefined
+        if (prefix.startsWith(XML_PREFIX))
+        {
+            return false;
+        }
+
+        Stack stack;
+        // Get the stack that contains URIs for the specified prefix
+        if ((stack = (Stack) m_namespaces.get(prefix)) == null)
+        {
+            m_namespaces.put(prefix, stack = new Stack());
+        }
+
+        if (!stack.empty() && uri.equals(stack.peek()))
+        {
+            return false;
+        }
+
+        stack.push(uri);
+        m_prefixStack.push(prefix);
+        m_nodeStack.push(new Integer(elemDepth));
+        return true;
+!!!5708187.java!!!	popNamespaces(in elemDepth : int, inout saxHandler : ContentHandler) : void
+        while (true)
+        {
+            if (m_nodeStack.isEmpty())
+                return;
+            Integer i = (Integer) (m_nodeStack.peek());
+            if (i.intValue() < elemDepth)
+                return;
+            /* the depth of the declared mapping is elemDepth or deeper
+             * so get rid of it
+             */
+
+            m_nodeStack.pop();
+            final String prefix = (String) m_prefixStack.pop(); 
+            popNamespace(prefix);
+            if (saxHandler != null)
+            {
+                try
+                {
+                    saxHandler.endPrefixMapping(prefix);
+                }
+                catch (SAXException e)
+                {
+                    // not much we can do if they aren't willing to listen
+                }
+            }
+               
+        }
+!!!5708315.java!!!	generateNextPrefix() : String
+        return "ns" + (count++);
+!!!5708443.java!!!	clone() : Object
+        NamespaceMappings clone = new NamespaceMappings();
+        clone.m_prefixStack = (Stack)m_prefixStack.clone();
+        clone.m_nodeStack = (Stack) m_nodeStack.clone();
+        clone.m_namespaces = (Hashtable) m_namespaces.clone();
+        
+        clone.count = count;
+        return clone;
+        
+!!!5708571.java!!!	reset() : void
+        this.count = 0;
+        this.m_namespaces.clear();
+        this.m_nodeStack.clear();
+        this.m_prefixStack.clear();
+        
+        initNamespaces();

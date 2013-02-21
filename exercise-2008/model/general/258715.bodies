@@ -1,0 +1,67 @@
+class POACurrent
+!!!1312283.java!!!	POACurrent(inout orb : ORB)
+	this.orb = orb;
+	wrapper = POASystemException.get( orb,
+	    CORBALogDomains.OA_INVOCATION ) ;
+!!!1312411.java!!!	_ids() : String
+        String[] ids = new String[1];
+        ids[0] = "IDL:omg.org/PortableServer/Current:1.0";
+        return ids;
+!!!1312539.java!!!	get_POA() : POA
+        POA poa = (POA)(peekThrowNoContext().oa());
+	throwNoContextIfNull(poa);
+	return poa;
+!!!1312667.java!!!	get_object_id() : byte
+	byte[] objectid = peekThrowNoContext().id();
+	throwNoContextIfNull(objectid);
+	return objectid;
+!!!1312795.java!!!	getOA() : ObjectAdapter
+        ObjectAdapter oa = peekThrowInternal().oa();
+	throwInternalIfNull(oa);
+	return oa;
+!!!1312923.java!!!	getObjectId() : byte
+	byte[] objectid = peekThrowInternal().id();
+	throwInternalIfNull(objectid);
+	return objectid;
+!!!1313051.java!!!	getServant() : Servant
+	Servant servant = (Servant)(peekThrowInternal().getServantContainer());
+	// If is OK for the servant to be null.
+	// This could happen if POAImpl.getServant is called but
+	// POAImpl.internalGetServant throws an exception.
+	return servant;
+!!!1313179.java!!!	getCookieHolder() : CookieHolder
+	CookieHolder cookieHolder = peekThrowInternal().getCookieHolder();
+	throwInternalIfNull(cookieHolder);
+	return cookieHolder;
+!!!1313307.java!!!	getOperation() : String
+	String operation = peekThrowInternal().getOperation();
+	throwInternalIfNull(operation);
+	return operation;
+!!!1313435.java!!!	setServant(inout servant : Servant) : void
+	peekThrowInternal().setServant( servant );
+!!!1313563.java!!!	peekThrowNoContext() : OAInvocationInfo
+	OAInvocationInfo invocationInfo = null;
+	try {
+	    invocationInfo = orb.peekInvocationInfo() ;
+	} catch (EmptyStackException e) {
+	    throw new NoContext();
+	}
+	return invocationInfo;
+!!!1313691.java!!!	peekThrowInternal() : OAInvocationInfo
+	OAInvocationInfo invocationInfo = null;
+	try {
+	    invocationInfo = orb.peekInvocationInfo() ;
+	} catch (EmptyStackException e) {
+	    // The completion status is maybe because this could happen
+	    // after the servant has been invoked.
+	    throw wrapper.poacurrentUnbalancedStack( e ) ;
+	}
+	return invocationInfo;
+!!!1313819.java!!!	throwNoContextIfNull(inout o : Object) : void
+	if ( o == null ) {
+	    throw new NoContext();
+	}
+!!!1313947.java!!!	throwInternalIfNull(inout o : Object) : void
+	if ( o == null ) {
+	    throw wrapper.poacurrentNullField( CompletionStatus.COMPLETED_MAYBE ) ;
+	}

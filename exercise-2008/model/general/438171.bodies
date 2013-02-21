@@ -1,0 +1,238 @@
+class BasicInternalFrameTitlePane
+!!!2641563.java!!!	BasicInternalFrameTitlePane(inout f : JInternalFrame)
+	frame = f;
+	installTitlePane();
+!!!2641691.java!!!	installTitlePane() : void
+	installDefaults();
+        installListeners();
+        
+	createActions();
+	enableActions();
+	createActionMap();
+
+	setLayout(createLayout());
+
+	assembleSystemMenu();
+	createButtons();
+	addSubComponents();
+
+!!!2641819.java!!!	addSubComponents() : void
+	add(menuBar);
+	add(iconButton);
+	add(maxButton);
+	add(closeButton);
+!!!2641947.java!!!	createActions() : void
+	maximizeAction = new MaximizeAction();
+	iconifyAction = new IconifyAction();
+	closeAction = new CloseAction();
+	restoreAction = new RestoreAction();
+	moveAction = new MoveAction();
+	sizeAction = new SizeAction();
+!!!2642075.java!!!	createActionMap() : ActionMap
+	ActionMap map = new ActionMapUIResource();
+	map.put("showSystemMenu", new ShowSystemMenuAction(true));
+	map.put("hideSystemMenu", new ShowSystemMenuAction(false));
+	return map;
+!!!2642203.java!!!	installListeners() : void
+        if( propertyChangeListener == null ) {
+            propertyChangeListener = createPropertyChangeListener();
+        }
+	frame.addPropertyChangeListener(propertyChangeListener);
+!!!2642331.java!!!	uninstallListeners() : void
+	frame.removePropertyChangeListener(propertyChangeListener);
+        handler = null;
+!!!2642459.java!!!	installDefaults() : void
+        maxIcon = UIManager.getIcon("InternalFrame.maximizeIcon");
+	minIcon = UIManager.getIcon("InternalFrame.minimizeIcon");
+	iconIcon = UIManager.getIcon("InternalFrame.iconifyIcon");
+	closeIcon = UIManager.getIcon("InternalFrame.closeIcon");
+
+	selectedTitleColor = UIManager.getColor("InternalFrame.activeTitleBackground");
+	selectedTextColor = UIManager.getColor("InternalFrame.activeTitleForeground");
+	notSelectedTitleColor = UIManager.getColor("InternalFrame.inactiveTitleBackground");
+	notSelectedTextColor = UIManager.getColor("InternalFrame.inactiveTitleForeground");
+        setFont(UIManager.getFont("InternalFrame.titleFont"));
+        closeButtonToolTip =
+                UIManager.getString("InternalFrame.closeButtonToolTip");
+        iconButtonToolTip =
+                UIManager.getString("InternalFrame.iconButtonToolTip");
+        restoreButtonToolTip =
+                UIManager.getString("InternalFrame.restoreButtonToolTip");
+        maxButtonToolTip =
+                UIManager.getString("InternalFrame.maxButtonToolTip");
+!!!2642715.java!!!	createButtons() : void
+	iconButton = new NoFocusButton(
+                     "InternalFrameTitlePane.iconifyButtonAccessibleName");
+	iconButton.addActionListener(iconifyAction);
+        if (iconButtonToolTip != null && iconButtonToolTip.length() != 0) {
+            iconButton.setToolTipText(iconButtonToolTip);
+        }
+
+	maxButton = new NoFocusButton(
+                        "InternalFrameTitlePane.maximizeButtonAccessibleName");
+	maxButton.addActionListener(maximizeAction);
+
+	closeButton = new NoFocusButton(
+                      "InternalFrameTitlePane.closeButtonAccessibleName");
+	closeButton.addActionListener(closeAction);
+        if (closeButtonToolTip != null && closeButtonToolTip.length() != 0) {
+            closeButton.setToolTipText(closeButtonToolTip);
+        }
+
+        setButtonIcons();
+!!!2642843.java!!!	setButtonIcons() : void
+        if(frame.isIcon()) {
+            if (minIcon != null) {
+                iconButton.setIcon(minIcon);
+            }
+            if (restoreButtonToolTip != null &&
+                    restoreButtonToolTip.length() != 0) {
+                iconButton.setToolTipText(restoreButtonToolTip);
+            }
+            if (maxIcon != null) {
+                maxButton.setIcon(maxIcon);
+            }
+            if (maxButtonToolTip != null && maxButtonToolTip.length() != 0) {
+                maxButton.setToolTipText(maxButtonToolTip);
+            }
+        } else if (frame.isMaximum()) {
+            if (iconIcon != null) {
+	        iconButton.setIcon(iconIcon);
+            }
+            if (iconButtonToolTip != null && iconButtonToolTip.length() != 0) {
+                iconButton.setToolTipText(iconButtonToolTip);
+            }
+            if (minIcon != null) {
+	        maxButton.setIcon(minIcon);
+            }
+            if (restoreButtonToolTip != null &&
+                    restoreButtonToolTip.length() != 0) {
+                maxButton.setToolTipText(restoreButtonToolTip);
+            }
+        } else {
+            if (iconIcon != null) {
+	        iconButton.setIcon(iconIcon);
+            }
+            if (iconButtonToolTip != null && iconButtonToolTip.length() != 0) {
+                iconButton.setToolTipText(iconButtonToolTip);
+            }
+            if (maxIcon != null) {
+	        maxButton.setIcon(maxIcon);
+            }
+            if (maxButtonToolTip != null && maxButtonToolTip.length() != 0) {
+                maxButton.setToolTipText(maxButtonToolTip);
+            }
+        }
+        if (closeIcon != null) {
+	    closeButton.setIcon(closeIcon);
+        }
+!!!2642971.java!!!	assembleSystemMenu() : void
+        menuBar = createSystemMenuBar();
+	windowMenu = createSystemMenu();	    
+	menuBar.add(windowMenu);
+	addSystemMenuItems(windowMenu);
+	enableActions();
+!!!2643099.java!!!	addSystemMenuItems(inout systemMenu : JMenu) : void
+        JMenuItem mi = (JMenuItem)systemMenu.add(restoreAction);
+	mi.setMnemonic('R');
+	mi = (JMenuItem)systemMenu.add(moveAction);
+	mi.setMnemonic('M');
+	mi = (JMenuItem)systemMenu.add(sizeAction);
+	mi.setMnemonic('S');
+	mi = (JMenuItem)systemMenu.add(iconifyAction);
+	mi.setMnemonic('n');
+	mi = (JMenuItem)systemMenu.add(maximizeAction);
+	mi.setMnemonic('x');
+	systemMenu.add(new JSeparator());
+	mi = (JMenuItem)systemMenu.add(closeAction);
+	mi.setMnemonic('C');
+!!!2643227.java!!!	createSystemMenu() : JMenu
+	return new JMenu("    ");
+!!!2643355.java!!!	createSystemMenuBar() : JMenuBar
+	menuBar = new SystemMenuBar();
+	menuBar.setBorderPainted(false);
+	return menuBar;
+!!!2643483.java!!!	showSystemMenu() : void
+	//      windowMenu.setPopupMenuVisible(true);
+      //      windowMenu.setVisible(true);
+      windowMenu.doClick();
+!!!2643611.java!!!	paintComponent(inout g : Graphics) : void
+	paintTitleBackground(g);
+
+	if(frame.getTitle() != null) {
+	    boolean isSelected = frame.isSelected();
+	    Font f = g.getFont();
+	    g.setFont(getFont());
+	    if(isSelected)
+		g.setColor(selectedTextColor);
+	    else
+		g.setColor(notSelectedTextColor);
+
+            // Center text vertically.
+	    FontMetrics fm = SwingUtilities2.getFontMetrics(frame, g);
+            int baseline = (getHeight() + fm.getAscent() - fm.getLeading() -
+                    fm.getDescent()) / 2;
+
+            int titleX;
+            Rectangle r = new Rectangle(0, 0, 0, 0);
+            if (frame.isIconifiable())  r = iconButton.getBounds();
+            else if (frame.isMaximizable())  r = maxButton.getBounds();
+            else if (frame.isClosable())  r = closeButton.getBounds();
+	    int titleW;
+	
+            String title = frame.getTitle();
+            if( BasicGraphicsUtils.isLeftToRight(frame) ) {
+              if (r.x == 0)  r.x = frame.getWidth()-frame.getInsets().right;
+              titleX = menuBar.getX() + menuBar.getWidth() + 2;
+              titleW = r.x - titleX - 3;
+              title = getTitle(frame.getTitle(), fm, titleW);
+            } else {
+                titleX = menuBar.getX() - 2
+                         - SwingUtilities2.stringWidth(frame,fm,title);
+            }
+            
+	    SwingUtilities2.drawString(frame, g, title, titleX, baseline);
+	    g.setFont(f);
+	}
+!!!2643739.java!!!	paintTitleBackground(inout g : Graphics) : void
+	boolean isSelected = frame.isSelected();
+
+	if(isSelected)
+	    g.setColor(selectedTitleColor);
+	else
+	    g.setColor(notSelectedTitleColor);
+	g.fillRect(0, 0, getWidth(), getHeight());
+!!!2643867.java!!!	getTitle(in text : String, inout fm : FontMetrics, in availTextWidth : int) : String
+        return SwingUtilities2.clipStringIfNecessary(
+                           frame, fm, text, availTextWidth);
+!!!2643995.java!!!	postClosingEvent(inout frame : JInternalFrame) : void
+        InternalFrameEvent e = new InternalFrameEvent(
+            frame, InternalFrameEvent.INTERNAL_FRAME_CLOSING);
+        // Try posting event, unless there's a SecurityManager.
+        if (JInternalFrame.class.getClassLoader() == null) {
+            try {
+                Toolkit.getDefaultToolkit().getSystemEventQueue().postEvent(e);
+                return;
+            } catch (SecurityException se) {
+                // Use dispatchEvent instead.
+            }
+        }
+        frame.dispatchEvent(e);
+!!!2644123.java!!!	enableActions() : void
+        restoreAction.setEnabled(frame.isMaximum() || frame.isIcon()); 
+        maximizeAction.setEnabled(
+            (frame.isMaximizable() && !frame.isMaximum() && !frame.isIcon()) ||
+            (frame.isMaximizable() && frame.isIcon()));
+        iconifyAction.setEnabled(frame.isIconifiable() && !frame.isIcon()); 
+        closeAction.setEnabled(frame.isClosable());
+        sizeAction.setEnabled(false);
+        moveAction.setEnabled(false);
+!!!2644251.java!!!	getHandler() : Handler
+        if (handler == null) {
+            handler = new Handler();
+        }
+        return handler;
+!!!2644379.java!!!	createPropertyChangeListener() : PropertyChangeListener
+        return getHandler();
+!!!2644507.java!!!	createLayout() : LayoutManager
+        return getHandler();

@@ -1,0 +1,48 @@
+class CachedNodeListIterator
+!!!4608539.java!!!	CachedNodeListIterator(inout source : DTMAxisIterator)
+	_source = source;
+!!!4608667.java!!!	setRestartable(inout isRestartable : boolean) : void
+	//_isRestartable = isRestartable;
+	//_source.setRestartable(isRestartable);
+!!!4608795.java!!!	setStartNode(in node : int) : DTMAxisIterator
+	if (_isRestartable) {
+	    _startNode = node;
+	    _source.setStartNode(node);
+	    resetPosition();
+	    
+	    _isRestartable = false;
+	}
+	return this;
+!!!4608923.java!!!	next() : int
+        return getNode(_index++);
+!!!4609051.java!!!	getPosition() : int
+    	return _index == 0 ? 1 : _index;
+!!!4609179.java!!!	getNodeByPosition(in pos : int) : int
+    	return getNode(pos);
+!!!4609307.java!!!	getNode(in index : int) : int
+        if (index < _numCachedNodes) {
+            return _nodes.at(index);
+        }
+        else if (!_isEnded){
+            int node = _source.next();
+            if (node != END) {
+            	_nodes.add(node);
+            	_numCachedNodes++;
+            }
+            else {
+            	_isEnded = true;
+            }
+            return node;
+        }
+        else
+            return END;
+!!!4609435.java!!!	cloneIterator() : DTMAxisIterator
+	ClonedNodeListIterator clone = new ClonedNodeListIterator(this);
+	return clone;
+!!!4609563.java!!!	reset() : DTMAxisIterator
+    	_index = 0;
+    	return this;
+!!!4609691.java!!!	setMark() : void
+	_source.setMark();
+!!!4609819.java!!!	gotoMark() : void
+	_source.gotoMark();

@@ -1,0 +1,28 @@
+class CachingParserPool
+!!!5445915.java!!!	CachingParserPool()
+        this(new SymbolTable(), new XMLGrammarPoolImpl());
+!!!5446043.java!!!	CachingParserPool(inout symbolTable : SymbolTable, inout grammarPool : XMLGrammarPool)
+        fSynchronizedSymbolTable = new SynchronizedSymbolTable(symbolTable);
+        fSynchronizedGrammarPool = new SynchronizedGrammarPool(grammarPool);
+!!!5446171.java!!!	getSymbolTable() : SymbolTable
+        return fSynchronizedSymbolTable;
+!!!5446299.java!!!	getXMLGrammarPool() : XMLGrammarPool
+        return fSynchronizedGrammarPool;
+!!!5446427.java!!!	setShadowSymbolTable(inout shadow : boolean) : void
+        fShadowSymbolTable = shadow;
+!!!5446555.java!!!	createDOMParser() : DOMParser
+        SymbolTable symbolTable = fShadowSymbolTable
+                                ? new ShadowedSymbolTable(fSynchronizedSymbolTable)
+                                : fSynchronizedSymbolTable;
+        XMLGrammarPool grammarPool = fShadowGrammarPool
+                                ? new ShadowedGrammarPool(fSynchronizedGrammarPool)
+                                : fSynchronizedGrammarPool;
+        return new DOMParser(symbolTable, grammarPool);
+!!!5446683.java!!!	createSAXParser() : SAXParser
+        SymbolTable symbolTable = fShadowSymbolTable
+                                ? new ShadowedSymbolTable(fSynchronizedSymbolTable)
+                                : fSynchronizedSymbolTable;
+        XMLGrammarPool grammarPool = fShadowGrammarPool
+                                ? new ShadowedGrammarPool(fSynchronizedGrammarPool)
+                                : fSynchronizedGrammarPool;
+        return new SAXParser(symbolTable, grammarPool);

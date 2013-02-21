@@ -1,0 +1,79 @@
+class DynAnyImpl
+!!!546971.java!!!	DynAnyImpl()
+	wrapper = ORBUtilSystemException.get( 
+            CORBALogDomains.RPC_PRESENTATION ) ;
+!!!547099.java!!!	DynAnyImpl(inout orb : ORB, inout any : Any, inout copyValue : boolean)
+        this.orb = orb;
+	wrapper = ORBUtilSystemException.get( orb,
+	    CORBALogDomains.RPC_PRESENTATION ) ;
+        if (copyValue)
+            this.any = DynAnyUtil.copy(any, orb);
+        else
+            this.any = any;
+        // set the current position to 0 if any has components, otherwise to -1.
+        index = NO_INDEX;
+!!!547227.java!!!	DynAnyImpl(inout orb : ORB, inout typeCode : TypeCode)
+        this.orb = orb;
+	wrapper = ORBUtilSystemException.get( orb,
+	    CORBALogDomains.RPC_PRESENTATION ) ;
+        this.any = DynAnyUtil.createDefaultAnyOfType(typeCode, orb);
+!!!547355.java!!!	factory() : DynAnyFactory
+        try {
+            return (DynAnyFactory)orb.resolve_initial_references( 
+		ORBConstants.DYN_ANY_FACTORY_NAME );
+        } catch (InvalidName in) {
+            throw new RuntimeException("Unable to find DynAnyFactory");
+        }
+!!!547483.java!!!	getAny() : Any
+        return any;
+!!!547611.java!!!	getAny(inout dynAny : DynAny) : Any
+        if (dynAny instanceof DynAnyImpl)
+            return ((DynAnyImpl)dynAny).getAny();
+        else
+            // _REVISIT_ Nothing we can do about copying at this point
+            // if this is not our implementation of DynAny.
+            // To prevent this we would need another representation,
+            // one where component DynAnys are initialized but not the component Anys.
+            return dynAny.to_any();
+!!!547739.java!!!	writeAny(inout out : OutputStream) : void
+        //System.out.println(this + " writeAny of type " + type().kind().value());
+        any.write_value(out);
+!!!547867.java!!!	setStatus(in newStatus : byte) : void
+        status = newStatus;
+!!!547995.java!!!	clearData() : void
+        // This clears the data part of the Any while keeping the TypeCode info.
+        any.type(any.type());
+!!!548123.java!!!	type() : TypeCode
+        if (status == STATUS_DESTROYED) {
+	    throw wrapper.dynAnyDestroyed() ;
+        }
+        return any.type();
+!!!548251.java!!!	assign(inout dyn_any : DynAny) : void
+        if (status == STATUS_DESTROYED) {
+	    throw wrapper.dynAnyDestroyed() ;
+        }
+        if ((any != null) && (! any.type().equal(dyn_any.type()))) {
+            throw new TypeMismatch();
+        }
+        any = dyn_any.to_any();
+!!!548379.java!!!	from_any(inout value : Any) : void
+        if (status == STATUS_DESTROYED) {
+	    throw wrapper.dynAnyDestroyed() ;
+        }
+        if ((any != null) && (! any.type().equal(value.type()))) {
+            throw new TypeMismatch();
+        }
+        // If the passed Any does not contain a legal value
+        // (such as a null string), the operation raises InvalidValue.
+        Any tempAny = null;
+        try {
+            tempAny = DynAnyUtil.copy(value, orb);
+        } catch (Exception e) {
+            throw new InvalidValue();
+        }
+        if ( ! DynAnyUtil.isInitialized(tempAny)) {
+            throw new InvalidValue();
+        }
+        any = tempAny;
+!!!549019.java!!!	_ids() : String
+        return __ids;

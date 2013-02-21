@@ -1,0 +1,1424 @@
+class KeyboardFocusManager
+!!!6210075.java!!!	isInActivation() : boolean
+        return inActivation;
+!!!6210203.java!!!	setInActivation(inout inActivation : boolean) : void
+        this.inActivation = inActivation;
+!!!6210331.java!!!	getCurrentKeyboardFocusManager() : KeyboardFocusManager
+	return getCurrentKeyboardFocusManager(AppContext.getAppContext());
+!!!6210459.java!!!	getCurrentKeyboardFocusManager(inout appcontext : AppContext) : KeyboardFocusManager
+        KeyboardFocusManager manager = (KeyboardFocusManager)
+            appcontext.get(KeyboardFocusManager.class);
+        if (manager == null) {
+            manager = new DefaultKeyboardFocusManager();
+            appcontext.put(KeyboardFocusManager.class, manager);
+        }
+        return manager;
+!!!6210587.java!!!	setCurrentKeyboardFocusManager(inout newManager : KeyboardFocusManager) : void
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+            if (replaceKeyboardFocusManagerPermission == null) {
+                replaceKeyboardFocusManagerPermission =
+                    new AWTPermission("replaceKeyboardFocusManager");
+            }
+            security.
+                checkPermission(replaceKeyboardFocusManagerPermission);
+        }
+
+        KeyboardFocusManager oldManager = null;
+
+        synchronized (KeyboardFocusManager.class) {
+            AppContext appcontext = AppContext.getAppContext();
+
+            if (newManager != null) {
+                oldManager = getCurrentKeyboardFocusManager(appcontext);
+
+                appcontext.put(KeyboardFocusManager.class, newManager);
+            } else {
+                oldManager = getCurrentKeyboardFocusManager(appcontext);
+                appcontext.remove(KeyboardFocusManager.class);
+            }
+        }
+
+        if (oldManager != null) {
+            oldManager.firePropertyChange("managingFocus", 
+                                          Boolean.TRUE, 
+                                          Boolean.FALSE);
+        }
+        if (newManager != null) {
+            newManager.firePropertyChange("managingFocus", 
+                                          Boolean.FALSE, 
+                                          Boolean.TRUE);
+        }
+!!!6210715.java!!!	setCurrentSequencedEvent(inout current : SequencedEvent) : void
+        synchronized (SequencedEvent.class) {
+            assert(current == null || currentSequencedEvent == null);
+            currentSequencedEvent = current;
+        }
+!!!6210843.java!!!	getCurrentSequencedEvent() : SequencedEvent
+        synchronized (SequencedEvent.class) {
+            return currentSequencedEvent;
+        }
+!!!6210971.java!!!	initFocusTraversalKeysSet(in value : String, inout targetSet : Set) : Set
+	StringTokenizer tokens = new StringTokenizer(value, ",");
+	while (tokens.hasMoreTokens()) {
+	    targetSet.add(AWTKeyStroke.getAWTKeyStroke(tokens.nextToken()));
+	}
+	return (targetSet.isEmpty())
+	    ? Collections.EMPTY_SET
+	    : Collections.unmodifiableSet(targetSet);
+!!!6211099.java!!!	KeyboardFocusManager()
+        for (int i = 0; i < TRAVERSAL_KEY_LENGTH; i++) {
+            Set work_set = new HashSet();
+            for (int j = 0; j < defaultFocusTraversalKeyStrokes[i].length; j++) {
+                work_set.add(defaultFocusTraversalKeyStrokes[i][j]);
+            }
+            defaultFocusTraversalKeys[i] = (work_set.isEmpty())
+                ? Collections.EMPTY_SET
+                : Collections.unmodifiableSet(work_set);
+        }
+        initPeer();
+!!!6211227.java!!!	initPeer() : void
+        if (Toolkit.getDefaultToolkit() instanceof HeadlessToolkit){
+            peer = ((HeadlessToolkit)Toolkit.getDefaultToolkit()).createKeyboardFocusManagerPeer(this);
+        }
+        if (Toolkit.getDefaultToolkit() instanceof SunToolkit){        
+            peer = ((SunToolkit)Toolkit.getDefaultToolkit()).createKeyboardFocusManagerPeer(this);                  
+        }
+!!!6211355.java!!!	getFocusOwner() : Component
+        synchronized (KeyboardFocusManager.class) {
+	    if (focusOwner == null) {
+	        return null;
+	    }
+
+	    return (focusOwner.appContext == AppContext.getAppContext())
+	        ? focusOwner
+	        : null;
+	}
+!!!6211483.java!!!	getGlobalFocusOwner() : Component
+        synchronized (KeyboardFocusManager.class) {
+	    if (this == getCurrentKeyboardFocusManager()) {
+	        return focusOwner;
+	    } else {
+                if (focusLog.isLoggable(Level.FINE)) focusLog.fine("This manager is " + this + ", current is " + getCurrentKeyboardFocusManager());
+	        throw new SecurityException(notPrivileged);
+	    }
+	}
+!!!6211611.java!!!	setGlobalFocusOwner(inout focusOwner : Component) : void
+        Component oldFocusOwner = null;
+	boolean shouldFire = false;
+
+	if (focusOwner == null || focusOwner.isFocusable()) {
+	    synchronized (KeyboardFocusManager.class) {
+	        oldFocusOwner = getFocusOwner();
+
+		try {
+		    fireVetoableChange("focusOwner", oldFocusOwner,
+				       focusOwner);
+		} catch (PropertyVetoException e) {
+		    // rejected
+		    return;
+		}
+
+		KeyboardFocusManager.focusOwner = focusOwner;
+
+		if (focusOwner != null && 
+                    (getCurrentFocusCycleRoot() == null ||
+		     !focusOwner.isFocusCycleRoot(getCurrentFocusCycleRoot())))
+		{
+		    Container rootAncestor =
+		        focusOwner.getFocusCycleRootAncestor();
+		    if (rootAncestor == null && (focusOwner instanceof Window))
+		    {
+		        rootAncestor = (Container)focusOwner;
+		    }
+                    if (rootAncestor != null) {
+		        setGlobalCurrentFocusCycleRoot(rootAncestor);
+		    }
+                }
+
+		shouldFire = true;
+	    }
+	}
+
+	if (shouldFire) {
+	    firePropertyChange("focusOwner", oldFocusOwner, focusOwner);
+	}
+!!!6211739.java!!!	clearGlobalFocusOwner() : void
+        if (!GraphicsEnvironment.isHeadless()) {
+            // Toolkit must be fully initialized, otherwise
+            // _clearGlobalFocusOwner will crash or throw an exception
+            Toolkit.getDefaultToolkit();
+
+            _clearGlobalFocusOwner();
+        }
+!!!6211867.java!!!	_clearGlobalFocusOwner() : void
+        Window activeWindow = markClearGlobalFocusOwner();
+        peer.clearGlobalFocusOwner(activeWindow);
+!!!6211995.java!!!	getNativeFocusOwner() : Component
+        return peer.getCurrentFocusOwner();
+!!!6212123.java!!!	setNativeFocusOwner(inout comp : Component) : void
+        focusLog.log(Level.FINEST, "Calling peer {0} setCurrentFocusOwner for {1}",
+                     new Object[] {peer, comp});
+        peer.setCurrentFocusOwner(comp);
+!!!6212251.java!!!	getNativeFocusedWindow() : Window
+        return peer.getCurrentFocusedWindow();
+!!!6212379.java!!!	setNativeFocusedWindow(inout win : Window) : void
+        peer.setCurrentFocusedWindow(win);
+!!!6212507.java!!!	getPermanentFocusOwner() : Component
+	synchronized (KeyboardFocusManager.class) {
+	    if (permanentFocusOwner == null) {
+		return null;
+	    }
+
+	    return (permanentFocusOwner.appContext ==
+		    AppContext.getAppContext())
+		? permanentFocusOwner
+		: null;
+	}
+!!!6212635.java!!!	getGlobalPermanentFocusOwner() : Component
+	synchronized (KeyboardFocusManager.class) {
+	    if (this == getCurrentKeyboardFocusManager()) {
+		return permanentFocusOwner;
+	    } else {
+                if (focusLog.isLoggable(Level.FINE)) focusLog.fine("This manager is " + this + ", current is " + getCurrentKeyboardFocusManager());
+		throw new SecurityException(notPrivileged);
+	    }
+	}
+!!!6212763.java!!!	setGlobalPermanentFocusOwner(inout permanentFocusOwner : Component) : void
+        Component oldPermanentFocusOwner = null;
+	boolean shouldFire = false;
+
+	if (permanentFocusOwner == null || permanentFocusOwner.isFocusable()) {
+	    synchronized (KeyboardFocusManager.class) {
+	        oldPermanentFocusOwner = getPermanentFocusOwner();
+
+		try {
+		    fireVetoableChange("permanentFocusOwner",
+				       oldPermanentFocusOwner,
+				       permanentFocusOwner);
+		} catch (PropertyVetoException e) {
+		    // rejected
+		    return;
+		}
+
+		KeyboardFocusManager.permanentFocusOwner = permanentFocusOwner;
+
+		KeyboardFocusManager.
+		    setMostRecentFocusOwner(permanentFocusOwner);
+
+		shouldFire = true;
+	    }
+	}
+
+	if (shouldFire) {
+	    firePropertyChange("permanentFocusOwner", oldPermanentFocusOwner,
+			       permanentFocusOwner);
+	}
+!!!6212891.java!!!	getFocusedWindow() : Window
+        synchronized (KeyboardFocusManager.class) {
+	    if (focusedWindow == null) {
+	        return null;
+	    }
+
+	    return (focusedWindow.appContext == AppContext.getAppContext())
+	        ? focusedWindow
+	        : null;
+	}
+!!!6213019.java!!!	getGlobalFocusedWindow() : Window
+        synchronized (KeyboardFocusManager.class) {
+	    if (this == getCurrentKeyboardFocusManager()) {
+	       return focusedWindow;
+	    } else {
+                if (focusLog.isLoggable(Level.FINE)) focusLog.fine("This manager is " + this + ", current is " + getCurrentKeyboardFocusManager());
+	        throw new SecurityException(notPrivileged);
+	    }
+	}
+!!!6213147.java!!!	setGlobalFocusedWindow(inout focusedWindow : Window) : void
+        Window oldFocusedWindow = null;
+	boolean shouldFire = false;
+
+	if (focusedWindow == null || focusedWindow.isFocusableWindow()) {
+	    synchronized (KeyboardFocusManager.class) {
+	        oldFocusedWindow = getFocusedWindow();
+
+		try {
+		    fireVetoableChange("focusedWindow", oldFocusedWindow,
+				       focusedWindow);
+		} catch (PropertyVetoException e) {
+		    // rejected
+		    return;
+		}
+
+		KeyboardFocusManager.focusedWindow = focusedWindow;
+		shouldFire = true;
+	    }
+	}
+
+	if (shouldFire) {
+	    firePropertyChange("focusedWindow", oldFocusedWindow,
+			       focusedWindow);
+	}
+!!!6213275.java!!!	getActiveWindow() : Window
+        synchronized (KeyboardFocusManager.class) {
+	    if (activeWindow == null) {
+	        return null;
+	    }
+
+	    return (activeWindow.appContext == AppContext.getAppContext())
+	        ? activeWindow
+	        : null;
+	}
+!!!6213403.java!!!	getGlobalActiveWindow() : Window
+        synchronized (KeyboardFocusManager.class) {
+	    if (this == getCurrentKeyboardFocusManager()) {
+	       return activeWindow;
+	    } else {
+                if (focusLog.isLoggable(Level.FINE)) focusLog.fine("This manager is " + this + ", current is " + getCurrentKeyboardFocusManager());
+		throw new SecurityException(notPrivileged);
+	    }
+	}
+!!!6213531.java!!!	setGlobalActiveWindow(inout activeWindow : Window) : void
+        Window oldActiveWindow;
+	synchronized (KeyboardFocusManager.class) {
+	    oldActiveWindow = getActiveWindow();
+            if (focusLog.isLoggable(Level.FINER)) {
+                focusLog.finer("Setting global active window to " + activeWindow + ", old active " + oldActiveWindow);
+            }
+
+	    try {
+		fireVetoableChange("activeWindow", oldActiveWindow,
+				   activeWindow);
+	    } catch (PropertyVetoException e) {
+		// rejected
+		return;
+	    }
+
+	    KeyboardFocusManager.activeWindow = activeWindow;
+	}
+
+	firePropertyChange("activeWindow", oldActiveWindow, activeWindow);
+!!!6213659.java!!!	getDefaultFocusTraversalPolicy() : FocusTraversalPolicy
+        return defaultPolicy;
+!!!6213787.java!!!	setDefaultFocusTraversalPolicy(inout defaultPolicy : FocusTraversalPolicy) : void
+        if (defaultPolicy == null) {
+            throw new IllegalArgumentException("default focus traversal policy cannot be null");
+        }
+
+        FocusTraversalPolicy oldPolicy;
+
+	synchronized (this) {
+	    oldPolicy = this.defaultPolicy;
+	    this.defaultPolicy = defaultPolicy;
+	}
+
+        firePropertyChange("defaultFocusTraversalPolicy", oldPolicy,
+                           defaultPolicy);
+!!!6213915.java!!!	setDefaultFocusTraversalKeys(in id : int, inout keystrokes : Set) : void
+        if (id < 0 || id >= TRAVERSAL_KEY_LENGTH) {
+            throw new IllegalArgumentException("invalid focus traversal key identifier");
+        }
+        if (keystrokes == null) {
+            throw new IllegalArgumentException("cannot set null Set of default focus traversal keys");
+        }
+
+	Set oldKeys;
+
+	synchronized (this) {
+	    for (Iterator iter = keystrokes.iterator(); iter.hasNext(); ) {
+		Object obj = iter.next();
+
+		if (obj == null) {
+		    throw new IllegalArgumentException("cannot set null focus traversal key");
+		}
+
+		// Generates a ClassCastException if the element is not an
+		// AWTKeyStroke. This is desirable.
+		AWTKeyStroke keystroke = (AWTKeyStroke)obj;
+
+		if (keystroke.getKeyChar() != KeyEvent.CHAR_UNDEFINED) {
+		    throw new IllegalArgumentException("focus traversal keys cannot map to KEY_TYPED events");
+		}
+	    
+		// Check to see if key already maps to another traversal
+		// operation
+		for (int i = 0; i < TRAVERSAL_KEY_LENGTH; i++) {
+		    if (i == id) {
+			continue;
+		    }
+
+		    if (defaultFocusTraversalKeys[i].contains(keystroke)) {
+			throw new IllegalArgumentException("focus traversal keys must be unique for a Component");
+		    }
+		}
+	    }
+
+	    oldKeys = defaultFocusTraversalKeys[id];
+	    defaultFocusTraversalKeys[id] =
+		Collections.unmodifiableSet(new HashSet(keystrokes));
+	}
+
+        firePropertyChange(defaultFocusTraversalKeyPropertyNames[id],
+                           oldKeys, keystrokes);
+!!!6214043.java!!!	getDefaultFocusTraversalKeys(in id : int) : Set
+        if (id < 0 || id >= TRAVERSAL_KEY_LENGTH) {
+            throw new IllegalArgumentException("invalid focus traversal key identifier");
+        }
+            
+	// Okay to return Set directly because it is an unmodifiable view
+	return defaultFocusTraversalKeys[id];
+!!!6214171.java!!!	getCurrentFocusCycleRoot() : Container
+        synchronized (KeyboardFocusManager.class) {
+	    if (currentFocusCycleRoot == null) {
+	        return null;
+	    }
+
+	    return (currentFocusCycleRoot.appContext ==
+		    AppContext.getAppContext())
+	        ? currentFocusCycleRoot
+	        : null;
+	}
+!!!6214299.java!!!	getGlobalCurrentFocusCycleRoot() : Container
+        synchronized (KeyboardFocusManager.class) {
+	    if (this == getCurrentKeyboardFocusManager()) {
+	        return currentFocusCycleRoot;
+	    } else {
+                if (focusLog.isLoggable(Level.FINE)) focusLog.fine("This manager is " + this + ", current is " + getCurrentKeyboardFocusManager());
+	        throw new SecurityException(notPrivileged);
+	    }
+	}
+!!!6214427.java!!!	setGlobalCurrentFocusCycleRoot(inout newFocusCycleRoot : Container) : void
+        Container oldFocusCycleRoot;
+
+	synchronized (KeyboardFocusManager.class) {
+	    oldFocusCycleRoot  = getCurrentFocusCycleRoot();
+	    currentFocusCycleRoot = newFocusCycleRoot;
+	}
+
+        firePropertyChange("currentFocusCycleRoot", oldFocusCycleRoot,
+                           newFocusCycleRoot);
+!!!6214555.java!!!	addPropertyChangeListener(inout listener : PropertyChangeListener) : void
+        if (listener != null) {
+	    synchronized (this) {
+	        if (changeSupport == null) {
+		    changeSupport = new PropertyChangeSupport(this);
+		}
+		changeSupport.addPropertyChangeListener(listener);
+	    }
+	}
+!!!6214683.java!!!	removePropertyChangeListener(inout listener : PropertyChangeListener) : void
+        if (listener != null) {
+	    synchronized (this) {
+	        if (changeSupport != null) {
+		    changeSupport.removePropertyChangeListener(listener);
+		}
+	    }
+	}
+!!!6214811.java!!!	getPropertyChangeListeners() : PropertyChangeListener
+        if (changeSupport == null) {
+            changeSupport = new PropertyChangeSupport(this);
+        }
+        return changeSupport.getPropertyChangeListeners();
+!!!6214939.java!!!	addPropertyChangeListener(in propertyName : String, inout listener : PropertyChangeListener) : void
+        if (listener != null) {
+	    synchronized (this) {
+	        if (changeSupport == null) {
+		    changeSupport = new PropertyChangeSupport(this);
+		}
+		changeSupport.addPropertyChangeListener(propertyName,
+							listener);
+	    }
+	}
+!!!6215067.java!!!	removePropertyChangeListener(in propertyName : String, inout listener : PropertyChangeListener) : void
+        if (listener != null) {
+	    synchronized (this) {
+	        if (changeSupport != null) {
+		    changeSupport.removePropertyChangeListener(propertyName,
+							       listener);
+		}
+	    }
+	}
+!!!6215195.java!!!	getPropertyChangeListeners(in propertyName : String) : PropertyChangeListener
+        if (changeSupport == null) {
+            changeSupport = new PropertyChangeSupport(this);
+        }
+        return changeSupport.getPropertyChangeListeners(propertyName);
+!!!6215323.java!!!	firePropertyChange(in propertyName : String, inout oldValue : Object, inout newValue : Object) : void
+        PropertyChangeSupport changeSupport = this.changeSupport;
+        if (changeSupport != null) {
+	    changeSupport.firePropertyChange(propertyName, oldValue, newValue);
+	}
+!!!6215451.java!!!	addVetoableChangeListener(inout listener : VetoableChangeListener) : void
+        if (listener != null) {
+	    synchronized (this) {
+	        if (vetoableSupport == null) {
+		    vetoableSupport =
+			new VetoableChangeSupport(this);
+		}
+		vetoableSupport.addVetoableChangeListener(listener);
+	    }
+	}
+!!!6215579.java!!!	removeVetoableChangeListener(inout listener : VetoableChangeListener) : void
+        if (listener != null) {
+	    synchronized (this) {
+	        if (vetoableSupport != null) {
+		    vetoableSupport.removeVetoableChangeListener(listener);
+		}
+	    }
+	}
+!!!6215707.java!!!	getVetoableChangeListeners() : VetoableChangeListener
+        if (vetoableSupport == null) {
+            vetoableSupport = new VetoableChangeSupport(this);
+        }
+        return vetoableSupport.getVetoableChangeListeners();
+!!!6215835.java!!!	addVetoableChangeListener(in propertyName : String, inout listener : VetoableChangeListener) : void
+        if (listener != null) {
+	    synchronized (this) {
+	        if (vetoableSupport == null) {
+		    vetoableSupport =
+			new VetoableChangeSupport(this);
+		}
+		vetoableSupport.addVetoableChangeListener(propertyName,
+							  listener);
+	    }
+	}
+!!!6215963.java!!!	removeVetoableChangeListener(in propertyName : String, inout listener : VetoableChangeListener) : void
+        if (listener != null) {
+	    synchronized (this) {
+	        if (vetoableSupport != null) {
+		    vetoableSupport.removeVetoableChangeListener(propertyName,
+								 listener);
+		}
+	    }
+	}
+!!!6216091.java!!!	getVetoableChangeListeners(in propertyName : String) : VetoableChangeListener
+        if (vetoableSupport == null) {
+            vetoableSupport = new VetoableChangeSupport(this);
+        }
+        return vetoableSupport.getVetoableChangeListeners(propertyName);
+!!!6216219.java!!!	fireVetoableChange(in propertyName : String, inout oldValue : Object, inout newValue : Object) : void
+        VetoableChangeSupport vetoableSupport =
+	    this.vetoableSupport;
+        if (vetoableSupport != null) {
+	    vetoableSupport.fireVetoableChange(propertyName, oldValue,
+					       newValue);
+	}
+!!!6216347.java!!!	addKeyEventDispatcher(inout dispatcher : KeyEventDispatcher) : void
+        if (dispatcher != null) {
+	    synchronized (this) {
+	        if (keyEventDispatchers == null) {
+		    keyEventDispatchers = new java.util.LinkedList();
+		}
+		keyEventDispatchers.add(dispatcher);
+	    }
+	}
+!!!6216475.java!!!	removeKeyEventDispatcher(inout dispatcher : KeyEventDispatcher) : void
+        if (dispatcher != null) {
+	    synchronized (this) {
+	        if (keyEventDispatchers != null) {
+		    keyEventDispatchers.remove(dispatcher);
+		}
+	    }
+	}
+!!!6216603.java!!!	getKeyEventDispatchers() : List
+        return (keyEventDispatchers != null)
+	    ? (java.util.List)keyEventDispatchers.clone()
+	    : null;
+!!!6216731.java!!!	addKeyEventPostProcessor(inout processor : KeyEventPostProcessor) : void
+        if (processor != null) {
+            synchronized (this) {
+                if (keyEventPostProcessors == null) {
+                    keyEventPostProcessors = new java.util.LinkedList();
+                }
+                keyEventPostProcessors.add(processor);
+            }
+        }
+!!!6216859.java!!!	removeKeyEventPostProcessor(inout processor : KeyEventPostProcessor) : void
+        if (processor != null) {
+            synchronized (this) {
+                if (keyEventPostProcessors != null) {
+                    keyEventPostProcessors.remove(processor);
+                }
+            }
+        }
+!!!6216987.java!!!	getKeyEventPostProcessors() : List
+        return (keyEventPostProcessors != null)
+            ? (java.util.List)keyEventPostProcessors.clone()
+            : null;
+!!!6217115.java!!!	setMostRecentFocusOwner(inout component : Component) : void
+        Component window = component;
+	while (window != null && !(window instanceof Window)) {
+	    window = window.parent;
+	}
+	if (window != null) {
+	    setMostRecentFocusOwner((Window)window, component);
+	}
+!!!6217243.java!!!	setMostRecentFocusOwner(inout window : Window, inout component : Component) : void
+        // ATTN: component has a strong reference to window via chain
+        // of Component.parent fields.  Since WeakHasMap refers to its
+        // values strongly, we need to break the strong link from the
+        // value (component) back to its key (window).
+        WeakReference weakValue = null;
+        if (component != null) {
+            weakValue = new WeakReference(component);
+        }
+        mostRecentFocusOwners.put(window, weakValue);
+!!!6217371.java!!!	clearMostRecentFocusOwner(inout comp : Component) : void
+        Container window;
+
+        if (comp == null) {
+            return;
+        }
+
+        synchronized (comp.getTreeLock()) {
+            window = comp.getParent();
+            while (window != null && !(window instanceof Window)) {
+                window = window.getParent();
+            }
+        }
+
+        synchronized (KeyboardFocusManager.class) {
+            if ((window != null) 
+                && (getMostRecentFocusOwner((Window)window) == comp)) 
+            {
+                setMostRecentFocusOwner((Window)window, null);
+            }
+            // Also clear temporary lost component stored in Window
+            if (window != null) {
+                Window realWindow = (Window)window;
+                if (realWindow.getTemporaryLostComponent() == comp) {
+                    realWindow.setTemporaryLostComponent(null);
+                }
+            }
+        }
+!!!6217499.java!!!	getMostRecentFocusOwner(inout window : Window) : Component
+        WeakReference weakValue =
+            (WeakReference)mostRecentFocusOwners.get(window);
+        return weakValue == null ? null : (Component)weakValue.get();
+!!!6217755.java!!!	redispatchEvent(inout target : Component, inout e : AWTEvent) : void
+        e.focusManagerIsDispatching = true;
+	target.dispatchEvent(e);
+        e.focusManagerIsDispatching = false;
+!!!6219163.java!!!	focusNextComponent() : void
+        Component focusOwner = getFocusOwner();
+        if (focusOwner != null) {
+            focusNextComponent(focusOwner);
+        }
+!!!6219291.java!!!	focusPreviousComponent() : void
+        Component focusOwner = getFocusOwner();
+        if (focusOwner != null) {
+            focusPreviousComponent(focusOwner);
+        }
+!!!6219419.java!!!	upFocusCycle() : void
+        Component focusOwner = getFocusOwner();
+        if (focusOwner != null) {
+            upFocusCycle(focusOwner);
+        }
+!!!6219547.java!!!	downFocusCycle() : void
+        Component focusOwner = getFocusOwner();
+	if (focusOwner instanceof Container) {
+	    downFocusCycle((Container)focusOwner);
+	}
+!!!6219675.java!!!	dumpRequests() : void
+        System.err.println(">>> Requests dump, time: " + System.currentTimeMillis());
+        synchronized (heavyweightRequests) {
+            Iterator iter = heavyweightRequests.iterator();
+            while (iter.hasNext()) {
+                HeavyweightFocusRequest req = (HeavyweightFocusRequest)iter.next();
+                System.err.println(">>> Req: " + req);
+            }
+        }
+        System.err.println("");
+!!!6220699.java!!!	processSynchronousLightweightTransfer(inout heavyweight : Component, inout descendant : Component, inout temporary : boolean, inout focusedWindowChangeAllowed : boolean, in time : long) : boolean
+        Window parentWindow = Component.getContainingWindow(heavyweight);
+        if (parentWindow == null || !parentWindow.syncLWRequests) {
+            return false;
+        }
+        if (descendant == null) {
+            // Focus transfers from a lightweight child back to the
+            // heavyweight Container should be treated like lightweight
+            // focus transfers.
+            descendant = heavyweight;
+        }
+
+        KeyboardFocusManager manager = getCurrentKeyboardFocusManager(SunToolkit.targetToAppContext(descendant));
+
+        FocusEvent currentFocusOwnerEvent = null;
+        FocusEvent newFocusOwnerEvent = null;
+        Component currentFocusOwner = manager.getGlobalFocusOwner();        
+
+        synchronized (heavyweightRequests) {
+            HeavyweightFocusRequest hwFocusRequest = (HeavyweightFocusRequest)
+                ((heavyweightRequests.size() > 0)
+                 ? heavyweightRequests.getLast() : null);
+            if (hwFocusRequest == null &&
+                heavyweight == manager.getNativeFocusOwner() &&
+                allowSyncFocusRequests)
+            {
+                if (descendant == currentFocusOwner) {
+                    // Redundant request.
+                    return true;
+                }
+
+                // 'heavyweight' owns the native focus and there are no pending
+                // requests. 'heavyweight' must be a Container and
+                // 'descendant' must not be the focus owner. Otherwise,
+                // we would never have gotten this far.
+                manager.enqueueKeyEvents(time, descendant);
+
+                hwFocusRequest =
+                    new HeavyweightFocusRequest(heavyweight, descendant,
+                                                temporary);
+                heavyweightRequests.add(hwFocusRequest);
+
+                if (currentFocusOwner != null) {
+                    currentFocusOwnerEvent =
+                        new FocusEvent(currentFocusOwner,
+                                       FocusEvent.FOCUS_LOST,
+                                       temporary, descendant);
+                }
+                newFocusOwnerEvent =
+                    new FocusEvent(descendant, FocusEvent.FOCUS_GAINED,
+                                   temporary, currentFocusOwner);
+            }
+        }        
+        boolean result = false;
+        final boolean clearing = clearingCurrentLightweightRequests;
+
+        Throwable caughtEx = null;
+        try {
+            clearingCurrentLightweightRequests = false;
+            synchronized(Component.LOCK) {
+                if (currentFocusOwnerEvent != null && currentFocusOwner != null) {
+                    ((AWTEvent) currentFocusOwnerEvent).isPosted = true;
+                    caughtEx=dispatchAndCatchException(caughtEx, currentFocusOwner, currentFocusOwnerEvent);
+                    result = true;
+                }
+                if (newFocusOwnerEvent != null && descendant != null) {
+                    ((AWTEvent) newFocusOwnerEvent).isPosted = true;
+                    caughtEx=dispatchAndCatchException(caughtEx, descendant, newFocusOwnerEvent);
+                    result = true;
+                }        
+            }
+        } finally {
+            clearingCurrentLightweightRequests = clearing;
+        }
+
+        if (caughtEx instanceof RuntimeException){
+            throw (RuntimeException) caughtEx;
+        } else if (caughtEx instanceof Error) {
+            throw (Error) caughtEx;
+        }
+
+        return result;
+!!!6220827.java!!!	shouldNativelyFocusHeavyweight(inout heavyweight : Component, inout descendant : Component, inout temporary : boolean, inout focusedWindowChangeAllowed : boolean, in time : long) : int
+        if (dbg.on) {
+            dbg.assertion(heavyweight != null);
+            dbg.assertion(time != 0);
+        }
+
+        if (descendant == null) {
+            // Focus transfers from a lightweight child back to the
+            // heavyweight Container should be treated like lightweight
+            // focus transfers.
+            descendant = heavyweight;
+        }
+
+        KeyboardFocusManager manager = 
+            getCurrentKeyboardFocusManager(SunToolkit.targetToAppContext(descendant));
+        KeyboardFocusManager thisManager = getCurrentKeyboardFocusManager();
+        Component currentFocusOwner = thisManager.getGlobalFocusOwner();
+        Component nativeFocusOwner = thisManager.getNativeFocusOwner();
+        Window nativeFocusedWindow = thisManager.getNativeFocusedWindow();
+        if (focusLog.isLoggable(Level.FINER)) {
+            focusLog.log(Level.FINER, "SNFH for {0} in {1}", 
+                         new Object[] {descendant, heavyweight});
+        }
+        if (focusLog.isLoggable(Level.FINEST)) {
+            focusLog.log(Level.FINEST, "0. Current focus owner {0}", 
+                         currentFocusOwner);
+            focusLog.log(Level.FINEST, "0. Native focus owner {0}", 
+                         nativeFocusOwner);
+            focusLog.log(Level.FINEST, "0. Native focused window {0}", 
+                         nativeFocusedWindow);
+        }
+        synchronized (heavyweightRequests) {
+            HeavyweightFocusRequest hwFocusRequest = (HeavyweightFocusRequest)
+                ((heavyweightRequests.size() > 0)
+                 ? heavyweightRequests.getLast() : null);
+            if (focusLog.isLoggable(Level.FINEST)) {
+                focusLog.log(Level.FINEST, "Request {0}", hwFocusRequest);
+            }
+            if (hwFocusRequest == null &&
+                heavyweight == nativeFocusOwner)
+            {
+                if (descendant == currentFocusOwner) {
+                    // Redundant request.
+                    if (focusLog.isLoggable(Level.FINEST)) {
+                        focusLog.log(Level.FINEST, "1. SNFH_FAILURE for {0}", 
+                                     descendant);
+                    }
+                    return SNFH_FAILURE;
+                }
+
+                // 'heavyweight' owns the native focus and there are no pending
+                // requests. 'heavyweight' must be a Container and
+                // 'descendant' must not be the focus owner. Otherwise,
+                // we would never have gotten this far.
+                manager.enqueueKeyEvents(time, descendant);
+
+                hwFocusRequest =
+                    new HeavyweightFocusRequest(heavyweight, descendant,
+                                                temporary);
+                heavyweightRequests.add(hwFocusRequest);
+
+                if (currentFocusOwner != null) {
+                    FocusEvent currentFocusOwnerEvent =
+                        new FocusEvent(currentFocusOwner,
+                                       FocusEvent.FOCUS_LOST,
+                                       temporary, descendant);
+                    SunToolkit.postEvent(currentFocusOwner.appContext,
+                                         currentFocusOwnerEvent);
+                }
+                FocusEvent newFocusOwnerEvent =
+                    new FocusEvent(descendant, FocusEvent.FOCUS_GAINED,
+                                   temporary, currentFocusOwner);
+                SunToolkit.postEvent(descendant.appContext,
+                                     newFocusOwnerEvent);
+
+                if (focusLog.isLoggable(Level.FINEST)) {
+                    focusLog.log(Level.FINEST, "2. SNFH_HANDLED for {0}", descendant);
+                }
+                return SNFH_SUCCESS_HANDLED;
+            } else if (hwFocusRequest != null &&
+                       hwFocusRequest.heavyweight == heavyweight) {
+                // 'heavyweight' doesn't have the native focus right now, but
+                // if all pending requests were completed, it would. Add
+                // descendant to the heavyweight's list of pending
+                // lightweight focus transfers.
+                if (hwFocusRequest.addLightweightRequest(descendant,
+                                                         temporary)) {
+                    manager.enqueueKeyEvents(time, descendant);
+                }
+                
+                if (focusLog.isLoggable(Level.FINEST)) {
+                    focusLog.finest("3. SNFH_HANDLED for lightweight" +
+                                    descendant + " in " + heavyweight);
+                }
+                return SNFH_SUCCESS_HANDLED;
+            } else {
+                if (!focusedWindowChangeAllowed) {
+                    // For purposes of computing oldFocusedWindow, we should look at
+                    // the second to last HeavyweightFocusRequest on the queue iff the
+                    // last HeavyweightFocusRequest is CLEAR_GLOBAL_FOCUS_OWNER. If
+                    // there is no second to last HeavyweightFocusRequest, null is an
+                    // acceptable value.
+                    if (hwFocusRequest ==
+                        HeavyweightFocusRequest.CLEAR_GLOBAL_FOCUS_OWNER) 
+                    {
+                        int size = heavyweightRequests.size();
+                        hwFocusRequest = (HeavyweightFocusRequest)((size >= 2)
+                            ? heavyweightRequests.get(size - 2)
+                            : null);
+                    }
+                    if (focusedWindowChanged(heavyweight,
+                                             (hwFocusRequest != null)
+                                             ? hwFocusRequest.heavyweight
+                                             : nativeFocusedWindow)) {
+                        if (focusLog.isLoggable(Level.FINEST)) {
+                            focusLog.finest("4. SNFH_FAILURE for " + descendant);
+                        }
+                        return SNFH_FAILURE;
+                    }
+                }
+
+                manager.enqueueKeyEvents(time, descendant);
+                heavyweightRequests.add
+                    (new HeavyweightFocusRequest(heavyweight, descendant,
+                                                 temporary));
+                if (focusLog.isLoggable(Level.FINEST)) {
+                    focusLog.finest("5. SNFH_PROCEED for " + descendant);
+                }
+                return SNFH_SUCCESS_PROCEED;
+            }
+        }
+!!!6220955.java!!!	heavyweightButtonDown(inout heavyweight : Component, in time : long) : void
+        heavyweightButtonDown(heavyweight, time, false);
+!!!6221083.java!!!	heavyweightButtonDown(inout heavyweight : Component, in time : long, inout acceptDuplicates : boolean) : void
+        if (dbg.on) {
+            dbg.assertion(heavyweight != null);
+            dbg.assertion(time != 0);
+        }
+        KeyboardFocusManager manager = getCurrentKeyboardFocusManager(SunToolkit.targetToAppContext(heavyweight));
+        
+        synchronized (heavyweightRequests) {
+            HeavyweightFocusRequest hwFocusRequest = (HeavyweightFocusRequest)
+                ((heavyweightRequests.size() > 0)
+                 ? heavyweightRequests.getLast() : null);
+            Component currentNativeFocusOwner = (hwFocusRequest == null)
+                ? manager.getNativeFocusOwner()
+                : hwFocusRequest.heavyweight;
+                
+            // Behavior for all use cases:
+            // 1. Heavyweight leaf Components (e.g., Button, Checkbox, Choice,
+            //    List, TextComponent, Canvas) that respond to button down.
+            //
+            //    Native platform will generate a FOCUS_GAINED if and only if
+            //    the Component is not the focus owner (or, will not be the
+            //    focus owner when all outstanding focus requests are
+            //    processed).
+            //
+            // 2. Panel with no descendants.
+            //
+            //    Same as (1).
+            //
+            // 3. Panel with at least one heavyweight descendant.
+            //
+            //    This function should NOT be called for this case!
+            //
+            // 4. Panel with only lightweight descendants.
+            //
+            //    Native platform will generate a FOCUS_GAINED if and only if
+            //    neither the Panel, nor any of its recursive, lightweight
+            //    descendants, is the focus owner. However, we want a
+            //    requestFocus() for any lightweight descendant to win out over
+            //    the focus request for the Panel. To accomplish this, we
+            //    differ from the algorithm for shouldNativelyFocusHeavyweight
+            //    as follows:
+            //      a. If the requestFocus() for a lightweight descendant has
+            //         been fully handled by the time this function is invoked,
+            //         then 'hwFocusRequest' will be null and 'heavyweight'
+            //         will be the native focus owner. Do *not* synthesize a
+            //         focus transfer to the Panel.
+            //      b. If the requestFocus() for a lightweight descendant has
+            //         been recorded, but not handled, then 'hwFocusRequest'
+            //         will be non-null and 'hwFocusRequest.heavyweight' will
+            //         equal 'heavyweight'. Do *not* append 'heavyweight' to
+            //         hwFocusRequest.lightweightRequests.
+            //      c. If the requestFocus() for a lightweight descendant is
+            //         yet to be made, then post a new HeavyweightFocusRequest.
+            //         If no lightweight descendant ever requests focus, then
+            //         the Panel will get focus. If some descendant does, then
+            //         the descendant will get focus by either a synthetic
+            //         focus transfer, or a lightweightRequests focus transfer.
+
+            if (acceptDuplicates || heavyweight != currentNativeFocusOwner) {
+                getCurrentKeyboardFocusManager
+                    (SunToolkit.targetToAppContext(heavyweight)).
+                    enqueueKeyEvents(time, heavyweight);
+                heavyweightRequests.add
+                    (new HeavyweightFocusRequest(heavyweight, heavyweight,
+                                                 false));
+            }
+        }
+!!!6221211.java!!!	markClearGlobalFocusOwner() : Window
+        synchronized (heavyweightRequests) {
+            HeavyweightFocusRequest hwFocusRequest = (HeavyweightFocusRequest)
+                ((heavyweightRequests.size() > 0)
+                 ? heavyweightRequests.getLast() : null);
+            if (hwFocusRequest ==
+                HeavyweightFocusRequest.CLEAR_GLOBAL_FOCUS_OWNER)
+            {
+                // duplicate request
+                return null;
+            }
+            
+            KeyboardFocusManager manager = getCurrentKeyboardFocusManager();
+            heavyweightRequests.add
+                (HeavyweightFocusRequest.CLEAR_GLOBAL_FOCUS_OWNER);
+
+            Component activeWindow = ((hwFocusRequest != null)
+                ? Component.getContainingWindow(hwFocusRequest.heavyweight)
+                : manager.getNativeFocusedWindow());
+            while (activeWindow != null &&
+                   !((activeWindow instanceof Frame) ||
+                     (activeWindow instanceof Dialog)))
+            {
+                activeWindow = activeWindow.getParent();
+            }
+
+            return (Window)activeWindow;
+        }
+!!!6221339.java!!!	getCurrentWaitingRequest(inout parent : Component) : Component
+        synchronized (heavyweightRequests) {
+            HeavyweightFocusRequest hwFocusRequest = (HeavyweightFocusRequest)
+                ((heavyweightRequests.size() > 0)
+                 ? heavyweightRequests.getFirst() : null);
+            if (hwFocusRequest != null) {
+                if (hwFocusRequest.heavyweight == parent) {
+                    LightweightFocusRequest lwFocusRequest =
+                        (LightweightFocusRequest)hwFocusRequest.
+                        lightweightRequests.getFirst();
+                    if (lwFocusRequest != null) {
+                        return lwFocusRequest.component;
+                    }
+                }
+            }
+        }
+        return null;
+!!!6221467.java!!!	dispatchAndCatchException(inout ex : Throwable, inout comp : Component, inout event : FocusEvent) : Throwable
+       Throwable retEx = null;
+       try {
+          comp.dispatchEvent(event);
+       } catch (RuntimeException re) {
+          retEx = re;
+       } catch (Error er) {
+          retEx = er;
+       }
+	   if (retEx != null) {
+	     if (ex != null) {
+	         handleException(ex);
+	      }
+	      return retEx;
+	    }
+	    return ex;
+!!!6221595.java!!!	handleException(inout ex : Throwable) : void
+	         ex.printStackTrace();
+!!!6221723.java!!!	hasFocusRequests() : boolean
+         synchronized (heavyweightRequests) {
+             return heavyweightRequests.size() > 0;
+         }
+!!!6221851.java!!!	processCurrentLightweightRequests() : void
+        KeyboardFocusManager manager = getCurrentKeyboardFocusManager();
+        LinkedList localLightweightRequests = null;
+
+        Component globalFocusOwner = manager.getGlobalFocusOwner();
+        if ((globalFocusOwner != null) &&
+            (globalFocusOwner.appContext != AppContext.getAppContext()))
+        {
+            // The current app context differs from the app context of a focus
+            // owner (and all pending lightweight requests), so we do nothing
+            // now and wait for a next event.
+            return;
+        }
+
+        synchronized(heavyweightRequests) {
+            if (currentLightweightRequests != null) {
+                clearingCurrentLightweightRequests = true;
+                disableRestoreFocus=true;
+                localLightweightRequests = currentLightweightRequests;
+                allowSyncFocusRequests = (localLightweightRequests.size() < 2);
+                currentLightweightRequests = null;
+            } else {
+                // do nothing
+                return;
+            }
+        }
+
+        Throwable caughtEx=null;
+        try {
+            if (localLightweightRequests != null) {
+                Component lastFocusOwner = null;
+                Component currentFocusOwner = null;
+
+                for (Iterator iter = localLightweightRequests.iterator(); iter.hasNext(); )
+                {
+                    currentFocusOwner = manager.getGlobalFocusOwner();
+                    LightweightFocusRequest lwFocusRequest = (LightweightFocusRequest)iter.next();
+				
+                    /*
+                     * WARNING: This is based on DKFM's logic solely!
+                     *
+                     * We allow to trigger restoreFocus() in the dispatching process
+                     * only if we have the last request to dispatch. If the last request
+                     * fails, focus will be restored to either the component of the last
+                     * previously succedded request, or to to the focus owner that was
+                     * before this clearing proccess.
+                     */
+                     if (!iter.hasNext()) {
+                           disableRestoreFocus = false;
+                     }
+                     
+                    FocusEvent currentFocusOwnerEvent = null;
+                    if ( currentFocusOwner != null ){    
+                        currentFocusOwnerEvent = new FocusEvent(currentFocusOwner, 
+                                                                FocusEvent.FOCUS_LOST, 
+                                                                lwFocusRequest.temporary, lwFocusRequest.component);
+                    }
+
+                    FocusEvent newFocusOwnerEvent = new FocusEvent(lwFocusRequest.component,
+                                       FocusEvent.FOCUS_GAINED,
+                                       lwFocusRequest.temporary,
+                                       currentFocusOwner == null? lastFocusOwner : currentFocusOwner);
+
+                    if (currentFocusOwner != null){
+                        ((AWTEvent) currentFocusOwnerEvent).isPosted = true;
+                         caughtEx=dispatchAndCatchException(caughtEx,currentFocusOwner,currentFocusOwnerEvent);
+                     }
+
+                    ((AWTEvent) newFocusOwnerEvent).isPosted = true;
+                     caughtEx=dispatchAndCatchException(caughtEx, lwFocusRequest.component, newFocusOwnerEvent);
+
+                     if (manager.getGlobalFocusOwner() == lwFocusRequest.component){
+                        lastFocusOwner = lwFocusRequest.component;
+                     }
+                }
+            }
+        } finally {
+            clearingCurrentLightweightRequests = false;
+            disableRestoreFocus=false;
+            localLightweightRequests = null;
+            allowSyncFocusRequests = true;
+        }
+
+        if (caughtEx instanceof RuntimeException) {
+            throw (RuntimeException)caughtEx;
+        } else if (caughtEx instanceof Error) {
+            throw (Error)caughtEx;
+        }
+
+!!!6221979.java!!!	retargetUnexpectedFocusEvent(inout fe : FocusEvent) : FocusEvent
+        synchronized (heavyweightRequests) {
+            // Any other case represents a failure condition which we did
+            // not expect. We need to clearFocusRequestList() and patch up
+            // the event as best as possible.
+
+            if (removeFirstRequest()) {
+                return (FocusEvent)retargetFocusEvent(fe);
+            }
+
+            Component source = fe.getComponent();
+            Component opposite = fe.getOppositeComponent();
+            boolean temporary = false;
+            if (fe.getID() == FocusEvent.FOCUS_LOST &&
+                (opposite == null || isTemporary(opposite, source)))
+            {
+                temporary = true;
+            }
+            return new FocusEvent(source, fe.getID(), temporary, opposite);
+        }
+!!!6222107.java!!!	retargetFocusGained(inout fe : FocusEvent) : FocusEvent
+        assert (fe.getID() == FocusEvent.FOCUS_GAINED);
+
+        Component currentFocusOwner = getCurrentKeyboardFocusManager().
+            getGlobalFocusOwner();
+        Component source = fe.getComponent();
+        Component opposite = fe.getOppositeComponent();
+        Component nativeSource = getHeavyweight(source);
+
+        synchronized (heavyweightRequests) {
+            HeavyweightFocusRequest hwFocusRequest = (HeavyweightFocusRequest)
+                ((heavyweightRequests.size() > 0)
+                 ? heavyweightRequests.getFirst() : null);
+
+            if (hwFocusRequest == HeavyweightFocusRequest.CLEAR_GLOBAL_FOCUS_OWNER)
+            {
+                return retargetUnexpectedFocusEvent(fe);
+            }
+
+            if (source != null && nativeSource == null && hwFocusRequest != null) {
+                // if source w/o peer and 
+                // if source is equal to first lightweight
+                // then we should correct source and nativeSource
+                if (source == hwFocusRequest.getFirstLightweightRequest().component) 
+                {
+                    source = hwFocusRequest.heavyweight;
+                    nativeSource = source; // source is heavuweight itself
+                }
+            }
+            if (hwFocusRequest != null &&
+                nativeSource == hwFocusRequest.heavyweight)
+            {
+                // Focus change as a result of a known call to requestFocus(),
+                // or known click on a peer focusable heavyweight Component.
+
+                heavyweightRequests.removeFirst();
+
+                LightweightFocusRequest lwFocusRequest =
+                    (LightweightFocusRequest)hwFocusRequest.
+                    lightweightRequests.removeFirst();
+
+                Component newSource = lwFocusRequest.component;
+                if (currentFocusOwner != null) {
+                    /*
+                     * Since we receive FOCUS_GAINED when current focus 
+                     * owner is not null, correcponding FOCUS_LOST is supposed
+                     * to be lost.  And so,  we keep new focus owner 
+                     * to determine synthetic FOCUS_LOST event which will be 
+                     * generated by KeyboardFocusManager for this FOCUS_GAINED.
+                     *
+                     * This code based on knowledge of 
+                     * DefaultKeyboardFocusManager's implementation and might 
+                     * be not applicable for another KeyboardFocusManager.
+                     */
+                    newFocusOwner = newSource;
+                }
+
+                boolean temporary = (opposite == null || 
+                                     isTemporary(newSource, opposite))
+                        ? false
+                        : lwFocusRequest.temporary;
+
+                if (hwFocusRequest.lightweightRequests.size() > 0) {
+                    currentLightweightRequests =
+                        hwFocusRequest.lightweightRequests;
+                    EventQueue.invokeLater(new Runnable() {
+                            public void run() {
+                                processCurrentLightweightRequests();
+                            }
+                        });
+                }
+
+                // 'opposite' will be fixed by
+                // DefaultKeyboardFocusManager.realOppositeComponent
+                return new FocusEvent(newSource,
+                                      FocusEvent.FOCUS_GAINED, temporary,
+                                      opposite);
+            }
+
+            if (currentFocusOwner != null
+                && currentFocusOwner.getContainingWindow() == source
+                && (hwFocusRequest == null || source != hwFocusRequest.heavyweight)) 
+            {
+                // Special case for FOCUS_GAINED in top-levels
+                // If it arrives as the result of activation we should skip it
+                // This event will not have appropriate request record and
+                // on arrival there will be already some focus owner set.
+                return new FocusEvent(currentFocusOwner, FocusEvent.FOCUS_GAINED, false, null);
+            }
+
+            return retargetUnexpectedFocusEvent(fe);
+        } // end synchronized(heavyweightRequests)
+!!!6222235.java!!!	retargetFocusLost(inout fe : FocusEvent) : FocusEvent
+        assert (fe.getID() == FocusEvent.FOCUS_LOST);
+
+        Component currentFocusOwner = getCurrentKeyboardFocusManager().
+            getGlobalFocusOwner();
+        Component opposite = fe.getOppositeComponent();
+        Component nativeOpposite = getHeavyweight(opposite);
+
+        synchronized (heavyweightRequests) {
+            HeavyweightFocusRequest hwFocusRequest = (HeavyweightFocusRequest)
+                ((heavyweightRequests.size() > 0)
+                 ? heavyweightRequests.getFirst() : null);
+
+            if (hwFocusRequest == HeavyweightFocusRequest.CLEAR_GLOBAL_FOCUS_OWNER)
+            {
+                if (currentFocusOwner != null) {
+                    // Call to KeyboardFocusManager.clearGlobalFocusOwner()
+                    heavyweightRequests.removeFirst();
+                    return new FocusEvent(currentFocusOwner,
+                                          FocusEvent.FOCUS_LOST, false, null);
+                }
+
+                // Otherwise, fall through to failure case below
+
+            } else if (opposite == null)
+            {
+                // Focus leaving application
+                if (currentFocusOwner != null) {
+                    return new FocusEvent(currentFocusOwner, 
+                                          FocusEvent.FOCUS_LOST,
+                                          true, null);
+                } else {
+                    return fe;
+                }
+            } else if (hwFocusRequest != null &&
+                       (nativeOpposite == hwFocusRequest.heavyweight || 
+                        nativeOpposite == null && 
+                        opposite == hwFocusRequest.getFirstLightweightRequest().component))
+            {
+                if (currentFocusOwner == null) {
+                    return fe;
+                }
+                // Focus change as a result of a known call to requestFocus(),
+                // or click on a peer focusable heavyweight Component.
+                
+                // If a focus transfer is made across top-levels, then the
+                // FOCUS_LOST event is always temporary, and the FOCUS_GAINED
+                // event is always permanent. Otherwise, the stored temporary
+                // value is honored.
+
+                LightweightFocusRequest lwFocusRequest =
+                    (LightweightFocusRequest)hwFocusRequest.
+                    lightweightRequests.getFirst();
+
+                boolean temporary = isTemporary(opposite,
+                                                         currentFocusOwner)
+                    ? true
+                    : lwFocusRequest.temporary;
+
+                return new FocusEvent(currentFocusOwner, FocusEvent.FOCUS_LOST,
+                                      temporary, lwFocusRequest.component);
+            } else if (focusedWindowChanged(opposite, currentFocusOwner)) {
+                // If top-level changed there might be no focus request in a list
+                // But we know the opposite, we now it is temporary - dispatch the event.
+                if (!fe.isTemporary() && currentFocusOwner != null) {
+                    // Create copy of the event with only difference in temporary parameter.
+                    fe = new FocusEvent(currentFocusOwner, FocusEvent.FOCUS_LOST,
+                                        true, opposite);
+                } 
+                return fe;
+            }
+
+            return retargetUnexpectedFocusEvent(fe);
+        }  // end synchronized(heavyweightRequests)
+!!!6222363.java!!!	retargetFocusEvent(inout event : AWTEvent) : AWTEvent
+        if (clearingCurrentLightweightRequests) {
+            return event;
+        }        
+
+        KeyboardFocusManager manager = getCurrentKeyboardFocusManager();
+        if (focusLog.isLoggable(Level.FINE)) {
+            if (event instanceof FocusEvent || event instanceof WindowEvent) {
+                focusLog.log(Level.FINE, ">>> {0}", new Object[] {event});
+            }
+            if (focusLog.isLoggable(Level.FINER) && event instanceof KeyEvent) {
+                focusLog.log(Level.FINER, "    focus owner is {0}", new Object[] {manager.getGlobalFocusOwner()});
+                focusLog.log(Level.FINER, ">>> {0}", new Object[] {event});
+            }
+        }
+
+        synchronized(heavyweightRequests) {
+            /*
+             * This code handles FOCUS_LOST event which is generated by 
+             * DefaultKeyboardFocusManager for FOCUS_GAINED.
+             *
+             * This code based on knowledge of DefaultKeyboardFocusManager's
+             * implementation and might be not applicable for another 
+             * KeyboardFocusManager.
+             * 
+             * Fix for 4472032
+             */
+            if (newFocusOwner != null &&
+                event.getID() == FocusEvent.FOCUS_LOST) 
+            {
+                FocusEvent fe = (FocusEvent)event;
+
+                if (manager.getGlobalFocusOwner() == fe.getComponent() &&
+                    fe.getOppositeComponent() == newFocusOwner) 
+                {
+                    newFocusOwner = null;
+                    return event;
+                }
+            }
+        }
+
+        processCurrentLightweightRequests();
+
+        switch (event.getID()) {
+            case FocusEvent.FOCUS_GAINED: {
+                event = retargetFocusGained((FocusEvent)event);
+                break;
+            }
+            case FocusEvent.FOCUS_LOST: {
+                event = retargetFocusLost((FocusEvent)event);
+                break;
+            }
+            default:
+                /* do nothing */
+        }
+        return event;
+!!!6222619.java!!!	removeFirstRequest() : boolean
+        KeyboardFocusManager manager =
+            KeyboardFocusManager.getCurrentKeyboardFocusManager();
+
+        synchronized(heavyweightRequests) {
+            HeavyweightFocusRequest hwFocusRequest = (HeavyweightFocusRequest)
+
+                ((heavyweightRequests.size() > 0) 
+                 ? heavyweightRequests.getFirst() : null);
+            if (hwFocusRequest != null) {
+                heavyweightRequests.removeFirst();
+                if (hwFocusRequest.lightweightRequests != null) {
+                    for (Iterator lwIter = hwFocusRequest.lightweightRequests.
+                             iterator();
+                         lwIter.hasNext(); )
+                    {
+                        manager.dequeueKeyEvents
+                            (-1, ((LightweightFocusRequest)lwIter.next()).
+                             component);
+                    }
+                }
+            }
+            // Fix for 4799136 - clear type-ahead markers if requests queue is empty
+            // We do it here because this method is called only when problems happen 
+            if (heavyweightRequests.size() == 0) {
+                manager.clearMarkers();
+            }
+            return (heavyweightRequests.size() > 0);
+        }        
+!!!6222747.java!!!	removeLastFocusRequest(inout heavyweight : Component) : void
+        if (dbg.on) {
+            dbg.assertion(heavyweight != null);
+        }
+
+        KeyboardFocusManager manager =
+            KeyboardFocusManager.getCurrentKeyboardFocusManager();
+        synchronized(heavyweightRequests) {
+            HeavyweightFocusRequest hwFocusRequest = (HeavyweightFocusRequest)
+                ((heavyweightRequests.size() > 0) 
+                 ? heavyweightRequests.getLast() : null);
+            if (hwFocusRequest != null && 
+                hwFocusRequest.heavyweight == heavyweight) {
+                heavyweightRequests.removeLast();
+            }
+            // Fix for 4799136 - clear type-ahead markers if requests queue is empty
+            // We do it here because this method is called only when problems happen 
+            if (heavyweightRequests.size() == 0) {
+                manager.clearMarkers();
+            }
+        }
+!!!6222875.java!!!	focusedWindowChanged(inout to : Component, inout from : Component) : boolean
+        Window wto = Component.getContainingWindow(to);
+        Window wfrom = Component.getContainingWindow(from);
+        if (wto == null && wfrom == null) {
+            return true;
+        }
+        if (wto == null) {
+            return true;
+        }
+        if (wfrom == null) {
+            return true;
+        }
+        return (wto != wfrom);
+!!!6223003.java!!!	isTemporary(inout to : Component, inout from : Component) : boolean
+        Window wto = Component.getContainingWindow(to);
+        Window wfrom = Component.getContainingWindow(from);
+        if (wto == null && wfrom == null) {
+            return false;
+        }
+        if (wto == null) {
+            return true;
+        }
+        if (wfrom == null) {
+            return false;
+        }
+        return (wto != wfrom);
+!!!6223131.java!!!	getHeavyweight(inout comp : Component) : Component
+        if (comp == null || comp.getPeer() == null) {
+            return null;
+        } else if (comp.getPeer() instanceof LightweightPeer) {
+            return comp.getNativeContainer();
+        } else {
+            return comp;
+        }
+!!!6223259.java!!!	isProxyActiveImpl(inout e : KeyEvent) : boolean
+        if (proxyActive == null) {
+            proxyActive = (Field) AccessController.doPrivileged(new PrivilegedAction() {
+                    public Object run() {
+                        Field field = null;
+                        try {
+                            field = KeyEvent.class.getDeclaredField("isProxyActive");
+                            if (field != null) {
+                                field.setAccessible(true);
+                            }
+                        } catch (NoSuchFieldException nsf) {
+                            assert(false);
+                        }
+                        return field;
+                    }
+                });
+        }
+
+        try {
+            return proxyActive.getBoolean(e);
+        } catch (IllegalAccessException iae) {
+            assert(false);
+        }
+        return false;
+!!!6223387.java!!!	isProxyActive(inout e : KeyEvent) : boolean
+        if (!GraphicsEnvironment.isHeadless()) {
+            return isProxyActiveImpl(e);
+        } else {
+            return false;
+        }

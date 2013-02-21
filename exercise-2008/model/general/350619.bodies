@@ -1,0 +1,45 @@
+class JPEGQTable
+!!!8204059.java!!!	JPEGQTable(in table : int)
+        if (table == null) {
+            throw new IllegalArgumentException("table == null!");
+        }
+        if (table.length != QTABLESIZE) {
+            throw new IllegalArgumentException
+                ("Quantization table is the wrong size.");
+        }
+
+        this.table = (int[])table.clone();
+!!!8204187.java!!!	getTable() : int
+ 
+        return (int[])table.clone();
+!!!8204315.java!!!	getScaledInstance(in scaleFactor : float, inout forceBaseline : boolean) : JPEGQTable
+        int max = (forceBaseline) ? 255 : 32767;
+        int[] ret = new int[QTABLESIZE];
+
+        for (int i = 0; i < QTABLESIZE; i++) {
+            float scaledValue = (float)Math.round(table[i]*scaleFactor);
+            int holder;
+            
+            // limit to valid range
+            if (scaledValue <= 1.0F) {
+                holder = 1;
+            } else if (scaledValue >= max) {
+                holder = max;
+            } else {
+                holder = (int)scaledValue;
+            }
+            ret[i] = holder;
+        }
+
+        return new JPEGQTable(ret);
+!!!8204443.java!!!	toString() : String
+        StringBuffer sb = new StringBuffer();
+        sb.append("JPEGQTable:\n");
+        for (int i = 0; i< 8; i++) {
+            sb.append('\t');
+            for (int j = 0; j < 8; j++) {
+                sb.append(table[i]).append(" ");
+            }
+            sb.append('\n');
+        }
+        return sb.toString();

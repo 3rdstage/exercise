@@ -1,0 +1,50 @@
+class SecuritySupport
+!!!10079387.java!!!	getContextClassLoader() : ClassLoader
+	return (ClassLoader)
+		AccessController.doPrivileged(new PrivilegedAction() {
+	    public Object run() {
+		ClassLoader cl = null;
+		try {
+		    cl = Thread.currentThread().getContextClassLoader();
+		} catch (SecurityException ex) { }
+		return cl;
+	    }
+	});
+!!!10079515.java!!!	getSystemProperty(in propName : String) : String
+	return (String)
+            AccessController.doPrivileged(new PrivilegedAction() {
+                public Object run() {
+                    return System.getProperty(propName);
+                }
+            });
+!!!10079643.java!!!	getFileInputStream(in file : File) : FileInputStream
+	try {
+            return (FileInputStream)
+                AccessController.doPrivileged(new PrivilegedExceptionAction() {
+                    public Object run() throws FileNotFoundException {
+                        return new FileInputStream(file);
+                    }
+                });
+	} catch (PrivilegedActionException e) {
+	    throw (FileNotFoundException)e.getException();
+	}
+!!!10079771.java!!!	getResourceAsStream(in cl : ClassLoader, in name : String) : InputStream
+        return (InputStream)
+            AccessController.doPrivileged(new PrivilegedAction() {
+                public Object run() {
+                    InputStream ris;
+                    if (cl == null) {
+                        ris = ClassLoader.getSystemResourceAsStream(name);
+                    } else {
+                        ris = cl.getResourceAsStream(name);
+                    }
+                    return ris;
+                }
+            });
+!!!10079899.java!!!	doesFileExist(in f : File) : boolean
+    return ((Boolean)
+            AccessController.doPrivileged(new PrivilegedAction() {
+                public Object run() {
+                    return new Boolean(f.exists());
+                }
+            })).booleanValue();

@@ -1,0 +1,235 @@
+class GeneralPath
+!!!6545947.java!!!	GeneralPath()
+	this(WIND_NON_ZERO, INIT_SIZE, INIT_SIZE);
+!!!6546075.java!!!	GeneralPath(in rule : int)
+	this(rule, INIT_SIZE, INIT_SIZE);
+!!!6546203.java!!!	GeneralPath(in rule : int, in initialCapacity : int)
+	this(rule, initialCapacity, initialCapacity);
+!!!6546331.java!!!	GeneralPath(in rule : int, in initialTypes : int, in initialCoords : int)
+	setWindingRule(rule);
+	pointTypes = new byte[initialTypes];
+	pointCoords = new float[initialCoords * 2];
+!!!6546459.java!!!	GeneralPath(inout s : Shape)
+	this(WIND_NON_ZERO, INIT_SIZE, INIT_SIZE);
+	PathIterator pi = s.getPathIterator(null);
+	setWindingRule(pi.getWindingRule());
+	append(pi, false);
+!!!6546587.java!!!	needRoom(in newTypes : int, in newCoords : int, inout needMove : boolean) : void
+	if (needMove && numTypes == 0) {
+	    throw new IllegalPathStateException("missing initial moveto "+
+						"in path definition");
+	}
+	int size = pointCoords.length;
+	if (numCoords + newCoords > size) {
+	    int grow = size;
+	    if (grow > EXPAND_MAX * 2) {
+		grow = EXPAND_MAX * 2;
+	    }
+	    if (grow < newCoords) {
+		grow = newCoords;
+	    }
+	    float[] arr = new float[size + grow];
+	    System.arraycopy(pointCoords, 0, arr, 0, numCoords);
+	    pointCoords = arr;
+	}
+	size = pointTypes.length;
+	if (numTypes + newTypes > size) {
+	    int grow = size;
+	    if (grow > EXPAND_MAX) {
+		grow = EXPAND_MAX;
+	    }
+	    if (grow < newTypes) {
+		grow = newTypes;
+	    }
+	    byte[] arr = new byte[size + grow];
+	    System.arraycopy(pointTypes, 0, arr, 0, numTypes);
+	    pointTypes = arr;
+	}
+!!!6546715.java!!!	moveTo(in x : float, in y : float) : void
+	if (numTypes > 0 && pointTypes[numTypes - 1] == SEG_MOVETO) {
+	    pointCoords[numCoords - 2] = x;
+	    pointCoords[numCoords - 1] = y;
+	} else {
+	    needRoom(1, 2, false);
+	    pointTypes[numTypes++] = SEG_MOVETO;
+	    pointCoords[numCoords++] = x;
+	    pointCoords[numCoords++] = y;
+	}
+!!!6546843.java!!!	lineTo(in x : float, in y : float) : void
+	needRoom(1, 2, true);
+	pointTypes[numTypes++] = SEG_LINETO;
+	pointCoords[numCoords++] = x;
+	pointCoords[numCoords++] = y;
+!!!6546971.java!!!	quadTo(in x1 : float, in y1 : float, in x2 : float, in y2 : float) : void
+	needRoom(1, 4, true);
+	pointTypes[numTypes++] = SEG_QUADTO;
+	pointCoords[numCoords++] = x1;
+	pointCoords[numCoords++] = y1;
+	pointCoords[numCoords++] = x2;
+	pointCoords[numCoords++] = y2;
+!!!6547099.java!!!	curveTo(in x1 : float, in y1 : float, in x2 : float, in y2 : float, in x3 : float, in y3 : float) : void
+	needRoom(1, 6, true);
+	pointTypes[numTypes++] = SEG_CUBICTO;
+	pointCoords[numCoords++] = x1;
+	pointCoords[numCoords++] = y1;
+	pointCoords[numCoords++] = x2;
+	pointCoords[numCoords++] = y2;
+	pointCoords[numCoords++] = x3;
+	pointCoords[numCoords++] = y3;
+!!!6547227.java!!!	closePath() : void
+	if (numTypes == 0 || pointTypes[numTypes - 1] != SEG_CLOSE) {
+	    needRoom(1, 0, true);
+	    pointTypes[numTypes++] = SEG_CLOSE;
+	}
+!!!6547355.java!!!	append(inout s : Shape, inout connect : boolean) : void
+	PathIterator pi = s.getPathIterator(null);
+        append(pi,connect);
+!!!6547483.java!!!	append(inout pi : PathIterator, inout connect : boolean) : void
+	float coords[] = new float[6];
+	while (!pi.isDone()) {
+	    switch (pi.currentSegment(coords)) {
+	    case SEG_MOVETO:
+		if (!connect || numTypes < 1 || numCoords < 2) {
+		    moveTo(coords[0], coords[1]);
+		    break;
+		}
+		if (pointTypes[numTypes - 1] != SEG_CLOSE &&
+		    pointCoords[numCoords - 2] == coords[0] &&
+		    pointCoords[numCoords - 1] == coords[1])
+		{
+		    // Collapse out initial moveto/lineto
+		    break;
+		}
+		// NO BREAK;
+	    case SEG_LINETO:
+		lineTo(coords[0], coords[1]);
+		break;
+	    case SEG_QUADTO:
+		quadTo(coords[0], coords[1],
+		       coords[2], coords[3]);
+		break;
+	    case SEG_CUBICTO:
+		curveTo(coords[0], coords[1],
+			coords[2], coords[3],
+			coords[4], coords[5]);
+		break;
+	    case SEG_CLOSE:
+		closePath();
+		break;
+	    }
+	    pi.next();
+	    connect = false;
+	}
+!!!6547611.java!!!	getWindingRule() : int
+        return windingRule;
+!!!6547739.java!!!	setWindingRule(in rule : int) : void
+	if (rule != WIND_EVEN_ODD && rule != WIND_NON_ZERO) {
+	    throw new IllegalArgumentException("winding rule must be "+
+					       "WIND_EVEN_ODD or "+
+					       "WIND_NON_ZERO");
+	}
+	windingRule = rule;
+!!!6547867.java!!!	getCurrentPoint() : Point2D
+	if (numTypes < 1 || numCoords < 2) {
+	    return null;
+	}
+	int index = numCoords;
+	if (pointTypes[numTypes - 1] == SEG_CLOSE) {
+	loop:
+	    for (int i = numTypes - 2; i > 0; i--) {
+		switch (pointTypes[i]) {
+		case SEG_MOVETO:
+		    break loop;
+		case SEG_LINETO:
+		    index -= 2;
+		    break;
+		case SEG_QUADTO:
+		    index -= 4;
+		    break;
+		case SEG_CUBICTO:
+		    index -= 6;
+		    break;
+		case SEG_CLOSE:
+		    break;
+		}
+	    }
+	}
+	return new Point2D.Float(pointCoords[index - 2],
+				 pointCoords[index - 1]);
+!!!6547995.java!!!	reset() : void
+	numTypes = numCoords = 0;
+!!!6548123.java!!!	transform(inout at : AffineTransform) : void
+	at.transform(pointCoords, 0, pointCoords, 0, numCoords / 2);
+!!!6548251.java!!!	createTransformedShape(inout at : AffineTransform) : Shape
+	GeneralPath gp = (GeneralPath) clone();
+	if (at != null) {
+	    gp.transform(at);
+	}
+	return gp;
+!!!6548379.java!!!	getBounds() : Rectangle
+	return getBounds2D().getBounds();
+!!!6548507.java!!!	getBounds2D() : Rectangle2D
+	float x1, y1, x2, y2;
+	int i = numCoords;
+	if (i > 0) {
+	    y1 = y2 = pointCoords[--i];
+	    x1 = x2 = pointCoords[--i];
+	    while (i > 0) {
+		float y = pointCoords[--i];
+		float x = pointCoords[--i];
+		if (x < x1) x1 = x;
+		if (y < y1) y1 = y;
+		if (x > x2) x2 = x;
+		if (y > y2) y2 = y;
+	    }
+	} else {
+	    x1 = y1 = x2 = y2 = 0.0f;
+	}
+	return new Rectangle2D.Float(x1, y1, x2 - x1, y2 - y1);
+!!!6548635.java!!!	contains(in x : double, in y : double) : boolean
+	if (numTypes < 2) {
+	    return false;
+	}
+	int cross = Curve.crossingsForPath(getPathIterator(null), x, y);
+	if (windingRule == WIND_NON_ZERO) {
+	    return (cross != 0);
+	} else {
+	    return ((cross & 1) != 0);
+	}
+!!!6548763.java!!!	contains(inout p : Point2D) : boolean
+	return contains(p.getX(), p.getY());
+!!!6548891.java!!!	contains(in x : double, in y : double, in w : double, in h : double) : boolean
+	Crossings c = Crossings.findCrossings(getPathIterator(null),
+					      x, y, x+w, y+h);
+	return (c != null && c.covers(y, y+h));
+!!!6549019.java!!!	contains(inout r : Rectangle2D) : boolean
+	return contains(r.getX(), r.getY(), r.getWidth(), r.getHeight());
+!!!6549147.java!!!	intersects(in x : double, in y : double, in w : double, in h : double) : boolean
+	Crossings c = Crossings.findCrossings(getPathIterator(null),
+					      x, y, x+w, y+h);
+	return (c == null || !c.isEmpty());
+!!!6549275.java!!!	intersects(inout r : Rectangle2D) : boolean
+	return intersects(r.getX(), r.getY(), r.getWidth(), r.getHeight());
+!!!6549403.java!!!	getPathIterator(inout at : AffineTransform) : PathIterator
+	return new GeneralPathIterator(this, at);
+!!!6549531.java!!!	getPathIterator(inout at : AffineTransform, in flatness : double) : PathIterator
+	return new FlatteningPathIterator(getPathIterator(at), flatness);
+!!!6549659.java!!!	clone() : Object
+	try {
+	    GeneralPath copy = (GeneralPath) super.clone();
+	    copy.pointTypes = (byte[]) pointTypes.clone();
+	    copy.pointCoords = (float[]) pointCoords.clone();
+	    return copy;
+	} catch (CloneNotSupportedException e) {
+	    // this shouldn't happen, since we are Cloneable
+	    throw new InternalError();
+	}
+!!!6549787.java!!!	GeneralPath(in windingRule : int, in pointTypes : byte, in numTypes : int, in pointCoords : float, in numCoords : int)
+
+    // used to construct from native
+
+	this.windingRule = windingRule;
+	this.pointTypes = pointTypes;
+	this.numTypes = numTypes;
+	this.pointCoords = pointCoords;
+	this.numCoords = numCoords;

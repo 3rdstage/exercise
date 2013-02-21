@@ -1,0 +1,182 @@
+class EnumMap
+!!!253083.java!!!	maskNull(inout value : Object) : Object
+        return (value == null ? NULL : value);
+!!!253211.java!!!	unmaskNull(inout value : Object) : V
+        return (V) (value == NULL ? null : value);
+!!!253339.java!!!	EnumMap(inout keyType : Class<K>)
+        this.keyType = keyType;
+        keyUniverse = keyType.getEnumConstants();
+        vals = new Object[keyUniverse.length];
+!!!253467.java!!!	EnumMap(inout m : EnumMap)
+        keyType = m.keyType;
+        keyUniverse = m.keyUniverse;
+        vals = (Object[]) m.vals.clone();
+        size = m.size;
+!!!253595.java!!!	EnumMap(inout m : Map)
+        if (m instanceof EnumMap) {
+            EnumMap<K, ? extends V> em = (EnumMap<K, ? extends V>) m;
+            keyType = em.keyType;
+            keyUniverse = em.keyUniverse;
+            vals = (Object[]) em.vals.clone();
+            size = em.size;
+        } else {
+            if (m.isEmpty())
+                throw new IllegalArgumentException("Specified map is empty");
+            keyType = m.keySet().iterator().next().getDeclaringClass();
+            keyUniverse = keyType.getEnumConstants();
+            vals = new Object[keyUniverse.length];
+            putAll(m);
+        }
+!!!253723.java!!!	size() : int
+        return size;
+!!!253851.java!!!	containsValue(inout value : Object) : boolean
+        value = maskNull(value);
+
+        for (Object val : vals)
+            if (value.equals(val))
+                return true;
+
+        return false;
+!!!253979.java!!!	containsKey(inout key : Object) : boolean
+        return isValidKey(key) && vals[((Enum)key).ordinal()] != null;
+!!!254107.java!!!	containsMapping(inout key : Object, inout value : Object) : boolean
+        return isValidKey(key) &&
+            maskNull(value).equals(vals[((Enum)key).ordinal()]);
+!!!254235.java!!!	get(inout key : Object) : V
+        return (isValidKey(key) ?
+                unmaskNull(vals[((Enum)key).ordinal()]) : null);
+!!!254363.java!!!	put(inout key : K, inout value : V) : V
+        typeCheck(key);
+
+        int index = ((Enum)key).ordinal();
+        Object oldValue = vals[index];
+        vals[index] = maskNull(value);
+        if (oldValue == null)
+            size++;
+        return unmaskNull(oldValue);
+!!!254491.java!!!	remove(inout key : Object) : V
+        if (!isValidKey(key))
+            return null;
+        int index = ((Enum)key).ordinal();
+        Object oldValue = vals[index];
+        vals[index] = null;
+        if (oldValue != null)
+            size--;
+        return unmaskNull(oldValue);
+!!!254619.java!!!	removeMapping(inout key : Object, inout value : Object) : boolean
+        if (!isValidKey(key))
+            return false;
+        int index = ((Enum)key).ordinal();
+        if (maskNull(value).equals(vals[index])) {
+            vals[index] = null;
+            size--;
+            return true;
+        }
+        return false;
+!!!254747.java!!!	isValidKey(inout key : Object) : boolean
+        if (key == null)
+            return false;
+
+        // Cheaper than instanceof Enum followed by getDeclaringClass
+        Class keyClass = key.getClass();
+        return keyClass == keyType || keyClass.getSuperclass() == keyType;
+!!!254875.java!!!	putAll(inout m : Map) : void
+        if (m instanceof EnumMap) {
+            EnumMap<? extends K, ? extends V> em =
+                (EnumMap<? extends K, ? extends V>)m;
+            if (em.keyType != keyType) {
+                if (em.isEmpty())
+                    return;
+                throw new ClassCastException(em.keyType + " != " + keyType);
+            }
+
+            for (int i = 0; i < keyUniverse.length; i++) {
+                Object emValue = em.vals[i];
+                if (emValue != null) {
+                    if (vals[i] == null)
+                        size++;
+                    vals[i] = emValue;
+                }
+            }
+        } else {
+            super.putAll(m);
+        }
+!!!255003.java!!!	clear() : void
+        Arrays.fill(vals, null);
+        size = 0;
+!!!255131.java!!!	keySet() : Set
+        Set<K> ks = keySet;
+        if (ks != null)
+            return ks;
+        else
+            return keySet = new KeySet();
+!!!255899.java!!!	values() : Collection
+        Collection<V> vs = values;
+        if (vs != null)
+            return vs;
+        else
+            return values = new Values();
+!!!256667.java!!!	entrySet() : Set
+        Set<Map.Entry<K,V>> es = entrySet;
+        if (es != null)
+            return es;
+        else
+            return entrySet = new EntrySet();
+!!!259483.java!!!	equals(inout o : Object) : boolean
+        if (!(o instanceof EnumMap))
+            return super.equals(o);
+
+        EnumMap em = (EnumMap)o;
+        if (em.keyType != keyType)
+            return size == 0 && em.size == 0;
+
+        // Key types match, compare each value
+        for (int i = 0; i < keyUniverse.length; i++) {
+            Object ourValue =    vals[i];
+            Object hisValue = em.vals[i];
+            if (hisValue != ourValue &&
+                (hisValue == null || !hisValue.equals(ourValue)))
+                return false;
+        }
+        return true;
+!!!259611.java!!!	clone() : EnumMap
+        EnumMap<K, V> result = null;
+        try {
+            result = (EnumMap<K, V>) super.clone();
+        } catch(CloneNotSupportedException e) {
+            throw new AssertionError();
+        }
+        result.vals = (Object[]) result.vals.clone();
+        return result;
+!!!259739.java!!!	typeCheck(inout key : K) : void
+        Class keyClass = key.getClass();
+        if (keyClass != keyType && keyClass.getSuperclass() != keyType)
+            throw new ClassCastException(keyClass + " != " + keyType);
+!!!259867.java!!!	writeObject(inout s : java.io.ObjectOutputStream) : void
+        // Write out the key type and any hidden stuff
+        s.defaultWriteObject();
+
+        // Write out size (number of Mappings)
+        s.writeInt(size);
+
+        // Write out keys and values (alternating)
+        for (Map.Entry<K,V> e :  entrySet()) {
+            s.writeObject(e.getKey());
+            s.writeObject(e.getValue());
+        }
+!!!259995.java!!!	readObject(inout s : java.io.ObjectInputStream) : void
+        // Read in the key type and any hidden stuff
+        s.defaultReadObject();
+
+        keyUniverse = keyType.getEnumConstants();
+        vals = new Object[keyUniverse.length];
+
+        // Read in size (number of Mappings)
+        int size = s.readInt();
+
+        // Read the keys and values, and put the mappings in the HashMap
+        for (int i = 0; i < size; i++) {
+            K key = (K) s.readObject();
+            V value = (V) s.readObject();
+            put(key, value);
+        }

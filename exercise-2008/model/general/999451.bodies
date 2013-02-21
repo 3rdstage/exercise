@@ -1,0 +1,211 @@
+class SynchronousQueue
+!!!7968411.java!!!	SynchronousQueue()
+        this(false);
+!!!7968539.java!!!	SynchronousQueue(inout fair : boolean)
+        if (fair) {
+            qlock = new ReentrantLock(true);
+            waitingProducers = new FifoWaitQueue();
+            waitingConsumers = new FifoWaitQueue();
+        }
+        else {
+            qlock = new ReentrantLock();
+            waitingProducers = new LifoWaitQueue();
+            waitingConsumers = new LifoWaitQueue();
+        }
+!!!7970971.java!!!	put(inout o : E) : void
+        if (o == null) throw new NullPointerException();
+        final ReentrantLock qlock = this.qlock;
+
+        for (;;) {
+            Node node;
+            boolean mustWait;
+            if (Thread.interrupted()) throw new InterruptedException();
+            qlock.lock();
+            try {
+                node = waitingConsumers.deq();
+                if ( (mustWait = (node == null)) )
+                    node = waitingProducers.enq(o);
+            } finally {
+                qlock.unlock();
+            }
+
+            if (mustWait) {
+                node.waitForTake();
+                return;
+            }
+
+            else if (node.setItem(o))
+                return;
+
+            // else consumer cancelled, so retry
+        }
+!!!7971099.java!!!	offer(inout o : E, in timeout : long, inout unit : TimeUnit) : boolean
+        if (o == null) throw new NullPointerException();
+        long nanos = unit.toNanos(timeout);
+        final ReentrantLock qlock = this.qlock;
+        for (;;) {
+            Node node;
+            boolean mustWait;
+            if (Thread.interrupted()) throw new InterruptedException();
+            qlock.lock();
+            try {
+                node = waitingConsumers.deq();
+                if ( (mustWait = (node == null)) )
+                    node = waitingProducers.enq(o);
+            } finally {
+                qlock.unlock();
+            }
+
+            if (mustWait) 
+                return node.waitForTake(nanos);
+
+            else if (node.setItem(o))
+                return true;
+
+            // else consumer cancelled, so retry
+        }
+!!!7971227.java!!!	take() : E
+        final ReentrantLock qlock = this.qlock;
+        for (;;) {
+            Node node;
+            boolean mustWait;
+
+            if (Thread.interrupted()) throw new InterruptedException();
+            qlock.lock();
+            try {
+                node = waitingProducers.deq();
+                if ( (mustWait = (node == null)) )
+                    node = waitingConsumers.enq(null);
+            } finally {
+                qlock.unlock();
+            }
+
+            if (mustWait) {
+                Object x = node.waitForPut();
+                return (E)x;
+            }
+            else {
+                Object x = node.getItem();
+                if (x != null)
+                    return (E)x;
+                // else cancelled, so retry
+            }
+        }
+!!!7971355.java!!!	poll(in timeout : long, inout unit : TimeUnit) : E
+        long nanos = unit.toNanos(timeout);
+        final ReentrantLock qlock = this.qlock;
+
+        for (;;) {
+            Node node;
+            boolean mustWait;
+
+            if (Thread.interrupted()) throw new InterruptedException();
+            qlock.lock();
+            try {
+                node = waitingProducers.deq();
+                if ( (mustWait = (node == null)) )
+                    node = waitingConsumers.enq(null);
+            } finally {
+                qlock.unlock();
+            }
+
+            if (mustWait) {
+                Object x = node.waitForPut(nanos);
+                return (E)x;
+            }
+            else {
+                Object x = node.getItem();
+                if (x != null)
+                    return (E)x;
+                // else cancelled, so retry
+            }
+        }
+!!!7971483.java!!!	offer(inout o : E) : boolean
+        if (o == null) throw new NullPointerException();
+        final ReentrantLock qlock = this.qlock;
+
+        for (;;) {
+            Node node;
+            qlock.lock();
+            try {
+                node = waitingConsumers.deq();
+            } finally {
+                qlock.unlock();
+            }
+            if (node == null)
+                return false;
+
+            else if (node.setItem(o))
+                return true;
+            // else retry
+        }
+!!!7971611.java!!!	poll() : E
+        final ReentrantLock qlock = this.qlock;
+        for (;;) {
+            Node node;
+            qlock.lock();
+            try {
+                node = waitingProducers.deq();
+            } finally {
+                qlock.unlock();
+            }
+            if (node == null)
+                return null;
+
+            else {
+                Object x = node.getItem();
+                if (x != null)
+                    return (E)x;
+                // else retry
+            }
+        }
+!!!7971739.java!!!	isEmpty() : boolean
+        return true;
+!!!7971867.java!!!	size() : int
+        return 0;
+!!!7971995.java!!!	remainingCapacity() : int
+        return 0;
+!!!7972251.java!!!	contains(inout o : Object) : boolean
+        return false;
+!!!7972379.java!!!	remove(inout o : Object) : boolean
+        return false;
+!!!7972507.java!!!	containsAll(inout c : Collection) : boolean
+        return c.isEmpty();
+!!!7972635.java!!!	removeAll(inout c : Collection) : boolean
+        return false;
+!!!7972763.java!!!	retainAll(inout c : Collection) : boolean
+        return false;
+!!!7972891.java!!!	peek() : E
+        return null;
+!!!7973403.java!!!	iterator() : Iterator
+        return new EmptyIterator<E>();
+!!!7973531.java!!!	toArray() : Object
+        return new Object[0];
+!!!7973659.java!!!	toArray(inout a : T) : T
+        if (a.length > 0)
+            a[0] = null;
+        return a;
+!!!7973787.java!!!	drainTo(inout c : Collection) : int
+        if (c == null)
+            throw new NullPointerException();
+        if (c == this)
+            throw new IllegalArgumentException();
+        int n = 0;
+        E e;
+        while ( (e = poll()) != null) {
+            c.add(e);
+            ++n;
+        }
+        return n;
+!!!7973915.java!!!	drainTo(inout c : Collection, in maxElements : int) : int
+        if (c == null)
+            throw new NullPointerException();
+        if (c == this)
+            throw new IllegalArgumentException();
+        int n = 0;
+        E e;
+        while (n < maxElements && (e = poll()) != null) {
+            c.add(e);
+            ++n;
+        }
+        return n;

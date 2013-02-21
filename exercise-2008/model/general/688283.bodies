@@ -1,0 +1,70 @@
+class AxisIterator
+!!!4633371.java!!!	AxisIterator(in axis : int, in type : int)
+            _axis = axis;
+            _type = type;
+!!!4633499.java!!!	next() : int
+            if (_source == null) {
+                return(END);
+            }
+            return _source.next();
+!!!4633627.java!!!	setRestartable(inout flag : boolean) : void
+            if (_source != null) {
+                _source.setRestartable(flag);
+            }
+!!!4633755.java!!!	setStartNode(in node : int) : DTMAxisIterator
+            if (node == DTM.NULL) {
+                return this;
+            }
+
+            int dom = node >>> DTMManager.IDENT_DTM_NODE_BITS;
+
+            // Get a new source first time and when mask changes
+            if (_source == null || _dtmId != dom) {
+                if (_type == NO_TYPE) {
+                    _source = _adapters[dom].getAxisIterator(_axis);
+                } else if (_axis == Axis.CHILD) {
+                    _source = _adapters[dom].getTypedChildren(_type);
+                } else {
+                    _source = _adapters[dom].getTypedAxisIterator(_axis, _type);
+                }
+            }
+
+            _dtmId = dom;
+            _source.setStartNode(node);
+            return this;
+!!!4633883.java!!!	reset() : DTMAxisIterator
+            if (_source != null) {
+                _source.reset();
+            }
+            return this;
+!!!4634011.java!!!	getLast() : int
+            if (_source != null) {
+                return _source.getLast();
+            }
+            else {
+                return END;
+            }
+!!!4634139.java!!!	getPosition() : int
+            if (_source != null) {
+                return _source.getPosition();
+            }
+            else {
+                return END;
+            }
+!!!4634267.java!!!	isReverse() : boolean
+	    return Axis.isReverse[_axis];
+!!!4634395.java!!!	setMark() : void
+            if (_source != null) {
+                _source.setMark();
+            }
+!!!4634523.java!!!	gotoMark() : void
+            if (_source != null) {
+                _source.gotoMark();
+            }
+!!!4634651.java!!!	cloneIterator() : DTMAxisIterator
+            final AxisIterator clone = new AxisIterator(_axis, _type);
+            if (_source != null) {
+                clone._source = _source.cloneIterator();
+            }
+            clone._dtmId = _dtmId;
+            return clone;

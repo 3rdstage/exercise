@@ -1,0 +1,155 @@
+class Handler
+!!!2799515.java!!!	mouseWheelMoved(inout e : MouseWheelEvent) : void
+            if (scrollpane.isWheelScrollingEnabled() &&
+                e.getScrollAmount() != 0) {
+                JScrollBar toScroll = scrollpane.getVerticalScrollBar();
+                int direction = 0;
+                // find which scrollbar to scroll, or return if none
+                if (toScroll == null || !toScroll.isVisible()) { 
+                    toScroll = scrollpane.getHorizontalScrollBar();
+                    if (toScroll == null || !toScroll.isVisible()) { 
+                        return;
+                    }
+                }
+                direction = e.getWheelRotation() < 0 ? -1 : 1;
+                if (e.getScrollType() == MouseWheelEvent.WHEEL_UNIT_SCROLL) {
+                    BasicScrollBarUI.scrollByUnits(toScroll, direction,
+                                                         e.getScrollAmount());
+                }
+                else if (e.getScrollType() ==
+                         MouseWheelEvent.WHEEL_BLOCK_SCROLL) {
+                    BasicScrollBarUI.scrollByBlock(toScroll, direction);
+                }
+            }
+!!!2799643.java!!!	stateChanged(inout e : ChangeEvent) : void
+            JViewport viewport = scrollpane.getViewport();
+
+            if (viewport != null) {
+                if (e.getSource() == viewport) {
+                    viewportStateChanged(e);
+                }
+                else {
+                    JScrollBar hsb = scrollpane.getHorizontalScrollBar();
+                    if (hsb != null && e.getSource() == hsb.getModel()) {
+                        hsbStateChanged(viewport, e);
+                    }
+                    else {
+                        JScrollBar vsb = scrollpane.getVerticalScrollBar();
+                        if (vsb != null && e.getSource() == vsb.getModel()) {
+                            vsbStateChanged(viewport, e);
+                        }
+                    }
+                }
+            }
+!!!2799771.java!!!	vsbStateChanged(inout viewport : JViewport, inout e : ChangeEvent) : void
+            BoundedRangeModel model = (BoundedRangeModel)(e.getSource());
+            Point p = viewport.getViewPosition();
+            p.y = model.getValue();
+            viewport.setViewPosition(p);
+!!!2799899.java!!!	hsbStateChanged(inout viewport : JViewport, inout e : ChangeEvent) : void
+            BoundedRangeModel model = (BoundedRangeModel)(e.getSource());
+            Point p = viewport.getViewPosition();
+            int value = model.getValue();
+            if (scrollpane.getComponentOrientation().isLeftToRight()) {
+                p.x = value;
+            } else {
+                int max = viewport.getViewSize().width;
+                int extent = viewport.getExtentSize().width;
+                int oldX = p.x;
+
+                /* Set new X coordinate based on "value".
+                 */
+                p.x = max - extent - value;
+
+                /* If setValue() was called before "extent" was fixed,
+                 * turn setValueCalled flag on.
+                 */
+                if ((extent == 0) && (value != 0) && (oldX == max)) {
+                    setValueCalled = true;
+                } else {
+                    /* When a pane without a horizontal scroll bar was
+                     * reduced and the bar appeared, the viewport should
+                     * show the right side of the view.
+                     */
+                    if ((extent != 0) && (oldX < 0) && (p.x == 0)) {
+                        p.x += value;
+                    }
+                }
+            }
+            viewport.setViewPosition(p);
+!!!2800027.java!!!	viewportStateChanged(inout e : ChangeEvent) : void
+            syncScrollPaneWithViewport();
+!!!2800155.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+            if (e.getSource() == scrollpane) {
+                scrollPanePropertyChange(e);
+            }
+            else {
+                sbPropertyChange(e);
+            }
+!!!2800283.java!!!	scrollPanePropertyChange(inout e : PropertyChangeEvent) : void
+            String propertyName = e.getPropertyName();
+
+	    if (propertyName == "verticalScrollBarDisplayPolicy") {
+		updateScrollBarDisplayPolicy(e);
+	    }
+	    else if (propertyName == "horizontalScrollBarDisplayPolicy") {
+		updateScrollBarDisplayPolicy(e);
+	    }
+	    else if (propertyName == "viewport") {
+		updateViewport(e);
+	    }
+	    else if (propertyName == "rowHeader") {
+		updateRowHeader(e);
+	    }
+	    else if (propertyName == "columnHeader") {
+		updateColumnHeader(e);
+	    }
+	    else if (propertyName == "verticalScrollBar") {
+		updateVerticalScrollBar(e);
+	    }
+	    else if (propertyName == "horizontalScrollBar") {
+		updateHorizontalScrollBar(e);
+	    }
+	    else if (propertyName == "componentOrientation") {
+		scrollpane.revalidate();
+		scrollpane.repaint();
+	    }
+!!!2800411.java!!!	sbPropertyChange(inout e : PropertyChangeEvent) : void
+            String propertyName = e.getPropertyName();
+            Object source = e.getSource();
+
+            if ("model" == propertyName) {
+                JScrollBar sb = scrollpane.getVerticalScrollBar();
+                BoundedRangeModel oldModel = (BoundedRangeModel)e.
+                                     getOldValue();
+                ChangeListener cl = null;
+
+                if (source == sb) {
+                    cl = vsbChangeListener;
+                }
+                else if (source == scrollpane.getHorizontalScrollBar()) {
+                    sb = scrollpane.getHorizontalScrollBar();
+                    cl = hsbChangeListener;
+                }
+                if (cl != null) {
+                    if (oldModel != null) {
+                        oldModel.removeChangeListener(cl);
+                    }
+                    if (sb.getModel() != null) {
+                        sb.getModel().addChangeListener(cl);
+                    }
+                }
+            }
+            else if ("componentOrientation" == propertyName) {
+                if (source == scrollpane.getHorizontalScrollBar()) {
+		    JScrollBar hsb = scrollpane.getHorizontalScrollBar();
+ 		    JViewport viewport = scrollpane.getViewport();
+                    Point p = viewport.getViewPosition();
+                    if (scrollpane.getComponentOrientation().isLeftToRight()) {
+                        p.x = hsb.getValue();
+                    } else {
+                        p.x = viewport.getViewSize().width - viewport.getExtentSize().width - hsb.getValue();
+                    }
+                    viewport.setViewPosition(p);
+                }
+            }

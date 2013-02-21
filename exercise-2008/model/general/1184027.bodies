@@ -1,0 +1,59 @@
+class SynthPanelUI
+!!!9701659.java!!!	createUI(inout c : JComponent) : ComponentUI
+        return new SynthPanelUI();
+!!!9701787.java!!!	installUI(inout c : JComponent) : void
+        JPanel p = (JPanel)c;
+
+        super.installUI(c);
+        installListeners(p);
+!!!9701915.java!!!	uninstallUI(inout c : JComponent) : void
+        JPanel p = (JPanel)c;
+
+        uninstallListeners(p);
+        super.uninstallUI(c);
+!!!9702043.java!!!	installListeners(inout p : JPanel) : void
+        p.addPropertyChangeListener(this);
+!!!9702171.java!!!	uninstallListeners(inout p : JPanel) : void
+        p.removePropertyChangeListener(this);
+!!!9702299.java!!!	installDefaults(inout p : JPanel) : void
+        updateStyle(p);
+!!!9702427.java!!!	uninstallDefaults(inout p : JPanel) : void
+        SynthContext context = getContext(p, ENABLED);
+
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+!!!9702555.java!!!	updateStyle(inout c : JPanel) : void
+        SynthContext context = getContext(c, ENABLED);
+        style = SynthLookAndFeel.updateStyle(context, this);
+        context.dispose();
+!!!9702683.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9702811.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c,
+                    SynthLookAndFeel.getRegion(c), style, state);
+!!!9702939.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9703067.java!!!	getComponentState(inout c : JComponent) : int
+        return SynthLookAndFeel.getComponentState(c);
+!!!9703195.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintPanelBackground(context,
+                          g, 0, 0, c.getWidth(), c.getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9703323.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9703451.java!!!	paint(inout context : SynthContext, inout g : Graphics) : void
+        // do actual painting
+!!!9703579.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        context.getPainter().paintPanelBorder(context, g, x, y, w, h);
+!!!9703707.java!!!	propertyChange(inout pce : PropertyChangeEvent) : void
+        if (SynthLookAndFeel.shouldUpdateStyle(pce)) {
+            updateStyle((JPanel)pce.getSource());
+        }

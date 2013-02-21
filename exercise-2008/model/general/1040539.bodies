@@ -1,0 +1,161 @@
+class TabularType
+!!!8362651.java!!!	TabularType(in typeName : String, in description : String, inout rowType : CompositeType, in indexNames : String)
+	
+	// Check and initialize state defined by parent.
+	//
+	super(TabularData.class.getName(), typeName, description);
+	
+	// Check rowType is not null
+	//
+	if (rowType == null) {
+	    throw new IllegalArgumentException("Argument rowType cannot be null.");
+	}	
+
+	// Check indexNames is neither null nor empty and does not contain any null element or empty string
+	//
+	checkForNullElement(indexNames, "indexNames");
+	checkForEmptyString(indexNames, "indexNames");
+
+	// Check all indexNames values are valid item names for rowType
+	//
+	for (int i=0; i<indexNames.length; i++) {
+	    if ( ! rowType.containsKey(indexNames[i]) ) {
+		throw new OpenDataException("Argument's element value indexNames["+ i +"]=\""+ indexNames[i] +
+					    "\" is not a valid item name for rowType.");
+	    }	
+	}
+	
+	// initialize rowType 
+	//
+	this.rowType    = rowType;
+
+	// initialize indexNames 
+	// (copy content so that subsequent modif to the array referenced by the indexNames parameter have no impact)
+	//
+	ArrayList tmpList = new ArrayList(indexNames.length + 1);
+	for (int i=0; i<indexNames.length; i++) {
+	    tmpList.add(indexNames[i]);
+	}
+	this.indexNames = Collections.unmodifiableList(tmpList);
+!!!8362779.java!!!	checkForNullElement(inout arg : Object, in argName : String) : void
+	if ( (arg == null) || (arg.length == 0) ) {
+	    throw new IllegalArgumentException("Argument "+ argName +"[] cannot be null or empty.");
+	}
+	for (int i=0; i<arg.length; i++) {
+	    if (arg[i] == null) {
+		throw new IllegalArgumentException("Argument's element "+ argName +"["+ i +"] cannot be null.");
+	    }
+	}
+!!!8362907.java!!!	checkForEmptyString(in arg : String, in argName : String) : void
+	for (int i=0; i<arg.length; i++) {
+	    if (arg[i].trim().equals("")) {
+		throw new IllegalArgumentException("Argument's element "+ argName +"["+ i +"] cannot be an empty string.");
+	    }
+	}
+!!!8363035.java!!!	getRowType() : CompositeType
+
+	return rowType;
+!!!8363163.java!!!	getIndexNames() : List
+
+	return indexNames;
+!!!8363291.java!!!	isValue(inout obj : Object) : boolean
+
+	// if obj is null, return false
+	//
+	if (obj == null) {
+	    return false;
+	}
+
+	// if obj is not a TabularData, return false
+	//
+	TabularData value;
+	try {
+	    value = (TabularData) obj;
+	} catch (ClassCastException e) {
+	    return false;
+	}
+
+	// test value's TabularType for equality with this TabularType instance
+	//
+	return this.equals(value.getTabularType());
+!!!8363419.java!!!	equals(inout obj : Object) : boolean
+
+	// if obj is null, return false
+	//
+	if (obj == null) {
+	    return false;
+	}
+
+	// if obj is not a TabularType, return false
+	//
+	TabularType other;
+	try {
+	    other = (TabularType) obj;
+	} catch (ClassCastException e) {
+	    return false;
+	}
+
+	// Now, really test for equality between this TabularType instance and the other:
+	//
+	
+	// their names should be equal
+	if ( ! this.getTypeName().equals(other.getTypeName()) ) {
+	    return false;
+	}
+
+	// their row types should be equal
+	if ( ! this.rowType.equals(other.rowType) ) {
+	    return false;
+	}
+
+	// their index names should be equal and in the same order (ensured by List.equals())
+	if ( ! this.indexNames.equals(other.indexNames) ) {
+	    return false;
+	}
+
+	// All tests for equality were successfull
+	//
+	return true;
+!!!8363547.java!!!	hashCode() : int
+
+	// Calculate the hash code value if it has not yet been done (ie 1st call to hashCode())
+	//
+	if (myHashCode == null) {
+	    int value = 0;
+	    value += this.getTypeName().hashCode();
+	    value += this.rowType.hashCode();
+	    for (Iterator k = indexNames.iterator(); k.hasNext();  ) {
+		value += k.next().hashCode();
+	    }
+	    myHashCode = new Integer(value);
+	}
+	
+	// return always the same hash code for this instance (immutable)
+	//
+	return myHashCode.intValue();
+!!!8363675.java!!!	toString() : String
+
+	// Calculate the string representation if it has not yet been done (ie 1st call to toString())
+	//
+	if (myToString == null) {
+	    StringBuffer result = new StringBuffer()
+		.append(this.getClass().getName())
+		.append("(name=")
+		.append(getTypeName())
+		.append(",rowType=")
+		.append(rowType.toString())
+		.append(",indexNames=(");
+	    int i=0;
+	    Iterator k = indexNames.iterator();
+	    while( k.hasNext() ) {
+		if (i > 0) result.append(",");
+		result.append(k.next().toString());
+		i++;
+	    }
+	    result.append("))");
+	    myToString = result.toString();
+	}
+
+	// return always the same string representation for this instance (immutable)
+	//
+	return myToString;

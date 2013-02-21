@@ -1,0 +1,34 @@
+class WeakPCL
+!!!2269851.java!!!	WeakPCL(inout target : Object, inout kit : Toolkit, in key : String)
+            super(target, queue);
+            this.kit = kit;
+            this.key = key;
+!!!2269979.java!!!	getKey() : String
+ return key;
+!!!2270107.java!!!	propertyChange(in pce : PropertyChangeEvent) : void
+            final GTKLookAndFeel lnf = (GTKLookAndFeel)get();
+
+            if (lnf == null || UIManager.getLookAndFeel() != lnf) { 
+                // The property was GC'ed, we're no longer interested in
+                // PropertyChanges, remove the listener.
+                dispose();
+            }
+            else {
+                // We are using invokeLater here because we are getting called
+                // on the AWT-Motif thread which can cause a deadlock.
+                SwingUtilities.invokeLater(new Runnable() {
+                    public void run() {
+                        if ("gnome.Xft/Antialias".equals(
+                                                  pce.getPropertyName())) {
+                            updateAAText();
+                        }
+                        lnf.loadStylesFromThemeFiles();
+                        Frame appFrames[] = Frame.getFrames();
+                        for (int i = 0; i < appFrames.length; i++) {
+                            SynthLookAndFeel.updateStyles(appFrames[i]);
+                        }
+                    }
+                });
+            }
+!!!2270235.java!!!	dispose() : void
+            kit.removePropertyChangeListener(key, this);

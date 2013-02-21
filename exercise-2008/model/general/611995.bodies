@@ -1,0 +1,23 @@
+class ExceptionHandlers
+!!!3928347.java!!!	ExceptionHandlers(inout mg : MethodGen)
+		exceptionhandlers = new Hashtable();
+		CodeExceptionGen[] cegs = mg.getExceptionHandlers();
+		for (int i=0; i<cegs.length; i++){
+			ExceptionHandler eh = new ExceptionHandler(cegs[i].getCatchType(), cegs[i].getHandlerPC());
+			for (InstructionHandle ih=cegs[i].getStartPC(); ih != cegs[i].getEndPC().getNext(); ih=ih.getNext()){
+				HashSet hs;
+				hs = (HashSet) exceptionhandlers.get(ih);
+				if (hs == null){
+					hs = new HashSet();
+					exceptionhandlers.put(ih, hs);
+				}
+				hs.add(eh);
+			}
+		}
+!!!3928475.java!!!	getExceptionHandlers(inout ih : InstructionHandle) : ExceptionHandler
+		HashSet hs = (HashSet) exceptionhandlers.get(ih);
+		if (hs == null) return new ExceptionHandler[0];
+		else{
+			ExceptionHandler[] ret = new ExceptionHandler[hs.size()];
+			return (ExceptionHandler[]) (hs.toArray(ret));
+		}

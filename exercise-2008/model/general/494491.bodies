@@ -1,0 +1,78 @@
+class WindowsToggleButtonUI
+!!!3044891.java!!!	createUI(inout b : JComponent) : ComponentUI
+	return windowsToggleButtonUI;
+!!!3045019.java!!!	installDefaults(inout b : AbstractButton) : void
+	super.installDefaults(b);
+	if(!defaults_initialized) {
+	    String pp = getPropertyPrefix();
+	    dashedRectGapX = ((Integer)UIManager.get("Button.dashedRectGapX")).intValue();
+	    dashedRectGapY = ((Integer)UIManager.get("Button.dashedRectGapY")).intValue();
+	    dashedRectGapWidth = ((Integer)UIManager.get("Button.dashedRectGapWidth")).intValue();
+	    dashedRectGapHeight = ((Integer)UIManager.get("Button.dashedRectGapHeight")).intValue();
+	    focusColor = UIManager.getColor(pp + "focus");
+	    defaults_initialized = true;
+	}
+
+	XPStyle xp = XPStyle.getXP();
+	if (xp != null) {
+	    b.setBorder(xp.getBorder(b, WindowsButtonUI.getXPButtonType(b)));
+	    LookAndFeel.installProperty(b, "opaque", Boolean.FALSE);
+	    LookAndFeel.installProperty(b, "rolloverEnabled", Boolean.TRUE);
+	}
+!!!3045147.java!!!	uninstallDefaults(inout b : AbstractButton) : void
+	super.uninstallDefaults(b);
+	defaults_initialized = false;
+!!!3045275.java!!!	getFocusColor() : Color
+	return focusColor;
+!!!3045403.java!!!	paintButtonPressed(inout g : Graphics, inout b : AbstractButton) : void
+        if (XPStyle.getXP() == null &&
+	    b.isContentAreaFilled() && 
+	    !(b.getBorder() instanceof UIResource)) {
+	    // This is a special case in which the toggle button in the
+	    // Rollover JToolBar will render the button in a pressed state
+	    Color oldColor = g.getColor();
+
+            int w = b.getWidth();
+	    int h = b.getHeight();
+	    UIDefaults table = UIManager.getLookAndFeelDefaults();
+
+	    Color shade = table.getColor("ToggleButton.shadow");
+	    Component p = b.getParent();
+	    if (p != null && p.getBackground().equals(shade)) {
+		shade = table.getColor("ToggleButton.darkShadow");
+	    }
+	    g.setColor(shade);
+	    g.drawRect(0, 0, w-1, h-1);
+	    g.setColor(table.getColor("ToggleButton.highlight"));
+	    g.drawLine(w-1, 0, w-1, h-1);
+	    g.drawLine(0, h-1, w-1, h-1);
+	    g.setColor(oldColor);
+	}
+!!!3045531.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+	if (XPStyle.getXP() != null) {
+	    WindowsButtonUI.paintXPButtonBackground(g, c);
+	}
+	super.paint(g, c);
+!!!3045659.java!!!	paintText(inout g : Graphics, inout b : AbstractButton, inout textRect : Rectangle, in text : String) : void
+	WindowsGraphicsUtils.paintText(g, b, textRect, text, getTextShiftOffset());
+!!!3045787.java!!!	paintFocus(inout g : Graphics, inout b : AbstractButton, inout viewRect : Rectangle, inout textRect : Rectangle, inout iconRect : Rectangle) : void
+	if (b.getParent() instanceof JToolBar) {
+	    // Windows doesn't draw the focus rect for buttons in a toolbar.
+	    return;
+	}
+	g.setColor(getFocusColor());
+	BasicGraphicsUtils.drawDashedRect(g, dashedRectGapX, dashedRectGapY,
+					  b.getWidth() - dashedRectGapWidth,
+					  b.getHeight() - dashedRectGapHeight);
+!!!3045915.java!!!	getPreferredSize(inout c : JComponent) : Dimension
+	Dimension d = super.getPreferredSize(c);
+
+	/* Ensure that the width and height of the button is odd,
+	 * to allow for the focus line if focus is painted
+	 */
+        AbstractButton b = (AbstractButton)c;
+	if (d != null && b.isFocusPainted()) {
+	    if(d.width % 2 == 0) { d.width += 1; }
+	    if(d.height % 2 == 0) { d.height += 1; }
+	}
+	return d;

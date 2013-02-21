@@ -1,0 +1,124 @@
+class lr_item_core
+!!!3072411.java!!!	lr_item_core(inout prod : production, in pos : int)
+      symbol          after_dot = null;
+      production_part part;
+
+      if (prod == null)
+	throw new internal_error(
+	  "Attempt to create an lr_item_core with a null production");
+
+      _the_production = prod;
+
+      if (pos < 0 || pos > _the_production.rhs_length())
+	throw new internal_error(
+	  "Attempt to create an lr_item_core with a bad dot position");
+
+      _dot_pos = pos;
+
+      /* compute and cache hash code now */
+      _core_hash_cache = 13*_the_production.hashCode() + pos;
+
+      /* cache the symbol after the dot */
+      if (_dot_pos < _the_production.rhs_length())
+	{
+	  part = _the_production.rhs(_dot_pos);
+	  if (!part.is_action())
+	    _symbol_after_dot = ((symbol_part)part).the_symbol();
+	}
+!!!3072539.java!!!	lr_item_core(inout prod : production)
+      this(prod,0);
+!!!3072667.java!!!	the_production() : production
+return _the_production;
+!!!3072795.java!!!	dot_pos() : int
+return _dot_pos;
+!!!3072923.java!!!	dot_at_end() : boolean
+       return _dot_pos >= _the_production.rhs_length();
+!!!3073051.java!!!	symbol_after_dot() : symbol
+      /* use the cached symbol */
+      return _symbol_after_dot;
+!!!3073179.java!!!	dot_before_nt() : non_terminal
+      symbol sym;
+
+      /* get the symbol after the dot */
+      sym = symbol_after_dot();
+
+      /* if it exists and is a non terminal, return it */
+      if (sym != null && sym.is_non_term())
+	return (non_terminal)sym;
+      else
+	return null;
+!!!3073307.java!!!	shift_core() : lr_item_core
+      if (dot_at_end()) 
+	throw new internal_error(
+	  "Attempt to shift past end of an lr_item_core");
+
+      return new lr_item_core(_the_production, _dot_pos+1);
+!!!3073435.java!!!	core_equals(inout other : lr_item_core) : boolean
+      return other != null && 
+	     _the_production.equals(other._the_production) && 
+	     _dot_pos == other._dot_pos;
+!!!3073563.java!!!	equals(inout other : lr_item_core) : boolean
+return core_equals(other);
+!!!3073691.java!!!	equals(inout other : Object) : boolean
+      if (!(other instanceof lr_item_core))
+	return false;
+      else
+	return equals((lr_item_core)other);
+!!!3073819.java!!!	core_hashCode() : int
+      return _core_hash_cache;
+!!!3073947.java!!!	hashCode() : int
+      return _core_hash_cache;
+!!!3074075.java!!!	obj_hash() : int
+      return super.hashCode();
+!!!3074203.java!!!	to_simple_string() : String
+      String result;
+      production_part part;
+
+      if (_the_production.lhs() != null && 
+	  _the_production.lhs().the_symbol() != null &&
+	  _the_production.lhs().the_symbol().name() != null)
+	result = _the_production.lhs().the_symbol().name();
+      else
+	result = "$$NULL$$";
+
+      result += " ::= ";
+
+      for (int i = 0; i<_the_production.rhs_length(); i++)
+	{
+	  /* do we need the dot before this one? */
+	  if (i == _dot_pos)
+	    result += "(*) ";
+	  
+	  /* print the name of the part */
+	  if (_the_production.rhs(i) == null)
+	    {
+	      result += "$$NULL$$ ";
+	    }
+	  else
+	    {
+	      part = _the_production.rhs(i);
+	      if (part == null)
+		result += "$$NULL$$ ";
+	      else if (part.is_action())
+		result += "{ACTION} ";
+	      else if (((symbol_part)part).the_symbol() != null &&
+                       ((symbol_part)part).the_symbol().name() != null)
+		result += ((symbol_part)part).the_symbol().name() + " ";
+	      else
+		result += "$$NULL$$ ";
+	    }
+	}
+
+      /* put the dot after if needed */
+      if (_dot_pos == _the_production.rhs_length())
+	result += "(*) ";
+
+      return result;
+!!!3074331.java!!!	toString() : String
+      /* can't throw here since super class doesn't, so we crash instead */
+      try {
+        return to_simple_string();
+      } catch(internal_error e) {
+	e.crash();
+	return null;
+      }

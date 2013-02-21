@@ -1,0 +1,118 @@
+class MatteBorder
+!!!9326363.java!!!	MatteBorder(in top : int, in left : int, in bottom : int, in right : int, inout matteColor : Color)
+        super(top, left, bottom, right);
+        this.color = matteColor;
+!!!9326491.java!!!	MatteBorder(inout borderInsets : Insets, inout matteColor : Color)
+        super(borderInsets);
+        this.color = matteColor;
+!!!9326619.java!!!	MatteBorder(in top : int, in left : int, in bottom : int, in right : int, inout tileIcon : Icon)
+        super(top, left, bottom, right);
+        this.tileIcon = tileIcon;
+!!!9326747.java!!!	MatteBorder(inout borderInsets : Insets, inout tileIcon : Icon)
+        super(borderInsets);
+        this.tileIcon = tileIcon;
+!!!9326875.java!!!	MatteBorder(inout tileIcon : Icon)
+        this(-1,-1,-1,-1, tileIcon);
+!!!9327003.java!!!	paintBorder(inout c : Component, inout g : Graphics, in x : int, in y : int, in width : int, in height : int) : void
+        Insets insets = getBorderInsets(c);
+        Color oldColor = g.getColor();
+        g.translate(x, y);
+
+        // If the tileIcon failed loading, paint as gray.
+        if (tileIcon != null) {
+            color = (tileIcon.getIconWidth() == -1) ? Color.gray : null;
+        }
+
+        if (color != null) {
+            g.setColor(color);
+            g.fillRect(0, 0, width - insets.right, insets.top);
+            g.fillRect(0, insets.top, insets.left, height - insets.top);
+            g.fillRect(insets.left, height - insets.bottom, width - insets.left, insets.bottom);
+            g.fillRect(width - insets.right, 0, insets.right, height - insets.bottom);
+
+        } else if (tileIcon != null) {
+
+            int tileW = tileIcon.getIconWidth();
+            int tileH = tileIcon.getIconHeight();
+            int xpos, ypos, startx, starty;
+            Graphics cg;
+
+            // Paint top matte edge
+            cg = g.create();
+            cg.setClip(0, 0, width, insets.top);
+            for (ypos = 0; insets.top - ypos > 0; ypos += tileH) {
+                for (xpos = 0; width - xpos > 0; xpos += tileW) {
+                    tileIcon.paintIcon(c, cg, xpos, ypos);
+                }
+            }
+            cg.dispose();
+
+            // Paint left matte edge
+            cg = g.create();
+            cg.setClip(0, insets.top, insets.left, height - insets.top);
+            starty = insets.top - (insets.top%tileH);
+            startx = 0;
+            for (ypos = starty; height - ypos > 0; ypos += tileH) {
+                for (xpos = startx; insets.left - xpos > 0; xpos += tileW) {
+                    tileIcon.paintIcon(c, cg, xpos, ypos);
+                }
+            }
+            cg.dispose();
+
+            // Paint bottom matte edge
+            cg = g.create();
+            cg.setClip(insets.left, height - insets.bottom, width - insets.left, insets.bottom);
+            starty = (height - insets.bottom) - ((height - insets.bottom)%tileH);
+            startx = insets.left - (insets.left%tileW);
+            for (ypos = starty; height - ypos > 0; ypos += tileH) {
+                for (xpos = startx; width - xpos > 0; xpos += tileW) {
+                    tileIcon.paintIcon(c, cg, xpos, ypos);
+                }
+            }
+            cg.dispose();
+
+            // Paint right matte edge
+            cg = g.create();
+            cg.setClip(width - insets.right, insets.top, insets.right, height - insets.top - insets.bottom);
+            starty = insets.top - (insets.top%tileH);
+            startx = width - insets.right - ((width - insets.right)%tileW);
+            for (ypos = starty; height - ypos > 0; ypos += tileH) {
+                for (xpos = startx; width - xpos > 0; xpos += tileW) {
+                    tileIcon.paintIcon(c, cg, xpos, ypos);
+                }
+            }
+            cg.dispose();
+        }
+        g.translate(-x, -y);
+        g.setColor(oldColor);
+
+!!!9327131.java!!!	getBorderInsets(inout c : Component) : Insets
+        return getBorderInsets();
+!!!9327259.java!!!	getBorderInsets(inout c : Component, inout insets : Insets) : Insets
+        return computeInsets(insets);
+!!!9327387.java!!!	getBorderInsets() : Insets
+        return computeInsets(new Insets(0,0,0,0));
+!!!9327515.java!!!	computeInsets(inout insets : Insets) : Insets
+        if (tileIcon != null && top == -1 && bottom == -1 && 
+            left == -1 && right == -1) {
+            int w = tileIcon.getIconWidth();
+            int h = tileIcon.getIconHeight();
+            insets.top = h;
+            insets.right = w;
+            insets.bottom = h;
+            insets.left = w;
+        } else {
+            insets.left = left;
+            insets.top = top;
+            insets.right = right;
+            insets.bottom = bottom;
+        }
+        return insets;
+!!!9327643.java!!!	getMatteColor() : Color
+        return color;
+!!!9327771.java!!!	getTileIcon() : Icon
+        return tileIcon;
+!!!9327899.java!!!	isBorderOpaque() : boolean
+ 
+        // If a tileIcon is set, then it may contain transparent bits
+        return color != null; 

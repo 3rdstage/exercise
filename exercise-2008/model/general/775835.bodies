@@ -1,0 +1,1892 @@
+class BigInteger
+!!!7151899.java!!!	BigInteger(in val : byte)
+	if (val.length == 0)
+	    throw new NumberFormatException("Zero length BigInteger");
+
+	if (val[0] < 0) {
+            mag = makePositive(val);
+	    signum = -1;
+	} else {
+	    mag = stripLeadingZeroBytes(val);
+	    signum = (mag.length == 0 ? 0 : 1);
+	}
+!!!7152027.java!!!	BigInteger(in val : int)
+	if (val.length == 0)
+	    throw new NumberFormatException("Zero length BigInteger");
+
+	if (val[0] < 0) {
+            mag = makePositive(val);
+	    signum = -1;
+	} else {
+	    mag = trustedStripLeadingZeroInts(val);
+	    signum = (mag.length == 0 ? 0 : 1);
+	}
+!!!7152155.java!!!	BigInteger(in signum : int, in magnitude : byte)
+	this.mag = stripLeadingZeroBytes(magnitude);
+
+	if (signum < -1 || signum > 1)
+	    throw(new NumberFormatException("Invalid signum value"));
+
+	if (this.mag.length==0) {
+	    this.signum = 0;
+	} else {
+	    if (signum == 0)
+		throw(new NumberFormatException("signum-magnitude mismatch"));
+	    this.signum = signum;
+	}
+!!!7152283.java!!!	BigInteger(in signum : int, in magnitude : int)
+	this.mag = stripLeadingZeroInts(magnitude);
+
+	if (signum < -1 || signum > 1)
+	    throw(new NumberFormatException("Invalid signum value"));
+
+	if (this.mag.length==0) {
+	    this.signum = 0;
+	} else {
+	    if (signum == 0)
+		throw(new NumberFormatException("signum-magnitude mismatch"));
+	    this.signum = signum;
+	}
+!!!7152411.java!!!	BigInteger(in val : String, in radix : int)
+	int cursor = 0, numDigits;
+        int len = val.length();
+
+	if (radix < Character.MIN_RADIX || radix > Character.MAX_RADIX)
+	    throw new NumberFormatException("Radix out of range");
+	if (val.length() == 0)
+	    throw new NumberFormatException("Zero length BigInteger");
+
+	// Check for minus sign
+	signum = 1;
+        int index = val.lastIndexOf("-");
+        if (index != -1) {
+            if (index == 0) {
+                if (val.length() == 1)
+                    throw new NumberFormatException("Zero length BigInteger");
+                signum = -1;
+                cursor = 1;
+            } else {
+                throw new NumberFormatException("Illegal embedded minus sign");
+            }
+        }
+
+        // Skip leading zeros and compute number of digits in magnitude
+	while (cursor < len &&
+               Character.digit(val.charAt(cursor),radix) == 0)
+	    cursor++;
+	if (cursor == len) {
+	    signum = 0;
+	    mag = ZERO.mag;
+	    return;
+	} else {
+	    numDigits = len - cursor;
+	}
+
+        // Pre-allocate array of expected size. May be too large but can
+        // never be too small. Typically exact.
+        int numBits = (int)(((numDigits * bitsPerDigit[radix]) >>> 10) + 1);
+        int numWords = (numBits + 31) /32;
+        mag = new int[numWords];
+
+	// Process first (potentially short) digit group
+	int firstGroupLen = numDigits % digitsPerInt[radix];
+	if (firstGroupLen == 0)
+	    firstGroupLen = digitsPerInt[radix];
+	String group = val.substring(cursor, cursor += firstGroupLen);
+        mag[mag.length - 1] = Integer.parseInt(group, radix);
+	if (mag[mag.length - 1] < 0)
+	    throw new NumberFormatException("Illegal digit");
+        
+	// Process remaining digit groups
+        int superRadix = intRadix[radix];
+        int groupVal = 0;
+	while (cursor < val.length()) {
+	    group = val.substring(cursor, cursor += digitsPerInt[radix]);
+	    groupVal = Integer.parseInt(group, radix);
+	    if (groupVal < 0)
+		throw new NumberFormatException("Illegal digit");
+            destructiveMulAdd(mag, superRadix, groupVal);
+	}
+        // Required for cases where the array was overallocated.
+        mag = trustedStripLeadingZeroInts(mag);
+!!!7152539.java!!!	BigInteger(in val : char)
+        int cursor = 0, numDigits;
+        int len = val.length;
+
+	// Check for leading minus sign
+	signum = 1;
+	if (val[0] == '-') {
+	    if (len == 1)
+		throw new NumberFormatException("Zero length BigInteger");
+	    signum = -1;
+	    cursor = 1;
+	}
+
+        // Skip leading zeros and compute number of digits in magnitude
+	while (cursor < len && Character.digit(val[cursor], 10) == 0)
+	    cursor++;
+	if (cursor == len) {
+	    signum = 0;
+	    mag = ZERO.mag;
+	    return;
+	} else {
+	    numDigits = len - cursor;
+	}
+
+        // Pre-allocate array of expected size
+        int numWords;
+        if (len < 10) {
+            numWords = 1;
+        } else {    
+            int numBits = (int)(((numDigits * bitsPerDigit[10]) >>> 10) + 1);
+            numWords = (numBits + 31) /32;
+        }
+        mag = new int[numWords];
+ 
+	// Process first (potentially short) digit group
+	int firstGroupLen = numDigits % digitsPerInt[10];
+	if (firstGroupLen == 0)
+	    firstGroupLen = digitsPerInt[10];
+        mag[mag.length-1] = parseInt(val, cursor,  cursor += firstGroupLen);
+        
+	// Process remaining digit groups
+	while (cursor < len) {
+	    int groupVal = parseInt(val, cursor, cursor += digitsPerInt[10]);
+            destructiveMulAdd(mag, intRadix[10], groupVal);
+	}
+        mag = trustedStripLeadingZeroInts(mag);
+!!!7152667.java!!!	parseInt(in source : char, in start : int, in end : int) : int
+        int result = Character.digit(source[start++], 10);
+        if (result == -1)
+            throw new NumberFormatException(new String(source));
+
+        for (int index = start; index<end; index++) {
+            int nextVal = Character.digit(source[index], 10);
+            if (nextVal == -1)
+                throw new NumberFormatException(new String(source));
+            result = 10*result + nextVal;
+        }
+
+        return result;
+!!!7152795.java!!!	destructiveMulAdd(in x : int, in y : int, in z : int) : void
+        // Perform the multiplication word by word
+        long ylong = y & LONG_MASK;
+        long zlong = z & LONG_MASK;
+        int len = x.length;
+
+        long product = 0;
+        long carry = 0;
+        for (int i = len-1; i >= 0; i--) {
+            product = ylong * (x[i] & LONG_MASK) + carry;
+            x[i] = (int)product;
+            carry = product >>> 32;
+        }
+
+        // Perform the addition
+        long sum = (x[len-1] & LONG_MASK) + zlong;
+        x[len-1] = (int)sum;
+        carry = sum >>> 32;
+        for (int i = len-2; i >= 0; i--) {
+            sum = (x[i] & LONG_MASK) + carry;
+            x[i] = (int)sum;
+            carry = sum >>> 32;
+        }
+!!!7152923.java!!!	BigInteger(in val : String)
+	this(val, 10);
+!!!7153051.java!!!	BigInteger(in numBits : int, inout rnd : Random)
+	this(1, randomBits(numBits, rnd));
+!!!7153179.java!!!	randomBits(in numBits : int, inout rnd : Random) : byte
+	if (numBits < 0)
+	    throw new IllegalArgumentException("numBits must be non-negative");
+	int numBytes = (numBits+7)/8;
+	byte[] randomBits = new byte[numBytes];
+
+	// Generate random bytes and mask out any excess bits
+	if (numBytes > 0) {
+	    rnd.nextBytes(randomBits);
+	    int excessBits = 8*numBytes - numBits;
+	    randomBits[0] &= (1 << (8-excessBits)) - 1;
+	}
+	return randomBits;
+!!!7153307.java!!!	BigInteger(in bitLength : int, in certainty : int, inout rnd : Random)
+        BigInteger prime;
+
+	if (bitLength < 2)
+	    throw new ArithmeticException("bitLength < 2");
+        // The cutoff of 95 was chosen empirically for best performance
+        prime = (bitLength < 95 ? smallPrime(bitLength, certainty, rnd)
+                                : largePrime(bitLength, certainty, rnd));
+	signum = 1;
+	mag = prime.mag;
+!!!7153435.java!!!	probablePrime(in bitLength : int, inout rnd : Random) : BigInteger
+	if (bitLength < 2)
+	    throw new ArithmeticException("bitLength < 2");
+
+        // The cutoff of 95 was chosen empirically for best performance
+        return (bitLength < SMALL_PRIME_THRESHOLD ?
+                smallPrime(bitLength, DEFAULT_PRIME_CERTAINTY, rnd) :
+                largePrime(bitLength, DEFAULT_PRIME_CERTAINTY, rnd));
+!!!7153563.java!!!	smallPrime(in bitLength : int, in certainty : int, inout rnd : Random) : BigInteger
+        int magLen = (bitLength + 31) >>> 5;
+        int temp[] = new int[magLen];
+        int highBit = 1 << ((bitLength+31) & 0x1f);  // High bit of high int
+        int highMask = (highBit << 1) - 1;  // Bits to keep in high int
+
+        while(true) {
+            // Construct a candidate
+            for (int i=0; i<magLen; i++)
+                temp[i] = rnd.nextInt();
+            temp[0] = (temp[0] & highMask) | highBit;  // Ensure exact length
+            if (bitLength > 2)
+                temp[magLen-1] |= 1;  // Make odd if bitlen > 2
+
+            BigInteger p = new BigInteger(temp, 1);
+
+            // Do cheap "pre-test" if applicable
+            if (bitLength > 6) {
+                long r = p.remainder(SMALL_PRIME_PRODUCT).longValue();
+                if ((r%3==0)  || (r%5==0)  || (r%7==0)  || (r%11==0) || 
+                    (r%13==0) || (r%17==0) || (r%19==0) || (r%23==0) || 
+                    (r%29==0) || (r%31==0) || (r%37==0) || (r%41==0))
+                    continue; // Candidate is composite; try another
+            }
+            
+            // All candidates of bitLength 2 and 3 are prime by this point
+            if (bitLength < 4)
+                return p;
+
+            // Do expensive test if we survive pre-test (or it's inapplicable)
+            if (p.primeToCertainty(certainty))
+                return p;
+        }
+!!!7153691.java!!!	largePrime(in bitLength : int, in certainty : int, inout rnd : Random) : BigInteger
+        BigInteger p;
+        p = new BigInteger(bitLength, rnd).setBit(bitLength-1);
+        p.mag[p.mag.length-1] &= 0xfffffffe;
+
+        // Use a sieve length likely to contain the next prime number
+        int searchLen = (bitLength / 20) * 64;
+        BitSieve searchSieve = new BitSieve(p, searchLen);
+        BigInteger candidate = searchSieve.retrieve(p, certainty);
+
+        while ((candidate == null) || (candidate.bitLength() != bitLength)) {
+            p = p.add(BigInteger.valueOf(2*searchLen));
+            if (p.bitLength() != bitLength)
+                p = new BigInteger(bitLength, rnd).setBit(bitLength-1);
+            p.mag[p.mag.length-1] &= 0xfffffffe;
+            searchSieve = new BitSieve(p, searchLen);
+            candidate = searchSieve.retrieve(p, certainty);
+        }
+        return candidate;
+!!!7153819.java!!!	nextProbablePrime() : BigInteger
+        if (this.signum < 0)
+            throw new ArithmeticException("start < 0: " + this);
+        
+        // Handle trivial cases
+        if ((this.signum == 0) || this.equals(ONE))
+            return TWO;
+
+        BigInteger result = this.add(ONE);
+
+        // Fastpath for small numbers
+        if (result.bitLength() < SMALL_PRIME_THRESHOLD) {
+ 
+            // Ensure an odd number
+            if (!result.testBit(0))
+                result = result.add(ONE);
+
+            while(true) {
+                // Do cheap "pre-test" if applicable
+                if (result.bitLength() > 6) {
+                    long r = result.remainder(SMALL_PRIME_PRODUCT).longValue();
+                    if ((r%3==0)  || (r%5==0)  || (r%7==0)  || (r%11==0) || 
+                        (r%13==0) || (r%17==0) || (r%19==0) || (r%23==0) || 
+                        (r%29==0) || (r%31==0) || (r%37==0) || (r%41==0)) {
+                        result = result.add(TWO);
+                        continue; // Candidate is composite; try another
+                    }
+                }
+            
+                // All candidates of bitLength 2 and 3 are prime by this point
+                if (result.bitLength() < 4)
+                    return result;
+
+                // The expensive test
+                if (result.primeToCertainty(DEFAULT_PRIME_CERTAINTY))
+                    return result;
+
+                result = result.add(TWO);
+            }
+        }
+
+        // Start at previous even number
+        if (result.testBit(0))
+            result = result.subtract(ONE);
+
+        // Looking for the next large prime
+        int searchLen = (result.bitLength() / 20) * 64;
+
+        while(true) {
+           BitSieve searchSieve = new BitSieve(result, searchLen);
+           BigInteger candidate = searchSieve.retrieve(result,
+                                                     DEFAULT_PRIME_CERTAINTY);
+           if (candidate != null)
+               return candidate;
+           result = result.add(BigInteger.valueOf(2 * searchLen));
+        }
+!!!7153947.java!!!	primeToCertainty(in certainty : int) : boolean
+        int rounds = 0;
+        int n = (Math.min(certainty, Integer.MAX_VALUE-1)+1)/2;
+
+        // The relationship between the certainty and the number of rounds
+        // we perform is given in the draft standard ANSI X9.80, "PRIME
+        // NUMBER GENERATION, PRIMALITY TESTING, AND PRIMALITY CERTIFICATES".
+        int sizeInBits = this.bitLength();
+        if (sizeInBits < 100) {
+            rounds = 50;
+            rounds = n < rounds ? n : rounds;
+            return passesMillerRabin(rounds);
+        }
+
+        if (sizeInBits < 256) {
+            rounds = 27;
+        } else if (sizeInBits < 512) {
+            rounds = 15;
+        } else if (sizeInBits < 768) {
+            rounds = 8;
+        } else if (sizeInBits < 1024) {
+            rounds = 4;
+        } else {
+            rounds = 2;
+        }
+        rounds = n < rounds ? n : rounds;
+
+        return passesMillerRabin(rounds) && passesLucasLehmer();
+!!!7154075.java!!!	passesLucasLehmer() : boolean
+        BigInteger thisPlusOne = this.add(ONE);
+
+        // Step 1
+        int d = 5;
+        while (jacobiSymbol(d, this) != -1) {
+            // 5, -7, 9, -11, ...
+            d = (d<0) ? Math.abs(d)+2 : -(d+2);
+        }
+        
+        // Step 2
+        BigInteger u = lucasLehmerSequence(d, thisPlusOne, this);
+
+        // Step 3
+        return u.mod(this).equals(ZERO);
+!!!7154203.java!!!	jacobiSymbol(in p : int, inout n : BigInteger) : int
+        if (p == 0)
+            return 0;
+
+        // Algorithm and comments adapted from Colin Plumb's C library.
+	int j = 1;
+	int u = n.mag[n.mag.length-1];
+
+        // Make p positive
+        if (p < 0) {
+            p = -p;
+            int n8 = u & 7;
+            if ((n8 == 3) || (n8 == 7))
+                j = -j; // 3 (011) or 7 (111) mod 8
+        }
+
+	// Get rid of factors of 2 in p
+	while ((p & 3) == 0)
+            p >>= 2;
+	if ((p & 1) == 0) {
+            p >>= 1;
+            if (((u ^ (u>>1)) & 2) != 0)
+                j = -j;	// 3 (011) or 5 (101) mod 8
+	}
+	if (p == 1)
+	    return j;
+	// Then, apply quadratic reciprocity
+	if ((p & u & 2) != 0)	// p = u = 3 (mod 4)?
+	    j = -j;
+	// And reduce u mod p
+	u = n.mod(BigInteger.valueOf(p)).intValue();
+
+	// Now compute Jacobi(u,p), u < p
+	while (u != 0) {
+            while ((u & 3) == 0)
+                u >>= 2;
+            if ((u & 1) == 0) {
+                u >>= 1;
+                if (((p ^ (p>>1)) & 2) != 0)
+                    j = -j;	// 3 (011) or 5 (101) mod 8
+            }
+            if (u == 1)
+                return j;
+            // Now both u and p are odd, so use quadratic reciprocity
+            assert (u < p);
+            int t = u; u = p; p = t;
+            if ((u & p & 2) != 0) // u = p = 3 (mod 4)?
+                j = -j;
+            // Now u >= p, so it can be reduced
+            u %= p;
+	}
+	return 0;
+!!!7154331.java!!!	lucasLehmerSequence(in z : int, inout k : BigInteger, inout n : BigInteger) : BigInteger
+        BigInteger d = BigInteger.valueOf(z);
+        BigInteger u = ONE; BigInteger u2;
+        BigInteger v = ONE; BigInteger v2;
+
+        for (int i=k.bitLength()-2; i>=0; i--) {
+            u2 = u.multiply(v).mod(n);
+
+            v2 = v.square().add(d.multiply(u.square())).mod(n);
+            if (v2.testBit(0)) {
+                v2 = n.subtract(v2);
+                v2.signum = - v2.signum;
+            }
+            v2 = v2.shiftRight(1);
+
+            u = u2; v = v2;
+            if (k.testBit(i)) {
+                u2 = u.add(v).mod(n);
+                if (u2.testBit(0)) {
+                    u2 = n.subtract(u2);
+                    u2.signum = - u2.signum;
+                }
+                u2 = u2.shiftRight(1);
+                
+                v2 = v.add(d.multiply(u)).mod(n);
+                if (v2.testBit(0)) {
+                    v2 = n.subtract(v2);
+                    v2.signum = - v2.signum;
+                }
+                v2 = v2.shiftRight(1);
+
+                u = u2; v = v2;
+            }
+        }
+        return u;
+!!!7154459.java!!!	passesMillerRabin(in iterations : int) : boolean
+	// Find a and m such that m is odd and this == 1 + 2**a * m
+        BigInteger thisMinusOne = this.subtract(ONE);
+	BigInteger m = thisMinusOne;
+	int a = m.getLowestSetBit();
+	m = m.shiftRight(a);
+
+	// Do the tests
+        Random rnd = new Random();
+	for (int i=0; i<iterations; i++) {
+	    // Generate a uniform random on (1, this)
+	    BigInteger b;
+	    do {
+		b = new BigInteger(this.bitLength(), rnd);
+	    } while (b.compareTo(ONE) <= 0 || b.compareTo(this) >= 0);
+
+	    int j = 0;
+	    BigInteger z = b.modPow(m, this);
+	    while(!((j==0 && z.equals(ONE)) || z.equals(thisMinusOne))) {
+		if (j>0 && z.equals(ONE) || ++j==a)
+		    return false;
+		z = z.modPow(TWO, this);
+	    }
+	}
+	return true;
+!!!7154587.java!!!	BigInteger(in magnitude : int, in signum : int)
+	this.signum = (magnitude.length==0 ? 0 : signum);
+	this.mag = magnitude;
+!!!7154715.java!!!	BigInteger(in magnitude : byte, in signum : int)
+	this.signum = (magnitude.length==0 ? 0 : signum);
+        this.mag = stripLeadingZeroBytes(magnitude);
+!!!7154843.java!!!	BigInteger(inout val : MutableBigInteger, in sign : int)
+        if (val.offset > 0 || val.value.length != val.intLen) {
+            mag = new int[val.intLen];
+            for(int i=0; i<val.intLen; i++)
+                mag[i] = val.value[val.offset+i];
+        } else {
+            mag = val.value;
+        }
+
+	this.signum = (val.intLen == 0) ? 0 : sign;
+!!!7154971.java!!!	valueOf(in val : long) : BigInteger
+	// If -MAX_CONSTANT < val < MAX_CONSTANT, return stashed constant
+	if (val == 0)
+	    return ZERO;
+	if (val > 0 && val <= MAX_CONSTANT)
+	    return posConst[(int) val];
+	else if (val < 0 && val >= -MAX_CONSTANT)
+	    return negConst[(int) -val];
+
+	return new BigInteger(val);
+!!!7155099.java!!!	BigInteger(in val : long)
+        if (val < 0) {
+            signum = -1;
+            val = -val;
+        } else {
+            signum = 1;
+        }
+
+        int highWord = (int)(val >>> 32);
+        if (highWord==0) {
+            mag = new int[1];
+            mag[0] = (int)val;
+        } else {
+            mag = new int[2];
+            mag[0] = highWord;
+            mag[1] = (int)val;
+        }
+!!!7155227.java!!!	valueOf(in val : int) : BigInteger
+        return (val[0]>0 ? new BigInteger(val, 1) : new BigInteger(val));
+!!!7155355.java!!!	add(inout val : BigInteger) : BigInteger
+        int[] resultMag;
+	if (val.signum == 0)
+            return this;
+	if (signum == 0)
+	    return val;
+	if (val.signum == signum)
+            return new BigInteger(add(mag, val.mag), signum);
+
+        int cmp = intArrayCmp(mag, val.mag);
+        if (cmp==0)
+            return ZERO;
+        resultMag = (cmp>0 ? subtract(mag, val.mag)
+                           : subtract(val.mag, mag));
+        resultMag = trustedStripLeadingZeroInts(resultMag);
+
+        return new BigInteger(resultMag, cmp*signum);
+!!!7155483.java!!!	add(in x : int, in y : int) : int
+        // If x is shorter, swap the two arrays
+        if (x.length < y.length) {
+            int[] tmp = x;
+            x = y;
+            y = tmp;
+        }
+
+        int xIndex = x.length;
+        int yIndex = y.length;
+        int result[] = new int[xIndex];
+        long sum = 0;
+
+        // Add common parts of both numbers
+        while(yIndex > 0) {
+            sum = (x[--xIndex] & LONG_MASK) + 
+                  (y[--yIndex] & LONG_MASK) + (sum >>> 32);
+            result[xIndex] = (int)sum;
+        }
+
+        // Copy remainder of longer number while carry propagation is required
+        boolean carry = (sum >>> 32 != 0);
+        while (xIndex > 0 && carry)
+            carry = ((result[--xIndex] = x[xIndex] + 1) == 0);
+
+        // Copy remainder of longer number
+        while (xIndex > 0)
+            result[--xIndex] = x[xIndex];
+
+        // Grow result if necessary
+        if (carry) {
+            int newLen = result.length + 1;
+            int temp[] = new int[newLen];
+            for (int i = 1; i<newLen; i++)
+                temp[i] = result[i-1];
+            temp[0] = 0x01;
+            result = temp;
+        }
+        return result;
+!!!7155611.java!!!	subtract(inout val : BigInteger) : BigInteger
+        int[] resultMag;
+	if (val.signum == 0)
+            return this;
+	if (signum == 0)
+	    return val.negate();
+	if (val.signum != signum)
+            return new BigInteger(add(mag, val.mag), signum);
+
+        int cmp = intArrayCmp(mag, val.mag);
+        if (cmp==0)
+            return ZERO;
+        resultMag = (cmp>0 ? subtract(mag, val.mag)
+                           : subtract(val.mag, mag));
+        resultMag = trustedStripLeadingZeroInts(resultMag);
+        return new BigInteger(resultMag, cmp*signum);
+!!!7155739.java!!!	subtract(in big : int, in little : int) : int
+        int bigIndex = big.length;
+        int result[] = new int[bigIndex];
+        int littleIndex = little.length;
+        long difference = 0;
+
+        // Subtract common parts of both numbers
+        while(littleIndex > 0) {
+            difference = (big[--bigIndex] & LONG_MASK) - 
+                         (little[--littleIndex] & LONG_MASK) +
+                         (difference >> 32);
+            result[bigIndex] = (int)difference;
+        }
+
+        // Subtract remainder of longer number while borrow propagates
+        boolean borrow = (difference >> 32 != 0);
+        while (bigIndex > 0 && borrow)
+            borrow = ((result[--bigIndex] = big[bigIndex] - 1) == -1);
+
+        // Copy remainder of longer number
+        while (bigIndex > 0)
+            result[--bigIndex] = big[bigIndex];
+
+        return result;
+!!!7155867.java!!!	multiply(inout val : BigInteger) : BigInteger
+        if (signum == 0 || val.signum==0)
+	    return ZERO;
+        
+        int[] result = multiplyToLen(mag, mag.length, 
+                                     val.mag, val.mag.length, null);
+        result = trustedStripLeadingZeroInts(result);
+        return new BigInteger(result, signum*val.signum);
+!!!7155995.java!!!	multiplyToLen(in x : int, in xlen : int, in y : int, in ylen : int, in z : int) : int
+        int xstart = xlen - 1;
+        int ystart = ylen - 1;
+
+        if (z == null || z.length < (xlen+ ylen))
+            z = new int[xlen+ylen];
+
+        long carry = 0;
+        for (int j=ystart, k=ystart+1+xstart; j>=0; j--, k--) {
+            long product = (y[j] & LONG_MASK) *
+                           (x[xstart] & LONG_MASK) + carry;
+            z[k] = (int)product;
+            carry = product >>> 32;
+        }
+        z[xstart] = (int)carry;
+
+        for (int i = xstart-1; i >= 0; i--) {
+            carry = 0;
+            for (int j=ystart, k=ystart+1+i; j>=0; j--, k--) {
+                long product = (y[j] & LONG_MASK) * 
+                               (x[i] & LONG_MASK) + 
+                               (z[k] & LONG_MASK) + carry;
+                z[k] = (int)product;
+                carry = product >>> 32;
+            }
+            z[i] = (int)carry;
+        }
+        return z;
+!!!7156123.java!!!	square() : BigInteger
+        if (signum == 0)
+	    return ZERO;
+        int[] z = squareToLen(mag, mag.length, null);
+        return new BigInteger(trustedStripLeadingZeroInts(z), 1);
+!!!7156251.java!!!	squareToLen(in x : int, in len : int, in z : int) : int
+        /*
+         * The algorithm used here is adapted from Colin Plumb's C library.
+         * Technique: Consider the partial products in the multiplication
+         * of "abcde" by itself:
+         *
+         *               a  b  c  d  e
+         *            *  a  b  c  d  e
+         *          ==================
+         *              ae be ce de ee
+         *           ad bd cd dd de
+         *        ac bc cc cd ce
+         *     ab bb bc bd be
+         *  aa ab ac ad ae
+         *
+         * Note that everything above the main diagonal:
+         *              ae be ce de = (abcd) * e
+         *           ad bd cd       = (abc) * d
+         *        ac bc             = (ab) * c
+         *     ab                   = (a) * b
+         *
+         * is a copy of everything below the main diagonal:
+         *                       de
+         *                 cd ce
+         *           bc bd be
+         *     ab ac ad ae
+         *
+         * Thus, the sum is 2 * (off the diagonal) + diagonal.
+         *
+         * This is accumulated beginning with the diagonal (which
+         * consist of the squares of the digits of the input), which is then
+         * divided by two, the off-diagonal added, and multiplied by two
+         * again.  The low bit is simply a copy of the low bit of the
+         * input, so it doesn't need special care.
+         */
+        int zlen = len << 1;
+        if (z == null || z.length < zlen)
+            z = new int[zlen];
+        
+        // Store the squares, right shifted one bit (i.e., divided by 2)
+        int lastProductLowWord = 0;
+        for (int j=0, i=0; j<len; j++) {
+            long piece = (x[j] & LONG_MASK);
+            long product = piece * piece;
+            z[i++] = (lastProductLowWord << 31) | (int)(product >>> 33);
+            z[i++] = (int)(product >>> 1);
+            lastProductLowWord = (int)product;
+        }
+
+        // Add in off-diagonal sums
+        for (int i=len, offset=1; i>0; i--, offset+=2) {
+            int t = x[i-1];
+            t = mulAdd(z, x, offset, i-1, t);
+            addOne(z, offset-1, i, t);
+        }
+
+        // Shift back up and set low bit
+        primitiveLeftShift(z, zlen, 1);
+        z[zlen-1] |= x[len-1] & 1;
+
+        return z;
+!!!7156379.java!!!	divide(inout val : BigInteger) : BigInteger
+        MutableBigInteger q = new MutableBigInteger(),
+                          r = new MutableBigInteger(),
+                          a = new MutableBigInteger(this.mag),
+                          b = new MutableBigInteger(val.mag);
+
+        a.divide(b, q, r);
+        return new BigInteger(q, this.signum * val.signum);
+!!!7156507.java!!!	divideAndRemainder(inout val : BigInteger) : BigInteger
+        BigInteger[] result = new BigInteger[2];
+        MutableBigInteger q = new MutableBigInteger(),
+                          r = new MutableBigInteger(),
+                          a = new MutableBigInteger(this.mag),
+                          b = new MutableBigInteger(val.mag);
+        a.divide(b, q, r);
+        result[0] = new BigInteger(q, this.signum * val.signum);
+        result[1] = new BigInteger(r, this.signum);
+        return result;
+!!!7156635.java!!!	remainder(inout val : BigInteger) : BigInteger
+        MutableBigInteger q = new MutableBigInteger(),
+                          r = new MutableBigInteger(),
+                          a = new MutableBigInteger(this.mag),
+                          b = new MutableBigInteger(val.mag);
+
+        a.divide(b, q, r);
+        return new BigInteger(r, this.signum);
+!!!7156763.java!!!	pow(in exponent : int) : BigInteger
+	if (exponent < 0)
+	    throw new ArithmeticException("Negative exponent");
+	if (signum==0)
+	    return (exponent==0 ? ONE : this);
+
+	// Perform exponentiation using repeated squaring trick
+        int newSign = (signum<0 && (exponent&1)==1 ? -1 : 1);
+	int[] baseToPow2 = this.mag;
+        int[] result = {1};
+
+	while (exponent != 0) {
+	    if ((exponent & 1)==1) {
+		result = multiplyToLen(result, result.length, 
+                                       baseToPow2, baseToPow2.length, null);
+		result = trustedStripLeadingZeroInts(result);
+	    }
+	    if ((exponent >>>= 1) != 0) {
+                baseToPow2 = squareToLen(baseToPow2, baseToPow2.length, null);
+		baseToPow2 = trustedStripLeadingZeroInts(baseToPow2);
+	    }
+	}
+	return new BigInteger(result, newSign);
+!!!7156891.java!!!	gcd(inout val : BigInteger) : BigInteger
+        if (val.signum == 0)
+	    return this.abs();
+	else if (this.signum == 0)
+	    return val.abs();
+
+        MutableBigInteger a = new MutableBigInteger(this);
+        MutableBigInteger b = new MutableBigInteger(val);
+
+        MutableBigInteger result = a.hybridGCD(b);
+
+        return new BigInteger(result, 1);
+!!!7157019.java!!!	leftShift(in a : int, in len : int, in n : int) : int
+        int nInts = n >>> 5;
+        int nBits = n&0x1F;
+        int bitsInHighWord = bitLen(a[0]);
+        
+        // If shift can be done without recopy, do so
+        if (n <= (32-bitsInHighWord)) {
+            primitiveLeftShift(a, len, nBits);
+            return a;
+        } else { // Array must be resized
+            if (nBits <= (32-bitsInHighWord)) {
+                int result[] = new int[nInts+len];
+                for (int i=0; i<len; i++)
+                    result[i] = a[i];
+                primitiveLeftShift(result, result.length, nBits);
+                return result;
+            } else {
+                int result[] = new int[nInts+len+1];
+                for (int i=0; i<len; i++)
+                    result[i] = a[i];
+                primitiveRightShift(result, result.length, 32 - nBits);
+                return result;
+            }
+        }
+!!!7157147.java!!!	primitiveRightShift(in a : int, in len : int, in n : int) : void
+        int n2 = 32 - n;
+        for (int i=len-1, c=a[i]; i>0; i--) {
+            int b = c;
+            c = a[i-1];
+            a[i] = (c << n2) | (b >>> n);
+        }
+        a[0] >>>= n;
+!!!7157275.java!!!	primitiveLeftShift(in a : int, in len : int, in n : int) : void
+        if (len == 0 || n == 0)
+            return;
+
+        int n2 = 32 - n;
+        for (int i=0, c=a[i], m=i+len-1; i<m; i++) {
+            int b = c;
+            c = a[i+1];
+            a[i] = (b << n) | (c >>> n2);
+        }
+        a[len-1] <<= n;
+!!!7157403.java!!!	bitLength(in val : int, in len : int) : int
+        if (len==0)
+            return 0;
+        return ((len-1)<<5) + bitLen(val[0]);
+!!!7157531.java!!!	abs() : BigInteger
+	return (signum >= 0 ? this : this.negate());
+!!!7157659.java!!!	negate() : BigInteger
+	return new BigInteger(this.mag, -this.signum);
+!!!7157787.java!!!	signum() : int
+	return this.signum;
+!!!7157915.java!!!	mod(inout m : BigInteger) : BigInteger
+	if (m.signum <= 0)
+	    throw new ArithmeticException("BigInteger: modulus not positive");
+
+	BigInteger result = this.remainder(m);
+	return (result.signum >= 0 ? result : result.add(m));
+!!!7158043.java!!!	modPow(inout exponent : BigInteger, inout m : BigInteger) : BigInteger
+	if (m.signum <= 0)
+	    throw new ArithmeticException("BigInteger: modulus not positive");
+
+	// Trivial cases
+	if (exponent.signum == 0)
+            return (m.equals(ONE) ? ZERO : ONE);
+
+        if (this.equals(ONE))
+            return (m.equals(ONE) ? ZERO : ONE);
+
+        if (this.equals(ZERO) && exponent.signum >= 0)
+            return ZERO;
+
+        if (this.equals(negConst[1]) && (!exponent.testBit(0)))
+            return (m.equals(ONE) ? ZERO : ONE);
+            
+	boolean invertResult;
+	if ((invertResult = (exponent.signum < 0)))
+	    exponent = exponent.negate();
+
+	BigInteger base = (this.signum < 0 || this.compareTo(m) >= 0
+			   ? this.mod(m) : this);
+	BigInteger result;
+	if (m.testBit(0)) { // odd modulus
+	    result = base.oddModPow(exponent, m);
+	} else {
+	    /*
+	     * Even modulus.  Tear it into an "odd part" (m1) and power of two
+             * (m2), exponentiate mod m1, manually exponentiate mod m2, and
+             * use Chinese Remainder Theorem to combine results.
+	     */
+
+	    // Tear m apart into odd part (m1) and power of 2 (m2)
+	    int p = m.getLowestSetBit();   // Max pow of 2 that divides m
+
+	    BigInteger m1 = m.shiftRight(p);  // m/2**p
+	    BigInteger m2 = ONE.shiftLeft(p); // 2**p
+
+            // Calculate new base from m1
+            BigInteger base2 = (this.signum < 0 || this.compareTo(m1) >= 0
+                                ? this.mod(m1) : this);
+
+            // Caculate (base ** exponent) mod m1.
+            BigInteger a1 = (m1.equals(ONE) ? ZERO :
+                             base2.oddModPow(exponent, m1));
+
+	    // Calculate (this ** exponent) mod m2
+	    BigInteger a2 = base.modPow2(exponent, p);
+
+	    // Combine results using Chinese Remainder Theorem
+	    BigInteger y1 = m2.modInverse(m1);
+	    BigInteger y2 = m1.modInverse(m2);
+
+	    result = a1.multiply(m2).multiply(y1).add
+		     (a2.multiply(m1).multiply(y2)).mod(m);
+	}
+
+	return (invertResult ? result.modInverse(m) : result);
+!!!7158171.java!!!	oddModPow(inout y : BigInteger, inout z : BigInteger) : BigInteger
+    /*
+     * The algorithm is adapted from Colin Plumb's C library.
+     *
+     * The window algorithm:
+     * The idea is to keep a running product of b1 = n^(high-order bits of exp)
+     * and then keep appending exponent bits to it.  The following patterns
+     * apply to a 3-bit window (k = 3):
+     * To append   0: square
+     * To append   1: square, multiply by n^1
+     * To append  10: square, multiply by n^1, square
+     * To append  11: square, square, multiply by n^3
+     * To append 100: square, multiply by n^1, square, square
+     * To append 101: square, square, square, multiply by n^5
+     * To append 110: square, square, multiply by n^3, square
+     * To append 111: square, square, square, multiply by n^7
+     *
+     * Since each pattern involves only one multiply, the longer the pattern
+     * the better, except that a 0 (no multiplies) can be appended directly.
+     * We precompute a table of odd powers of n, up to 2^k, and can then
+     * multiply k bits of exponent at a time.  Actually, assuming random
+     * exponents, there is on average one zero bit between needs to
+     * multiply (1/2 of the time there's none, 1/4 of the time there's 1,
+     * 1/8 of the time, there's 2, 1/32 of the time, there's 3, etc.), so
+     * you have to do one multiply per k+1 bits of exponent.
+     *
+     * The loop walks down the exponent, squaring the result buffer as
+     * it goes.  There is a wbits+1 bit lookahead buffer, buf, that is
+     * filled with the upcoming exponent bits.  (What is read after the
+     * end of the exponent is unimportant, but it is filled with zero here.)
+     * When the most-significant bit of this buffer becomes set, i.e.
+     * (buf & tblmask) != 0, we have to decide what pattern to multiply
+     * by, and when to do it.  We decide, remember to do it in future
+     * after a suitable number of squarings have passed (e.g. a pattern
+     * of "100" in the buffer requires that we multiply by n^1 immediately;
+     * a pattern of "110" calls for multiplying by n^3 after one more
+     * squaring), clear the buffer, and continue.
+     *
+     * When we start, there is one more optimization: the result buffer
+     * is implcitly one, so squaring it or multiplying by it can be
+     * optimized away.  Further, if we start with a pattern like "100"
+     * in the lookahead window, rather than placing n into the buffer
+     * and then starting to square it, we have already computed n^2
+     * to compute the odd-powers table, so we can place that into
+     * the buffer and save a squaring.
+     *
+     * This means that if you have a k-bit window, to compute n^z,
+     * where z is the high k bits of the exponent, 1/2 of the time
+     * it requires no squarings.  1/4 of the time, it requires 1
+     * squaring, ... 1/2^(k-1) of the time, it reqires k-2 squarings.
+     * And the remaining 1/2^(k-1) of the time, the top k bits are a
+     * 1 followed by k-1 0 bits, so it again only requires k-2
+     * squarings, not k-1.  The average of these is 1.  Add that
+     * to the one squaring we have to do to compute the table,
+     * and you'll see that a k-bit window saves k-2 squarings
+     * as well as reducing the multiplies.  (It actually doesn't
+     * hurt in the case k = 1, either.)
+     */
+        // Special case for exponent of one
+        if (y.equals(ONE))
+            return this;
+
+        // Special case for base of zero
+        if (signum==0)
+            return ZERO;
+
+        int[] base = (int[])mag.clone();
+        int[] exp = y.mag;
+        int[] mod = z.mag;
+        int modLen = mod.length;
+
+        // Select an appropriate window size
+        int wbits = 0;
+        int ebits = bitLength(exp, exp.length);
+	// if exponent is 65537 (0x10001), use minimum window size
+	if ((ebits != 17) || (exp[0] != 65537)) {
+	    while (ebits > bnExpModThreshTable[wbits]) {
+		wbits++;
+	    }
+	}
+
+        // Calculate appropriate table size
+        int tblmask = 1 << wbits;
+        
+        // Allocate table for precomputed odd powers of base in Montgomery form
+        int[][] table = new int[tblmask][];
+        for (int i=0; i<tblmask; i++)
+            table[i] = new int[modLen];
+
+        // Compute the modular inverse
+        int inv = -MutableBigInteger.inverseMod32(mod[modLen-1]);
+
+        // Convert base to Montgomery form
+        int[] a = leftShift(base, base.length, modLen << 5);
+
+        MutableBigInteger q = new MutableBigInteger(),
+                          r = new MutableBigInteger(),
+                          a2 = new MutableBigInteger(a),
+                          b2 = new MutableBigInteger(mod);
+
+        a2.divide(b2, q, r);
+        table[0] = r.toIntArray();
+
+        // Pad table[0] with leading zeros so its length is at least modLen
+        if (table[0].length < modLen) {
+           int offset = modLen - table[0].length;
+           int[] t2 = new int[modLen];
+           for (int i=0; i<table[0].length; i++)
+               t2[i+offset] = table[0][i];
+           table[0] = t2;
+        }
+
+        // Set b to the square of the base
+        int[] b = squareToLen(table[0], modLen, null);
+        b = montReduce(b, mod, modLen, inv);
+
+        // Set t to high half of b
+        int[] t = new int[modLen];
+        for(int i=0; i<modLen; i++)
+            t[i] = b[i];
+
+        // Fill in the table with odd powers of the base        
+        for (int i=1; i<tblmask; i++) {
+            int[] prod = multiplyToLen(t, modLen, table[i-1], modLen, null);
+            table[i] = montReduce(prod, mod, modLen, inv);
+        }
+
+        // Pre load the window that slides over the exponent
+        int bitpos = 1 << ((ebits-1) & (32-1));
+        
+        int buf = 0;
+        int elen = exp.length;
+        int eIndex = 0;
+	for (int i = 0; i <= wbits; i++) {
+            buf = (buf << 1) | (((exp[eIndex] & bitpos) != 0)?1:0);
+            bitpos >>>= 1;
+            if (bitpos == 0) {
+                eIndex++;
+                bitpos = 1 << (32-1);
+                elen--;
+            }
+	}
+
+        int multpos = ebits;
+
+        // The first iteration, which is hoisted out of the main loop
+        ebits--;
+        boolean isone = true;
+
+	multpos = ebits - wbits;
+	while ((buf & 1) == 0) {
+            buf >>>= 1;
+            multpos++;
+	}
+
+	int[] mult = table[buf >>> 1];
+
+	buf = 0;
+        if (multpos == ebits)
+	    isone = false;
+
+        // The main loop
+        while(true) {
+            ebits--;
+            // Advance the window
+            buf <<= 1;
+
+            if (elen != 0) {
+                buf |= ((exp[eIndex] & bitpos) != 0) ? 1 : 0;
+                bitpos >>>= 1;
+                if (bitpos == 0) {
+                    eIndex++;
+                    bitpos = 1 << (32-1);
+                    elen--;
+                }
+            }
+
+            // Examine the window for pending multiplies
+            if ((buf & tblmask) != 0) {
+                multpos = ebits - wbits;
+                while ((buf & 1) == 0) {
+                    buf >>>= 1;
+                    multpos++;
+                }
+                mult = table[buf >>> 1];
+                buf = 0;
+            }
+
+            // Perform multiply
+            if (ebits == multpos) {
+                if (isone) {
+                    b = (int[])mult.clone();
+                    isone = false;
+                } else {
+                    t = b;
+                    a = multiplyToLen(t, modLen, mult, modLen, a);
+                    a = montReduce(a, mod, modLen, inv);
+                    t = a; a = b; b = t;
+                }
+            }
+
+            // Check if done
+            if (ebits == 0)
+                break;
+
+            // Square the input
+            if (!isone) {
+                t = b;
+                a = squareToLen(t, modLen, a);
+                a = montReduce(a, mod, modLen, inv);
+                t = a; a = b; b = t;
+            }
+	}
+
+        // Convert result out of Montgomery form and return
+        int[] t2 = new int[2*modLen];
+        for(int i=0; i<modLen; i++)
+            t2[i+modLen] = b[i];
+
+        b = montReduce(t2, mod, modLen, inv);
+
+        t2 = new int[modLen];
+        for(int i=0; i<modLen; i++)
+            t2[i] = b[i];
+           
+        return new BigInteger(1, t2);
+!!!7158299.java!!!	montReduce(in n : int, in mod : int, in mlen : int, in inv : int) : int
+        int c=0;
+        int len = mlen;
+        int offset=0;
+
+        do {
+            int nEnd = n[n.length-1-offset];
+            int carry = mulAdd(n, mod, offset, mlen, inv * nEnd);
+            c += addOne(n, offset, mlen, carry);
+            offset++;
+        } while(--len > 0);
+        
+        while(c>0)
+            c += subN(n, mod, mlen);
+
+        while (intArrayCmpToLen(n, mod, mlen) >= 0)
+            subN(n, mod, mlen);
+
+        return n;
+!!!7158427.java!!!	intArrayCmpToLen(in arg1 : int, in arg2 : int, in len : int) : int
+	for (int i=0; i<len; i++) {
+	    long b1 = arg1[i] & LONG_MASK;
+	    long b2 = arg2[i] & LONG_MASK;
+	    if (b1 < b2)
+		return -1;
+	    if (b1 > b2)
+		return 1;
+	}
+	return 0;
+!!!7158555.java!!!	subN(in a : int, in b : int, in len : int) : int
+        long sum = 0;
+
+        while(--len >= 0) {
+            sum = (a[len] & LONG_MASK) - 
+                 (b[len] & LONG_MASK) + (sum >> 32);
+            a[len] = (int)sum;
+        }
+
+        return (int)(sum >> 32);
+!!!7158683.java!!!	mulAdd(in out : int, in in : int, in offset : int, in len : int, in k : int) : int
+        long kLong = k & LONG_MASK;
+        long carry = 0;
+
+        offset = out.length-offset - 1;
+        for (int j=len-1; j >= 0; j--) {
+            long product = (in[j] & LONG_MASK) * kLong +
+                           (out[offset] & LONG_MASK) + carry;
+            out[offset--] = (int)product;
+            carry = product >>> 32;
+        }
+        return (int)carry;
+!!!7158811.java!!!	addOne(in a : int, in offset : int, in mlen : int, in carry : int) : int
+        offset = a.length-1-mlen-offset;
+        long t = (a[offset] & LONG_MASK) + (carry & LONG_MASK);
+        
+        a[offset] = (int)t;
+        if ((t >>> 32) == 0)
+            return 0;
+        while (--mlen >= 0) {
+            if (--offset < 0) { // Carry out of number
+                return 1;
+            } else {
+                a[offset]++;
+                if (a[offset] != 0)
+                    return 0;
+            }
+        }
+        return 1;
+!!!7158939.java!!!	modPow2(inout exponent : BigInteger, in p : int) : BigInteger
+	/*
+	 * Perform exponentiation using repeated squaring trick, chopping off
+	 * high order bits as indicated by modulus.
+	 */
+	BigInteger result = valueOf(1);
+	BigInteger baseToPow2 = this.mod2(p);
+        int expOffset = 0;
+
+        int limit = exponent.bitLength();
+
+        if (this.testBit(0))
+           limit = (p-1) < limit ? (p-1) : limit;
+
+	while (expOffset < limit) {
+	    if (exponent.testBit(expOffset))
+		result = result.multiply(baseToPow2).mod2(p);
+            expOffset++;
+	    if (expOffset < limit)
+                baseToPow2 = baseToPow2.square().mod2(p);
+	}
+
+	return result;
+!!!7159067.java!!!	mod2(in p : int) : BigInteger
+	if (bitLength() <= p)
+	    return this;
+
+	// Copy remaining ints of mag
+	int numInts = (p+31)/32;
+	int[] mag = new int[numInts];
+	for (int i=0; i<numInts; i++)
+	    mag[i] = this.mag[i + (this.mag.length - numInts)];
+
+	// Mask out any excess bits
+	int excessBits = (numInts << 5) - p;
+	mag[0] &= (1L << (32-excessBits)) - 1;
+
+	return (mag[0]==0 ? new BigInteger(1, mag) : new BigInteger(mag, 1));
+!!!7159195.java!!!	modInverse(inout m : BigInteger) : BigInteger
+	if (m.signum != 1)
+	    throw new ArithmeticException("BigInteger: modulus not positive");
+
+        if (m.equals(ONE))
+            return ZERO;
+
+	// Calculate (this mod m)
+        BigInteger modVal = this;
+        if (signum < 0 || (intArrayCmp(mag, m.mag) >= 0))
+            modVal = this.mod(m);
+
+        if (modVal.equals(ONE))
+            return ONE;
+
+        MutableBigInteger a = new MutableBigInteger(modVal);
+        MutableBigInteger b = new MutableBigInteger(m);
+  
+        MutableBigInteger result = a.mutableModInverse(b);  
+        return new BigInteger(result, 1);
+!!!7159323.java!!!	shiftLeft(in n : int) : BigInteger
+        if (signum == 0)
+            return ZERO;
+        if (n==0)
+            return this;
+        if (n<0)
+            return shiftRight(-n);
+
+        int nInts = n >>> 5;
+        int nBits = n & 0x1f;
+        int magLen = mag.length;
+        int newMag[] = null;
+
+        if (nBits == 0) {
+            newMag = new int[magLen + nInts];
+            for (int i=0; i<magLen; i++)
+                newMag[i] = mag[i];
+        } else {
+            int i = 0;
+            int nBits2 = 32 - nBits;
+            int highBits = mag[0] >>> nBits2;
+            if (highBits != 0) {
+                newMag = new int[magLen + nInts + 1];
+                newMag[i++] = highBits;
+            } else {
+                newMag = new int[magLen + nInts];
+            }
+            int j=0;
+            while (j < magLen-1)
+                newMag[i++] = mag[j++] << nBits | mag[j] >>> nBits2;
+            newMag[i] = mag[j] << nBits;
+        }
+
+        return new BigInteger(newMag, signum);
+!!!7159451.java!!!	shiftRight(in n : int) : BigInteger
+        if (n==0)
+            return this;
+        if (n<0)
+            return shiftLeft(-n);
+
+        int nInts = n >>> 5;
+        int nBits = n & 0x1f;
+        int magLen = mag.length;
+        int newMag[] = null;
+
+        // Special case: entire contents shifted off the end
+        if (nInts >= magLen)
+            return (signum >= 0 ? ZERO : negConst[1]);
+
+        if (nBits == 0) {
+            int newMagLen = magLen - nInts;
+            newMag = new int[newMagLen];
+            for (int i=0; i<newMagLen; i++)
+                newMag[i] = mag[i];
+        } else {
+            int i = 0;
+            int highBits = mag[0] >>> nBits;
+            if (highBits != 0) {
+                newMag = new int[magLen - nInts];
+                newMag[i++] = highBits;
+            } else {
+                newMag = new int[magLen - nInts -1];
+            }
+
+            int nBits2 = 32 - nBits;
+            int j=0;
+            while (j < magLen - nInts - 1)
+                newMag[i++] = (mag[j++] << nBits2) | (mag[j] >>> nBits);
+        }
+
+        if (signum < 0) {
+            // Find out whether any one-bits were shifted off the end.
+            boolean onesLost = false;
+            for (int i=magLen-1, j=magLen-nInts; i>=j && !onesLost; i--)
+                onesLost = (mag[i] != 0);
+            if (!onesLost && nBits != 0)
+                onesLost = (mag[magLen - nInts - 1] << (32 - nBits) != 0);
+
+            if (onesLost)
+                newMag = javaIncrement(newMag);
+        }
+
+        return new BigInteger(newMag, signum);
+!!!7159579.java!!!	javaIncrement(in val : int) : int
+        boolean done = false;
+        int lastSum = 0;
+        for (int i=val.length-1;  i >= 0 && lastSum == 0; i--)
+            lastSum = (val[i] += 1);
+        if (lastSum == 0) {
+            val = new int[val.length+1];
+            val[0] = 1;
+        }
+        return val;
+!!!7159707.java!!!	and(inout val : BigInteger) : BigInteger
+	int[] result = new int[Math.max(intLength(), val.intLength())];
+	for (int i=0; i<result.length; i++)
+	    result[i] = (int) (getInt(result.length-i-1)
+				& val.getInt(result.length-i-1));
+
+	return valueOf(result);
+!!!7159835.java!!!	or(inout val : BigInteger) : BigInteger
+	int[] result = new int[Math.max(intLength(), val.intLength())];
+	for (int i=0; i<result.length; i++)
+	    result[i] = (int) (getInt(result.length-i-1)
+				| val.getInt(result.length-i-1));
+
+	return valueOf(result);
+!!!7159963.java!!!	xor(inout val : BigInteger) : BigInteger
+	int[] result = new int[Math.max(intLength(), val.intLength())];
+	for (int i=0; i<result.length; i++)
+	    result[i] = (int) (getInt(result.length-i-1)
+				^ val.getInt(result.length-i-1));
+
+	return valueOf(result);
+!!!7160091.java!!!	not() : BigInteger
+	int[] result = new int[intLength()];
+	for (int i=0; i<result.length; i++)
+	    result[i] = (int) ~getInt(result.length-i-1);
+
+	return valueOf(result);
+!!!7160219.java!!!	andNot(inout val : BigInteger) : BigInteger
+	int[] result = new int[Math.max(intLength(), val.intLength())];
+	for (int i=0; i<result.length; i++)
+	    result[i] = (int) (getInt(result.length-i-1)
+				& ~val.getInt(result.length-i-1));
+
+	return valueOf(result);
+!!!7160347.java!!!	testBit(in n : int) : boolean
+	if (n<0)
+	    throw new ArithmeticException("Negative bit address");
+
+	return (getInt(n/32) & (1 << (n%32))) != 0;
+!!!7160475.java!!!	setBit(in n : int) : BigInteger
+	if (n<0)
+	    throw new ArithmeticException("Negative bit address");
+
+	int intNum = n/32;
+	int[] result = new int[Math.max(intLength(), intNum+2)];
+
+	for (int i=0; i<result.length; i++)
+	    result[result.length-i-1] = getInt(i);
+
+	result[result.length-intNum-1] |= (1 << (n%32));
+
+	return valueOf(result);
+!!!7160603.java!!!	clearBit(in n : int) : BigInteger
+	if (n<0)
+	    throw new ArithmeticException("Negative bit address");
+
+	int intNum = n/32;
+	int[] result = new int[Math.max(intLength(), (n+1)/32+1)];
+
+	for (int i=0; i<result.length; i++)
+	    result[result.length-i-1] = getInt(i);
+
+	result[result.length-intNum-1] &= ~(1 << (n%32));
+
+	return valueOf(result);
+!!!7160731.java!!!	flipBit(in n : int) : BigInteger
+	if (n<0)
+	    throw new ArithmeticException("Negative bit address");
+
+	int intNum = n/32;
+	int[] result = new int[Math.max(intLength(), intNum+2)];
+
+	for (int i=0; i<result.length; i++)
+	    result[result.length-i-1] = getInt(i);
+
+	result[result.length-intNum-1] ^= (1 << (n%32));
+
+	return valueOf(result);
+!!!7160859.java!!!	getLowestSetBit() : int
+	/*
+	 * Initialize lowestSetBit field the first time this method is
+	 * executed. This method depends on the atomicity of int modifies;
+	 * without this guarantee, it would have to be synchronized.
+	 */
+	if (lowestSetBit == -2) {
+	    if (signum == 0) {
+		lowestSetBit = -1;
+	    } else {
+		// Search for lowest order nonzero int
+		int i,b;
+		for (i=0; (b = getInt(i))==0; i++)
+		    ;
+		lowestSetBit = (i << 5) + trailingZeroCnt(b);
+	    }
+	}
+	return lowestSetBit;
+!!!7160987.java!!!	bitLength() : int
+	/*
+	 * Initialize bitLength field the first time this method is executed.
+	 * This method depends on the atomicity of int modifies; without
+	 * this guarantee, it would have to be synchronized.
+	 */
+	if (bitLength == -1) {
+	    if (signum == 0) {
+		bitLength = 0;
+	    } else {
+		// Calculate the bit length of the magnitude
+		int magBitLength = ((mag.length-1) << 5) + bitLen(mag[0]);
+
+		if (signum < 0) {
+		    // Check if magnitude is a power of two
+		    boolean pow2 = (bitCnt(mag[0]) == 1);
+		    for(int i=1; i<mag.length && pow2; i++)
+			pow2 = (mag[i]==0);
+
+		    bitLength = (pow2 ? magBitLength-1 : magBitLength);
+		} else {
+		    bitLength = magBitLength;
+		}
+	    }
+	}
+	return bitLength;
+!!!7161115.java!!!	bitLen(in w : int) : int
+        // Binary search - decision tree (5 tests, rarely 6)
+        return
+         (w < 1<<15 ?
+          (w < 1<<7 ?
+           (w < 1<<3 ?
+            (w < 1<<1 ? (w < 1<<0 ? (w<0 ? 32 : 0) : 1) : (w < 1<<2 ? 2 : 3)) :
+            (w < 1<<5 ? (w < 1<<4 ? 4 : 5) : (w < 1<<6 ? 6 : 7))) :
+           (w < 1<<11 ?
+            (w < 1<<9 ? (w < 1<<8 ? 8 : 9) : (w < 1<<10 ? 10 : 11)) :
+            (w < 1<<13 ? (w < 1<<12 ? 12 : 13) : (w < 1<<14 ? 14 : 15)))) :
+          (w < 1<<23 ?
+           (w < 1<<19 ?
+            (w < 1<<17 ? (w < 1<<16 ? 16 : 17) : (w < 1<<18 ? 18 : 19)) :
+            (w < 1<<21 ? (w < 1<<20 ? 20 : 21) : (w < 1<<22 ? 22 : 23))) :
+           (w < 1<<27 ?
+            (w < 1<<25 ? (w < 1<<24 ? 24 : 25) : (w < 1<<26 ? 26 : 27)) :
+            (w < 1<<29 ? (w < 1<<28 ? 28 : 29) : (w < 1<<30 ? 30 : 31)))));
+!!!7161243.java!!!	bitCount() : int
+	/*
+	 * Initialize bitCount field the first time this method is executed.
+	 * This method depends on the atomicity of int modifies; without
+	 * this guarantee, it would have to be synchronized.
+	 */
+	if (bitCount == -1) {
+	    // Count the bits in the magnitude
+	    int magBitCount = 0;
+	    for (int i=0; i<mag.length; i++)
+		magBitCount += bitCnt(mag[i]);
+
+	    if (signum < 0) {
+		// Count the trailing zeros in the magnitude
+		int magTrailingZeroCount = 0, j;
+		for (j=mag.length-1; mag[j]==0; j--)
+		    magTrailingZeroCount += 32;
+		magTrailingZeroCount +=
+                            trailingZeroCnt(mag[j]);
+
+		bitCount = magBitCount + magTrailingZeroCount - 1;
+	    } else {
+		bitCount = magBitCount;
+	    }
+	}
+	return bitCount;
+!!!7161371.java!!!	bitCnt(in val : int) : int
+        val -= (0xaaaaaaaa & val) >>> 1;
+        val = (val & 0x33333333) + ((val >>> 2) & 0x33333333);
+        val = val + (val >>> 4) & 0x0f0f0f0f;
+        val += val >>> 8;
+        val += val >>> 16;
+        return val & 0xff;
+!!!7161499.java!!!	trailingZeroCnt(in val : int) : int
+        // Loop unrolled for performance
+        int byteVal = val & 0xff;
+        if (byteVal != 0)
+            return trailingZeroTable[byteVal];
+
+        byteVal = (val >>> 8) & 0xff;
+        if (byteVal != 0)
+            return trailingZeroTable[byteVal] + 8;
+
+        byteVal = (val >>> 16) & 0xff;
+        if (byteVal != 0)
+            return trailingZeroTable[byteVal] + 16;
+
+        byteVal = (val >>> 24) & 0xff;
+        return trailingZeroTable[byteVal] + 24;
+!!!7161627.java!!!	isProbablePrime(in certainty : int) : boolean
+	if (certainty <= 0)
+	    return true;
+	BigInteger w = this.abs();
+	if (w.equals(TWO))
+	    return true;
+	if (!w.testBit(0) || w.equals(ONE))
+	    return false;
+
+        return w.primeToCertainty(certainty);
+!!!7161755.java!!!	compareTo(inout val : BigInteger) : int
+	return (signum==val.signum
+		? signum*intArrayCmp(mag, val.mag)
+		: (signum>val.signum ? 1 : -1));
+!!!7161883.java!!!	intArrayCmp(in arg1 : int, in arg2 : int) : int
+	if (arg1.length < arg2.length)
+	    return -1;
+	if (arg1.length > arg2.length)
+	    return 1;
+
+	// Argument lengths are equal; compare the values
+	for (int i=0; i<arg1.length; i++) {
+	    long b1 = arg1[i] & LONG_MASK;
+	    long b2 = arg2[i] & LONG_MASK;
+	    if (b1 < b2)
+		return -1;
+	    if (b1 > b2)
+		return 1;
+	}
+	return 0;
+!!!7162011.java!!!	equals(inout x : Object) : boolean
+	// This test is just an optimization, which may or may not help
+	if (x == this)
+	    return true;
+
+	if (!(x instanceof BigInteger))
+	    return false;
+	BigInteger xInt = (BigInteger) x;
+
+	if (xInt.signum != signum || xInt.mag.length != mag.length)
+	    return false;
+
+	for (int i=0; i<mag.length; i++)
+	    if (xInt.mag[i] != mag[i])
+		return false;
+
+	return true;
+!!!7162139.java!!!	min(inout val : BigInteger) : BigInteger
+	return (compareTo(val)<0 ? this : val);
+!!!7162267.java!!!	max(inout val : BigInteger) : BigInteger
+	return (compareTo(val)>0 ? this : val);
+!!!7162395.java!!!	hashCode() : int
+	int hashCode = 0;
+
+	for (int i=0; i<mag.length; i++)
+	    hashCode = (int)(31*hashCode + (mag[i] & LONG_MASK));
+
+	return hashCode * signum;
+!!!7162523.java!!!	toString(in radix : int) : String
+	if (signum == 0)
+	    return "0";
+	if (radix < Character.MIN_RADIX || radix > Character.MAX_RADIX)
+	    radix = 10;
+
+	// Compute upper bound on number of digit groups and allocate space
+	int maxNumDigitGroups = (4*mag.length + 6)/7;
+	String digitGroup[] = new String[maxNumDigitGroups];
+        
+	// Translate number to string, a digit group at a time
+	BigInteger tmp = this.abs();
+	int numGroups = 0;
+	while (tmp.signum != 0) {
+            BigInteger d = longRadix[radix];
+
+            MutableBigInteger q = new MutableBigInteger(),
+                              r = new MutableBigInteger(),
+                              a = new MutableBigInteger(tmp.mag),
+                              b = new MutableBigInteger(d.mag);
+            a.divide(b, q, r);
+            BigInteger q2 = new BigInteger(q, tmp.signum * d.signum);
+            BigInteger r2 = new BigInteger(r, tmp.signum * d.signum);
+
+            digitGroup[numGroups++] = Long.toString(r2.longValue(), radix);
+            tmp = q2;
+	}
+
+	// Put sign (if any) and first digit group into result buffer
+	StringBuilder buf = new StringBuilder(numGroups*digitsPerLong[radix]+1);
+	if (signum<0)
+	    buf.append('-');
+	buf.append(digitGroup[numGroups-1]);
+
+	// Append remaining digit groups padded with leading zeros
+	for (int i=numGroups-2; i>=0; i--) {
+	    // Prepend (any) leading zeros for this digit group
+	    int numLeadingZeros = digitsPerLong[radix]-digitGroup[i].length();
+	    if (numLeadingZeros != 0)
+		buf.append(zeros[numLeadingZeros]);
+	    buf.append(digitGroup[i]);
+	}
+	return buf.toString();
+!!!7162651.java!!!	toString() : String
+	return toString(10);
+!!!7162779.java!!!	toByteArray() : byte
+        int byteLen = bitLength()/8 + 1;
+        byte[] byteArray = new byte[byteLen];
+
+        for (int i=byteLen-1, bytesCopied=4, nextInt=0, intIndex=0; i>=0; i--) {
+            if (bytesCopied == 4) {
+                nextInt = getInt(intIndex++);
+                bytesCopied = 1;
+            } else {
+                nextInt >>>= 8;
+                bytesCopied++;
+            }
+            byteArray[i] = (byte)nextInt;
+        }
+        return byteArray;
+!!!7162907.java!!!	intValue() : int
+	int result = 0;
+	result = getInt(0);
+	return result;
+!!!7163035.java!!!	longValue() : long
+	long result = 0;
+
+	for (int i=1; i>=0; i--)
+	    result = (result << 32) + (getInt(i) & LONG_MASK);
+	return result;
+!!!7163163.java!!!	floatValue() : float
+	// Somewhat inefficient, but guaranteed to work.
+	return Float.parseFloat(this.toString());
+!!!7163291.java!!!	doubleValue() : double
+	// Somewhat inefficient, but guaranteed to work.
+	return Double.parseDouble(this.toString());
+!!!7163419.java!!!	stripLeadingZeroInts(in val : int) : int
+        int byteLength = val.length;
+	int keep;
+
+	// Find first nonzero byte
+        for (keep=0; keep<val.length && val[keep]==0; keep++)
+            ;
+
+        int result[] = new int[val.length - keep];
+        for(int i=0; i<val.length - keep; i++)
+            result[i] = val[keep+i];
+
+        return result;
+!!!7163547.java!!!	trustedStripLeadingZeroInts(in val : int) : int
+        int byteLength = val.length;
+	int keep;
+
+	// Find first nonzero byte
+        for (keep=0; keep<val.length && val[keep]==0; keep++)
+            ;
+
+        // Only perform copy if necessary
+        if (keep > 0) {
+            int result[] = new int[val.length - keep];
+            for(int i=0; i<val.length - keep; i++)
+               result[i] = val[keep+i];
+            return result; 
+        }
+        return val;
+!!!7163675.java!!!	stripLeadingZeroBytes(in a : byte) : int
+        int byteLength = a.length;
+	int keep;
+
+	// Find first nonzero byte
+	for (keep=0; keep<a.length && a[keep]==0; keep++)
+	    ;
+
+	// Allocate new array and copy relevant part of input array
+        int intLength = ((byteLength - keep) + 3)/4;
+	int[] result = new int[intLength];
+        int b = byteLength - 1;
+        for (int i = intLength-1; i >= 0; i--) {
+            result[i] = a[b--] & 0xff;
+            int bytesRemaining = b - keep + 1;
+            int bytesToTransfer = Math.min(3, bytesRemaining);
+            for (int j=8; j <= 8*bytesToTransfer; j += 8)
+                result[i] |= ((a[b--] & 0xff) << j);
+        }
+        return result;
+!!!7163803.java!!!	makePositive(in a : byte) : int
+	int keep, k;
+        int byteLength = a.length;
+
+	// Find first non-sign (0xff) byte of input
+	for (keep=0; keep<byteLength && a[keep]==-1; keep++)
+	    ;
+
+        
+	/* Allocate output array.  If all non-sign bytes are 0x00, we must
+	 * allocate space for one extra output byte. */
+	for (k=keep; k<byteLength && a[k]==0; k++)
+	    ;
+
+	int extraByte = (k==byteLength) ? 1 : 0;
+        int intLength = ((byteLength - keep + extraByte) + 3)/4;
+	int result[] = new int[intLength];
+
+	/* Copy one's complement of input into output, leaving extra
+	 * byte (if it exists) == 0x00 */
+        int b = byteLength - 1;
+        for (int i = intLength-1; i >= 0; i--) {
+            result[i] = a[b--] & 0xff;
+            int numBytesToTransfer = Math.min(3, b-keep+1);
+            if (numBytesToTransfer < 0)
+                numBytesToTransfer = 0;
+            for (int j=8; j <= 8*numBytesToTransfer; j += 8)
+                result[i] |= ((a[b--] & 0xff) << j);
+
+            // Mask indicates which bits must be complemented
+            int mask = -1 >>> (8*(3-numBytesToTransfer));
+            result[i] = ~result[i] & mask;
+        }
+
+	// Add one to one's complement to generate two's complement
+	for (int i=result.length-1; i>=0; i--) {
+            result[i] = (int)((result[i] & LONG_MASK) + 1);
+	    if (result[i] != 0)
+                break;
+        }
+
+	return result;
+!!!7163931.java!!!	makePositive(in a : int) : int
+	int keep, j;
+
+	// Find first non-sign (0xffffffff) int of input
+	for (keep=0; keep<a.length && a[keep]==-1; keep++)
+	    ;
+
+	/* Allocate output array.  If all non-sign ints are 0x00, we must
+	 * allocate space for one extra output int. */
+	for (j=keep; j<a.length && a[j]==0; j++)
+	    ;
+	int extraInt = (j==a.length ? 1 : 0);
+	int result[] = new int[a.length - keep + extraInt];
+
+	/* Copy one's complement of input into output, leaving extra
+	 * int (if it exists) == 0x00 */
+	for (int i = keep; i<a.length; i++)
+	    result[i - keep + extraInt] = ~a[i];
+
+	// Add one to one's complement to generate two's complement
+	for (int i=result.length-1; ++result[i]==0; i--)
+	    ;
+
+	return result;
+!!!7164059.java!!!	intLength() : int
+	return bitLength()/32 + 1;
+!!!7164187.java!!!	signBit() : int
+	return (signum < 0 ? 1 : 0);
+!!!7164315.java!!!	signInt() : int
+	return (int) (signum < 0 ? -1 : 0);
+!!!7164443.java!!!	getInt(in n : int) : int
+        if (n < 0)
+            return 0;
+	if (n >= mag.length)
+	    return signInt();
+
+	int magInt = mag[mag.length-n-1];
+
+	return (int) (signum >= 0 ? magInt :
+		       (n <= firstNonzeroIntNum() ? -magInt : ~magInt));
+!!!7164571.java!!!	firstNonzeroIntNum() : int
+	/*
+	 * Initialize firstNonzeroIntNum field the first time this method is
+	 * executed. This method depends on the atomicity of int modifies;
+	 * without this guarantee, it would have to be synchronized.
+	 */
+	if (firstNonzeroIntNum == -2) {
+	    // Search for the first nonzero int
+	    int i;
+	    for (i=mag.length-1; i>=0 && mag[i]==0; i--)
+		;
+	    firstNonzeroIntNum = mag.length-i-1;
+	}
+	return firstNonzeroIntNum;
+!!!7164699.java!!!	readObject(inout s : ObjectInputStream) : void
+        /*
+         * In order to maintain compatibility with previous serialized forms,
+         * the magnitude of a BigInteger is serialized as an array of bytes.
+         * The magnitude field is used as a temporary store for the byte array
+         * that is deserialized. The cached computation fields should be
+         * transient but are serialized for compatibility reasons.
+         */
+
+        // prepare to read the alternate persistent fields
+        ObjectInputStream.GetField fields = s.readFields();
+            
+        // Read the alternate persistent fields that we care about
+        signum = (int)fields.get("signum", -2);
+        byte[] magnitude = (byte[])fields.get("magnitude", null);
+
+        // Validate signum
+	if (signum < -1 || signum > 1) {
+            String message = "BigInteger: Invalid signum value";
+            if (fields.defaulted("signum"))
+                message = "BigInteger: Signum not present in stream";
+	    throw new java.io.StreamCorruptedException(message);
+        }
+	if ((magnitude.length==0) != (signum==0)) {
+            String message = "BigInteger: signum-magnitude mismatch";
+            if (fields.defaulted("magnitude"))
+                message = "BigInteger: Magnitude not present in stream";
+	    throw new java.io.StreamCorruptedException(message);
+        }
+
+        // Set "cached computation" fields to their initial values
+        bitCount = bitLength = -1;
+        lowestSetBit = firstNonzeroByteNum = firstNonzeroIntNum = -2;
+
+        // Calculate mag field from magnitude and discard magnitude
+	mag = stripLeadingZeroBytes(magnitude);
+!!!7164827.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        // set the values of the Serializable fields
+        ObjectOutputStream.PutField fields = s.putFields();
+        fields.put("signum", signum);
+        fields.put("magnitude", magSerializedForm());
+        fields.put("bitCount", -1);
+        fields.put("bitLength", -1);
+        fields.put("lowestSetBit", -2);
+        fields.put("firstNonzeroByteNum", -2);
+            
+        // save them
+        s.writeFields();
+!!!7164955.java!!!	magSerializedForm() : byte
+        int bitLen = (mag.length == 0 ? 0 :
+                      ((mag.length - 1) << 5) + bitLen(mag[0]));
+        int byteLen = (bitLen + 7)/8;
+        byte[] result = new byte[byteLen];
+
+        for (int i=byteLen-1, bytesCopied=4, intIndex=mag.length-1, nextInt=0;
+             i>=0; i--) {
+            if (bytesCopied == 4) {
+                nextInt = mag[intIndex--];
+                bytesCopied = 1;
+            } else {
+                nextInt >>>= 8;
+                bytesCopied++;
+            }
+            result[i] = (byte)nextInt;
+        }
+        return result;

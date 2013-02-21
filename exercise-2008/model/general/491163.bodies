@@ -1,0 +1,220 @@
+class JTableHeader
+!!!9790107.java!!!	JTableHeader()
+	this(null);
+!!!9790235.java!!!	JTableHeader(inout cm : TableColumnModel)
+	super();
+
+	setFocusable(false);
+
+	if (cm == null)
+	    cm = createDefaultColumnModel();
+	setColumnModel(cm);
+
+	// Initialize local ivars
+	initializeLocalVars();
+
+	// Get UI going
+	updateUI();
+!!!9790363.java!!!	setTable(inout table : JTable) : void
+ 
+	JTable old = this.table; 
+	this.table = table; 
+	firePropertyChange("table", old, table); 
+!!!9790491.java!!!	getTable() : JTable
+	return table;
+!!!9790619.java!!!	setReorderingAllowed(inout reorderingAllowed : boolean) : void
+	boolean old = this.reorderingAllowed; 
+	this.reorderingAllowed = reorderingAllowed; 
+	firePropertyChange("reorderingAllowed", old, reorderingAllowed); 
+!!!9790747.java!!!	getReorderingAllowed() : boolean
+	return reorderingAllowed;
+!!!9790875.java!!!	setResizingAllowed(inout resizingAllowed : boolean) : void
+ 
+	boolean old = this.resizingAllowed; 
+	this.resizingAllowed = resizingAllowed; 
+	firePropertyChange("resizingAllowed", old, resizingAllowed); 
+!!!9791003.java!!!	getResizingAllowed() : boolean
+	return resizingAllowed;
+!!!9791131.java!!!	getDraggedColumn() : TableColumn
+	return draggedColumn;
+!!!9791259.java!!!	getDraggedDistance() : int
+	return draggedDistance;
+!!!9791387.java!!!	getResizingColumn() : TableColumn
+	return resizingColumn;
+!!!9791515.java!!!	setUpdateTableInRealTime(inout flag : boolean) : void
+	updateTableInRealTime = flag;
+!!!9791643.java!!!	getUpdateTableInRealTime() : boolean
+	return updateTableInRealTime;
+!!!9791771.java!!!	setDefaultRenderer(inout defaultRenderer : TableCellRenderer) : void
+	this.defaultRenderer = defaultRenderer;
+!!!9791899.java!!!	getDefaultRenderer() : TableCellRenderer
+	return defaultRenderer;
+!!!9792027.java!!!	columnAtPoint(inout point : Point) : int
+        int x = point.x;
+        if (!getComponentOrientation().isLeftToRight()) {
+            x = getWidthInRightToLeft() - x;
+        }
+        return getColumnModel().getColumnIndexAtX(x);
+!!!9792155.java!!!	getHeaderRect(in column : int) : Rectangle
+        Rectangle r = new Rectangle(); 
+	TableColumnModel cm = getColumnModel(); 
+
+	r.height = getHeight();	
+
+	if (column < 0) { 
+	    // x = width = 0; 
+            if( !getComponentOrientation().isLeftToRight() ) {
+		r.x = getWidthInRightToLeft(); 
+            }
+	}
+	else if (column >= cm.getColumnCount()) { 
+            if( getComponentOrientation().isLeftToRight() ) {
+		r.x = getWidth(); 
+            }
+	}
+	else { 
+            for(int i = 0; i < column; i++) { 
+                r.x += cm.getColumn(i).getWidth();
+            }
+            if( !getComponentOrientation().isLeftToRight() ) {
+                r.x = getWidthInRightToLeft() - r.x - cm.getColumn(column).getWidth();
+            }
+
+	    r.width = cm.getColumn(column).getWidth(); 
+	}
+	return r; 
+!!!9792283.java!!!	getToolTipText(inout event : MouseEvent) : String
+	String tip = null;
+	Point p = event.getPoint();
+	int column;
+
+	// Locate the renderer under the event location
+	if ((column = columnAtPoint(p)) != -1) {
+	    TableColumn aColumn = columnModel.getColumn(column);
+	    TableCellRenderer renderer = aColumn.getHeaderRenderer(); 
+            if (renderer == null) { 
+                renderer = defaultRenderer; 
+            }
+	    Component component = renderer.getTableCellRendererComponent(
+			      getTable(), aColumn.getHeaderValue(), false, false,
+			      -1, column);
+
+	    // Now have to see if the component is a JComponent before
+	    // getting the tip
+	    if (component instanceof JComponent) {
+		// Convert the event to the renderer's coordinate system
+		MouseEvent newEvent;
+		Rectangle cellRect = getHeaderRect(column);
+
+		p.translate(-cellRect.x, -cellRect.y);
+		newEvent = new MouseEvent(component, event.getID(),
+					  event.getWhen(), event.getModifiers(),
+					  p.x, p.y, event.getClickCount(),
+					  event.isPopupTrigger());
+
+		tip = ((JComponent)component).getToolTipText(newEvent);
+	    }
+	}
+
+	// No tip from the renderer get our own tip
+	if (tip == null)
+	    tip = getToolTipText();
+
+	return tip;
+!!!9792411.java!!!	getUI() : TableHeaderUI
+	return (TableHeaderUI)ui;
+!!!9792539.java!!!	setUI(inout ui : TableHeaderUI) : void
+        if (this.ui != ui) {
+            super.setUI(ui);
+            repaint();
+        }
+!!!9792667.java!!!	updateUI() : void
+	setUI((TableHeaderUI)UIManager.getUI(this));
+	resizeAndRepaint();
+	invalidate();//PENDING
+!!!9792795.java!!!	getUIClassID() : String
+	return uiClassID;
+!!!9792923.java!!!	setColumnModel(inout columnModel : TableColumnModel) : void
+        if (columnModel == null) {
+            throw new IllegalArgumentException("Cannot set a null ColumnModel");
+        }
+        TableColumnModel old = this.columnModel;
+        if (columnModel != old) {
+            if (old != null) {
+                old.removeColumnModelListener(this);
+	    }
+            this.columnModel = columnModel;
+            columnModel.addColumnModelListener(this);
+
+	    firePropertyChange("columnModel", old, columnModel);
+            resizeAndRepaint();
+        }
+!!!9793051.java!!!	getColumnModel() : TableColumnModel
+	return columnModel;
+!!!9793179.java!!!	columnAdded(inout e : TableColumnModelEvent) : void
+ resizeAndRepaint();
+!!!9793307.java!!!	columnRemoved(inout e : TableColumnModelEvent) : void
+ resizeAndRepaint();
+!!!9793435.java!!!	columnMoved(inout e : TableColumnModelEvent) : void
+ repaint();
+!!!9793563.java!!!	columnMarginChanged(inout e : ChangeEvent) : void
+ resizeAndRepaint();
+!!!9793819.java!!!	createDefaultColumnModel() : TableColumnModel
+	return new DefaultTableColumnModel();
+!!!9793947.java!!!	createDefaultRenderer() : TableCellRenderer
+	DefaultTableCellRenderer label = new UIResourceTableCellRenderer();
+	label.setHorizontalAlignment(JLabel.CENTER);
+	return label;
+!!!9794203.java!!!	initializeLocalVars() : void
+        setOpaque(true);
+	table = null;
+	reorderingAllowed = true;
+	resizingAllowed = true;
+	draggedColumn = null;
+	draggedDistance = 0;
+	resizingColumn = null;
+	updateTableInRealTime = true;
+
+	// I'm registered to do tool tips so we can draw tips for the
+	// renderers
+	ToolTipManager toolTipManager = ToolTipManager.sharedInstance();
+	toolTipManager.registerComponent(this);
+	setDefaultRenderer(createDefaultRenderer()); 
+!!!9794331.java!!!	resizeAndRepaint() : void
+        revalidate();
+	repaint();
+!!!9794459.java!!!	setDraggedColumn(inout aColumn : TableColumn) : void
+	draggedColumn = aColumn;
+!!!9794587.java!!!	setDraggedDistance(in distance : int) : void
+	draggedDistance = distance;
+!!!9794715.java!!!	setResizingColumn(inout aColumn : TableColumn) : void
+	resizingColumn = aColumn;
+!!!9794843.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+	if ((ui != null) && (getUIClassID().equals(uiClassID))) {
+	    ui.installUI(this);
+	}
+!!!9794971.java!!!	getWidthInRightToLeft() : int
+	if ((table != null) &&
+	    (table.getAutoResizeMode() != JTable.AUTO_RESIZE_OFF)) {
+	    return table.getWidth();
+	}
+	return super.getWidth();
+!!!9795099.java!!!	paramString() : String
+        String reorderingAllowedString = (reorderingAllowed ?
+					  "true" : "false");
+        String resizingAllowedString = (resizingAllowed ?
+					"true" : "false");
+        String updateTableInRealTimeString = (updateTableInRealTime ?
+					      "true" : "false");
+
+        return super.paramString() +
+        ",draggedDistance=" + draggedDistance +
+        ",reorderingAllowed=" + reorderingAllowedString +
+        ",resizingAllowed=" + resizingAllowedString +
+        ",updateTableInRealTime=" + updateTableInRealTimeString;
+!!!9795227.java!!!	getAccessibleContext() : AccessibleContext
+	if (accessibleContext == null) {
+	    accessibleContext = new AccessibleJTableHeader();
+	}
+	return accessibleContext;

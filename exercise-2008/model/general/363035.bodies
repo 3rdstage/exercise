@@ -1,0 +1,50 @@
+class BluecurveEngineParser
+!!!2081563.java!!!	registerSymbolsIfNecessary() : void
+        if (scanner.containsSymbol(symbolNames[0])) {
+            return;
+        }
+
+        for (int i = 0; i < symbolNames.length; i++) {
+            scanner.addSymbol(symbolNames[i], symbolVals[i]);
+        }
+!!!2081691.java!!!	parse(inout scanner : GTKScanner, inout parser : GTKParser, inout retVal : EngineInfo) : int
+
+        this.scanner = scanner;
+        this.parser = parser;
+
+        if (retVal[0] == null) {
+            engineInfo = new BluecurveEngineInfo();
+        } else {
+            engineInfo = (BluecurveEngineInfo)retVal[0];
+        }
+
+        int oldScope = scanner.setScope(uniqueScopeID);
+        registerSymbolsIfNecessary();
+
+        // At this time we don't know how bluecurve allows
+        // itself to be customized, so we'll just skip over
+        // the block.
+        int token;
+        int curlys = 1;
+
+        while (curlys > 0) {
+            token = scanner.getToken();
+            switch(token) {
+                case GTKScanner.TOKEN_EOF:
+                case GTKScanner.TOKEN_ERROR:
+                    return GTKScanner.TOKEN_RIGHT_CURLY;
+                case GTKScanner.TOKEN_LEFT_CURLY:
+                    curlys++;
+                    break;
+                case GTKScanner.TOKEN_RIGHT_CURLY:
+                    curlys--;
+                    break;
+                default:
+                    // ignore
+            }
+        }
+
+        retVal[0] = engineInfo;
+
+        scanner.setScope(oldScope);
+        return GTKScanner.TOKEN_NONE;

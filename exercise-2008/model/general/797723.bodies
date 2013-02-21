@@ -1,0 +1,221 @@
+class OutputFormat
+!!!5681819.java!!!	OutputFormat(in method : String, in encoding : String, inout indenting : boolean)
+        setMethod( method );
+        setEncoding( encoding );
+        setIndenting( indenting );
+!!!5681947.java!!!	OutputFormat(inout doc : Document)
+        setMethod( whichMethod( doc ) );
+        setDoctype( whichDoctypePublic( doc ), whichDoctypeSystem( doc ) );
+        setMediaType( whichMediaType( getMethod() ) );
+!!!5682075.java!!!	OutputFormat(inout doc : Document, in encoding : String, inout indenting : boolean)
+        this( doc );
+        setEncoding( encoding );
+        setIndenting( indenting );
+!!!5682203.java!!!	getMethod() : String
+        return _method;
+!!!5682331.java!!!	setMethod(in method : String) : void
+        _method = method;
+!!!5682459.java!!!	getVersion() : String
+        return _version;
+!!!5682587.java!!!	setVersion(in version : String) : void
+        _version = version;
+!!!5682715.java!!!	getIndent() : int
+        return _indent;
+!!!5682843.java!!!	getIndenting() : boolean
+        return ( _indent > 0 );
+!!!5682971.java!!!	setIndent(in indent : int) : void
+        if ( indent < 0 )
+            _indent = 0;
+        else
+            _indent = indent;
+!!!5683099.java!!!	setIndenting(inout on : boolean) : void
+        if ( on ) {
+            _indent = Defaults.Indent;
+            _lineWidth = Defaults.LineWidth;
+        } else {
+            _indent = 0;
+            _lineWidth = 0;
+        }
+!!!5683227.java!!!	getEncoding() : String
+        return _encoding;
+!!!5683355.java!!!	setEncoding(in encoding : String) : void
+        _encoding = encoding;
+        _encodingInfo = null;
+!!!5683483.java!!!	setEncoding(inout encInfo : EncodingInfo) : void
+        _encoding = encInfo.getIANAName();
+        _encodingInfo = encInfo;
+!!!5683611.java!!!	getEncodingInfo() : EncodingInfo
+        if (_encodingInfo == null)
+            _encodingInfo = Encodings.getEncodingInfo(_encoding, _allowJavaNames);
+        return _encodingInfo;
+!!!5683739.java!!!	setAllowJavaNames(inout allow : boolean) : void
+        _allowJavaNames = allow;
+!!!5683867.java!!!	setAllowJavaNames() : boolean
+        return _allowJavaNames;
+!!!5683995.java!!!	getMediaType() : String
+        return _mediaType;
+!!!5684123.java!!!	setMediaType(in mediaType : String) : void
+        _mediaType = mediaType;
+!!!5684251.java!!!	setDoctype(in publicId : String, in systemId : String) : void
+        _doctypePublic = publicId;
+        _doctypeSystem = systemId;
+!!!5684379.java!!!	getDoctypePublic() : String
+        return _doctypePublic;
+!!!5684507.java!!!	getDoctypeSystem() : String
+        return _doctypeSystem;
+!!!5684635.java!!!	getOmitComments() : boolean
+        return _omitComments;
+!!!5684763.java!!!	setOmitComments(inout omit : boolean) : void
+        _omitComments = omit;
+!!!5684891.java!!!	getOmitDocumentType() : boolean
+        return _omitDoctype;
+!!!5685019.java!!!	setOmitDocumentType(inout omit : boolean) : void
+        _omitDoctype = omit;
+!!!5685147.java!!!	getOmitXMLDeclaration() : boolean
+        return _omitXmlDeclaration;
+!!!5685275.java!!!	setOmitXMLDeclaration(inout omit : boolean) : void
+        _omitXmlDeclaration = omit;
+!!!5685403.java!!!	getStandalone() : boolean
+        return _standalone;
+!!!5685531.java!!!	setStandalone(inout standalone : boolean) : void
+        _standalone = standalone;
+!!!5685659.java!!!	getCDataElements() : String
+        return _cdataElements;
+!!!5685787.java!!!	isCDataElement(in tagName : String) : boolean
+        int i;
+
+        if ( _cdataElements == null )
+            return false;
+        for ( i = 0 ; i < _cdataElements.length ; ++i )
+            if ( _cdataElements[ i ].equals( tagName ) )
+                return true;
+        return false;
+!!!5685915.java!!!	setCDataElements(in cdataElements : String) : void
+        _cdataElements = cdataElements;
+!!!5686043.java!!!	getNonEscapingElements() : String
+        return _nonEscapingElements;
+!!!5686171.java!!!	isNonEscapingElement(in tagName : String) : boolean
+        int i;
+
+        if ( _nonEscapingElements == null ) {
+            return false;
+        }
+        for ( i = 0 ; i < _nonEscapingElements.length ; ++i )
+            if ( _nonEscapingElements[ i ].equals( tagName ) )
+                return true;
+        return false;
+!!!5686299.java!!!	setNonEscapingElements(in nonEscapingElements : String) : void
+        _nonEscapingElements = nonEscapingElements;
+!!!5686427.java!!!	getLineSeparator() : String
+        return _lineSeparator;
+!!!5686555.java!!!	setLineSeparator(in lineSeparator : String) : void
+        if ( lineSeparator == null )
+            _lineSeparator =  LineSeparator.Web;
+        else
+            _lineSeparator = lineSeparator;
+!!!5686683.java!!!	getPreserveSpace() : boolean
+        return _preserve;
+!!!5686811.java!!!	setPreserveSpace(inout preserve : boolean) : void
+        _preserve = preserve;
+!!!5686939.java!!!	getLineWidth() : int
+        return _lineWidth;
+!!!5687067.java!!!	setLineWidth(in lineWidth : int) : void
+        if ( lineWidth <= 0 )
+            _lineWidth = 0;
+        else
+            _lineWidth = lineWidth;
+!!!5687195.java!!!	getPreserveEmptyAttributes() : boolean
+		return _preserveEmptyAttributes;
+!!!5687323.java!!!	setPreserveEmptyAttributes(inout preserve : boolean) : void
+		_preserveEmptyAttributes = preserve;
+!!!5687451.java!!!	getLastPrintable() : char
+        if ( getEncoding() != null &&
+             ( getEncoding().equalsIgnoreCase( "ASCII" ) ) )
+            return 0xFF;
+        else
+            return 0xFFFF;
+!!!5687579.java!!!	whichMethod(inout doc : Document) : String
+        Node    node;
+        String  value;
+        int     i;
+
+        // If document is derived from HTMLDocument then the default
+        // method is html.
+        if ( doc instanceof HTMLDocument )
+            return Method.HTML;
+
+        // Lookup the root element and the text nodes preceding it.
+        // If root element is html and all text nodes contain whitespace
+        // only, the method is html.
+
+        // FIXME (SM) should we care about namespaces here?
+
+        node = doc.getFirstChild();
+        while (node != null) {
+            // If the root element is html, the method is html.
+            if ( node.getNodeType() == Node.ELEMENT_NODE ) {
+                if ( node.getNodeName().equalsIgnoreCase( "html" ) ) {
+                    return Method.HTML;
+                } else if ( node.getNodeName().equalsIgnoreCase( "root" ) ) {
+                    return Method.FOP;
+                } else {
+                    return Method.XML;
+                }
+            } else if ( node.getNodeType() == Node.TEXT_NODE ) {
+                // If a text node preceding the root element contains
+                // only whitespace, this might be html, otherwise it's
+                // definitely xml.
+                value = node.getNodeValue();
+                for ( i = 0 ; i < value.length() ; ++i )
+                    if ( value.charAt( i ) != 0x20 && value.charAt( i ) != 0x0A &&
+                         value.charAt( i ) != 0x09 && value.charAt( i ) != 0x0D )
+                        return Method.XML;
+            }
+            node = node.getNextSibling();
+        }
+        // Anything else, the method is xml.
+        return Method.XML;
+!!!5687707.java!!!	whichDoctypePublic(inout doc : Document) : String
+        DocumentType doctype;
+
+           /*  DOM Level 2 was introduced into the code base*/
+           doctype = doc.getDoctype();
+           if ( doctype != null ) {
+           // Note on catch: DOM Level 1 does not specify this method
+           // and the code will throw a NoSuchMethodError
+           try {
+           return doctype.getPublicId();
+           } catch ( Error except ) {  }
+           }
+        
+        if ( doc instanceof HTMLDocument )
+            return DTD.XHTMLPublicId;
+        return null;
+!!!5687835.java!!!	whichDoctypeSystem(inout doc : Document) : String
+        DocumentType doctype;
+
+        /* DOM Level 2 was introduced into the code base*/
+           doctype = doc.getDoctype();
+           if ( doctype != null ) {
+           // Note on catch: DOM Level 1 does not specify this method
+           // and the code will throw a NoSuchMethodError
+           try {
+           return doctype.getSystemId();
+           } catch ( Error except ) { }
+           }
+        
+        if ( doc instanceof HTMLDocument )
+            return DTD.XHTMLSystemId;
+        return null;
+!!!5687963.java!!!	whichMediaType(in method : String) : String
+        if ( method.equalsIgnoreCase( Method.XML ) )
+            return "text/xml";
+        if ( method.equalsIgnoreCase( Method.HTML ) )
+            return "text/html";
+        if ( method.equalsIgnoreCase( Method.XHTML ) )
+            return "text/html";
+        if ( method.equalsIgnoreCase( Method.TEXT ) )
+            return "text/plain";
+        if ( method.equalsIgnoreCase( Method.FOP ) )
+            return "application/pdf";
+        return null;

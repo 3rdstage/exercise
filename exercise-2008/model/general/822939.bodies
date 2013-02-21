@@ -1,0 +1,29 @@
+class FuncLoader
+!!!5998619.java!!!	getName() : String
+    return m_funcName;
+!!!5998747.java!!!	FuncLoader(in funcName : String, in funcID : int)
+
+    super();
+
+    m_funcID = funcID;
+    m_funcName = funcName;
+!!!5998875.java!!!	getFunction() : Function
+    try
+    {
+      String className = m_funcName;
+      if (className.indexOf(".") < 0) {
+        className = "com.sun.org.apache.xpath.internal.functions." + className;
+      }
+      //hack for loading only built-in function classes.
+      Function func = (Function) ObjectFactory.newInstance(
+          className, ObjectFactory.findClassLoader(), true);
+      //Sun's implementation use null to represent the bootstrap class loader.
+      if(func.getClass().getClassLoader() == null)
+          return func;
+      else
+          throw new TransformerException("Application can't install his own xpath function.");
+    }
+    catch (ObjectFactory.ConfigurationError e)
+    {
+      throw new TransformerException(e.getException());
+    }

@@ -1,0 +1,323 @@
+class Handler
+!!!2980251.java!!!	keyTyped(inout e : KeyEvent) : void
+	    JList src = (JList)e.getSource();
+	    ListModel model = src.getModel();
+
+            if (model.getSize() == 0 || e.isAltDown() || e.isControlDown() || e.isMetaDown() ||
+		isNavigationKey(e)) {
+                // Nothing to select
+                return;
+            }
+	    boolean startingFromSelection = true;
+
+	    char c = e.getKeyChar();
+
+	    long time = e.getWhen();
+	    int startIndex = src.getLeadSelectionIndex();
+	    if (time - lastTime < timeFactor) {
+		typedString += c;
+   		if((prefix.length() == 1) && (c == prefix.charAt(0))) {
+   		    // Subsequent same key presses move the keyboard focus to the next 
+   		    // object that starts with the same letter.
+   		    startIndex++;
+ 		} else {
+ 		    prefix = typedString;
+ 		}
+  	    } else {
+  	    	startIndex++;
+		typedString = "" + c;
+   		prefix = typedString;
+	    }
+	    lastTime = time;
+
+	    if (startIndex < 0 || startIndex >= model.getSize()) {
+		startingFromSelection = false;
+		startIndex = 0;
+	    }
+	    int index = src.getNextMatch(prefix, startIndex,
+					 Position.Bias.Forward);
+	    if (index >= 0) {
+		src.setSelectedIndex(index);
+		src.ensureIndexIsVisible(index);
+	    } else if (startingFromSelection) { // wrap
+		index = src.getNextMatch(prefix, 0,
+					 Position.Bias.Forward);
+		if (index >= 0) {
+		    src.setSelectedIndex(index);
+		    src.ensureIndexIsVisible(index);
+		}
+	    }
+!!!2980379.java!!!	keyPressed(inout e : KeyEvent) : void
+	    if ( isNavigationKey(e) ) {
+		prefix = "";
+		typedString = "";
+		lastTime = 0L;
+	    }
+!!!2980635.java!!!	isNavigationKey(inout event : KeyEvent) : boolean
+	    InputMap inputMap = list.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+	    KeyStroke key = KeyStroke.getKeyStrokeForEvent(event);
+
+	    if (inputMap != null && inputMap.get(key) != null) {
+		return true;
+	    }
+	    return false;
+!!!2980763.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+            String propertyName = e.getPropertyName();
+
+            /* If the JList.model property changes, remove our listener,
+             * listDataListener from the old model and add it to the new one.
+             */
+            if (propertyName == "model") {
+                ListModel oldModel = (ListModel)e.getOldValue();
+                ListModel newModel = (ListModel)e.getNewValue();
+                if (oldModel != null) {
+                    oldModel.removeListDataListener(listDataListener);
+                }
+                if (newModel != null) {
+                    newModel.addListDataListener(listDataListener);
+                }
+                updateLayoutStateNeeded |= modelChanged;
+		redrawList();
+            }
+
+            /* If the JList.selectionModel property changes, remove our listener,
+             * listSelectionListener from the old selectionModel and add it to the new one.
+             */
+            else if (propertyName == "selectionModel") {
+                ListSelectionModel oldModel = (ListSelectionModel)e.getOldValue();
+                ListSelectionModel newModel = (ListSelectionModel)e.getNewValue();
+                if (oldModel != null) {
+                    oldModel.removeListSelectionListener(listSelectionListener);
+                }
+                if (newModel != null) {
+                    newModel.addListSelectionListener(listSelectionListener);
+                }
+                updateLayoutStateNeeded |= modelChanged;
+		redrawList();
+            }
+            else if (propertyName == "cellRenderer") {
+                updateLayoutStateNeeded |= cellRendererChanged;
+		redrawList();
+            }
+            else if (propertyName == "font") {
+                updateLayoutStateNeeded |= fontChanged;
+		redrawList();
+            }
+            else if (propertyName == "prototypeCellValue") {
+                updateLayoutStateNeeded |= prototypeCellValueChanged;
+		redrawList();
+            }
+            else if (propertyName == "fixedCellHeight") {
+                updateLayoutStateNeeded |= fixedCellHeightChanged;
+		redrawList();
+            }
+            else if (propertyName == "fixedCellWidth") {
+                updateLayoutStateNeeded |= fixedCellWidthChanged;
+		redrawList();
+            }
+            else if (propertyName == "cellRenderer") {
+                updateLayoutStateNeeded |= cellRendererChanged;
+		redrawList();
+            }
+            else if (propertyName == "selectionForeground") {
+		list.repaint();
+            }
+            else if (propertyName == "selectionBackground") {
+		list.repaint();
+            }
+            else if ("layoutOrientation" == propertyName) {
+                updateLayoutStateNeeded |= layoutOrientationChanged;
+                layoutOrientation = list.getLayoutOrientation();
+                redrawList();
+            }
+            else if ("visibleRowCount" == propertyName) {
+                if (layoutOrientation != JList.VERTICAL) {
+                    updateLayoutStateNeeded |= layoutOrientationChanged;
+                    redrawList();
+                }
+            }
+            else if ("componentOrientation" == propertyName) {
+		isLeftToRight = list.getComponentOrientation().isLeftToRight();
+                updateLayoutStateNeeded |= componentOrientationChanged;
+                redrawList();
+
+		InputMap inputMap = getInputMap(JComponent.WHEN_FOCUSED);
+		SwingUtilities.replaceUIInputMap(list, JComponent.WHEN_FOCUSED,
+						 inputMap);
+	    } else if ("List.isFileList" == propertyName) {
+                updateIsFileList();
+		redrawList();
+            } else if ("transferHandler" == propertyName) {
+                DropTarget dropTarget = list.getDropTarget();
+                if (dropTarget instanceof UIResource) {
+                    try {
+                        dropTarget.addDropTargetListener(new ListDropTargetListener());
+                    } catch (TooManyListenersException tmle) {
+                        // should not happen... swing drop target is multicast
+                    }
+                }
+            }
+!!!2980891.java!!!	intervalAdded(inout e : ListDataEvent) : void
+            updateLayoutStateNeeded = modelChanged;
+
+            int minIndex = Math.min(e.getIndex0(), e.getIndex1());
+            int maxIndex = Math.max(e.getIndex0(), e.getIndex1());
+
+            /* Sync the SelectionModel with the DataModel.
+             */
+
+            ListSelectionModel sm = list.getSelectionModel();
+            if (sm != null) {
+                sm.insertIndexInterval(minIndex, maxIndex - minIndex+1, true);
+            }
+
+            /* Repaint the entire list, from the origin of
+             * the first added cell, to the bottom of the
+             * component.
+             */
+            redrawList();
+!!!2981019.java!!!	intervalRemoved(inout e : ListDataEvent) : void
+            updateLayoutStateNeeded = modelChanged;
+
+            /* Sync the SelectionModel with the DataModel.
+             */
+
+            ListSelectionModel sm = list.getSelectionModel();
+            if (sm != null) {
+                sm.removeIndexInterval(e.getIndex0(), e.getIndex1());
+            }
+
+            /* Repaint the entire list, from the origin of
+             * the first removed cell, to the bottom of the
+             * component.
+             */
+
+            redrawList();
+!!!2981147.java!!!	contentsChanged(inout e : ListDataEvent) : void
+            updateLayoutStateNeeded = modelChanged;
+	    redrawList();
+!!!2981275.java!!!	valueChanged(inout e : ListSelectionEvent) : void
+            maybeUpdateLayoutState();
+
+            Rectangle bounds = getCellBounds(list, e.getFirstIndex(),
+                                             e.getLastIndex());
+
+            if (bounds != null) {
+                list.repaint(bounds.x, bounds.y, bounds.width, bounds.height);
+            }
+!!!2981787.java!!!	mousePressed(inout e : MouseEvent) : void
+	    if (e.isConsumed()) {
+		selectedOnPress = false;
+		return;
+	    }
+	    selectedOnPress = true;
+	    adjustFocusAndSelection(e);
+!!!2981915.java!!!	adjustFocusAndSelection(inout e : MouseEvent) : void
+	    if (!SwingUtilities.isLeftMouseButton(e)) {
+	        return;
+	    }
+
+	    if (!list.isEnabled()) {
+		return;
+	    }
+
+	    /* Request focus before updating the list selection.  This implies
+	     * that the current focus owner will see a focusLost() event
+	     * before the lists selection is updated IF requestFocus() is
+	     * synchronous (it is on Windows).  See bug 4122345
+	     */
+            SwingUtilities2.adjustFocus(list);
+
+            adjustSelection(e);
+!!!2982043.java!!!	adjustSelection(inout e : MouseEvent) : void
+            int row = SwingUtilities2.loc2IndexFileList(list, e.getPoint());
+            if (row < 0) {
+                // If shift is down in multi-select, we should do nothing.
+                // For single select or non-shift-click, clear the selection
+		if (isFileList &&
+                    e.getID() == MouseEvent.MOUSE_PRESSED &&
+                    (!e.isShiftDown() ||
+                     list.getSelectionMode() == ListSelectionModel.SINGLE_SELECTION)) {
+                    list.clearSelection();
+                }
+            }
+            else {
+                if (!DRAG_FIX) {
+                    boolean adjusting = (e.getID() == MouseEvent.MOUSE_PRESSED) ? true : false;
+                    list.setValueIsAdjusting(adjusting);
+                }
+                int anchorIndex = list.getAnchorSelectionIndex();
+                if (e.isControlDown()) {
+                    if (e.isShiftDown() && anchorIndex != -1) {
+                        if (list.isSelectedIndex(anchorIndex)) {
+                            list.addSelectionInterval(anchorIndex, row);
+                        } else {
+                            list.removeSelectionInterval(anchorIndex, row);
+                            list.addSelectionInterval(row, row);
+                            list.getSelectionModel().setAnchorSelectionIndex(anchorIndex);
+                        }
+                    } else if (list.isSelectedIndex(row)) {
+                        list.removeSelectionInterval(row, row);
+                    }
+                    else {
+                        list.addSelectionInterval(row, row);
+                    }
+                }
+                else if (e.isShiftDown() && (anchorIndex != -1)) {
+                    list.setSelectionInterval(anchorIndex, row);
+                }
+                else {
+                    list.setSelectionInterval(row, row);
+                }
+            }
+!!!2982171.java!!!	mouseDragged(inout e : MouseEvent) : void
+	    if (e.isConsumed()) {
+		return;
+	    }
+	    if (!SwingUtilities.isLeftMouseButton(e)) {
+	        return;
+	    }
+	    if (!list.isEnabled()) {
+		return;
+	    }
+
+            mouseDraggedImpl(e);
+!!!2982299.java!!!	mouseDraggedImpl(inout e : MouseEvent) : void
+            if (e.isShiftDown() || e.isControlDown()) {
+                return;
+            }
+
+            int row = locationToIndex(list, e.getPoint());
+            if (row != -1) {
+                // 4835633.  Dragging onto a File should not select it.
+                if (isFileList) {
+                    return;
+                }
+                Rectangle cellBounds = getCellBounds(list, row, row);
+                if (cellBounds != null) {
+                    list.scrollRectToVisible(cellBounds);
+                    list.setSelectionInterval(row, row);
+                }
+            }
+!!!2982555.java!!!	mouseReleased(inout e : MouseEvent) : void
+	    if (selectedOnPress) {
+		if (!SwingUtilities.isLeftMouseButton(e)) {
+		    return;
+		}
+
+		list.setValueIsAdjusting(false);
+	    } else {
+		adjustFocusAndSelection(e);
+	    }
+!!!2982683.java!!!	repaintCellFocus() : void
+            int leadIndex = list.getLeadSelectionIndex();
+            if (leadIndex != -1) {
+                Rectangle r = getCellBounds(list, leadIndex, leadIndex);
+                if (r != null) {
+                    list.repaint(r.x, r.y, r.width, r.height);
+                }
+            }
+!!!2982811.java!!!	focusGained(inout e : FocusEvent) : void
+            repaintCellFocus();
+!!!2982939.java!!!	focusLost(inout e : FocusEvent) : void
+            repaintCellFocus();

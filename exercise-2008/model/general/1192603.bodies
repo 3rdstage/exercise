@@ -1,0 +1,569 @@
+class GlyphView
+!!!9840155.java!!!	GlyphView(inout elem : Element)
+	super(elem);
+	offset = 0;
+	length = 0;
+        Element parent = elem.getParentElement();
+        AttributeSet attr = elem.getAttributes();
+
+        //         if there was an implied CR
+        impliedCR = (attr != null && attr.getAttribute(IMPLIED_CR) != null &&
+        //         if this is non-empty paragraph
+                   parent != null && parent.getElementCount() > 1);
+        skipWidth = elem.getName().equals("br");
+!!!9840283.java!!!	clone() : Object
+	Object o;
+	try {
+	    o = super.clone();
+	} catch (CloneNotSupportedException cnse) {
+	    o = null;
+	}
+	return o;
+!!!9840411.java!!!	getGlyphPainter() : GlyphPainter
+	return painter;
+!!!9840539.java!!!	setGlyphPainter(inout p : GlyphPainter) : void
+	painter = p;
+!!!9840667.java!!!	getText(in p0 : int, in p1 : int) : Segment
+         // When done with the returned Segment it should be released by
+         // invoking:
+         //    SegmentCache.releaseSharedSegment(segment);
+         Segment text = SegmentCache.getSharedSegment();
+         try {
+             Document doc = getDocument();
+             doc.getText(p0, p1 - p0, text);
+         } catch (BadLocationException bl) {
+             throw new StateInvariantError("GlyphView: Stale view: " + bl);
+         }
+         return text;
+!!!9840795.java!!!	getBackground() : Color
+	Document doc = getDocument();
+	if (doc instanceof StyledDocument) {
+	    AttributeSet attr = getAttributes();
+	    if (attr.isDefined(StyleConstants.Background)) {
+		return ((StyledDocument)doc).getBackground(attr);
+	    }
+	}
+	return null;
+!!!9840923.java!!!	getForeground() : Color
+	Document doc = getDocument();
+	if (doc instanceof StyledDocument) {
+	    AttributeSet attr = getAttributes();
+	    return ((StyledDocument)doc).getForeground(attr);
+	}
+	Component c = getContainer();
+	if (c != null) {
+	    return c.getForeground();
+	}
+	return null;
+!!!9841051.java!!!	getFont() : Font
+	Document doc = getDocument();
+	if (doc instanceof StyledDocument) {
+	    AttributeSet attr = getAttributes();
+	    return ((StyledDocument)doc).getFont(attr);
+	}
+	Component c = getContainer();
+	if (c != null) {
+	    return c.getFont();
+	}
+	return null;
+!!!9841179.java!!!	isUnderline() : boolean
+	AttributeSet attr = getAttributes();
+	return StyleConstants.isUnderline(attr);
+!!!9841307.java!!!	isStrikeThrough() : boolean
+	AttributeSet attr = getAttributes();
+	return StyleConstants.isStrikeThrough(attr);
+!!!9841435.java!!!	isSubscript() : boolean
+	AttributeSet attr = getAttributes();
+	return StyleConstants.isSubscript(attr);
+!!!9841563.java!!!	isSuperscript() : boolean
+	AttributeSet attr = getAttributes();
+	return StyleConstants.isSuperscript(attr);
+!!!9841691.java!!!	getTabExpander() : TabExpander
+	return expander;
+!!!9841819.java!!!	checkPainter() : void
+	if (painter == null) {
+	    if (defaultPainter == null) {
+		// the classname should probably come from a property file.
+		String classname = "javax.swing.text.GlyphPainter1"; 
+		try {
+		    Class c;
+		    ClassLoader loader = getClass().getClassLoader();
+		    if (loader != null) {
+			c = loader.loadClass(classname);
+		    } else {
+		        c = Class.forName(classname);
+		    }
+		    Object o = c.newInstance();
+		    if (o instanceof GlyphPainter) {
+			defaultPainter = (GlyphPainter) o;
+		    }
+		} catch (Throwable e) {
+		    throw new StateInvariantError("GlyphView: Can't load glyph painter: " 
+						  + classname);
+		}
+	    }
+	    setGlyphPainter(defaultPainter.getPainter(this, getStartOffset(), 
+						      getEndOffset()));
+	}
+!!!9841947.java!!!	getTabbedSpan(in x : float, inout e : TabExpander) : float
+	checkPainter();
+
+        TabExpander old = expander;
+	expander = e;
+
+        if (expander != old) {
+            // setting expander can change horizontal span of the view,
+            // so we have to call preferenceChanged()
+            preferenceChanged(null, true, false);
+        }
+
+	this.x = (int) x;
+	int p0 = getStartOffset();
+	int p1 = getEndOffset();
+	float width = painter.getSpan(this, p0, p1, expander, x);
+	return width;
+!!!9842075.java!!!	getPartialSpan(in p0 : int, in p1 : int) : float
+	checkPainter();
+	float width = painter.getSpan(this, p0, p1, expander, x);
+	return width;
+!!!9842203.java!!!	getStartOffset() : int
+	Element e = getElement();
+	return (length > 0) ? e.getStartOffset() + offset : e.getStartOffset();
+!!!9842331.java!!!	getEndOffset() : int
+	Element e = getElement();
+	return (length > 0) ? e.getStartOffset() + offset + length : e.getEndOffset();
+!!!9842459.java!!!	initSelections(in p0 : int, in p1 : int) : void
+        int viewPosCount = p1 - p0 + 1;
+        if (selections == null || viewPosCount > selections.length) {
+            selections = new byte[viewPosCount];
+            return;
+        }
+        for (int i = 0; i < viewPosCount; selections[i++] = 0);
+!!!9842587.java!!!	paint(inout g : Graphics, inout a : Shape) : void
+	checkPainter();
+
+	boolean paintedText = false;
+	Component c = getContainer();
+	int p0 = getStartOffset();
+	int p1 = getEndOffset();
+	Rectangle alloc = (a instanceof Rectangle) ? (Rectangle)a : a.getBounds();
+	Color bg = getBackground();
+	Color fg = getForeground();
+
+        if (c instanceof JTextComponent) {
+            JTextComponent tc = (JTextComponent) c;
+	    if  (!tc.isEnabled()) {
+		fg = tc.getDisabledTextColor();
+	    }
+        }
+	if (bg != null) {
+	    g.setColor(bg);
+	    g.fillRect(alloc.x, alloc.y, alloc.width, alloc.height);
+	}
+	if (c instanceof JTextComponent) {
+	    JTextComponent tc = (JTextComponent) c;
+	    Highlighter h = tc.getHighlighter();
+	    if (h instanceof LayeredHighlighter) {
+		((LayeredHighlighter)h).paintLayeredHighlights
+		    (g, p0, p1, a, tc, this);
+	    }
+	}
+
+	if (Utilities.isComposedTextElement(getElement())) {
+	    Utilities.paintComposedText(g, a.getBounds(), this);
+	    paintedText = true;
+	} else if(c instanceof JTextComponent) {
+	    JTextComponent tc = (JTextComponent) c;
+	    Color selFG = tc.getSelectedTextColor();
+            
+	    if (// there's a highlighter (bug 4532590), and
+                (tc.getHighlighter() != null) &&
+                // selected text color is different from regular foreground
+		(selFG != null) && !selFG.equals(fg)) {
+                
+                Highlighter.Highlight[] h = tc.getHighlighter().getHighlights(); 
+                if(h.length != 0) { 
+                    boolean initialized = false; 
+                    int viewSelectionCount = 0; 
+                    for (int i = 0; i < h.length; i++) { 
+                        Highlighter.Highlight highlight = h[i]; 
+                        int hStart = highlight.getStartOffset(); 
+                        int hEnd = highlight.getEndOffset(); 
+                        if (hStart > p1 || hEnd < p0) { 
+                            // the selection is out of this view 
+                            continue; 
+                        } 
+                        if (!SwingUtilities2.useSelectedTextColor(highlight, tc)) {
+                            continue;
+                        }
+                        if (hStart <= p0 && hEnd >= p1){ 
+                            // the whole view is selected 
+                            paintTextUsingColor(g, a, selFG, p0, p1); 
+                            paintedText = true; 
+                            break; 
+                        } 
+                        // the array is lazily created only when the view 
+                        // is partially selected 
+                        if (!initialized) { 
+                            initSelections(p0, p1); 
+                            initialized = true; 
+                        } 
+                        hStart = Math.max(p0, hStart); 
+                        hEnd = Math.min(p1, hEnd); 
+                        paintTextUsingColor(g, a, selFG, hStart, hEnd); 
+                        // the array represents view positions [0, p1-p0+1] 
+                        // later will iterate this array and sum its 
+                        // elements. Positions with sum == 0 are not selected. 
+                        selections[hStart-p0]++; 
+                        selections[hEnd-p0]--; 
+
+                        viewSelectionCount++; 
+                    } 
+ 
+                    if (!paintedText && viewSelectionCount > 0) { 
+                        // the view is partially selected 
+                        int curPos = -1; 
+                        int startPos = 0; 
+                        int viewLen = p1 - p0; 
+                        while (curPos++ < viewLen) { 
+                            // searching for the next selection start 
+                            while(curPos < viewLen && 
+                                    selections[curPos] == 0) curPos++; 
+                            if (startPos != curPos) { 
+                                // paint unselected text 
+                                paintTextUsingColor(g, a, fg, 
+                                        p0 + startPos, p0 + curPos); 
+                            } 
+                            int checkSum = 0; 
+                            // searching for next start position of unselected text 
+                            while (curPos < viewLen && 
+                                    (checkSum += selections[curPos]) != 0) curPos++; 
+                            startPos = curPos; 
+                        } 
+                        paintedText = true;
+                    }
+                }
+	    }
+	}
+	if(!paintedText)
+	    paintTextUsingColor(g, a, fg, p0, p1);
+!!!9842715.java!!!	paintTextUsingColor(inout g : Graphics, inout a : Shape, inout c : Color, in p0 : int, in p1 : int) : void
+	// render the glyphs
+	g.setColor(c);
+	painter.paint(this, g, a, p0, p1);
+
+	// render underline or strikethrough if set.
+	boolean underline = isUnderline();
+	boolean strike = isStrikeThrough();
+	if (underline || strike) {
+	    // calculate x coordinates
+	    Rectangle alloc = (a instanceof Rectangle) ? (Rectangle)a : a.getBounds();
+	    View parent = getParent();
+	    if ((parent != null) && (parent.getEndOffset() == p1)) {
+		// strip whitespace on end
+		Segment s = getText(p0, p1);
+		while ((s.count > 0) && (Character.isWhitespace(s.array[s.count-1]))) {
+		    p1 -= 1;
+		    s.count -= 1;
+		}
+                SegmentCache.releaseSharedSegment(s);
+	    }
+	    int x0 = alloc.x;
+	    int p = getStartOffset();
+	    if (p != p0) {
+		x0 += (int) painter.getSpan(this, p, p0, getTabExpander(), x0);
+	    }
+	    int x1 = x0 + (int) painter.getSpan(this, p0, p1, getTabExpander(), x0);
+
+	    // calculate y coordinate
+	    int d = (int) painter.getDescent(this);
+	    int y = alloc.y + alloc.height - (int) painter.getDescent(this);
+	    if (underline) {
+		int yTmp = y;
+		yTmp += 1;
+		g.drawLine(x0, yTmp, x1, yTmp);
+	    } 
+	    if (strike) {
+		int yTmp = y;
+		// move y coordinate above baseline
+		yTmp -= (int) (painter.getAscent(this) * 0.3f);
+		g.drawLine(x0, yTmp, x1, yTmp);
+	    }
+
+	}
+!!!9842843.java!!!	getPreferredSpan(in axis : int) : float
+        if (impliedCR) {
+            return 0;
+        }
+	checkPainter();
+	int p0 = getStartOffset();
+	int p1 = getEndOffset();
+	switch (axis) {
+	case View.X_AXIS:
+	    if (skipWidth) {
+		return 0;
+	    }
+	    return painter.getSpan(this, p0, p1, expander, this.x);
+	case View.Y_AXIS:
+	    float h = painter.getHeight(this);
+	    if (isSuperscript()) {
+		h += h/3;
+	    }
+	    return h;
+	default:
+	    throw new IllegalArgumentException("Invalid axis: " + axis);
+	}
+!!!9842971.java!!!	getAlignment(in axis : int) : float
+	checkPainter();
+	if (axis == View.Y_AXIS) {
+	    boolean sup = isSuperscript();
+	    boolean sub = isSubscript();
+	    float h = painter.getHeight(this);
+	    float d = painter.getDescent(this);
+	    float a = painter.getAscent(this);
+	    float align;
+	    if (sup) {
+		align = 1.0f;
+	    } else if (sub) {
+		align = (h > 0) ? (h - (d + (a / 2))) / h : 0;
+	    } else {
+		align = (h > 0) ? (h - d) / h : 0;
+	    }
+	    return align;
+	} 
+	return super.getAlignment(axis);
+!!!9843099.java!!!	modelToView(in pos : int, inout a : Shape, inout b : Bias) : Shape
+	checkPainter();
+	return painter.modelToView(this, pos, b, a);
+!!!9843227.java!!!	viewToModel(in x : float, in y : float, inout a : Shape, inout biasReturn : Bias) : int
+	checkPainter();
+	return painter.viewToModel(this, x, y, a, biasReturn);
+!!!9843355.java!!!	getBreakWeight(in axis : int, in pos : float, in len : float) : int
+	if (axis == View.X_AXIS) {
+	    checkPainter();
+	    int p0 = getStartOffset();
+	    int p1 = painter.getBoundedPosition(this, p0, pos, len);
+	    if (p1 == p0) {
+		// can't even fit a single character
+		return View.BadBreakWeight;	    
+	    }
+            if (getBreakSpot(p0, p1) != -1) {
+                return View.ExcellentBreakWeight;
+            }
+	    // Nothing good to break on.
+            // breaking on the View boundary is better than splitting it
+            if (p1 == getEndOffset()) {
+                return View.GoodBreakWeight;
+            } else {
+                return View.GoodBreakWeight - 1;
+            }
+	}
+	return super.getBreakWeight(axis, pos, len);
+!!!9843483.java!!!	breakView(in axis : int, in p0 : int, in pos : float, in len : float) : View
+	if (axis == View.X_AXIS) {
+	    checkPainter();
+	    int p1 = painter.getBoundedPosition(this, p0, pos, len);
+            int breakSpot = getBreakSpot(p0, p1);
+
+            if (breakSpot != -1) {
+                p1 = breakSpot;
+            }
+            // else, no break in the region, return a fragment of the
+            // bounded region.
+            if (p0 == getStartOffset() && p1 == getEndOffset()) {
+                return this;
+            }
+	    GlyphView v = (GlyphView) createFragment(p0, p1);
+	    v.x = (int) pos;
+	    return v;
+	}
+	return this;
+!!!9843611.java!!!	getBreakSpot(in p0 : int, in p1 : int) : int
+        Document doc = getDocument();
+
+        if (doc != null && Boolean.TRUE.equals(doc.getProperty(
+                                   AbstractDocument.MultiByteProperty))) {
+            return getBreakSpotUseBreakIterator(p0, p1);
+        }
+        return getBreakSpotUseWhitespace(p0, p1);
+!!!9843739.java!!!	getBreakSpotUseWhitespace(in p0 : int, in p1 : int) : int
+        Segment s = getText(p0, p1);
+
+        for (char ch = s.last(); ch != Segment.DONE; ch = s.previous()) {
+            if (Character.isWhitespace(ch)) {
+                // found whitespace
+                SegmentCache.releaseSharedSegment(s);
+                return s.getIndex() - s.getBeginIndex() + 1 + p0;
+            }
+        }
+        SegmentCache.releaseSharedSegment(s);
+        return -1;
+!!!9843867.java!!!	getBreakSpotUseBreakIterator(in p0 : int, in p1 : int) : int
+        // Certain regions require context for BreakIterator, start from
+        // our parents start offset.
+        Element parent = getElement().getParentElement();
+        int parent0;
+        int parent1;
+        Container c = getContainer();
+        BreakIterator breaker;
+
+        if (parent == null) {
+            parent0 = p0;
+            parent1 = p1;
+        }
+        else {
+            parent0 = parent.getStartOffset();
+            parent1 = parent.getEndOffset();
+        }
+        if (c != null) {
+            breaker = BreakIterator.getLineInstance(c.getLocale());
+        }
+        else {
+            breaker = BreakIterator.getLineInstance();
+        }
+
+        Segment s = getText(parent0, parent1);
+        int breakPoint;
+
+        // Needed to initialize the Segment.
+        s.first();
+        breaker.setText(s);
+
+        if (p1 == parent1) {
+            // This will most likely return the end, the assumption is
+            // that if parent1 == p1, then we are the last portion of
+            // a paragraph
+            breakPoint = breaker.last();
+        }
+        else if (p1 + 1 == parent1) {
+            // assert(s.count > 1)
+            breakPoint = breaker.next(s.offset + s.count - 2);
+            if (breakPoint >= s.count + s.offset) {
+                breakPoint = breaker.preceding(s.offset + s.count - 1);
+            }
+        }
+        else {
+            breakPoint = breaker.preceding(p1 - parent0 + s.offset + 1);
+        }
+
+        int retValue = -1;
+
+        if (breakPoint != BreakIterator.DONE) {
+            breakPoint = breakPoint - s.offset + parent0;
+            if (breakPoint > p0) {
+                if (p0 == parent0 && breakPoint == p0) {
+                    retValue = -1;
+                }
+                else if (breakPoint <= p1) {
+                    retValue = breakPoint;
+                }
+            }
+        }
+        SegmentCache.releaseSharedSegment(s);
+        return retValue;
+!!!9843995.java!!!	createFragment(in p0 : int, in p1 : int) : View
+	checkPainter();
+	Element elem = getElement();
+	GlyphView v = (GlyphView) clone();
+	v.offset = p0 - elem.getStartOffset();
+	v.length = p1 - p0;
+	v.painter = painter.getPainter(v, p0, p1);
+        v.justificationInfo = null;
+	return v;
+!!!9844123.java!!!	getNextVisualPositionFrom(in pos : int, inout b : Bias, inout a : Shape, in direction : int, inout biasRet : Bias) : int
+
+        return painter.getNextVisualPositionFrom(this, pos, b, a, direction, biasRet);
+!!!9844251.java!!!	insertUpdate(inout e : DocumentEvent, inout a : Shape, inout f : ViewFactory) : void
+        justificationInfo = null;
+	syncCR();
+	preferenceChanged(null, true, false);
+!!!9844379.java!!!	removeUpdate(inout e : DocumentEvent, inout a : Shape, inout f : ViewFactory) : void
+        justificationInfo = null;
+	syncCR();
+	preferenceChanged(null, true, false);
+!!!9844507.java!!!	changedUpdate(inout e : DocumentEvent, inout a : Shape, inout f : ViewFactory) : void
+	syncCR();
+	preferenceChanged(null, true, true);
+!!!9844635.java!!!	syncCR() : void
+        if (impliedCR) {
+            Element parent = getElement().getParentElement();
+            impliedCR = (parent != null && parent.getElementCount() > 1);
+        }
+!!!9844891.java!!!	getJustificationInfo(in rowStartOffset : int) : JustificationInfo
+        if (justificationInfo != null) {
+            return justificationInfo;
+        }
+        //states for the parsing
+        final int TRAILING = 0;
+        final int CONTENT  = 1;
+        final int SPACES   = 2;
+        int startOffset = getStartOffset();
+        int endOffset = getEndOffset();
+        Segment segment = getText(startOffset, endOffset);
+        int txtOffset = segment.offset;
+        int txtEnd = segment.offset + segment.count - 1;
+        int startContentPosition = txtEnd + 1;
+        int endContentPosition = txtOffset - 1;
+        int lastTabPosition = txtOffset - 1;
+        int trailingSpaces = 0;
+        int contentSpaces = 0;
+        int leadingSpaces = 0;
+        boolean hasTab = false;
+        BitSet spaceMap = new BitSet(endOffset - startOffset + 1);
+
+        //we parse conent to the right of the rightmost TAB only.
+        //we are looking for the trailing and leading spaces.
+        //position after the leading spaces (startContentPosition)
+        //position before the trailing spaces (endContentPosition)
+        for (int i = txtEnd, state = TRAILING; i >= txtOffset; i--) {
+            if (' ' == segment.array[i]) {
+                spaceMap.set(i - txtOffset);
+                if (state == TRAILING) {
+                    trailingSpaces++;
+                } else if (state == CONTENT) {
+                    state = SPACES;
+                    leadingSpaces = 1;
+                } else if (state == SPACES) {
+                    leadingSpaces++;
+                }
+            } else if ('\t' == segment.array[i]) {
+                hasTab = true;
+                break;
+            } else {
+                if (state == TRAILING) {
+                    if ('\n' != segment.array[i]
+                          && '\r' != segment.array[i]) {
+                        state = CONTENT;
+                        endContentPosition = i;
+                    }
+                } else if (state == CONTENT) {
+                    //do nothing
+                } else if (state == SPACES) {
+                    contentSpaces += leadingSpaces;
+                    leadingSpaces = 0;
+                }
+                startContentPosition = i;
+            }
+        }
+
+        SegmentCache.releaseSharedSegment(segment);
+
+        int startJustifiableContent = -1;
+        if (startContentPosition < txtEnd) {
+            startJustifiableContent = 
+                startContentPosition - txtOffset;
+        }
+        int endJustifiableContent = -1;
+        if (endContentPosition > txtOffset) {
+            endJustifiableContent = 
+                endContentPosition - txtOffset;
+        }
+        justificationInfo = 
+            new JustificationInfo(startJustifiableContent,
+                                  endJustifiableContent,
+                                  leadingSpaces,
+                                  contentSpaces,
+                                  trailingSpaces,
+                                  hasTab,
+                                  spaceMap);
+        return justificationInfo;

@@ -1,0 +1,255 @@
+class AccessibleJSpinner
+!!!9085083.java!!!	AccessibleJSpinner()
+	    // model is guaranteed to be non-null
+	    oldModelValue = model.getValue();
+	    JSpinner.this.addChangeListener(this);
+!!!9085211.java!!!	stateChanged(inout e : ChangeEvent) : void
+	    if (e == null) {
+		throw new NullPointerException();
+	    }
+	    Object newModelValue = model.getValue();
+	    firePropertyChange(ACCESSIBLE_VALUE_PROPERTY, 
+			       oldModelValue, 
+			       newModelValue);
+	    firePropertyChange(ACCESSIBLE_TEXT_PROPERTY, 
+			       null, 
+			       0); // entire text may have changed
+	    
+	    oldModelValue = newModelValue;
+!!!9085339.java!!!	getAccessibleRole() : AccessibleRole
+	    return AccessibleRole.SPIN_BOX;
+!!!9085467.java!!!	getAccessibleChildrenCount() : int
+	    // the JSpinner has one child, the editor
+	    if (editor.getAccessibleContext() != null) {
+		return 1;
+	    }
+	    return 0;
+!!!9085595.java!!!	getAccessibleChild(in i : int) : Accessible
+	    // the JSpinner has one child, the editor
+	    if (i != 0) {
+		return null;
+	    }
+	    if (editor.getAccessibleContext() != null) {
+		return (Accessible)editor;
+	    } 
+	    return null;
+!!!9085723.java!!!	getAccessibleAction() : AccessibleAction
+	    return this;
+!!!9085851.java!!!	getAccessibleText() : AccessibleText
+	    return this;
+!!!9085979.java!!!	getEditorAccessibleContext() : AccessibleContext
+	    if (editor instanceof DefaultEditor) {
+		JTextField textField = ((DefaultEditor)editor).getTextField();
+		if (textField != null) {
+		    return textField.getAccessibleContext();
+		}
+	    } else if (editor instanceof Accessible) {
+		return ((Accessible)editor).getAccessibleContext();
+	    }
+	    return null;
+!!!9086107.java!!!	getEditorAccessibleText() : AccessibleText
+	    AccessibleContext ac = getEditorAccessibleContext();
+	    if (ac != null) {
+		return ac.getAccessibleText();
+	    }
+	    return null;
+!!!9086235.java!!!	getEditorAccessibleEditableText() : AccessibleEditableText
+	    AccessibleText at = getEditorAccessibleText();
+	    if (at instanceof AccessibleEditableText) {
+		return (AccessibleEditableText)at;
+	    }
+	    return null;
+!!!9086363.java!!!	getAccessibleValue() : AccessibleValue
+	    return this;
+!!!9086491.java!!!	getCurrentAccessibleValue() : Number
+	    Object o = model.getValue();
+	    if (o instanceof Number) {
+		return (Number)o;
+	    }
+	    return null;
+!!!9086619.java!!!	setCurrentAccessibleValue(inout n : Number) : boolean
+	    // try to set the new value
+	    try {
+		model.setValue(n);
+		return true;
+	    } catch (IllegalArgumentException iae) {
+		// SpinnerModel didn't like new value
+	    }
+	    return false;
+!!!9086747.java!!!	getMinimumAccessibleValue() : Number
+	    if (model instanceof SpinnerNumberModel) {
+		SpinnerNumberModel numberModel = (SpinnerNumberModel)model;
+		Object o = numberModel.getMinimum();
+		if (o instanceof Number) {
+		    return (Number)o;
+		}
+	    }
+	    return null;		
+!!!9086875.java!!!	getMaximumAccessibleValue() : Number
+	    if (model instanceof SpinnerNumberModel) {
+		SpinnerNumberModel numberModel = (SpinnerNumberModel)model;
+		Object o = numberModel.getMaximum();
+		if (o instanceof Number) {
+		    return (Number)o;
+		}
+	    }
+	    return null;
+!!!9087003.java!!!	getAccessibleActionCount() : int
+	    return 2;
+!!!9087131.java!!!	getAccessibleActionDescription(in i : int) : String
+	    if (i == 0) {
+		return AccessibleAction.INCREMENT;
+	    } else if (i == 1) {
+		return AccessibleAction.DECREMENT;
+	    }
+	    return null;
+!!!9087259.java!!!	doAccessibleAction(in i : int) : boolean
+	    if (i < 0 || i > 1) {
+		return false;
+	    }
+	    Object o = null;
+	    if (i == 0) {
+		o = getNextValue(); // AccessibleAction.INCREMENT
+	    } else {
+		o = getPreviousValue();	// AccessibleAction.DECREMENT
+	    }
+	    // try to set the new value
+	    try {
+		model.setValue(o);
+		return true;
+	    } catch (IllegalArgumentException iae) {
+		// SpinnerModel didn't like new value
+	    }
+	    return false;
+!!!9087387.java!!!	sameWindowAncestor(inout src : Component, inout dest : Component) : boolean
+	    if (src == null || dest == null) {
+		return false;
+	    }
+	    return SwingUtilities.getWindowAncestor(src) ==
+		SwingUtilities.getWindowAncestor(dest);
+!!!9087515.java!!!	getIndexAtPoint(inout p : Point) : int
+	    AccessibleText at = getEditorAccessibleText();
+	    if (at != null && sameWindowAncestor(JSpinner.this, editor)) {
+		// convert point from the JSpinner bounds (source) to 
+		// editor bounds (destination)
+		Point editorPoint = SwingUtilities.convertPoint(JSpinner.this,
+								p,
+								editor);
+		if (editorPoint != null) {
+		    return at.getIndexAtPoint(editorPoint);
+		}
+	    }
+	    return -1;
+!!!9087643.java!!!	getCharacterBounds(in i : int) : Rectangle
+	    AccessibleText at = getEditorAccessibleText();
+	    if (at != null ) {
+		Rectangle editorRect = at.getCharacterBounds(i);
+		if (editorRect != null && 
+		    sameWindowAncestor(JSpinner.this, editor)) {
+		    // return rectangle in the the JSpinner bounds
+		    return SwingUtilities.convertRectangle(editor,
+							   editorRect,
+							   JSpinner.this);
+		}
+	    }
+	    return null;
+!!!9087771.java!!!	getCharCount() : int
+	    AccessibleText at = getEditorAccessibleText();
+	    if (at != null) {
+		return at.getCharCount();
+	    }
+	    return -1;
+!!!9087899.java!!!	getCaretPosition() : int
+	    AccessibleText at = getEditorAccessibleText();
+	    if (at != null) {
+		return at.getCaretPosition();
+	    }
+	    return -1;
+!!!9088027.java!!!	getAtIndex(in part : int, in index : int) : String
+	    AccessibleText at = getEditorAccessibleText();
+	    if (at != null) {
+		return at.getAtIndex(part, index);
+	    }
+	    return null;
+!!!9088155.java!!!	getAfterIndex(in part : int, in index : int) : String
+	    AccessibleText at = getEditorAccessibleText();
+	    if (at != null) {
+		return at.getAfterIndex(part, index);
+	    }
+	    return null;
+!!!9088283.java!!!	getBeforeIndex(in part : int, in index : int) : String
+	    AccessibleText at = getEditorAccessibleText();
+	    if (at != null) {
+		return at.getBeforeIndex(part, index);
+	    }
+	    return null;
+!!!9088411.java!!!	getCharacterAttribute(in i : int) : AttributeSet
+	    AccessibleText at = getEditorAccessibleText();
+	    if (at != null) {
+		return at.getCharacterAttribute(i);
+	    } 
+	    return null;
+!!!9088539.java!!!	getSelectionStart() : int
+	    AccessibleText at = getEditorAccessibleText();
+	    if (at != null) {
+		return at.getSelectionStart();
+	    }
+	    return -1;
+!!!9088667.java!!!	getSelectionEnd() : int
+	    AccessibleText at = getEditorAccessibleText();
+	    if (at != null) {
+		return at.getSelectionEnd();
+	    } 
+	    return -1;
+!!!9088795.java!!!	getSelectedText() : String
+	    AccessibleText at = getEditorAccessibleText();
+	    if (at != null) {
+		return at.getSelectedText();
+	    }
+	    return null;
+!!!9088923.java!!!	setTextContents(in s : String) : void
+	    AccessibleEditableText at = getEditorAccessibleEditableText();
+	    if (at != null) {
+		at.setTextContents(s);
+	    }
+!!!9089051.java!!!	insertTextAtIndex(in index : int, in s : String) : void
+	    AccessibleEditableText at = getEditorAccessibleEditableText();
+	    if (at != null) {
+		at.insertTextAtIndex(index, s);
+	    }
+!!!9089179.java!!!	getTextRange(in startIndex : int, in endIndex : int) : String
+	    AccessibleEditableText at = getEditorAccessibleEditableText();
+	    if (at != null) {
+		return at.getTextRange(startIndex, endIndex);
+	    }
+	    return null;
+!!!9089307.java!!!	delete(in startIndex : int, in endIndex : int) : void
+	    AccessibleEditableText at = getEditorAccessibleEditableText();
+	    if (at != null) {
+		at.delete(startIndex, endIndex);
+	    }
+!!!9089435.java!!!	cut(in startIndex : int, in endIndex : int) : void
+	    AccessibleEditableText at = getEditorAccessibleEditableText();
+	    if (at != null) {
+		at.cut(startIndex, endIndex);
+	    }
+!!!9089563.java!!!	paste(in startIndex : int) : void
+	    AccessibleEditableText at = getEditorAccessibleEditableText();
+	    if (at != null) {
+		at.paste(startIndex);
+	    }
+!!!9089691.java!!!	replaceText(in startIndex : int, in endIndex : int, in s : String) : void
+	    AccessibleEditableText at = getEditorAccessibleEditableText();
+	    if (at != null) {
+		at.replaceText(startIndex, endIndex, s);
+	    }
+!!!9089819.java!!!	selectText(in startIndex : int, in endIndex : int) : void
+	    AccessibleEditableText at = getEditorAccessibleEditableText();
+	    if (at != null) {
+		at.selectText(startIndex, endIndex);
+	    }
+!!!9089947.java!!!	setAttributes(in startIndex : int, in endIndex : int, inout as : AttributeSet) : void
+	    AccessibleEditableText at = getEditorAccessibleEditableText();
+	    if (at != null) {
+		at.setAttributes(startIndex, endIndex, as);
+	    }

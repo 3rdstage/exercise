@@ -1,0 +1,806 @@
+class BlueprintEngineParser
+!!!2102683.java!!!	registerSymbolsIfNecessary() : void
+        if (scanner.containsSymbol(symbolNames[0])) {
+            return;
+        }
+
+        for (int i = 0; i < symbolNames.length; i++) {
+            scanner.addSymbol(symbolNames[i], symbolVals[i]);
+        }
+!!!2102811.java!!!	parse(inout scanner : GTKScanner, inout parser : GTKParser, inout retVal : EngineInfo) : int
+
+        this.scanner = scanner;
+        this.parser = parser;
+
+        if (retVal[0] == null) {
+            engineInfo = new BlueprintEngineInfo();
+        } else {
+            engineInfo = (BlueprintEngineInfo)retVal[0];
+        }
+
+        int oldScope = scanner.setScope(uniqueScopeID);
+        registerSymbolsIfNecessary();
+
+        BlueprintStyle.Info info[] = new BlueprintStyle.Info[1];
+
+        int token;
+
+        token = scanner.peekNextToken();
+        while (token != GTKScanner.TOKEN_RIGHT_CURLY) {
+            
+            info[0] = null;
+            
+            switch(token) {
+                case SYM_IMAGE:
+                    token = parseImage(info);
+                    break;
+                case SYM_COLORIZE_COLOR:
+                    Color[] col = new Color[1];
+                    token = parseColorizeColor(col);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        engineInfo.colorizeColor = col[0];
+                    }
+                    break;
+                case SYM_ICON_COLORIZE:
+                    token = parseIconColorize(engineInfo);
+                    break;
+                case SYM_ICON_COLORIZE_ANCESTOR_TYPE:
+                    // consume token
+                    scanner.getToken();
+
+                    if (engineInfo.iconAncestorTypes == null) {
+                        engineInfo.iconAncestorTypes = new ArrayList();
+                    }
+
+                    token = parseStringList(engineInfo.iconAncestorTypes);
+                    break;
+                default:
+                    scanner.getToken();
+                    token = GTKScanner.TOKEN_RIGHT_CURLY;
+                    break;
+            }
+
+            if (token != GTKScanner.TOKEN_NONE) {
+                return token;
+            }
+
+            if (info[0] != null) {
+                engineInfo.pInfos.add(info[0]);
+            }
+
+            token = scanner.peekNextToken();
+        }
+
+        scanner.getToken();
+
+        retVal[0] = engineInfo;
+
+        scanner.setScope(oldScope);
+        return GTKScanner.TOKEN_NONE;
+!!!2102939.java!!!	parseImage(inout retVal : Info) : int
+        int token;
+
+        token = scanner.getToken();
+        if (token != SYM_IMAGE) {
+            return SYM_IMAGE;
+        }
+
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_LEFT_CURLY) {
+            return GTKScanner.TOKEN_LEFT_CURLY;
+        }
+
+        BlueprintStyle.Info info = new BlueprintStyle.Info();
+
+        // to hold the return value from parseFile
+        String[] fileName = new String[1];
+        
+        // to hold the return value from parseStretch
+        // and parseRecolorable
+        boolean[] bool = new boolean[1];
+        
+        // to hold the return value from parseBorder
+        Insets[] insets = new Insets[1];
+
+        // to hold the return value from parseColorizeColor
+        Color[] col = new Color[1];
+
+        token = scanner.peekNextToken();
+        while (token != GTKScanner.TOKEN_RIGHT_CURLY) {
+            switch(token) {
+                case SYM_FUNCTION:
+                    token = parseFunction(info);
+                    break;
+                case SYM_RECOLORABLE:
+                    token = parseRecolorable(bool);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.recolorable = bool[0];
+                    }
+                    break;
+                case SYM_OVERLAY_RECOLORABLE:
+                    token = parseRecolorable(bool);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.overlayRecolorable = bool[0];
+                    }
+                    break;
+                case SYM_DETAIL:
+                    token = parseDetail(info);
+                    break;
+                case SYM_STATE:
+                    token = parseState(info);
+                    break;
+                case SYM_SHADOW:
+                    token = parseShadow(info);
+                    break;
+                case SYM_GAP_SIDE:
+                    token = parseGapSide(info);
+                    break;
+                case SYM_ARROW_DIRECTION:
+                    token = parseArrowDirection(info);
+                    break;
+                case SYM_ORIENTATION:
+                    token = parseOrientation(info);
+                    break;
+                case SYM_FILE:
+                    token = parseFile(fileName);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.image = fileName[0];
+                    }
+                    break;
+                case SYM_BORDER:
+                    token = parseBorder(insets);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.fileInsets = insets[0];
+                    }
+                    break;
+                case SYM_STRETCH:
+                    token = parseStretch(bool);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.stretch = bool[0];
+                    }
+                    break;
+                case SYM_GAP_FILE:
+                    token = parseFile(fileName);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.gapImage = fileName[0];
+                    }
+                    break;
+                case SYM_GAP_BORDER:
+                    token = parseBorder(insets);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.gapInsets = insets[0];
+                    }
+                    break;
+                case SYM_GAP_START_FILE:
+                    token = parseFile(fileName);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.gapStartImage = fileName[0];
+                    }
+                    break;
+                case SYM_GAP_START_BORDER:
+                    token = parseBorder(insets);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.gapStartInsets = insets[0];
+                    }
+                    break;
+                case SYM_GAP_END_FILE:
+                    token = parseFile(fileName);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.gapEndImage = fileName[0];
+                    }
+                    break;
+                case SYM_GAP_END_BORDER:
+                    token = parseBorder(insets);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.gapEndInsets = insets[0];
+                    }
+                    break;
+                case SYM_OVERLAY_FILE:
+                    token = parseFile(fileName);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.overlayImage = fileName[0];
+                    }
+                    break;
+                case SYM_OVERLAY_BORDER:
+                    token = parseBorder(insets);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.overlayInsets = insets[0];
+                    }
+                    break;
+                case SYM_OVERLAY_STRETCH:
+                    token = parseStretch(bool);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.overlayStretch = bool[0];
+                    }
+                    break;
+                case SYM_PARENT_TYPE:
+                    // consume token
+                    scanner.getToken();
+
+                    if (info.parentTypeList == null) {
+                        info.parentTypeList = new ArrayList();
+                    }
+
+                    token = parseStringList(info.parentTypeList);
+                    break;
+                case SYM_COLORIZE_COLOR:
+                    token = parseColorizeColor(col);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.colorizeColor = col[0];
+                    }
+                    break;
+                case SYM_OVERLAY_COLORIZE_COLOR:
+                    token = parseColorizeColor(col);
+                    if (token == GTKScanner.TOKEN_NONE) {
+                        info.overlayColorizeColor = col[0];
+                    }
+                    break;
+                case SYM_USE_AS_BKG_MASK:
+                    token = parseUseAsBkgMask(info);
+                    break;
+                default:
+                    scanner.getToken();
+                    token = GTKScanner.TOKEN_RIGHT_CURLY;
+                    break;
+            }
+
+            if (token != GTKScanner.TOKEN_NONE) {
+                return token;
+            }
+
+            token = scanner.peekNextToken();
+        }
+
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_RIGHT_CURLY) {
+            return GTKScanner.TOKEN_RIGHT_CURLY;
+        }
+
+        // PENDING(shannonh) - may want to do some validation of the
+        //                     info before we return it
+
+        retVal[0] = info;
+        return GTKScanner.TOKEN_NONE;
+!!!2103067.java!!!	parseFunction(inout info : Info) : int
+        int token;
+
+        token = scanner.getToken();
+        if (token != SYM_FUNCTION) {
+            return SYM_FUNCTION;
+        }
+
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_EQUAL_SIGN) {
+            return GTKScanner.TOKEN_EQUAL_SIGN;
+        }
+
+        token = scanner.getToken();
+        if (token >= SYM_D_HLINE && token <= SYM_D_STEPPER) {
+            info.setFunction(symbolNames[token - SYM_IMAGE]);
+        }
+        
+        // PENDING(shannonh) - should we complain if not a valid function?
+
+        return GTKScanner.TOKEN_NONE;
+!!!2103195.java!!!	parseRecolorable(inout retVal : boolean) : int
+        int token;
+        
+        scanner.getToken();
+        
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_EQUAL_SIGN) {
+            return GTKScanner.TOKEN_EQUAL_SIGN;
+        }
+        
+        token = scanner.getToken();
+        if (token == SYM_TRUE) {
+            retVal[0] = true;
+        } else if (token == SYM_FALSE) {
+            retVal[0] = false;
+        } else {
+            return SYM_TRUE;
+        }
+        
+        return GTKScanner.TOKEN_NONE;
+!!!2103323.java!!!	parseDetail(inout info : Info) : int
+        int token;
+        
+        token = scanner.getToken();
+        if (token != SYM_DETAIL) {
+            return SYM_DETAIL;
+        }
+        
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_EQUAL_SIGN) {
+            return GTKScanner.TOKEN_EQUAL_SIGN;
+        }
+        
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_STRING) {
+            return GTKScanner.TOKEN_STRING;
+        }
+
+        info.setDetail(scanner.currValue.stringVal);
+
+        return GTKScanner.TOKEN_NONE;
+!!!2103451.java!!!	parseState(inout info : Info) : int
+        int token;
+        
+        token = scanner.getToken();
+        if (token != SYM_STATE) {
+            return SYM_STATE;
+        }
+        
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_EQUAL_SIGN) {
+            return GTKScanner.TOKEN_EQUAL_SIGN;
+        }
+        
+        token = scanner.getToken();
+        switch(token) {
+            case SYM_NORMAL:
+                info.componentState = SynthConstants.ENABLED;
+                break;
+            case SYM_ACTIVE:
+                info.componentState = SynthConstants.PRESSED;
+                break;
+            case SYM_PRELIGHT:
+                info.componentState = SynthConstants.MOUSE_OVER;
+                break;
+            case SYM_SELECTED:
+                info.componentState = SynthConstants.SELECTED;
+                break;
+            case SYM_INSENSITIVE:
+                info.componentState = SynthConstants.DISABLED;
+                break;
+            default:
+                return SYM_NORMAL;
+        }
+
+        return GTKScanner.TOKEN_NONE;
+!!!2103579.java!!!	parseShadow(inout info : Info) : int
+        int token;
+        
+        token = scanner.getToken();
+        if (token != SYM_SHADOW) {
+            return SYM_SHADOW;
+        }
+        
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_EQUAL_SIGN) {
+            return GTKScanner.TOKEN_EQUAL_SIGN;
+        }
+        
+        token = scanner.getToken();
+        switch(token) {
+            case SYM_NONE:
+                info.shadow = GTKConstants.SHADOW_NONE;
+                break;
+            case SYM_IN:
+                info.shadow = GTKConstants.SHADOW_IN;
+                break;
+            case SYM_OUT:
+                info.shadow = GTKConstants.SHADOW_OUT;
+                break;
+            case SYM_ETCHED_IN:
+                info.shadow = GTKConstants.SHADOW_ETCHED_IN;
+                break;
+            case SYM_ETCHED_OUT:
+                info.shadow = GTKConstants.SHADOW_ETCHED_OUT;
+                break;
+            default:
+                return SYM_NONE;
+        }
+
+        return GTKScanner.TOKEN_NONE;
+!!!2103707.java!!!	parseGapSide(inout info : Info) : int
+        int token;
+        
+        token = scanner.getToken();
+        if (token != SYM_GAP_SIDE) {
+            return SYM_GAP_SIDE;
+        }
+        
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_EQUAL_SIGN) {
+            return GTKScanner.TOKEN_EQUAL_SIGN;
+        }
+        
+        token = scanner.getToken();
+        switch(token) {
+            case SYM_TOP:
+                info.gapSide = GTKConstants.TOP;
+                break;
+            case SYM_BOTTOM:
+                info.gapSide = GTKConstants.BOTTOM;
+                break;
+            case SYM_LEFT:
+                info.gapSide = GTKConstants.LEFT;
+                break;
+            case SYM_RIGHT:
+                info.gapSide = GTKConstants.RIGHT;
+                break;
+            default:
+                return SYM_TOP;
+        }
+
+        return GTKScanner.TOKEN_NONE;
+!!!2103835.java!!!	parseArrowDirection(inout info : Info) : int
+        int token;
+        
+        token = scanner.getToken();
+        if (token != SYM_ARROW_DIRECTION) {
+            return SYM_ARROW_DIRECTION;
+        }
+        
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_EQUAL_SIGN) {
+            return GTKScanner.TOKEN_EQUAL_SIGN;
+        }
+        
+        token = scanner.getToken();
+        switch(token) {
+            case SYM_UP:
+                info.arrowDirection = GTKConstants.ARROW_UP;
+                break;
+            case SYM_DOWN:
+                info.arrowDirection = GTKConstants.ARROW_DOWN;
+                break;
+            case SYM_LEFT:
+                info.arrowDirection = GTKConstants.ARROW_LEFT;
+                break;
+            case SYM_RIGHT:
+                info.arrowDirection = GTKConstants.ARROW_RIGHT;
+                break;
+            default:
+                return SYM_UP;
+        }
+
+        return GTKScanner.TOKEN_NONE;
+!!!2103963.java!!!	parseOrientation(inout info : Info) : int
+        int token;
+        
+        token = scanner.getToken();
+        if (token != SYM_ORIENTATION) {
+            return SYM_ORIENTATION;
+        }
+        
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_EQUAL_SIGN) {
+            return GTKScanner.TOKEN_EQUAL_SIGN;
+        }
+        
+        token = scanner.getToken();
+        switch(token) {
+            case SYM_HORIZONTAL:
+                info.orientation = GTKConstants.HORIZONTAL;
+                break;
+            case SYM_VERTICAL:
+                info.orientation = GTKConstants.VERTICAL;
+                break;
+            default:
+                return SYM_HORIZONTAL;
+        }
+        
+        return GTKScanner.TOKEN_NONE;
+!!!2104091.java!!!	parseFile(in retVal : String) : int
+        int token;
+
+        token = scanner.getToken();
+        
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_EQUAL_SIGN) {
+            return GTKScanner.TOKEN_EQUAL_SIGN;
+        }
+        
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_STRING) {
+            return GTKScanner.TOKEN_STRING;
+        }
+
+        retVal[0] = parser.resolvePixmapPath(scanner.currValue.stringVal);
+
+        return GTKScanner.TOKEN_NONE;
+!!!2104219.java!!!	parseStretch(inout retVal : boolean) : int
+        int token;
+        
+        token = scanner.getToken();
+        
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_EQUAL_SIGN) {
+            return GTKScanner.TOKEN_EQUAL_SIGN;
+        }
+        
+        token = scanner.getToken();
+        switch(token) {
+            case SYM_TRUE:
+                retVal[0] = true;
+                break;
+            case SYM_FALSE:
+                retVal[0] = false;
+                break;
+            default:
+                return SYM_TRUE;
+        }
+        
+        return GTKScanner.TOKEN_NONE;
+!!!2104347.java!!!	parseBorder(inout retVal : Insets) : int
+        int left = 0;
+        int right = 0;
+        int top = 0;
+        int bottom = 0;
+        
+        scanner.getToken();
+        
+        if (scanner.getToken() != GTKScanner.TOKEN_EQUAL_SIGN) {
+            return GTKScanner.TOKEN_EQUAL_SIGN;
+        }
+        
+        if (scanner.getToken() != GTKScanner.TOKEN_LEFT_CURLY) {
+            return GTKScanner.TOKEN_LEFT_CURLY;
+        }
+        
+        if (scanner.getToken() != GTKScanner.TOKEN_INT) {
+            return GTKScanner.TOKEN_INT;
+        }
+        
+        left = (int)scanner.currValue.longVal;
+        
+        if (scanner.getToken() != GTKScanner.TOKEN_COMMA) {
+            return GTKScanner.TOKEN_COMMA;
+        }
+        
+        if (scanner.getToken() != GTKScanner.TOKEN_INT) {
+            return GTKScanner.TOKEN_INT;
+        }
+        
+        right = (int)scanner.currValue.longVal;
+        
+        if (scanner.getToken() != GTKScanner.TOKEN_COMMA) {
+            return GTKScanner.TOKEN_COMMA;
+        }
+        
+        if (scanner.getToken() != GTKScanner.TOKEN_INT) {
+            return GTKScanner.TOKEN_INT;
+        }
+        
+        top = (int)scanner.currValue.longVal;
+        
+        if (scanner.getToken() != GTKScanner.TOKEN_COMMA) {
+            return GTKScanner.TOKEN_COMMA;
+        }
+        
+        if (scanner.getToken() != GTKScanner.TOKEN_INT) {
+            return GTKScanner.TOKEN_INT;
+        }
+        
+        bottom = (int)scanner.currValue.longVal;
+        
+        if (scanner.getToken() != GTKScanner.TOKEN_RIGHT_CURLY) {
+            return GTKScanner.TOKEN_RIGHT_CURLY;
+        }
+
+        retVal[0] = new Insets(top, left, bottom, right);
+
+        return GTKScanner.TOKEN_NONE;
+!!!2104475.java!!!	parseColorizeColor(inout retVal : Color) : int
+        int token;
+
+        scanner.getToken();
+        
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_EQUAL_SIGN) {
+            return GTKScanner.TOKEN_EQUAL_SIGN;
+        }
+        
+        token = scanner.getToken();
+
+        switch(token) {
+            case GTKScanner.TOKEN_LEFT_CURLY:
+                int red;
+                int green;
+                int blue;
+                int alpha = 255;
+
+                token = scanner.getToken();
+                if (token == GTKScanner.TOKEN_INT) {
+                    red = intColorVal(scanner.currValue.longVal);
+                } else if (token == GTKScanner.TOKEN_FLOAT) {
+                    red = intColorVal(scanner.currValue.doubleVal);
+                } else {
+                    return GTKScanner.TOKEN_FLOAT;
+                }
+                
+                token = scanner.getToken();
+                if (token != GTKScanner.TOKEN_COMMA) {
+                    return GTKScanner.TOKEN_COMMA;
+                }
+
+                token = scanner.getToken();
+                if (token == GTKScanner.TOKEN_INT) {
+                    green = intColorVal(scanner.currValue.longVal);
+                } else if (token == GTKScanner.TOKEN_FLOAT) {
+                    green = intColorVal(scanner.currValue.doubleVal);
+                } else {
+                    return GTKScanner.TOKEN_FLOAT;
+                }
+
+                token = scanner.getToken();
+                if (token != GTKScanner.TOKEN_COMMA) {
+                    return GTKScanner.TOKEN_COMMA;
+                }
+
+                token = scanner.getToken();
+                if (token == GTKScanner.TOKEN_INT) {
+                    blue = intColorVal(scanner.currValue.longVal);
+                } else if (token == GTKScanner.TOKEN_FLOAT) {
+                    blue = intColorVal(scanner.currValue.doubleVal);
+                } else {
+                    return GTKScanner.TOKEN_FLOAT;
+                }
+
+                token = scanner.getToken();
+                if (token == GTKScanner.TOKEN_COMMA) {
+                    token = scanner.getToken();
+                    if (token == GTKScanner.TOKEN_INT) {
+                        alpha = intColorVal(scanner.currValue.longVal);
+                    } else if (token == GTKScanner.TOKEN_FLOAT) {
+                        alpha = intColorVal(scanner.currValue.doubleVal);
+                    } else {
+                        return GTKScanner.TOKEN_FLOAT;
+                    }
+                    
+                    token = scanner.getToken();
+                }
+
+                if (token != GTKScanner.TOKEN_RIGHT_CURLY) {
+                    return GTKScanner.TOKEN_RIGHT_CURLY;
+                }
+
+                retVal[0] = new Color(red, green, blue, alpha);
+
+                break;
+            case GTKScanner.TOKEN_STRING:
+                Color color = parseColorString(scanner.currValue.stringVal);
+
+                if (color == null) {
+                    scanner.printMessage("Invalid color constant '" +
+                                              scanner.currValue.stringVal
+                                              + "'", false);
+                    return GTKScanner.TOKEN_STRING;
+                }
+
+                retVal[0] = color;
+
+                break;
+            default:
+                return GTKScanner.TOKEN_STRING;
+        }
+        
+        return GTKScanner.TOKEN_NONE;
+!!!2104603.java!!!	parseColorString(in str : String) : Color
+        if (str.charAt(0) == '#') {
+            str = str.substring(1);
+
+            int i = str.length();
+
+            if (i < 3 || i > 12 || (i % 3) != 0) {
+                return null;
+            }
+
+            i /= 3;
+
+            int r;
+            int g;
+            int b;
+
+            try {
+                r = Integer.parseInt(str.substring(0, i), 16);
+                g = Integer.parseInt(str.substring(i, i * 2), 16);
+                b = Integer.parseInt(str.substring(i * 2, i * 3), 16);
+            } catch (NumberFormatException nfe) {
+                return null;
+            }
+
+            if (i == 4) {
+                return new Color(r / 65535.0f, g / 65535.0f, b / 65535.0f);
+            } else if (i == 1) {
+                return new Color(r / 15.0f, g / 15.0f, b / 15.0f);
+            } else if (i == 2) {
+                return new Color(r, g, b);
+            } else {
+                return new Color(r / 4095.0f, g / 4095.0f, b / 4095.0f);
+            }
+        } else {
+            return XColors.lookupColor(str);
+        }
+!!!2104731.java!!!	intColorVal(in col : long) : int
+        int color = (int)Math.max(Math.min(col, 255), 0);
+        return color;
+!!!2104859.java!!!	intColorVal(in col : double) : int
+        float color = (float)Math.max(Math.min(col, 1.0f), 0.0f);
+        return (int)(color * 255);
+!!!2104987.java!!!	parseIconColorize(inout engineInfo : BlueprintEngineInfo) : int
+        int token;
+
+        token = scanner.getToken();
+        if (token != SYM_ICON_COLORIZE) {
+            return SYM_ICON_COLORIZE;
+        }
+
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_EQUAL_SIGN) {
+            return GTKScanner.TOKEN_EQUAL_SIGN;
+        }
+
+        token = scanner.getToken();
+        if (token == SYM_TRUE) {
+            engineInfo.iconColorize = true;
+        } else if (token == SYM_FALSE) {
+            engineInfo.iconColorize = false;
+        } else {
+            return SYM_TRUE;
+        }
+
+        return GTKScanner.TOKEN_NONE;
+!!!2105115.java!!!	parseStringList(inout list : ArrayList) : int
+        int token;
+
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_EQUAL_SIGN) {
+            return GTKScanner.TOKEN_EQUAL_SIGN;
+        }
+
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_LEFT_CURLY) {
+            return GTKScanner.TOKEN_LEFT_CURLY;
+        }
+        
+        token = scanner.getToken();
+        while (token == GTKScanner.TOKEN_STRING) {
+            list.add(scanner.currValue.stringVal.intern());
+            
+            token = scanner.getToken();
+            
+            if (token == GTKScanner.TOKEN_RIGHT_CURLY) {
+                continue;
+            }
+            
+            if (token != GTKScanner.TOKEN_COMMA) {
+                return GTKScanner.TOKEN_COMMA;
+            }
+            
+            token = scanner.getToken();
+        }
+        
+        if (token != GTKScanner.TOKEN_RIGHT_CURLY) {
+            return GTKScanner.TOKEN_RIGHT_CURLY;
+        }
+        
+        return GTKScanner.TOKEN_NONE;
+!!!2105243.java!!!	parseUseAsBkgMask(inout info : Info) : int
+        int token;
+
+        token = scanner.getToken();
+        if (token != SYM_USE_AS_BKG_MASK) {
+            return SYM_USE_AS_BKG_MASK;
+        }
+
+        token = scanner.getToken();
+        if (token != GTKScanner.TOKEN_EQUAL_SIGN) {
+            return GTKScanner.TOKEN_EQUAL_SIGN;
+        }
+
+        token = scanner.getToken();
+        switch(token) {
+            case SYM_TRUE:
+                info.useAsBkgMask = true;
+                break;
+            case SYM_FALSE:
+                info.useAsBkgMask = false;
+                break;
+            default:
+                return SYM_TRUE;
+        }
+        
+        return GTKScanner.TOKEN_NONE;

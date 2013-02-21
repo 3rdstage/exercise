@@ -1,0 +1,217 @@
+class RoleInfo
+!!!8390939.java!!!	RoleInfo(in theName : String, in theRefMBeanClassName : String, inout theIsReadable : boolean, inout theIsWritable : boolean, in theMinDegree : int, in theMaxDegree : int, in theDescription : String)
+
+	init(theName,
+	     theRefMBeanClassName,
+	     theIsReadable,
+	     theIsWritable,
+	     theMinDegree,
+	     theMaxDegree,
+	     theDescription);
+	return;
+!!!8391067.java!!!	RoleInfo(in theName : String, in theRefMBeanClassName : String, inout theIsReadable : boolean, inout theIsWritable : boolean)
+
+	try {
+	    init(theName,
+		 theRefMBeanClassName,
+		 theIsReadable,
+		 theIsWritable,
+		 1,
+		 1,
+		 null);
+	} catch (InvalidRoleInfoException exc) {
+	    // OK : Can never happen as the minimum
+	    //      degree equals the maximum degree.
+	}
+
+	return;
+!!!8391195.java!!!	RoleInfo(in theName : String, in theRefMBeanClassName : String)
+
+	try {
+	    init(theName,
+		 theRefMBeanClassName,
+		 true,
+		 true,
+		 1,
+		 1,
+		 null);
+	} catch (InvalidRoleInfoException exc) {
+	    // OK : Can never happen as the minimum
+	    //      degree equals the maximum degree.
+	}
+
+	return;
+!!!8391323.java!!!	RoleInfo(inout theRoleInfo : RoleInfo)
+
+	if (theRoleInfo == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	try {
+	    init(theRoleInfo.getName(),
+		 theRoleInfo.getRefMBeanClassName(),
+		 theRoleInfo.isReadable(),
+		 theRoleInfo.isWritable(),
+		 theRoleInfo.getMinDegree(),
+		 theRoleInfo.getMaxDegree(),
+		 theRoleInfo.getDescription());
+	} catch (InvalidRoleInfoException exc3) {
+	    // OK : Can never happen as the minimum degree and the maximum
+	    //      degree were already checked at the time the theRoleInfo
+	    //      instance was created.
+	}
+!!!8391451.java!!!	getName() : String
+	return name;
+!!!8391579.java!!!	isReadable() : boolean
+	return isReadable;
+!!!8391707.java!!!	isWritable() : boolean
+	return isWritable;
+!!!8391835.java!!!	getDescription() : String
+	return description;
+!!!8391963.java!!!	getMinDegree() : int
+	return minDegree;
+!!!8392091.java!!!	getMaxDegree() : int
+	return maxDegree;
+!!!8392219.java!!!	getRefMBeanClassName() : String
+	return referencedMBeanClassName;
+!!!8392347.java!!!	checkMinDegree(in theValue : int) : boolean
+	if (theValue >= ROLE_CARDINALITY_INFINITY &&
+	    (minDegree == ROLE_CARDINALITY_INFINITY
+	     || theValue >= minDegree)) {
+	    return true;
+	} else {
+	    return false;
+	}
+!!!8392475.java!!!	checkMaxDegree(in theValue : int) : boolean
+	if (theValue >= ROLE_CARDINALITY_INFINITY &&
+	    (maxDegree == ROLE_CARDINALITY_INFINITY ||
+	     (theValue != ROLE_CARDINALITY_INFINITY &&
+	      theValue <= maxDegree))) {
+	    return true;
+	} else {
+	    return false;
+	}
+!!!8392603.java!!!	toString() : String
+	StringBuffer result = new StringBuffer();
+	result.append("role info name: " + name);
+	result.append("; isReadable: " + isReadable);
+	result.append("; isWritable: " + isWritable);
+	result.append("; description: " + description);
+	result.append("; minimum degree: " + minDegree);
+	result.append("; maximum degree: " + maxDegree);
+	result.append("; MBean class: " + referencedMBeanClassName);
+	return result.toString();
+!!!8392731.java!!!	init(in theName : String, in theRefMBeanClassName : String, inout theIsReadable : boolean, inout theIsWritable : boolean, in theMinDegree : int, in theMaxDegree : int, in theDescription : String) : void
+
+	if (theName == null ||
+	    theRefMBeanClassName == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	name = theName;
+	isReadable = theIsReadable;
+	isWritable = theIsWritable;
+	if (theDescription != null) {
+	    description = theDescription;
+	}
+
+	boolean invalidRoleInfoFlg = false;
+	StringBuffer excMsgStrB = new StringBuffer();
+	if (theMaxDegree != ROLE_CARDINALITY_INFINITY &&
+	    (theMinDegree == ROLE_CARDINALITY_INFINITY ||
+	     theMinDegree > theMaxDegree)) {
+	    // Revisit [cebro] Localize message
+	    excMsgStrB.append("Minimum degree ");
+	    excMsgStrB.append(theMinDegree);
+	    excMsgStrB.append(" is greater than maximum degree ");
+	    excMsgStrB.append(theMaxDegree);
+	    invalidRoleInfoFlg = true;
+
+	} else if (theMinDegree < ROLE_CARDINALITY_INFINITY ||
+		   theMaxDegree < ROLE_CARDINALITY_INFINITY) {
+	    // Revisit [cebro] Localize message
+	    excMsgStrB.append("Minimum or maximum degree has an illegal value, must be [0, ROLE_CARDINALITY_INFINITY].");
+	    invalidRoleInfoFlg = true;
+	}
+	if (invalidRoleInfoFlg) {
+	    throw new InvalidRoleInfoException(excMsgStrB.toString());
+	}
+	minDegree = theMinDegree;
+	maxDegree = theMaxDegree;
+
+        referencedMBeanClassName = theRefMBeanClassName;
+
+	return;
+!!!8392859.java!!!	readObject(inout in : ObjectInputStream) : void
+      if (compat)
+      {
+        // Read an object serialized in the old serial form
+        //
+        ObjectInputStream.GetField fields = in.readFields();
+	name = (String) fields.get("myName", null);
+	if (fields.defaulted("myName"))
+        {
+          throw new NullPointerException("myName");
+        }
+	isReadable = fields.get("myIsReadableFlg", false);
+	if (fields.defaulted("myIsReadableFlg"))
+        {
+          throw new NullPointerException("myIsReadableFlg");
+        }
+	isWritable = fields.get("myIsWritableFlg", false);
+	if (fields.defaulted("myIsWritableFlg"))
+        {
+          throw new NullPointerException("myIsWritableFlg");
+        }
+	description = (String) fields.get("myDescription", null);
+	if (fields.defaulted("myDescription"))
+        {
+          throw new NullPointerException("myDescription");
+        }
+	minDegree = fields.get("myMinDegree", (int)0);
+	if (fields.defaulted("myMinDegree"))
+        {
+          throw new NullPointerException("myMinDegree");
+        }
+	maxDegree = fields.get("myMaxDegree", (int)0);
+	if (fields.defaulted("myMaxDegree"))
+        {
+          throw new NullPointerException("myMaxDegree");
+        }
+	referencedMBeanClassName = (String) fields.get("myRefMBeanClassName", null);
+	if (fields.defaulted("myRefMBeanClassName"))
+        {
+          throw new NullPointerException("myRefMBeanClassName");
+        }
+      }
+      else
+      {
+        // Read an object serialized in the new serial form
+        //
+        in.defaultReadObject();
+      }
+!!!8392987.java!!!	writeObject(inout out : ObjectOutputStream) : void
+      if (compat)
+      {
+        // Serializes this instance in the old serial form
+        //
+        ObjectOutputStream.PutField fields = out.putFields();
+	fields.put("myName", name);
+	fields.put("myIsReadableFlg", isReadable);
+	fields.put("myIsWritableFlg", isWritable);
+	fields.put("myDescription", description);
+	fields.put("myMinDegree", minDegree);
+	fields.put("myMaxDegree", maxDegree);
+	fields.put("myRefMBeanClassName", referencedMBeanClassName);
+	out.writeFields();
+      }
+      else
+      {
+        // Serializes this instance in the new serial form
+        //
+        out.defaultWriteObject();
+      }

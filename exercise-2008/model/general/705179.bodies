@@ -1,0 +1,114 @@
+class SAX2DOM
+!!!4747931.java!!!	SAX2DOM()
+	final DocumentBuilderFactory factory =
+		DocumentBuilderFactory.newInstance();
+	_document = factory.newDocumentBuilder().newDocument();
+	_root = _document;
+!!!4748059.java!!!	SAX2DOM(inout root : Node)
+	_root = root;
+	if (root instanceof Document) {
+	  _document = (Document)root;
+	}
+	else if (root != null) {
+	  _document = root.getOwnerDocument();
+	}
+	else {
+	  final DocumentBuilderFactory factory =
+		DocumentBuilderFactory.newInstance();
+	  _document = factory.newDocumentBuilder().newDocument();
+	  _root = _document;
+	}
+!!!4748187.java!!!	getDOM() : Node
+	return _root;
+!!!4748315.java!!!	characters(in ch : char, in start : int, in length : int) : void
+	final Node last = (Node)_nodeStk.peek();
+
+        // No text nodes can be children of root (DOM006 exception)
+        if (last != _document) {
+            final String text = new String(ch, start, length);
+            if( _lastSibling != null && _lastSibling.getNodeType() == Node.TEXT_NODE ){
+                  ((Text)_lastSibling).appendData(text);
+            }
+            else{
+                _lastSibling = last.appendChild(_document.createTextNode(text));
+            }
+        }
+!!!4748443.java!!!	startDocument() : void
+	_nodeStk.push(_root);
+!!!4748571.java!!!	endDocument() : void
+        _nodeStk.pop();
+!!!4748699.java!!!	startElement(in namespace : String, in localName : String, in qName : String, inout attrs : Attributes) : void
+	final Element tmp = (Element)_document.createElementNS(namespace, qName);
+
+	// Add namespace declarations first
+	if (_namespaceDecls != null) {
+	    final int nDecls = _namespaceDecls.size();
+	    for (int i = 0; i < nDecls; i++) {
+		final String prefix = (String) _namespaceDecls.elementAt(i++);
+
+		if (prefix == null || prefix.equals(EMPTYSTRING)) {
+		    tmp.setAttributeNS(XMLNS_URI, XMLNS_PREFIX,
+			(String) _namespaceDecls.elementAt(i));
+		}
+		else {
+		    tmp.setAttributeNS(XMLNS_URI, XMLNS_STRING + prefix,
+			(String) _namespaceDecls.elementAt(i));
+		}
+	    }
+	    _namespaceDecls.clear();
+	}
+
+        // Add attributes to element
+        final int nattrs = attrs.getLength();
+        for (int i = 0; i < nattrs; i++) {
+            // checking if Namespace processing is being done
+            String attQName = attrs.getQName(i);
+            String attURI = attrs.getURI(i);
+            String attrLocalName = attrs.getLocalName(i);
+            
+            if (attrLocalName == null || attrLocalName.equals(EMPTYSTRING)) {
+                tmp.setAttribute(attQName, attrs.getValue(i));
+                if (attrs.getType(i).equals("ID")) {
+                    tmp.setIdAttribute(attQName, true);
+                }
+            } else {
+                tmp.setAttributeNS(attURI, attQName, attrs.getValue(i));
+                if (attrs.getType(i).equals("ID")) {
+                    tmp.setIdAttributeNS(attURI, attrLocalName, true);
+                }
+            }
+        }
+
+	// Append this new node onto current stack node
+	Node last = (Node)_nodeStk.peek();
+	last.appendChild(tmp);
+
+	// Push this node onto stack
+	_nodeStk.push(tmp);
+        _lastSibling = null;
+!!!4748827.java!!!	endElement(in namespace : String, in localName : String, in qName : String) : void
+	_nodeStk.pop();
+        _lastSibling = null;
+!!!4748955.java!!!	startPrefixMapping(in prefix : String, in uri : String) : void
+	if (_namespaceDecls == null) {
+	    _namespaceDecls = new Vector(2);
+	}
+	_namespaceDecls.addElement(prefix);
+	_namespaceDecls.addElement(uri);
+!!!4749083.java!!!	endPrefixMapping(in prefix : String) : void
+	// do nothing
+!!!4749339.java!!!	processingInstruction(in target : String, in data : String) : void
+	final Node last = (Node)_nodeStk.peek();
+	ProcessingInstruction pi = _document.createProcessingInstruction(
+		target, data);
+	if (pi != null){
+          last.appendChild(pi);
+          _lastSibling = pi;
+        }
+!!!4749723.java!!!	comment(in ch : char, in start : int, in length : int) : void
+	final Node last = (Node)_nodeStk.peek();
+	Comment comment = _document.createComment(new String(ch,start,length));
+	if (comment != null){
+          last.appendChild(comment);
+          _lastSibling = comment;
+        }

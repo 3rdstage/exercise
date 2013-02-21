@@ -1,0 +1,128 @@
+{toc}
+
+h1. Requirements
+
+* can define message structure and constraints, in other word meta for message instance.
+* provide generator of parser and builder classes optimized for the defined message or general parser or builder.
+* can define routing rule of message.
+* provide routing runtime or engine.
+* can control the concurrency of message routing or transport.
+* can map messages with existing messages.
+* can plug-in mapping or converting handler.
+
+
+h1. Features
+
+* Message Meta Editor
+* Message Mapper
+* Message Routing/Transport Editor
+* Message Parser/Builder Library
+* Message Converting Library
+* Message Routing/Transport Runtime/Engine
+
+
+h1. Schema
+
+h2. message-meta.rnc : meta-meta for message
+
+<pre><code>
+grammer{
+start = element message-meta {
+ element name { xsd:string },
+ element id { xsd:string },
+ element version { xsd:string },
+ element date { xsd:string },
+ element owner { xsd:string },
+ description-element*,
+ format-element,
+ header-element*,
+ element input-data { data-content },
+ element output-data { data-content },
+ element input-output-data { data-content }?
+}
+
+format-element = element format{
+ element type = { string : "fixed-width-plain-text" |
+                  string : "delimiter-separated-plain-text" |
+                  string : "key-value-paired-plain-text" |
+                  string : "xml" |
+                  string : "json" 
+                 },
+ element text-encoding { xsd:string },
+ element endianness { string "big-endian" | string "little-endian" },
+ element item-align-default { text },
+ element item-padding-char-default { text },
+ element compression { text },
+ element encryption { text }
+}               
+
+header-element = element header{
+ attribute name = { xsd:string },
+ attribute scope-type = { string "global" | string "local" },
+ attribute scope-name = { xsd:string },
+ item-element*
+}
+
+data-content =
+ linear-data-element* &
+ square-data-element*
+
+linear-data-element = element linear-data{
+ attribute name = { xsd:string },
+ attribute meaning = { text }?,
+ description-element*,
+ item*
+}
+
+square-data-element = element square-element{
+ attribute name = { xsd:string },
+ attribute meaning = { text }?,
+ attribute has-fixed-rows = { xsd:boolean },
+ attribute rows = { xsd:nonNegativeInteger },
+ description-element*,
+ item*
+} 
+
+item-element = element item{
+ element name = { xsd:string },
+ element meaning = { xsd:string },
+ description-element*,
+ element is-required = { xsd:boolean },
+ datatype-element,
+ value-constraints-content,
+ element encoding-type = { string "text" | string "binary" },
+ element item-length = { xsd:positiveInteger }?,
+ element needs-encryption = { xsd:boolean }?,
+ element encryption-type = { text }?,
+ element align = { text }?,
+ element padding-char = { text }?,
+}
+
+datatype-element = element datatype{
+ string "string" |
+ string "int16" | # 2-byte integer
+ string "int32" | # 4-byte integer
+ string "int64" | # 8-byte integer
+ string "decimal32" | # 4-byte floating point type
+ string "decimal64" | # 8-byte floating point type
+ string "decimal" | # decimal number without restriction on precision and scale
+ string "binary"
+ # need to review the built-in data types of XML Schema
+}
+
+value-constraints-content = 
+ element value-enums = { text }?,
+ element value-min-length = { xsd:nonNegativeInteger }?,
+ element value-max-length = { xsd:nonNegativeInteger }?,
+ element value-max-inclusive = { text }?,
+ element value-max-exclusive = { text }?,
+ element value-min-inclusive = { text }?,
+ element value-min-exclusive = { text }?,
+ element value-pattern = { text }
+}
+
+description-element = element description{
+ attribute locale = { xsd:string },
+ text
+} 
+</code></pre>

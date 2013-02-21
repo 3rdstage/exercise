@@ -1,0 +1,202 @@
+class HTMLEditorKit
+!!!9389723.java!!!	HTMLEditorKit()
+
+!!!9389851.java!!!	getContentType() : String
+	return "text/html";
+!!!9389979.java!!!	getViewFactory() : ViewFactory
+	return defaultFactory;
+!!!9390107.java!!!	createDefaultDocument() : Document
+	StyleSheet styles = getStyleSheet();
+	StyleSheet ss = new StyleSheet();
+
+	ss.addStyleSheet(styles);
+
+	HTMLDocument doc = new HTMLDocument(ss);
+	doc.setParser(getParser());
+	doc.setAsynchronousLoadPriority(4);
+	doc.setTokenThreshold(100);
+	return doc;
+!!!9390235.java!!!	read(inout in : Reader, inout doc : Document, in pos : int) : void
+
+	if (doc instanceof HTMLDocument) {
+	    HTMLDocument hdoc = (HTMLDocument) doc;
+	    Parser p = getParser();
+	    if (p == null) {
+		throw new IOException("Can't load parser");
+	    }
+	    if (pos > doc.getLength()) {
+		throw new BadLocationException("Invalid location", pos);
+	    }
+
+	    ParserCallback receiver = hdoc.getReader(pos);
+	    Boolean ignoreCharset = (Boolean)doc.getProperty("IgnoreCharsetDirective");
+	    p.parse(in, receiver, (ignoreCharset == null) ? false : ignoreCharset.booleanValue());
+	    receiver.flush();
+	} else {
+	    super.read(in, doc, pos);
+	}
+!!!9390363.java!!!	insertHTML(inout doc : HTMLDocument, in offset : int, in html : String, in popDepth : int, in pushDepth : int, inout insertTag : Tag) : void
+	Parser p = getParser();
+	if (p == null) {
+	    throw new IOException("Can't load parser");
+	}
+	if (offset > doc.getLength()) {
+	    throw new BadLocationException("Invalid location", offset);
+	}
+
+	ParserCallback receiver = doc.getReader(offset, popDepth, pushDepth,
+						insertTag);
+	Boolean ignoreCharset = (Boolean)doc.getProperty
+	                        ("IgnoreCharsetDirective");
+	p.parse(new StringReader(html), receiver, (ignoreCharset == null) ?
+		false : ignoreCharset.booleanValue());
+	receiver.flush();
+!!!9390491.java!!!	write(inout out : Writer, inout doc : Document, in pos : int, in len : int) : void
+
+	if (doc instanceof HTMLDocument) {
+	    HTMLWriter w = new HTMLWriter(out, (HTMLDocument)doc, pos, len);
+	    w.write();
+	} else if (doc instanceof StyledDocument) {
+	    MinimalHTMLWriter w = new MinimalHTMLWriter(out, (StyledDocument)doc, pos, len);
+	    w.write();
+	} else {
+	    super.write(out, doc, pos, len);
+	}
+!!!9390619.java!!!	install(inout c : JEditorPane) : void
+	c.addMouseListener(linkHandler);
+        c.addMouseMotionListener(linkHandler);
+	c.addCaretListener(nextLinkAction);
+	super.install(c);
+        theEditor = c;
+!!!9390747.java!!!	deinstall(inout c : JEditorPane) : void
+	c.removeMouseListener(linkHandler);
+        c.removeMouseMotionListener(linkHandler);
+	c.removeCaretListener(nextLinkAction);
+	super.deinstall(c);
+        theEditor = null;
+!!!9390875.java!!!	setStyleSheet(inout s : StyleSheet) : void
+	defaultStyles = s;
+!!!9391003.java!!!	getStyleSheet() : StyleSheet
+	if (defaultStyles == null) {
+	    defaultStyles = new StyleSheet();
+	    try {
+		InputStream is = HTMLEditorKit.getResourceAsStream(DEFAULT_CSS);
+		Reader r = new BufferedReader(
+		        new InputStreamReader(is, "ISO-8859-1"));
+		defaultStyles.loadRules(r, null);
+		r.close();
+	    } catch (Throwable e) {
+		// on error we simply have no styles... the html
+		// will look mighty wrong but still function.
+	    }
+	}
+	return defaultStyles;
+!!!9391131.java!!!	getResourceAsStream(in name : String) : InputStream
+	try {
+            return ResourceLoader.getResourceAsStream(name);
+	} catch (Throwable e) {
+	    // If the class doesn't exist or we have some other 
+	    // problem we just try to call getResourceAsStream directly.
+	    return HTMLEditorKit.class.getResourceAsStream(name);
+	}
+!!!9391259.java!!!	getActions() : Action
+	return TextAction.augmentList(super.getActions(), this.defaultActions);
+!!!9391387.java!!!	createInputAttributes(inout element : Element, inout set : MutableAttributeSet) : void
+	set.removeAttributes(set);
+	set.addAttributes(element.getAttributes());
+	set.removeAttribute(StyleConstants.ComposedTextAttribute);
+
+	Object o = set.getAttribute(StyleConstants.NameAttribute);
+	if (o instanceof HTML.Tag) {
+	    HTML.Tag tag = (HTML.Tag)o;
+	    // PENDING: we need a better way to express what shouldn't be
+	    // copied when editing...
+	    if(tag == HTML.Tag.IMG) {
+		// Remove the related image attributes, src, width, height
+		set.removeAttribute(HTML.Attribute.SRC);
+		set.removeAttribute(HTML.Attribute.HEIGHT);
+		set.removeAttribute(HTML.Attribute.WIDTH);
+		set.addAttribute(StyleConstants.NameAttribute,
+				 HTML.Tag.CONTENT);
+	    }
+	    else if (tag == HTML.Tag.HR || tag == HTML.Tag.BR) {
+		// Don't copy HRs or BRs either.
+		set.addAttribute(StyleConstants.NameAttribute,
+				 HTML.Tag.CONTENT);
+	    }
+	    else if (tag == HTML.Tag.COMMENT) {
+		// Don't copy COMMENTs either
+		set.addAttribute(StyleConstants.NameAttribute,
+				 HTML.Tag.CONTENT);
+		set.removeAttribute(HTML.Attribute.COMMENT);
+	    }
+	    else if (tag == HTML.Tag.INPUT) {
+		// or INPUT either
+		set.addAttribute(StyleConstants.NameAttribute,
+				 HTML.Tag.CONTENT);
+		set.removeAttribute(HTML.Tag.INPUT);
+	    }
+	    else if (tag instanceof HTML.UnknownTag) {
+		// Don't copy unknowns either:(
+		set.addAttribute(StyleConstants.NameAttribute,
+				 HTML.Tag.CONTENT);
+		set.removeAttribute(HTML.Attribute.ENDTAG);
+	    }
+	}
+!!!9391515.java!!!	getInputAttributes() : MutableAttributeSet
+	if (input == null) {
+	    input = getStyleSheet().addStyle(null, null);
+	}
+	return input;
+!!!9391643.java!!!	setDefaultCursor(inout cursor : Cursor) : void
+	defaultCursor = cursor;
+!!!9391771.java!!!	getDefaultCursor() : Cursor
+	return defaultCursor;
+!!!9391899.java!!!	setLinkCursor(inout cursor : Cursor) : void
+	linkCursor = cursor;
+!!!9392027.java!!!	getLinkCursor() : Cursor
+	return linkCursor;
+!!!9392155.java!!!	isAutoFormSubmission() : boolean
+        return isAutoFormSubmission;
+!!!9392283.java!!!	setAutoFormSubmission(inout isAuto : boolean) : void
+        isAutoFormSubmission = isAuto;
+!!!9392411.java!!!	clone() : Object
+	HTMLEditorKit o = (HTMLEditorKit)super.clone();
+        if (o != null) {
+            o.input = null;
+            o.linkHandler = new LinkController();
+        }
+	return o;
+!!!9392539.java!!!	getParser() : Parser
+	if (defaultParser == null) {
+	    try {
+                Class c = Class.forName("javax.swing.text.html.parser.ParserDelegator");
+                defaultParser = (Parser) c.newInstance();
+	    } catch (Throwable e) {
+	    }
+	}
+	return defaultParser;
+!!!9392667.java!!!	getAccessibleContext() : AccessibleContext
+	if (theEditor == null) {
+	    return null;
+	}
+	if (accessibleContext == null) {
+	    AccessibleHTML a = new AccessibleHTML(theEditor);
+	    accessibleContext = a.getAccessibleContext();
+	}
+	return accessibleContext;
+!!!9400859.java!!!	getAttrValue(inout attr : AttributeSet, inout key : Attribute) : Object
+	Enumeration names = attr.getAttributeNames();
+	while (names.hasMoreElements()) {
+	    Object nextKey = names.nextElement();
+	    Object nextVal = attr.getAttribute(nextKey);
+	    if (nextVal instanceof AttributeSet) {
+		Object value = getAttrValue((AttributeSet)nextVal, key);
+		if (value != null) {
+		    return value;
+		}
+	    } else if (nextKey == key) {
+		return nextVal;
+	    }	
+	}
+	return null;

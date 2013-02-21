@@ -1,0 +1,127 @@
+class InitialContext
+!!!8471067.java!!!	InitialContext(inout lazy : boolean)
+	if (!lazy) {
+	    init(null);
+	}
+!!!8471195.java!!!	InitialContext()
+	init(null);
+!!!8471323.java!!!	InitialContext(inout environment : Hashtable)
+	if (environment != null) {
+	    environment = (Hashtable)environment.clone();
+	}
+	init(environment);
+!!!8471451.java!!!	init(inout environment : Hashtable) : void
+	myProps = ResourceManager.getInitialEnvironment(environment);
+
+	if (myProps.get(Context.INITIAL_CONTEXT_FACTORY) != null) {
+	    // user has specified initial context factory; try to get it
+	    getDefaultInitCtx();
+	}
+!!!8471579.java!!!	getURLScheme(in str : String) : String
+	int colon_posn = str.indexOf(':');
+	int slash_posn = str.indexOf('/');
+
+	if (colon_posn > 0 && (slash_posn == -1 || colon_posn < slash_posn))
+	    return str.substring(0, colon_posn);
+	return null;
+!!!8471707.java!!!	getDefaultInitCtx() : Context
+	if (!gotDefault) {
+	    defaultInitCtx = NamingManager.getInitialContext(myProps);
+	    gotDefault = true;
+	}
+	if (defaultInitCtx == null)
+	    throw new NoInitialContextException();
+
+	return defaultInitCtx;
+!!!8471835.java!!!	getURLOrDefaultInitCtx(in name : String) : Context
+	if (NamingManager.hasInitialContextFactoryBuilder()) {
+	    return getDefaultInitCtx();
+	}
+	String scheme = getURLScheme(name);
+	if (scheme != null) {
+	    Context ctx = NamingManager.getURLContext(scheme, myProps);
+	    if (ctx != null) {
+		return ctx;
+	    }
+	}
+	return getDefaultInitCtx();
+!!!8471963.java!!!	getURLOrDefaultInitCtx(inout name : Name) : Context
+	if (NamingManager.hasInitialContextFactoryBuilder()) {
+	    return getDefaultInitCtx();
+	}
+	if (name.size() > 0) {
+	    String first = name.get(0);
+	    String scheme = getURLScheme(first);
+	    if (scheme != null) {
+		Context ctx = NamingManager.getURLContext(scheme, myProps);
+		if (ctx != null) {
+		    return ctx;
+		}
+	    } 
+	}
+	return getDefaultInitCtx();
+!!!8472091.java!!!	lookup(in name : String) : Object
+	return getURLOrDefaultInitCtx(name).lookup(name);
+!!!8472219.java!!!	lookup(inout name : Name) : Object
+	return getURLOrDefaultInitCtx(name).lookup(name);
+!!!8472347.java!!!	bind(in name : String, inout obj : Object) : void
+	getURLOrDefaultInitCtx(name).bind(name, obj);
+!!!8472475.java!!!	bind(inout name : Name, inout obj : Object) : void
+	getURLOrDefaultInitCtx(name).bind(name, obj);
+!!!8472603.java!!!	rebind(in name : String, inout obj : Object) : void
+	getURLOrDefaultInitCtx(name).rebind(name, obj);
+!!!8472731.java!!!	rebind(inout name : Name, inout obj : Object) : void
+	getURLOrDefaultInitCtx(name).rebind(name, obj);
+!!!8472859.java!!!	unbind(in name : String) : void
+	getURLOrDefaultInitCtx(name).unbind(name);
+!!!8472987.java!!!	unbind(inout name : Name) : void
+	getURLOrDefaultInitCtx(name).unbind(name);
+!!!8473115.java!!!	rename(in oldName : String, in newName : String) : void
+	getURLOrDefaultInitCtx(oldName).rename(oldName, newName);
+!!!8473243.java!!!	rename(inout oldName : Name, inout newName : Name) : void
+	getURLOrDefaultInitCtx(oldName).rename(oldName, newName);
+!!!8473371.java!!!	list(in name : String) : NamingEnumeration
+	return (getURLOrDefaultInitCtx(name).list(name));
+!!!8473499.java!!!	list(inout name : Name) : NamingEnumeration
+	return (getURLOrDefaultInitCtx(name).list(name));
+!!!8473627.java!!!	listBindings(in name : String) : NamingEnumeration
+	return getURLOrDefaultInitCtx(name).listBindings(name);
+!!!8473755.java!!!	listBindings(inout name : Name) : NamingEnumeration
+	return getURLOrDefaultInitCtx(name).listBindings(name);
+!!!8473883.java!!!	destroySubcontext(in name : String) : void
+	getURLOrDefaultInitCtx(name).destroySubcontext(name);
+!!!8474011.java!!!	destroySubcontext(inout name : Name) : void
+	getURLOrDefaultInitCtx(name).destroySubcontext(name);
+!!!8474139.java!!!	createSubcontext(in name : String) : Context
+	return getURLOrDefaultInitCtx(name).createSubcontext(name);
+!!!8474267.java!!!	createSubcontext(inout name : Name) : Context
+	return getURLOrDefaultInitCtx(name).createSubcontext(name);
+!!!8474395.java!!!	lookupLink(in name : String) : Object
+	return getURLOrDefaultInitCtx(name).lookupLink(name);
+!!!8474523.java!!!	lookupLink(inout name : Name) : Object
+	return getURLOrDefaultInitCtx(name).lookupLink(name);
+!!!8474651.java!!!	getNameParser(in name : String) : NameParser
+	return getURLOrDefaultInitCtx(name).getNameParser(name);
+!!!8474779.java!!!	getNameParser(inout name : Name) : NameParser
+	return getURLOrDefaultInitCtx(name).getNameParser(name);
+!!!8474907.java!!!	composeName(in name : String, in prefix : String) : String
+	return name;
+!!!8475035.java!!!	composeName(inout name : Name, inout prefix : Name) : Name
+	return (Name)name.clone();
+!!!8475163.java!!!	addToEnvironment(in propName : String, inout propVal : Object) : Object
+	myProps.put(propName, propVal);
+	return getDefaultInitCtx().addToEnvironment(propName, propVal);
+!!!8475291.java!!!	removeFromEnvironment(in propName : String) : Object
+	myProps.remove(propName);
+	return getDefaultInitCtx().removeFromEnvironment(propName);
+!!!8475419.java!!!	getEnvironment() : Hashtable
+	return getDefaultInitCtx().getEnvironment();
+!!!8475547.java!!!	close() : void
+	myProps = null;
+	if (defaultInitCtx != null) {
+	    defaultInitCtx.close();
+	    defaultInitCtx = null;
+	}
+	gotDefault = false;
+!!!8475675.java!!!	getNameInNamespace() : String
+	return getDefaultInitCtx().getNameInNamespace();

@@ -1,0 +1,166 @@
+class KeyStore
+!!!7587611.java!!!	KeyStore(inout keyStoreSpi : KeyStoreSpi, inout provider : Provider, in type : String)
+	this.keyStoreSpi = keyStoreSpi;
+	this.provider = provider;
+	this.type = type;
+!!!7587739.java!!!	getInstance(in type : String) : KeyStore
+	try {
+	    Object[] objs = Security.getImpl(type, "KeyStore", (String)null);
+	    return new KeyStore((KeyStoreSpi)objs[0], (Provider)objs[1], type);
+	} catch (NoSuchAlgorithmException nsae) {
+	    throw new KeyStoreException(type + " not found");
+	} catch (NoSuchProviderException nspe) {
+	    throw new KeyStoreException(type + " not found");
+	}
+!!!7587867.java!!!	getInstance(in type : String, in provider : String) : KeyStore
+	if (provider == null || provider.length() == 0)
+	    throw new IllegalArgumentException("missing provider");
+	try {
+	    Object[] objs = Security.getImpl(type, "KeyStore", provider);
+	    return new KeyStore((KeyStoreSpi)objs[0], (Provider)objs[1], type);
+	} catch (NoSuchAlgorithmException nsae) {
+	    throw new KeyStoreException(type + " not found");
+	}
+!!!7587995.java!!!	getInstance(in type : String, inout provider : Provider) : KeyStore
+	if (provider == null)
+	    throw new IllegalArgumentException("missing provider");
+	try {
+	    Object[] objs = Security.getImpl(type, "KeyStore", provider);
+	    return new KeyStore((KeyStoreSpi)objs[0], (Provider)objs[1], type);
+	} catch (NoSuchAlgorithmException nsae) {
+	    throw new KeyStoreException(type + " not found");
+	}
+!!!7588123.java!!!	getDefaultType() : String
+	String kstype;
+	kstype = (String)AccessController.doPrivileged(new PrivilegedAction() {
+	    public Object run() {
+		return Security.getProperty(KEYSTORE_TYPE);
+	    }
+	});
+	if (kstype == null) {
+	    kstype = "jks";
+	}
+	return kstype;
+!!!7588251.java!!!	getProvider() : Provider
+	return this.provider;
+!!!7588379.java!!!	getType() : String
+	return this.type;
+!!!7588507.java!!!	getKey(in alias : String, in password : char) : Key
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	return keyStoreSpi.engineGetKey(alias, password);
+!!!7588635.java!!!	getCertificateChain(in alias : String) : Certificate
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	return keyStoreSpi.engineGetCertificateChain(alias);
+!!!7588763.java!!!	getCertificate(in alias : String) : Certificate
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	return keyStoreSpi.engineGetCertificate(alias);
+!!!7588891.java!!!	getCreationDate(in alias : String) : Date
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	return keyStoreSpi.engineGetCreationDate(alias);
+!!!7589019.java!!!	setKeyEntry(in alias : String, inout key : Key, in password : char, inout chain : Certificate) : void
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	if ((key instanceof PrivateKey) && 
+	    (chain == null || chain.length == 0)) {
+	    throw new IllegalArgumentException("Private key must be "
+					       + "accompanied by certificate "
+					       + "chain");
+	}
+	keyStoreSpi.engineSetKeyEntry(alias, key, password, chain);
+!!!7589147.java!!!	setKeyEntry(in alias : String, in key : byte, inout chain : Certificate) : void
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	keyStoreSpi.engineSetKeyEntry(alias, key, chain);
+!!!7589275.java!!!	setCertificateEntry(in alias : String, inout cert : Certificate) : void
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	keyStoreSpi.engineSetCertificateEntry(alias, cert);
+!!!7589403.java!!!	deleteEntry(in alias : String) : void
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	keyStoreSpi.engineDeleteEntry(alias);
+!!!7589531.java!!!	aliases() : Enumeration
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	return keyStoreSpi.engineAliases();
+!!!7589659.java!!!	containsAlias(in alias : String) : boolean
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	return keyStoreSpi.engineContainsAlias(alias);
+!!!7589787.java!!!	size() : int
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	return keyStoreSpi.engineSize();
+!!!7589915.java!!!	isKeyEntry(in alias : String) : boolean
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	return keyStoreSpi.engineIsKeyEntry(alias);
+!!!7590043.java!!!	isCertificateEntry(in alias : String) : boolean
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	return keyStoreSpi.engineIsCertificateEntry(alias);
+!!!7590171.java!!!	getCertificateAlias(inout cert : Certificate) : String
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	return keyStoreSpi.engineGetCertificateAlias(cert);
+!!!7590299.java!!!	store(inout stream : OutputStream, in password : char) : void
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	keyStoreSpi.engineStore(stream, password);
+!!!7590427.java!!!	store(inout param : LoadStoreParameter) : void
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	keyStoreSpi.engineStore(param);
+!!!7590555.java!!!	load(inout stream : InputStream, in password : char) : void
+	keyStoreSpi.engineLoad(stream, password);
+	initialized = true;
+!!!7590683.java!!!	load(inout param : LoadStoreParameter) : void
+
+	keyStoreSpi.engineLoad(param);
+	initialized = true;
+!!!7590811.java!!!	getEntry(in alias : String, inout protParam : ProtectionParameter) : Entry
+
+	if (alias == null) {
+	    throw new NullPointerException("invalid null input");
+	}
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	return keyStoreSpi.engineGetEntry(alias, protParam);
+!!!7590939.java!!!	setEntry(in alias : String, inout entry : Entry, inout protParam : ProtectionParameter) : void
+	if (alias == null || entry == null) {
+	    throw new NullPointerException("invalid null input");
+	}
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	keyStoreSpi.engineSetEntry(alias, entry, protParam);
+!!!7591067.java!!!	entryInstanceOf(in alias : String, inout entryClass : Class) : boolean
+
+	if (alias == null || entryClass == null) {
+	    throw new NullPointerException("invalid null input");
+	}
+	if (!initialized) {
+	    throw new KeyStoreException("Uninitialized keystore");
+	}
+	return keyStoreSpi.engineEntryInstanceOf(alias, entryClass);

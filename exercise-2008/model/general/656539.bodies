@@ -1,0 +1,87 @@
+class Expression
+!!!4346139.java!!!	getType() : Type
+	return _type;
+!!!4346395.java!!!	hasPositionCall() : boolean
+	return false;		// default should be 'false' for StepPattern
+!!!4346523.java!!!	hasLastCall() : boolean
+	return false;
+!!!4346651.java!!!	evaluateAtCompileTime() : Object
+	return null;
+!!!4346779.java!!!	typeCheck(inout stable : SymbolTable) : Type
+	return typeCheckContents(stable);
+!!!4346907.java!!!	translate(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	ErrorMsg msg = new ErrorMsg(ErrorMsg.NOT_IMPLEMENTED_ERR,
+				    getClass(), this);
+	getParser().reportError(FATAL, msg);
+!!!4347035.java!!!	compile(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : InstructionList
+	final InstructionList result, save = methodGen.getInstructionList();
+	methodGen.setInstructionList(result = new InstructionList());
+	translate(classGen, methodGen);
+	methodGen.setInstructionList(save);
+	return result;
+!!!4347163.java!!!	translateDesynthesized(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	translate(classGen, methodGen);
+	if (_type instanceof BooleanType) {
+	    desynthesize(classGen, methodGen);
+	}
+!!!4347291.java!!!	startIterator(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	// Ignore if type is not node-set
+	if (_type instanceof NodeSetType == false) {
+	    return;
+	}
+
+	// setStartNode() should not be called if expr is a variable ref
+	Expression expr = this;
+	if (expr instanceof CastExpr) {
+	    expr = ((CastExpr) expr).getExpr();
+	}
+	if (expr instanceof VariableRefBase == false) {
+	    final InstructionList il = methodGen.getInstructionList();
+	    il.append(methodGen.loadContextNode());
+	    il.append(methodGen.setStartNode());
+	}
+!!!4347419.java!!!	synthesize(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	final ConstantPoolGen cpg = classGen.getConstantPool();
+	final InstructionList il = methodGen.getInstructionList();
+	_trueList.backPatch(il.append(ICONST_1));
+	final BranchHandle truec = il.append(new GOTO_W(null));
+	_falseList.backPatch(il.append(ICONST_0));
+	truec.setTarget(il.append(NOP));
+!!!4347547.java!!!	desynthesize(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	final InstructionList il = methodGen.getInstructionList();
+	_falseList.add(il.append(new IFEQ(null)));
+!!!4347675.java!!!	getFalseList() : FlowList
+	return _falseList;
+!!!4347803.java!!!	getTrueList() : FlowList
+	return _trueList;
+!!!4347931.java!!!	backPatchFalseList(inout ih : InstructionHandle) : void
+	_falseList.backPatch(ih);
+!!!4348059.java!!!	backPatchTrueList(inout ih : InstructionHandle) : void
+	_trueList.backPatch(ih);
+!!!4348187.java!!!	lookupPrimop(inout stable : SymbolTable, in op : String, inout ctype : MethodType) : MethodType
+	MethodType result = null;
+	final Vector primop = stable.lookupPrimop(op);
+	if (primop != null) {
+	    final int n = primop.size();
+	    int minDistance = Integer.MAX_VALUE;
+	    for (int i = 0; i < n; i++) {
+		final MethodType ptype = (MethodType) primop.elementAt(i);
+		// Skip if different arity
+		if (ptype.argsCount() != ctype.argsCount()) {
+		    continue;
+		}
+				
+		// The first method with the right arity is the default
+		if (result == null) {
+		    result = ptype;		// default method
+		}
+
+		// Check if better than last one found
+		final int distance = ctype.distanceTo(ptype);
+		if (distance < minDistance) {
+		    minDistance = distance;
+		    result = ptype;
+		}
+	    }		
+	}	
+	return result;

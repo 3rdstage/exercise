@@ -1,0 +1,145 @@
+class ModelMBeanNotificationInfo
+!!!8300315.java!!!	ModelMBeanNotificationInfo(in notifTypes : String, in name : String, in description : String)
+	this(notifTypes,name,description,null);
+!!!8300443.java!!!	ModelMBeanNotificationInfo(in notifTypes : String, in name : String, in description : String, inout descriptor : Descriptor)
+	super(notifTypes, name, description);
+	if (tracing())
+	    trace("ModelMBeanNotificationInfo()","Executed");
+	applyDescriptor(descriptor,"ModelMBeanNotificationInfo()");
+!!!8300571.java!!!	ModelMBeanNotificationInfo(inout inInfo : ModelMBeanNotificationInfo)
+	this(inInfo.getNotifTypes(), 
+	     inInfo.getName(), 
+	     inInfo.getDescription(),inInfo.getDescriptor());
+!!!8300699.java!!!	clone() : Object
+	if (tracing())
+	    trace("ModelMBeanNotificationInfo.clone()","Executed");
+	return(new ModelMBeanNotificationInfo(this));
+!!!8300827.java!!!	getDescriptor() : Descriptor
+	if (tracing())
+	    trace("ModelMBeanNotificationInfo.getDescriptor()","Executed");
+		
+	if (notificationDescriptor == null) {
+	    // Dead code. Should never happen.
+	    if (tracing())
+		trace("ModelMBeanNotificationInfo.getDescriptor()",
+		      "Received null for new descriptor value, " +
+		      "setting descriptor to default values");
+			
+	    notificationDescriptor = createDefaultDescriptor();
+	}
+
+	return((Descriptor)notificationDescriptor.clone());
+!!!8300955.java!!!	setDescriptor(inout inDescriptor : Descriptor) : void
+	if (tracing())
+	    trace("setDescriptor(Descriptor)",
+		  "Executed");
+	applyDescriptor(inDescriptor,"setDescriptor(Descriptor)");
+!!!8301083.java!!!	toString() : String
+	if (tracing())
+	    trace("toString()","Executed");
+		
+	final StringBuffer retStr = new StringBuffer();
+
+	retStr.append("ModelMBeanNotificationInfo: ")
+	    .append(this.getName());
+
+	retStr.append(" ; Description: ")
+	    .append(this.getDescription());
+
+	retStr.append(" ; Descriptor: ")
+	    .append(this.getDescriptor());
+
+	retStr.append(" ; Types: ");
+	String[] nTypes = this.getNotifTypes();
+	for (int i=0; i < nTypes.length; i++) {
+	    if (i > 0) retStr.append(", ");
+	    retStr.append(nTypes[i]); 
+	}
+	return retStr.toString();
+!!!8301211.java!!!	createDefaultDescriptor() : Descriptor
+	if (tracing())
+	    trace("createDefaultDescriptor()","Executed");
+		
+	return new DescriptorSupport(new 
+	    String[] {"descriptorType=notification",
+		      ("name=" + this.getName()),
+		      ("displayName=" + this.getName()),
+		      "severity=6"});
+!!!8301339.java!!!	isValid(inout inDesc : Descriptor) : boolean
+	boolean results = true;
+	String badField = "none";
+
+	if (inDesc == null) {
+	    badField="nullDescriptor";
+	    return false;
+	}
+
+	if (!inDesc.isValid()) {
+	    // checks for empty descriptors, null,
+	    // checks for empty name and descriptorType adn valid 
+	    // values for fields.
+	    badField="invalidDescriptor";
+	    results = false;
+	} else if (!((String)inDesc.getFieldValue("name")).
+		   equalsIgnoreCase(this.getName())) {
+	    badField="name";
+	    results = false;
+	} else if (! ((String)inDesc.getFieldValue("descriptorType")).
+		   equalsIgnoreCase("notification")) {
+	    badField="descriptorType";
+	    results = false;
+	}
+	 
+	if (tracing()) trace("isValid()",("Returning " + results + 
+				": Invalid field is " + badField));
+	return results;
+!!!8301467.java!!!	setDefaults(inout descriptor : Descriptor) : Descriptor
+	if ((descriptor.getFieldValue("displayName")) == null) {
+	    descriptor.setField("displayName",this.getName());
+	}
+	if ((descriptor.getFieldValue("severity")) == null) {
+	    descriptor.setField("severity","6");
+	}
+	return descriptor;
+!!!8301595.java!!!	applyDescriptor(inout descriptor : Descriptor, in ftag : String) : void
+	if (descriptor == null) {
+	    if (tracing())
+		trace(ftag,
+		      "Received null for new descriptor value, " +
+		      "setting descriptor to default values");
+	    
+	    notificationDescriptor = createDefaultDescriptor();
+	} else if (isValid(descriptor)) {
+	    notificationDescriptor = 
+		setDefaults((Descriptor)descriptor.clone());
+	} else {
+	    throw new RuntimeOperationsException(new 
+		IllegalArgumentException(
+	        "Invalid descriptor passed in parameter"), 
+	        "Exception occured in ModelMBeanNotificationInfo " + ftag);
+	}
+!!!8301723.java!!!	tracing() : boolean
+	//      return true;
+	return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_MODELMBEAN);
+!!!8301851.java!!!	trace(in inClass : String, in inMethod : String, in inText : String) : void
+	Trace.send(Trace.LEVEL_TRACE, Trace.INFO_MODELMBEAN, inClass,
+		   inMethod,  Integer.toHexString(this.hashCode()) + 
+		   " " + inText); 
+!!!8301979.java!!!	trace(in inMethod : String, in inText : String) : void
+	trace(currClass, inMethod, inText);
+!!!8302107.java!!!	readObject(inout in : ObjectInputStream) : void
+	// New serial form ignores extra field "currClass"
+	in.defaultReadObject();
+!!!8302235.java!!!	writeObject(inout out : ObjectOutputStream) : void
+	if (compat) {
+	    // Serializes this instance in the old serial form
+	    //
+	    ObjectOutputStream.PutField fields = out.putFields();
+	    fields.put("notificationDescriptor", notificationDescriptor);
+	    fields.put("currClass", currClass);
+	    out.writeFields();
+	} else {
+	    // Serializes this instance in the new serial form
+	    //
+	    out.defaultWriteObject();
+	}

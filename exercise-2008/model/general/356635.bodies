@@ -1,0 +1,98 @@
+class Deflater
+!!!8143515.java!!!	Deflater(in level : int, inout nowrap : boolean)
+	this.level = level;
+	this.strategy = DEFAULT_STRATEGY;
+	strm = init(level, DEFAULT_STRATEGY, nowrap);
+!!!8143643.java!!!	Deflater(in level : int)
+	this(level, false);
+!!!8143771.java!!!	Deflater()
+	this(DEFAULT_COMPRESSION, false);
+!!!8143899.java!!!	setInput(in b : byte, in off : int, in len : int) : void
+	if (b== null) {
+	    throw new NullPointerException();
+	}
+        if (off < 0 || len < 0 || off > b.length - len) {
+	    throw new ArrayIndexOutOfBoundsException();
+	}
+	this.buf = b;
+	this.off = off;
+	this.len = len;
+!!!8144027.java!!!	setInput(in b : byte) : void
+	setInput(b, 0, b.length);
+!!!8144155.java!!!	setDictionary(in b : byte, in off : int, in len : int) : void
+	if (strm == 0 || b == null) {
+	    throw new NullPointerException();
+	}
+        if (off < 0 || len < 0 || off > b.length - len) {
+	    throw new ArrayIndexOutOfBoundsException();
+	}
+	setDictionary(strm, b, off, len);
+!!!8144283.java!!!	setDictionary(in b : byte) : void
+	setDictionary(b, 0, b.length);
+!!!8144411.java!!!	setStrategy(in strategy : int) : void
+	switch (strategy) {
+	  case DEFAULT_STRATEGY:
+	  case FILTERED:
+	  case HUFFMAN_ONLY:
+	    break;
+	  default:
+	    throw new IllegalArgumentException();
+	}
+	if (this.strategy != strategy) {
+	    this.strategy = strategy;
+	    setParams = true;
+	}
+!!!8144539.java!!!	setLevel(in level : int) : void
+	if ((level < 0 || level > 9) && level != DEFAULT_COMPRESSION) {
+	    throw new IllegalArgumentException("invalid compression level");
+	}
+	if (this.level != level) {
+	    this.level = level;
+	    setParams = true;
+	}
+!!!8144667.java!!!	needsInput() : boolean
+	return len <= 0;
+!!!8144795.java!!!	finish() : void
+	finish = true;
+!!!8144923.java!!!	finished() : boolean
+	return finished;
+!!!8145051.java!!!	deflate(in b : byte, in off : int, in len : int) : int
+	if (b == null) {
+	    throw new NullPointerException();
+	}
+        if (off < 0 || len < 0 || off > b.length - len) {
+	    throw new ArrayIndexOutOfBoundsException();
+	}
+	return deflateBytes(b, off, len);
+!!!8145179.java!!!	deflate(in b : byte) : int
+	return deflate(b, 0, b.length);
+!!!8145307.java!!!	getAdler() : int
+	ensureOpen();
+	return getAdler(strm);
+!!!8145435.java!!!	getTotalIn() : int
+	return (int) getBytesRead();
+!!!8145563.java!!!	getBytesRead() : long
+	ensureOpen();
+	return getBytesRead(strm);
+!!!8145691.java!!!	getTotalOut() : int
+	return (int) getBytesWritten();
+!!!8145819.java!!!	getBytesWritten() : long
+	ensureOpen();
+	return getBytesWritten(strm);
+!!!8145947.java!!!	reset() : void
+	ensureOpen();
+	reset(strm);
+	finish = false;
+	finished = false;
+	off = len = 0;
+!!!8146075.java!!!	end() : void
+	if (strm != 0) {
+	    end(strm);
+	    strm = 0;
+	    buf = null;
+	}
+!!!8146203.java!!!	finalize() : void
+	end();
+!!!8146331.java!!!	ensureOpen() : void
+	if (strm == 0)
+	    throw new NullPointerException();

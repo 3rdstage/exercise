@@ -1,0 +1,46 @@
+class FileInputStream
+!!!6848667.java!!!	FileInputStream(in name : String)
+        this(name != null ? new File(name) : null);
+!!!6848795.java!!!	FileInputStream(inout file : File)
+	String name = (file != null ? file.getPath() : null);
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkRead(name);
+	}
+        if (name == null) {
+            throw new NullPointerException();
+        }
+	fd = new FileDescriptor();
+	open(name);
+!!!6848923.java!!!	FileInputStream(inout fdObj : FileDescriptor)
+	SecurityManager security = System.getSecurityManager();
+	if (fdObj == null) {
+	    throw new NullPointerException();
+	}
+	if (security != null) {
+	    security.checkRead(fdObj);
+	}
+	fd = fdObj;
+!!!6849435.java!!!	read(in b : byte) : int
+	return readBytes(b, 0, b.length);
+!!!6849563.java!!!	read(in b : byte, in off : int, in len : int) : int
+	return readBytes(b, off, len);
+!!!6849947.java!!!	close() : void
+        if (channel != null)
+            channel.close();
+        close0();
+!!!6850075.java!!!	getFD() : FileDescriptor
+	if (fd != null) return fd;
+	throw new IOException();
+!!!6850203.java!!!	getChannel() : FileChannel
+	synchronized (this) {
+	    if (channel == null)
+		channel = FileChannelImpl.open(fd, true, false, this);
+	    return channel;
+	}
+!!!6850587.java!!!	finalize() : void
+	if (fd != null) {
+	    if (fd != fd.in) {
+		close();
+	    }
+	}

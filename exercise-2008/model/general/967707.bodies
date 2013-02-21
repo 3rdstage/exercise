@@ -1,0 +1,54 @@
+class PermissionsHash
+!!!7602587.java!!!	PermissionsHash()
+	permsMap = new HashMap(11);
+!!!7602715.java!!!	add(inout permission : Permission) : void
+	synchronized (this) {
+	    permsMap.put(permission, permission);
+	}
+!!!7602843.java!!!	implies(inout permission : Permission) : boolean
+	// attempt a fast lookup and implies. If that fails
+	// then enumerate through all the permissions.
+	synchronized (this) {
+	    Permission p = (Permission) permsMap.get(permission);
+
+	    // If permission is found, then p.equals(permission)
+	    if (p == null) {
+		Iterator enum_ = permsMap.values().iterator();
+		while (enum_.hasNext()) {
+		    p = (Permission) enum_.next();
+		    if (p.implies(permission))
+			return true;
+		}
+		return false;
+	    } else {
+		return true;
+	    }
+	}
+!!!7602971.java!!!	elements() : Enumeration
+        // Convert Iterator of Map values into an Enumeration
+	synchronized (this) {
+	    return Collections.enumeration(permsMap.values());
+	}
+!!!7603099.java!!!	writeObject(inout out : ObjectOutputStream) : void
+	// Don't call out.defaultWriteObject()
+
+	// Copy perms into a Hashtable
+	Hashtable perms = new Hashtable(permsMap.size()*2);
+	synchronized (this) {
+	    perms.putAll(permsMap);
+	}
+
+	// Write out serializable fields
+        ObjectOutputStream.PutField pfields = out.putFields();
+        pfields.put("perms", perms);
+        out.writeFields();
+!!!7603227.java!!!	readObject(inout in : ObjectInputStream) : void
+	// Don't call defaultReadObject()
+
+	// Read in serialized fields
+	ObjectInputStream.GetField gfields = in.readFields();
+
+	// Get permissions
+	Hashtable perms = (Hashtable)gfields.get("perms", null);
+	permsMap = new HashMap(perms.size()*2);
+	permsMap.putAll(perms);

@@ -1,0 +1,336 @@
+class OpenMBeanAttributeInfoSupport
+!!!8346011.java!!!	OpenMBeanAttributeInfoSupport(in name : String, in description : String, inout openType : OpenType, inout isReadable : boolean, inout isWritable : boolean, inout isIs : boolean)
+
+	// Construct parent's state
+	//
+	super(name, ( (openType==null) ? null : openType.getClassName() ), description, isReadable, isWritable, isIs);
+
+	// check parameters that should not be null or empty (unfortunately it is not done in superclass :-( ! )
+	//
+	if ( (name == null) || (name.trim().equals("")) ) {
+	    throw new IllegalArgumentException("Argument name cannot be null or empty.");
+	}
+	if (openType == null) {
+	    throw new IllegalArgumentException("Argument openType cannot be null.");
+	}
+	if ( (description == null) || (description.trim().equals("")) ) {
+	    throw new IllegalArgumentException("Argument description cannot be null or empty.");
+	}
+
+	// Initialize this instance's specific state
+	//
+	this.openType = openType;
+!!!8346139.java!!!	OpenMBeanAttributeInfoSupport(in name : String, in description : String, inout openType : OpenType, inout isReadable : boolean, inout isWritable : boolean, inout isIs : boolean, inout defaultValue : Object)
+
+	// First check and construct the part regarding name, openType and description
+	//
+	this(name, description, openType, isReadable, isWritable, isIs);
+
+	// Check and initialize defaultValue
+	//
+	if (defaultValue != null) {
+	    // Default value not supported for ArrayType and TabularType
+	    if ( (openType.isArray()) || (openType instanceof TabularType) ) {
+		throw new OpenDataException("Default value not supported for ArrayType and TabularType.");
+	    }
+	    // Check defaultValue's class
+	    if ( ! openType.isValue(defaultValue) ) {
+		throw new OpenDataException("Argument defaultValue's class [\""+ defaultValue.getClass().getName() +
+					    "\"] does not match the one defined in openType[\""+ openType.getClassName() +"\"].");
+	    }
+	    // Then initializes defaultValue:
+	    // no need to clone it: apart from arrays and TabularData, basic data types are immutable
+	    this.defaultValue = defaultValue;
+	}
+!!!8346267.java!!!	OpenMBeanAttributeInfoSupport(in name : String, in description : String, inout openType : OpenType, inout isReadable : boolean, inout isWritable : boolean, inout isIs : boolean, inout defaultValue : Object, inout legalValues : Object)
+
+	// First check and construct the part regarding name, openType, description and defaultValue
+	//
+	this(name, description, openType, isReadable, isWritable, isIs, defaultValue);
+
+	// Check and initialize legalValues
+	//
+	if ( (legalValues != null) && (legalValues.length > 0) ){
+	    // legalValues not supported for TabularType and arrays
+	    if ( (openType instanceof TabularType) || (openType.isArray()) ) {
+		throw new OpenDataException("Legal values not supported for TabularType and arrays");
+	    }
+	    // Check legalValues are valid with openType
+	    for (int i = 0; i < legalValues.length; i++ ) {
+		if ( ! openType.isValue(legalValues[i]) ) {
+		    throw new OpenDataException("Element legalValues["+ i +"]="+ legalValues[i] +
+						" is not a valid value for the specified openType ["+ openType.toString() +"].");
+		}
+	    }
+	    // dump the legalValues array content into a Set: ensures uniqueness of elements
+	    // (and we could not keep the array reference as array content could be modified by the caller)
+	    Set tmpSet = new HashSet(legalValues.length+1, 1);
+	    for (int i = 0; i < legalValues.length; i++ ) {
+		tmpSet.add(legalValues[i]);
+	    }
+	    // initializes legalValues as an unmodifiable Set
+	    this.legalValues = Collections.unmodifiableSet(tmpSet);
+	}
+
+	// Check that defaultValue is a legal value
+	//
+	if ( (this.hasDefaultValue()) && (this.hasLegalValues()) ) {
+	    if ( ! this.legalValues.contains(defaultValue) ) {
+		throw new OpenDataException("defaultValue is not contained in legalValues");
+	    }
+	}
+!!!8346395.java!!!	OpenMBeanAttributeInfoSupport(in name : String, in description : String, inout openType : OpenType, inout isReadable : boolean, inout isWritable : boolean, inout isIs : boolean, inout defaultValue : Object, inout minValue : Comparable, inout maxValue : Comparable)
+
+	// First check and construct the part regarding name, openType, description and defaultValue
+	//
+	this(name, description, openType, isReadable, isWritable, isIs, defaultValue);
+
+	// Check and initialize minValue 
+	//(note: no need to worry about Composite, Tabular and arrays as they are not Comparable)
+	//
+	if (minValue != null) {
+	    if ( ! openType.isValue(minValue) ) {
+		throw new OpenDataException("Argument minValue's class [\""+ minValue.getClass().getName() +
+					    "\"] does not match openType's definition [\""+ openType.getClassName() +"\"].");
+	    }
+	    // then initializes minValue 
+	    this.minValue = minValue;
+	}
+
+	// Check and initialize maxValue 
+	//(note: no need to worry about Composite, Tabular and arrays as they are not Comparable)
+	//
+	if (maxValue != null) {
+	    if ( ! openType.isValue(maxValue) ) {
+		throw new OpenDataException("Argument maxValue's class [\""+ maxValue.getClass().getName() +
+					    "\"] does not match openType's definition [\""+ openType.getClassName() +"\"].");
+	    }
+	    // then initializes maxValue 
+	    this.maxValue = maxValue;
+	}
+
+	// Check that, if both specified, minValue <= maxValue
+	//
+	if (hasMinValue() && hasMaxValue()) {
+	    if (minValue.compareTo(maxValue) > 0) {
+		throw new OpenDataException("minValue cannot be greater than maxValue.");
+	    }
+	}
+
+	// Check that minValue <= defaultValue <= maxValue
+	//
+	if ( (this.hasDefaultValue()) && (this.hasMinValue()) ) {
+	    if (minValue.compareTo((Comparable)defaultValue) > 0) {
+		throw new OpenDataException("minValue cannot be greater than defaultValue.");
+	    }
+	}
+	if ( (this.hasDefaultValue()) && (this.hasMaxValue()) ) {
+	    if (((Comparable)defaultValue).compareTo(maxValue) > 0) {
+		throw new OpenDataException("defaultValue cannot be greater than maxValue.");
+	    }
+	}
+!!!8346523.java!!!	getOpenType() : OpenType
+ 
+	return openType;
+!!!8346651.java!!!	getDefaultValue() : Object
+
+	// Special case for ArrayType and TabularType
+	// [JF] TODO: clone it so that it cannot be altered,
+	// [JF] TODO: if we decide to support defaultValue as an array itself.
+	// [JF] As of today (oct 2000) it is not supported so defaultValue is null for arrays. Nothing to do.
+
+	return defaultValue;
+!!!8346779.java!!!	getLegalValues() : Set
+
+	// Special case for ArrayType and TabularType
+	// [JF] TODO: clone values so that they cannot be altered,
+	// [JF] TODO: if we decide to support LegalValues as an array itself.
+	// [JF] As of today (oct 2000) it is not supported so legalValues is null for arrays. Nothing to do.
+
+	// Returns our legalValues Set (set was constructed unmodifiable)
+	return (legalValues);
+!!!8346907.java!!!	getMinValue() : Comparable
+
+	// Note: only comparable values have a minValue, so that's not the case of arrays and tabulars (always null).
+
+	return minValue;
+!!!8347035.java!!!	getMaxValue() : Comparable
+
+	// Note: only comparable values have a maxValue, so that's not the case of arrays and tabulars (always null).
+
+	return maxValue;
+!!!8347163.java!!!	hasDefaultValue() : boolean
+
+	return (defaultValue != null);
+!!!8347291.java!!!	hasLegalValues() : boolean
+
+	return (legalValues != null);
+!!!8347419.java!!!	hasMinValue() : boolean
+
+	return (minValue != null);
+!!!8347547.java!!!	hasMaxValue() : boolean
+
+	return (maxValue != null);
+!!!8347675.java!!!	isValue(inout obj : Object) : boolean
+
+	boolean result;
+
+	if ( hasDefaultValue() && obj == null ) {
+	    result = true;
+	} 
+	else if ( ! openType.isValue(obj) ) {
+	    result = false;
+	}
+	else if ( hasLegalValues() && ! legalValues.contains(obj) ) {
+	    result = false;
+	}
+	else if ( hasMinValue() && (minValue.compareTo(obj)>0) ) {
+	    result = false;
+	}
+	else if ( hasMaxValue() && (maxValue.compareTo(obj)<0) ) {
+	    result = false;
+	}
+	else {
+	    result = true;
+	}
+
+	return result;
+!!!8347803.java!!!	equals(inout obj : Object) : boolean
+ 
+
+	// if obj is null, return false
+	//
+	if (obj == null) {
+	    return false;
+	}
+
+	// if obj is not a OpenMBeanAttributeInfo, return false
+	//
+	OpenMBeanAttributeInfo other;
+	try {
+	    other = (OpenMBeanAttributeInfo) obj;
+	} catch (ClassCastException e) {
+	    return false;
+	}
+
+	// Now, really test for equality between this OpenMBeanAttributeInfo implementation and the other:
+	//
+	
+	// their Name should be equal
+	if ( ! this.getName().equals(other.getName()) ) {
+	    return false;
+	}
+
+	// their OpenType should be equal
+	if ( ! this.getOpenType().equals(other.getOpenType()) ) {
+	    return false;
+	}
+
+	// their access properties (isReadable, isWritable and isIs) are equal</li>
+	if ( (this.isReadable() != other.isReadable()) ||
+	     (this.isWritable() != other.isWritable()) ||
+	     (this.isIs()       != other.isIs())          ) {
+	    return false;
+	}
+	
+
+	// their DefaultValue should be equal
+	if (this.hasDefaultValue()) {
+	    if ( ! this.defaultValue.equals(other.getDefaultValue()) ) {
+		return false;
+	    }
+	} else {
+	    if (other.hasDefaultValue()) {
+		return false;
+	    }
+	}
+       
+	// their MinValue should be equal
+	if (this.hasMinValue()) {
+	    if ( ! this.minValue.equals(other.getMinValue()) ) {
+		return false;
+	    }
+	} else {
+	    if (other.hasMinValue()) {
+		return false;
+	    }
+	}
+       
+	// their MaxValue should be equal
+	if (this.hasMaxValue()) {
+	    if ( ! this.maxValue.equals(other.getMaxValue()) ) {
+		return false;
+	    }
+	} else {
+	    if (other.hasMaxValue()) {
+		return false;
+	    }
+	}
+       
+	// their LegalValues should be equal
+	if (this.hasLegalValues()) {
+	    if ( ! this.legalValues.equals(other.getLegalValues()) ) {
+		return false;
+	    }
+	} else {
+	    if (other.hasLegalValues()) {
+		return false;
+	    }
+	}
+       
+	// All tests for equality were successfull
+	//
+	return true;
+!!!8347931.java!!!	hashCode() : int
+
+	// Calculate the hash code value if it has not yet been done (ie 1st call to hashCode())
+	//
+	if (myHashCode == null) {
+	    int value = 0;
+	    value += this.getName().hashCode();
+	    value += this.openType.hashCode();
+	    if (this.hasDefaultValue()) {
+		value += this.defaultValue.hashCode();
+	    }
+	    if (this.hasMinValue()) {
+		value += this.minValue.hashCode();
+	    }
+	    if (this.hasMaxValue()) {
+		value += this.maxValue.hashCode();
+	    }
+	    if (this.hasLegalValues()) {
+		value += this.legalValues.hashCode();
+	    }
+	    myHashCode = new Integer(value);
+	}
+	
+	// return always the same hash code for this instance (immutable)
+	//
+	return myHashCode.intValue();
+!!!8348059.java!!!	toString() : String
+ 
+
+	// Calculate the hash code value if it has not yet been done (ie 1st call to hashCode())
+	//
+	if (myToString == null) {
+	    myToString = new StringBuffer()
+		.append(this.getClass().getName())
+		.append("(name=")
+		.append(this.getName())
+		.append(",openType=")
+		.append(this.openType.toString())
+		.append(",default=")
+		.append(String.valueOf(this.defaultValue))
+		.append(",min=")
+		.append(String.valueOf(this.minValue))
+		.append(",max=")
+		.append(String.valueOf(this.maxValue))
+		.append(",legals=")
+		.append(String.valueOf(this.legalValues))
+		.append(")")
+		.toString();
+	}
+
+	// return always the same string representation for this instance (immutable)
+	//
+	return myToString;

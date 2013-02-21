@@ -1,0 +1,67 @@
+class NamespaceSupport2
+!!!5806107.java!!!	NamespaceSupport2()
+        reset();
+!!!5806235.java!!!	reset() : void
+        // Discarding the whole stack doesn't save us a lot versus
+        // creating a new NamespaceSupport. Do we care, or should we
+        // change this to just reset the root context?
+        currentContext = new Context2(null);
+        currentContext.declarePrefix("xml", XMLNS);
+!!!5806363.java!!!	pushContext() : void
+        // JJK: Context has a parent pointer.
+        // That means we don't need a stack to pop.
+        // We may want to retain for reuse, but that can be done via
+        // a child pointer.
+
+        Context2 parentContext=currentContext;
+        currentContext = parentContext.getChild();
+        if (currentContext == null){
+                currentContext = new Context2(parentContext);
+            }
+        else{
+            // JJK: This will wipe out any leftover data
+            // if we're reusing a previously allocated Context.
+            currentContext.setParent(parentContext);
+        }
+!!!5806491.java!!!	popContext() : void
+        Context2 parentContext=currentContext.getParent();
+        if(parentContext==null)
+            throw new EmptyStackException();
+        else
+            currentContext = parentContext;
+!!!5806619.java!!!	declarePrefix(in prefix : String, in uri : String) : boolean
+        if (prefix.equals("xml") || prefix.equals("xmlns")) {
+            return false;
+        } else {
+            currentContext.declarePrefix(prefix, uri);
+            return true;
+        }
+!!!5806747.java!!!	processName(in qName : String, in parts : String, inout isAttribute : boolean) : String
+        String[] name=currentContext.processName(qName, isAttribute);
+        if(name==null)
+            return null;
+
+        // JJK: This recopying is required because processName may return
+        // a cached result. I Don't Like It. *****
+        System.arraycopy(name,0,parts,0,3);
+        return parts;
+!!!5806875.java!!!	getURI(in prefix : String) : String
+        return currentContext.getURI(prefix);
+!!!5807003.java!!!	getPrefixes() : Enumeration
+        return currentContext.getPrefixes();
+!!!5807131.java!!!	getPrefix(in uri : String) : String
+        return currentContext.getPrefix(uri);
+!!!5807259.java!!!	getPrefixes(in uri : String) : Enumeration
+        // JJK: The old code involved creating a vector, filling it
+        // with all the matching prefixes, and then getting its
+        // elements enumerator. Wastes storage, wastes cycles if we
+        // don't actually need them all. Better to either implement
+        // a specific enumerator for these prefixes... or a filter
+        // around the all-prefixes enumerator, which comes out to
+        // roughly the same thing.
+        //
+        // **** Currently a filter. That may not be most efficient
+        // when I'm done restructuring storage!
+        return new PrefixForUriEnumerator(this,uri,getPrefixes());       
+!!!5807387.java!!!	getDeclaredPrefixes() : Enumeration
+        return currentContext.getDeclaredPrefixes();

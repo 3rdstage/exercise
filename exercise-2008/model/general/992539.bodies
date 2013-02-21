@@ -1,0 +1,408 @@
+class CopyOnWriteArrayList
+!!!7909275.java!!!	array() : E
+ return array;
+!!!7909403.java!!!	CopyOnWriteArrayList()
+        array = (E[]) new Object[0];
+!!!7909531.java!!!	CopyOnWriteArrayList(inout c : Collection)
+        array = (E[]) new Object[c.size()];
+        Iterator<? extends E> i = c.iterator();
+        int size = 0;
+        while (i.hasNext())
+            array[size++] = i.next();
+!!!7909659.java!!!	CopyOnWriteArrayList(inout toCopyIn : E)
+        copyIn(toCopyIn, 0, toCopyIn.length);
+!!!7909787.java!!!	copyIn(inout toCopyIn : E, in first : int, in n : int) : void
+        array  = (E[]) new Object[n];
+        System.arraycopy(toCopyIn, first, array, 0, n);
+!!!7909915.java!!!	size() : int
+        return array().length;
+!!!7910043.java!!!	isEmpty() : boolean
+        return size() == 0;
+!!!7910171.java!!!	contains(inout elem : Object) : boolean
+        E[] elementData = array();
+        int len = elementData.length;
+        return indexOf(elem, elementData, len) >= 0;
+!!!7910299.java!!!	indexOf(inout elem : Object) : int
+        E[] elementData = array();
+        int len = elementData.length;
+        return indexOf(elem, elementData, len);
+!!!7910427.java!!!	indexOf(inout elem : Object, inout elementData : Object, in len : int) : int
+        if (elem == null) {
+            for (int i = 0; i < len; i++)
+                if (elementData[i]==null)
+                    return i;
+        } else {
+            for (int i = 0; i < len; i++)
+                if (elem.equals(elementData[i]))
+                    return i;
+        }
+        return -1;
+!!!7910555.java!!!	indexOf(inout elem : E, in index : int) : int
+        E[] elementData = array();
+        int elementCount = elementData.length;
+
+        if (elem == null) {
+            for (int i = index ; i < elementCount ; i++)
+                if (elementData[i]==null)
+                    return i;
+        } else {
+            for (int i = index ; i < elementCount ; i++)
+                if (elem.equals(elementData[i]))
+                    return i;
+        }
+        return -1;
+!!!7910683.java!!!	lastIndexOf(inout elem : Object) : int
+        E[] elementData = array();
+        int len = elementData.length;
+        return lastIndexOf(elem, elementData, len);
+!!!7910811.java!!!	lastIndexOf(inout elem : Object, inout elementData : Object, in len : int) : int
+        if (elem == null) {
+            for (int i = len-1; i >= 0; i--)
+                if (elementData[i]==null)
+                    return i;
+        } else {
+            for (int i = len-1; i >= 0; i--)
+                if (elem.equals(elementData[i]))
+                    return i;
+        }
+        return -1;
+!!!7910939.java!!!	lastIndexOf(inout elem : E, in index : int) : int
+        // needed in order to compile on 1.2b3
+        E[] elementData = array();
+        if (elem == null) {
+            for (int i = index; i >= 0; i--)
+                if (elementData[i]==null)
+                    return i;
+        } else {
+            for (int i = index; i >= 0; i--)
+                if (elem.equals(elementData[i]))
+                    return i;
+        }
+        return -1;
+!!!7911067.java!!!	clone() : Object
+        try {
+            E[] elementData = array();
+            CopyOnWriteArrayList<E> v = (CopyOnWriteArrayList<E>)super.clone();
+            v.array = (E[]) new Object[elementData.length];
+            System.arraycopy(elementData, 0, v.array, 0, elementData.length);
+            return v;
+        } catch (CloneNotSupportedException e) {
+            // this shouldn't happen, since we are Cloneable
+            throw new InternalError();
+        }
+!!!7911195.java!!!	toArray() : Object
+        Object[] elementData = array();
+        Object[] result = new Object[elementData.length];
+        System.arraycopy(elementData, 0, result, 0, elementData.length);
+        return result;
+!!!7911323.java!!!	toArray(inout a : T) : T
+        E[] elementData = array();
+
+        if (a.length < elementData.length)
+            a = (T[])
+            java.lang.reflect.Array.newInstance(a.getClass().getComponentType(),
+            elementData.length);
+
+        System.arraycopy(elementData, 0, a, 0, elementData.length);
+
+        if (a.length > elementData.length)
+            a[elementData.length] = null;
+
+        return a;
+!!!7911451.java!!!	get(in index : int) : E
+        E[] elementData = array();
+        rangeCheck(index, elementData.length);
+        return elementData[index];
+!!!7911579.java!!!	set(in index : int, inout element : E) : E
+        int len = array.length;
+        rangeCheck(index, len);
+        E oldValue = array[index];
+
+        boolean same = (oldValue == element ||
+        (element != null && element.equals(oldValue)));
+        if (!same) {
+            E[] newArray = (E[]) new Object[len];
+            System.arraycopy(array, 0, newArray, 0, len);
+            newArray[index] = element;
+            array = newArray;
+        }
+        return oldValue;
+!!!7911707.java!!!	add(inout element : E) : boolean
+        int len = array.length;
+        E[] newArray = (E[]) new Object[len+1];
+        System.arraycopy(array, 0, newArray, 0, len);
+        newArray[len] = element;
+        array = newArray;
+        return true;
+!!!7911835.java!!!	add(in index : int, inout element : E) : void
+        int len = array.length;
+        if (index > len || index < 0)
+            throw new IndexOutOfBoundsException("Index: "+index+", Size: "+len);
+
+        E[] newArray = (E[]) new Object[len+1];
+        System.arraycopy(array, 0, newArray, 0, index);
+        newArray[index] = element;
+        System.arraycopy(array, index, newArray, index+1, len - index);
+        array = newArray;
+!!!7911963.java!!!	remove(in index : int) : E
+        int len = array.length;
+        rangeCheck(index, len);
+        E oldValue = array[index];
+        E[] newArray = (E[]) new Object[len-1];
+        System.arraycopy(array, 0, newArray, 0, index);
+        int numMoved = len - index - 1;
+        if (numMoved > 0)
+            System.arraycopy(array, index+1, newArray, index, numMoved);
+        array = newArray;
+        return oldValue;
+!!!7912091.java!!!	remove(inout o : Object) : boolean
+        int len = array.length;
+        if (len == 0) return false;
+
+        // Copy while searching for element to remove
+        // This wins in the normal case of element being present
+
+        int newlen = len-1;
+        E[] newArray = (E[]) new Object[newlen];
+
+        for (int i = 0; i < newlen; ++i) {
+            if (o == array[i] ||
+            (o != null && o.equals(array[i]))) {
+                // found one;  copy remaining and exit
+                for (int k = i + 1; k < len; ++k) newArray[k-1] = array[k];
+                array = newArray;
+                return true;
+            } else
+                newArray[i] = array[i];
+        }
+        // special handling for last cell
+
+        if (o == array[newlen] ||
+        (o != null && o.equals(array[newlen]))) {
+            array = newArray;
+            return true;
+        } else
+            return false; // throw away copy
+!!!7912219.java!!!	removeRange(in fromIndex : int, in toIndex : int) : void
+        int len = array.length;
+
+        if (fromIndex < 0 || fromIndex >= len ||
+        toIndex > len || toIndex < fromIndex)
+            throw new IndexOutOfBoundsException();
+
+        int numMoved = len - toIndex;
+        int newlen = len - (toIndex-fromIndex);
+        E[] newArray = (E[]) new Object[newlen];
+        System.arraycopy(array, 0, newArray, 0, fromIndex);
+        System.arraycopy(array, toIndex, newArray, fromIndex, numMoved);
+        array = newArray;
+!!!7912347.java!!!	addIfAbsent(inout element : E) : boolean
+        // Copy while checking if already present.
+        // This wins in the most common case where it is not present
+        int len = array.length;
+        E[] newArray = (E[]) new Object[len + 1];
+        for (int i = 0; i < len; ++i) {
+            if (element == array[i] ||
+            (element != null && element.equals(array[i])))
+                return false; // exit, throwing away copy
+            else
+                newArray[i] = array[i];
+        }
+        newArray[len] = element;
+        array = newArray;
+        return true;
+!!!7912475.java!!!	containsAll(inout c : Collection) : boolean
+        E[] elementData = array();
+        int len = elementData.length;
+        Iterator e = c.iterator();
+        while (e.hasNext())
+            if (indexOf(e.next(), elementData, len) < 0)
+                return false;
+
+        return true;
+!!!7912603.java!!!	removeAll(inout c : Collection) : boolean
+        E[] elementData = array;
+        int len = elementData.length;
+        if (len == 0) return false;
+
+        // temp array holds those elements we know we want to keep
+        E[] temp = (E[]) new Object[len];
+        int newlen = 0;
+        for (int i = 0; i < len; ++i) {
+            E element = elementData[i];
+            if (!c.contains(element)) {
+                temp[newlen++] = element;
+            }
+        }
+
+        if (newlen == len) return false;
+
+        //  copy temp as new array
+        E[] newArray = (E[]) new Object[newlen];
+        System.arraycopy(temp, 0, newArray, 0, newlen);
+        array = newArray;
+        return true;
+!!!7912731.java!!!	retainAll(inout c : Collection) : boolean
+        E[] elementData = array;
+        int len = elementData.length;
+        if (len == 0) return false;
+
+        E[] temp = (E[]) new Object[len];
+        int newlen = 0;
+        for (int i = 0; i < len; ++i) {
+            E element = elementData[i];
+            if (c.contains(element)) {
+                temp[newlen++] = element;
+            }
+        }
+
+        if (newlen == len) return false;
+
+        E[] newArray = (E[]) new Object[newlen];
+        System.arraycopy(temp, 0, newArray, 0, newlen);
+        array = newArray;
+        return true;
+!!!7912859.java!!!	addAllAbsent(inout c : Collection) : int
+        int numNew = c.size();
+        if (numNew == 0) return 0;
+
+        E[] elementData = array;
+        int len = elementData.length;
+
+        E[] temp = (E[]) new Object[numNew];
+        int added = 0;
+        Iterator<? extends E> e = c.iterator();
+        while (e.hasNext()) {
+            E element = e.next();
+            if (indexOf(element, elementData, len) < 0) {
+                if (indexOf(element, temp, added) < 0) {
+                    temp[added++] = element;
+                }
+            }
+        }
+
+        if (added == 0) return 0;
+
+        E[] newArray = (E[]) new Object[len+added];
+        System.arraycopy(elementData, 0, newArray, 0, len);
+        System.arraycopy(temp, 0, newArray, len, added);
+        array = newArray;
+        return added;
+!!!7912987.java!!!	clear() : void
+        array = (E[]) new Object[0];
+!!!7913115.java!!!	addAll(inout c : Collection) : boolean
+        int numNew = c.size();
+        if (numNew == 0) return false;
+
+        int len = array.length;
+        E[] newArray = (E[]) new Object[len+numNew];
+        System.arraycopy(array, 0, newArray, 0, len);
+        Iterator<? extends E> e = c.iterator();
+        for (int i=0; i<numNew; i++)
+            newArray[len++] = e.next();
+        array = newArray;
+
+        return true;
+!!!7913243.java!!!	addAll(in index : int, inout c : Collection) : boolean
+        int len = array.length;
+        if (index > len || index < 0)
+            throw new IndexOutOfBoundsException("Index: "+index+", Size: "+len);
+
+        int numNew = c.size();
+        if (numNew == 0) return false;
+
+        E[] newArray = (E[]) new Object[len+numNew];
+        System.arraycopy(array, 0, newArray, 0, len);
+        int numMoved = len - index;
+        if (numMoved > 0)
+            System.arraycopy(array, index, newArray, index + numNew, numMoved);
+        Iterator<? extends E> e = c.iterator();
+        for (int i=0; i<numNew; i++)
+            newArray[index++] = e.next();
+        array = newArray;
+
+        return true;
+!!!7913371.java!!!	rangeCheck(in index : int, in length : int) : void
+        if (index >= length || index < 0)
+            throw new IndexOutOfBoundsException("Index: "+index+", Size: "+ length);
+!!!7913499.java!!!	writeObject(inout s : ObjectOutputStream) : void
+
+        // Write out element count, and any hidden stuff
+        s.defaultWriteObject();
+
+        E[] elementData = array();
+        // Write out array length
+        s.writeInt(elementData.length);
+
+        // Write out all elements in the proper order.
+        for (int i=0; i<elementData.length; i++)
+            s.writeObject(elementData[i]);
+!!!7913627.java!!!	readObject(inout s : ObjectInputStream) : void
+
+        // Read in size, and any hidden stuff
+        s.defaultReadObject();
+
+        // Read in array length and allocate array
+        int arrayLength = s.readInt();
+        E[] elementData = (E[]) new Object[arrayLength];
+
+        // Read in all elements in the proper order.
+        for (int i=0; i<elementData.length; i++)
+            elementData[i] = (E) s.readObject();
+        array = elementData;
+!!!7913755.java!!!	toString() : String
+        StringBuffer buf = new StringBuffer();
+        Iterator e = iterator();
+        buf.append("[");
+        int maxIndex = size() - 1;
+        for (int i = 0; i <= maxIndex; i++) {
+            buf.append(String.valueOf(e.next()));
+            if (i < maxIndex)
+                buf.append(", ");
+        }
+        buf.append("]");
+        return buf.toString();
+!!!7913883.java!!!	equals(inout o : Object) : boolean
+        if (o == this)
+            return true;
+        if (!(o instanceof List))
+            return false;
+
+        List<E> l2 = (List<E>)(o);
+        if (size() != l2.size())
+            return false;
+
+        ListIterator<E> e1 = listIterator();
+        ListIterator<E> e2 = l2.listIterator();
+        while(e1.hasNext()) {
+            E o1 = e1.next();
+            E o2 = e2.next();
+            if (!(o1==null ? o2==null : o1.equals(o2)))
+                return false;
+        }
+        return true;
+!!!7914011.java!!!	hashCode() : int
+        int hashCode = 1;
+        Iterator<E> i = iterator();
+        while (i.hasNext()) {
+            E obj = i.next();
+            hashCode = 31*hashCode + (obj==null ? 0 : obj.hashCode());
+        }
+        return hashCode;
+!!!7914139.java!!!	iterator() : Iterator
+        return new COWIterator<E>(array(), 0);
+!!!7914267.java!!!	listIterator() : ListIterator
+        return new COWIterator<E>(array(), 0);
+!!!7914395.java!!!	listIterator(in index : int) : ListIterator
+        E[] elementData = array();
+        int len = elementData.length;
+        if (index<0 || index>len)
+            throw new IndexOutOfBoundsException("Index: "+index);
+
+        return new COWIterator<E>(array(), index);
+!!!7915803.java!!!	subList(in fromIndex : int, in toIndex : int) : List
+        // synchronized since sublist constructor depends on it.
+        int len = array.length;
+        if (fromIndex<0 || toIndex>len  || fromIndex>toIndex)
+            throw new IndexOutOfBoundsException();
+        return new COWSubList<E>(this, fromIndex, toIndex);

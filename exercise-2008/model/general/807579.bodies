@@ -1,0 +1,150 @@
+class Context2
+!!!5807899.java!!!	Context2(inout parent : Context2)
+        if(parent==null)
+            {
+                prefixTable = new Hashtable();
+                uriTable = new Hashtable();
+                elementNameTable=null; 
+                attributeNameTable=null; 
+            }
+        else
+            setParent(parent);
+!!!5808027.java!!!	getChild() : Context2
+        return child;
+!!!5808155.java!!!	getParent() : Context2
+        return parent;
+!!!5808283.java!!!	setParent(inout parent : Context2) : void
+        this.parent = parent;
+        parent.child = this;        // JJK: Doubly-linked
+        declarations = null;
+        prefixTable = parent.prefixTable;
+        uriTable = parent.uriTable;
+        elementNameTable = parent.elementNameTable;
+        attributeNameTable = parent.attributeNameTable;
+        defaultNS = parent.defaultNS;
+        tablesDirty = false;
+!!!5808411.java!!!	declarePrefix(in prefix : String, in uri : String) : void
+                                // Lazy processing...
+        if (!tablesDirty) {
+            copyTables();
+        }
+        if (declarations == null) {
+            declarations = new Vector();
+        }
+            
+        prefix = prefix.intern();
+        uri = uri.intern();
+        if ("".equals(prefix)) {
+            if ("".equals(uri)) {
+                defaultNS = null;
+            } else {
+                defaultNS = uri;
+            }
+        } else {
+            prefixTable.put(prefix, uri);
+            uriTable.put(uri, prefix); // may wipe out another prefix
+        }
+        declarations.addElement(prefix);
+!!!5808539.java!!!	processName(in qName : String, inout isAttribute : boolean) : String
+        String name[];
+        Hashtable table;
+            
+                                // Select the appropriate table.
+        if (isAttribute) {
+            if(elementNameTable==null)
+                elementNameTable=new Hashtable();
+            table = elementNameTable;
+        } else {
+            if(attributeNameTable==null)
+                attributeNameTable=new Hashtable();
+            table = attributeNameTable;
+        }
+            
+                                // Start by looking in the cache, and
+                                // return immediately if the name
+                                // is already known in this content
+        name = (String[])table.get(qName);
+        if (name != null) {
+            return name;
+        }
+            
+                                // We haven't seen this name in this
+                                // context before.
+        name = new String[3];
+        int index = qName.indexOf(':');
+            
+            
+                                // No prefix.
+        if (index == -1) {
+            if (isAttribute || defaultNS == null) {
+                name[0] = "";
+            } else {
+                name[0] = defaultNS;
+            }
+            name[1] = qName.intern();
+            name[2] = name[1];
+        }
+            
+                                // Prefix
+        else {
+            String prefix = qName.substring(0, index);
+            String local = qName.substring(index+1);
+            String uri;
+            if ("".equals(prefix)) {
+                uri = defaultNS;
+            } else {
+                uri = (String)prefixTable.get(prefix);
+            }
+            if (uri == null) {
+                return null;
+            }
+            name[0] = uri;
+            name[1] = local.intern();
+            name[2] = qName.intern();
+        }
+            
+                                // Save in the cache for future use.
+        table.put(name[2], name);
+        tablesDirty = true;
+        return name;
+!!!5808667.java!!!	getURI(in prefix : String) : String
+        if ("".equals(prefix)) {
+            return defaultNS;
+        } else if (prefixTable == null) {
+            return null;
+        } else {
+            return (String)prefixTable.get(prefix);
+        }
+!!!5808795.java!!!	getPrefix(in uri : String) : String
+        if (uriTable == null) {
+            return null;
+        } else {
+            return (String)uriTable.get(uri);
+        }
+!!!5808923.java!!!	getDeclaredPrefixes() : Enumeration
+        if (declarations == null) {
+            return EMPTY_ENUMERATION;
+        } else {
+            return declarations.elements();
+        }
+!!!5809051.java!!!	getPrefixes() : Enumeration
+        if (prefixTable == null) {
+            return EMPTY_ENUMERATION;
+        } else {
+            return prefixTable.keys();
+        }
+!!!5809179.java!!!	copyTables() : void
+        // Start by copying our parent's bindings
+        prefixTable = (Hashtable)prefixTable.clone();
+        uriTable = (Hashtable)uriTable.clone();
+
+        // Replace the caches with empty ones, rather than
+        // trying to determine which bindings should be flushed.
+        // As far as I can tell, these caches are never actually
+        // used in Xalan... More efficient to remove the whole
+        // cache system? ****
+        if(elementNameTable!=null)
+            elementNameTable=new Hashtable(); 
+        if(attributeNameTable!=null)
+            attributeNameTable=new Hashtable(); 
+        tablesDirty = true;

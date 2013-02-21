@@ -1,0 +1,117 @@
+class ProgressMonitor
+!!!9247003.java!!!	ProgressMonitor(inout parentComponent : Component, inout message : Object, in note : String, in min : int, in max : int)
+        this(parentComponent, message, note, min, max, null);
+!!!9247131.java!!!	ProgressMonitor(inout parentComponent : Component, inout message : Object, in note : String, in min : int, in max : int, inout group : ProgressMonitor)
+        this.min = min;
+        this.max = max;
+        this.parentComponent = parentComponent;
+
+        cancelOption = new Object[1];
+        cancelOption[0] = UIManager.getString("OptionPane.cancelButtonText");
+
+        reportDelta = (max - min) / 100;
+        if (reportDelta < 1) reportDelta = 1;
+        v = min;
+        this.message = message;
+        this.note = note;
+        if (group != null) {
+            root = (group.root != null) ? group.root : group;
+            T0 = root.T0;
+            dialog = root.dialog;
+        }
+        else {
+            T0 = System.currentTimeMillis();
+        }
+!!!9247899.java!!!	setProgress(in nv : int) : void
+        v = nv;
+        if (nv >= max) {
+            close();
+        }
+        else if (nv >= lastDisp + reportDelta) {
+            lastDisp = nv;
+            if (myBar != null) {
+                myBar.setValue(nv);
+            }
+            else {
+                long T = System.currentTimeMillis();
+                long dT = (int)(T-T0);
+                if (dT >= millisToDecideToPopup) {
+                    int predictedCompletionTime;
+                    if (nv > min) {
+                        predictedCompletionTime = (int)((long)dT *
+                                                        (max - min) /
+                                                        (nv - min));
+                    }
+                    else {
+                        predictedCompletionTime = millisToPopup;
+                    }
+                    if (predictedCompletionTime >= millisToPopup) {
+                        myBar = new JProgressBar();
+                        myBar.setMinimum(min);
+                        myBar.setMaximum(max);
+                        myBar.setValue(nv);
+                        if (note != null) noteLabel = new JLabel(note);
+                        pane = new ProgressOptionPane(new Object[] {message,
+                                                                    noteLabel,
+                                                                    myBar});
+                        dialog = pane.createDialog(parentComponent,
+                            UIManager.getString(
+                                "ProgressMonitor.progressText"));
+                        dialog.show();
+                    }
+                }
+            }
+        }
+!!!9248027.java!!!	close() : void
+        if (dialog != null) {
+            dialog.setVisible(false);
+            dialog.dispose();
+            dialog = null;
+            pane = null;
+            myBar = null;
+        }
+!!!9248155.java!!!	getMinimum() : int
+        return min;
+!!!9248283.java!!!	setMinimum(in m : int) : void
+        min = m;
+!!!9248411.java!!!	getMaximum() : int
+        return max;
+!!!9248539.java!!!	setMaximum(in m : int) : void
+        max = m;
+!!!9248667.java!!!	isCanceled() : boolean
+        if (pane == null) return false;
+        Object v = pane.getValue();
+        return ((v != null) &&
+                (cancelOption.length == 1) &&
+                (v.equals(cancelOption[0])));
+!!!9248795.java!!!	setMillisToDecideToPopup(in millisToDecideToPopup : int) : void
+        this.millisToDecideToPopup = millisToDecideToPopup;
+!!!9248923.java!!!	getMillisToDecideToPopup() : int
+        return millisToDecideToPopup;
+!!!9249051.java!!!	setMillisToPopup(in millisToPopup : int) : void
+        this.millisToPopup = millisToPopup;
+!!!9249179.java!!!	getMillisToPopup() : int
+        return millisToPopup;
+!!!9249307.java!!!	setNote(in note : String) : void
+        this.note = note;
+        if (noteLabel != null) {
+            noteLabel.setText(note);
+        }
+!!!9249435.java!!!	getNote() : String
+        return note;
+!!!9249563.java!!!	getAccessibleContext() : AccessibleContext
+	if (accessibleContext == null) {
+	    accessibleContext = new AccessibleProgressMonitor();
+	}
+	if (pane != null && accessibleJOptionPane == null) {
+	    // Notify the AccessibleProgressMonitor that the
+	    // ProgressOptionPane was created. It is necessary
+	    // to poll for ProgressOptionPane creation because
+	    // the ProgressMonitor does not have a Component 
+	    // to add a listener to until the ProgressOptionPane
+	    // is created.
+	    if (accessibleContext instanceof AccessibleProgressMonitor) {
+		((AccessibleProgressMonitor)accessibleContext).optionPaneCreated();
+	    }
+	}
+	return accessibleContext;

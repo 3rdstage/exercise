@@ -1,0 +1,396 @@
+class JSlider
+!!!9053211.java!!!	checkOrientation(in orientation : int) : void
+        switch (orientation) {
+        case VERTICAL:
+        case HORIZONTAL:
+            break;
+        default:
+            throw new IllegalArgumentException("orientation must be one of: VERTICAL, HORIZONTAL");
+        }
+!!!9053339.java!!!	JSlider()
+        this(HORIZONTAL, 0, 100, 50);
+!!!9053467.java!!!	JSlider(in orientation : int)
+        this(orientation, 0, 100, 50);
+!!!9053595.java!!!	JSlider(in min : int, in max : int)
+        this(HORIZONTAL, min, max, (min + max) / 2);
+!!!9053723.java!!!	JSlider(in min : int, in max : int, in value : int)
+        this(HORIZONTAL, min, max, value);
+!!!9053851.java!!!	JSlider(in orientation : int, in min : int, in max : int, in value : int)
+        checkOrientation(orientation);
+        this.orientation = orientation;
+        sliderModel = new DefaultBoundedRangeModel(value, 0, min, max);
+        sliderModel.addChangeListener(changeListener);
+        updateUI();
+!!!9053979.java!!!	JSlider(inout brm : BoundedRangeModel)
+        this.orientation = JSlider.HORIZONTAL;
+        setModel(brm);
+        sliderModel.addChangeListener(changeListener);
+        updateUI();
+!!!9054107.java!!!	getUI() : SliderUI
+        return(SliderUI)ui;
+!!!9054235.java!!!	setUI(inout ui : SliderUI) : void
+        super.setUI(ui);
+!!!9054363.java!!!	updateUI() : void
+        updateLabelUIs();
+        setUI((SliderUI)UIManager.getUI(this));
+!!!9054491.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!9054747.java!!!	createChangeListener() : ChangeListener
+        return new ModelListener();
+!!!9054875.java!!!	addChangeListener(inout l : ChangeListener) : void
+        listenerList.add(ChangeListener.class, l);
+!!!9055003.java!!!	removeChangeListener(inout l : ChangeListener) : void
+        listenerList.remove(ChangeListener.class, l);
+!!!9055131.java!!!	getChangeListeners() : ChangeListener
+        return (ChangeListener[])listenerList.getListeners(
+                ChangeListener.class);
+!!!9055259.java!!!	fireStateChanged() : void
+        Object[] listeners = listenerList.getListenerList();
+        for (int i = listeners.length - 2; i >= 0; i -= 2) {
+            if (listeners[i]==ChangeListener.class) {
+                if (changeEvent == null) {
+                    changeEvent = new ChangeEvent(this);
+                }
+                ((ChangeListener)listeners[i+1]).stateChanged(changeEvent);
+            }
+        }
+!!!9055387.java!!!	getModel() : BoundedRangeModel
+        return sliderModel;
+!!!9055515.java!!!	setModel(inout newModel : BoundedRangeModel) : void
+        BoundedRangeModel oldModel = getModel();
+
+        if (oldModel != null) {
+            oldModel.removeChangeListener(changeListener);
+        }
+
+        sliderModel = newModel;
+
+        if (newModel != null) {
+            newModel.addChangeListener(changeListener);
+
+            if (accessibleContext != null) {
+                accessibleContext.firePropertyChange(
+                                                    AccessibleContext.ACCESSIBLE_VALUE_PROPERTY,
+                                                    (oldModel == null 
+                                                     ? null : new Integer(oldModel.getValue())),
+                                                    (newModel == null 
+                                                     ? null : new Integer(newModel.getValue())));
+            }
+        }
+
+        firePropertyChange("model", oldModel, sliderModel);
+!!!9055643.java!!!	getValue() : int
+ 
+        return getModel().getValue(); 
+!!!9055771.java!!!	setValue(in n : int) : void
+ 
+        BoundedRangeModel m = getModel();
+        int oldValue = m.getValue();
+        if (oldValue == n) {
+            return;
+        }
+        m.setValue(n);
+
+        if (accessibleContext != null) {
+            accessibleContext.firePropertyChange(
+                                                AccessibleContext.ACCESSIBLE_VALUE_PROPERTY,
+                                                new Integer(oldValue),
+                                                new Integer(m.getValue()));
+        }
+!!!9055899.java!!!	getMinimum() : int
+ 
+        return getModel().getMinimum(); 
+!!!9056027.java!!!	setMinimum(in minimum : int) : void
+ 
+        int oldMin = getModel().getMinimum();
+        getModel().setMinimum(minimum); 
+        firePropertyChange( "minimum", new Integer( oldMin ), new Integer( minimum ) );
+!!!9056155.java!!!	getMaximum() : int
+ 
+        return getModel().getMaximum(); 
+!!!9056283.java!!!	setMaximum(in maximum : int) : void
+ 
+        int oldMax = getModel().getMaximum();
+        getModel().setMaximum(maximum); 
+        firePropertyChange( "maximum", new Integer( oldMax ), new Integer( maximum ) );
+!!!9056411.java!!!	getValueIsAdjusting() : boolean
+ 
+        return getModel().getValueIsAdjusting(); 
+!!!9056539.java!!!	setValueIsAdjusting(inout b : boolean) : void
+ 
+        BoundedRangeModel m = getModel();   
+        boolean oldValue = m.getValueIsAdjusting();
+        m.setValueIsAdjusting(b);
+
+        if ((oldValue != b) && (accessibleContext != null)) {
+            accessibleContext.firePropertyChange(
+                                                AccessibleContext.ACCESSIBLE_STATE_PROPERTY,
+                                                ((oldValue) ? AccessibleState.BUSY : null),
+                                                ((b) ? AccessibleState.BUSY : null));
+        }
+!!!9056667.java!!!	getExtent() : int
+ 
+        return getModel().getExtent(); 
+!!!9056795.java!!!	setExtent(in extent : int) : void
+ 
+        getModel().setExtent(extent); 
+!!!9056923.java!!!	getOrientation() : int
+ 
+        return orientation; 
+!!!9057051.java!!!	setOrientation(in orientation : int) : void
+ 
+        checkOrientation(orientation);
+        int oldValue = this.orientation;
+        this.orientation = orientation;
+        firePropertyChange("orientation", oldValue, orientation);
+
+        if ((oldValue != orientation) && (accessibleContext != null)) {
+            accessibleContext.firePropertyChange(
+                                                AccessibleContext.ACCESSIBLE_STATE_PROPERTY,
+                                                ((oldValue == VERTICAL) 
+                                                 ? AccessibleState.VERTICAL : AccessibleState.HORIZONTAL),
+                                                ((orientation == VERTICAL) 
+                                                 ? AccessibleState.VERTICAL : AccessibleState.HORIZONTAL));
+        }
+        if (orientation != oldValue) {
+            revalidate();
+        }
+!!!9057179.java!!!	getLabelTable() : Dictionary
+/*
+        if ( labelTable == null && getMajorTickSpacing() > 0 ) {
+            setLabelTable( createStandardLabels( getMajorTickSpacing() ) );
+        }
+*/
+        return labelTable;
+!!!9057307.java!!!	setLabelTable(inout labels : Dictionary) : void
+        Dictionary oldTable = labelTable;
+        labelTable = labels;
+        updateLabelUIs();
+        firePropertyChange("labelTable", oldTable, labelTable );
+        if (labels != oldTable) {
+            revalidate();
+            repaint();
+        }
+!!!9057435.java!!!	updateLabelUIs() : void
+        if ( getLabelTable() == null ) {
+            return;
+        }
+        Enumeration labels = getLabelTable().keys();
+        while ( labels.hasMoreElements() ) {
+            Object value = getLabelTable().get( labels.nextElement() );
+            if ( value instanceof JComponent ) {
+                JComponent component = (JComponent)value;
+                component.updateUI();
+                component.setSize( component.getPreferredSize()  );
+            }
+        }
+!!!9057563.java!!!	createStandardLabels(in increment : int) : Hashtable
+        return createStandardLabels( increment, getMinimum() );
+!!!9057691.java!!!	createStandardLabels(in increment : int, in start : int) : Hashtable
+        if ( start > getMaximum() || start < getMinimum() ) {
+            throw new IllegalArgumentException( "Slider label start point out of range." );
+        }
+
+        if ( increment <= 0 ) {
+            throw new IllegalArgumentException( "Label incremement must be > 0" );
+        }
+
+        class SmartHashtable extends Hashtable implements PropertyChangeListener {
+            int increment = 0;
+            int start = 0;
+            boolean startAtMin = false;
+
+            class LabelUIResource extends JLabel implements UIResource {
+                public LabelUIResource( String text, int alignment ) {
+                    super( text, alignment );
+                    setName("Slider.label");
+                }
+            }
+
+            public SmartHashtable( int increment, int start ) {
+                super();
+                this.increment = increment;
+                this.start = start;
+                startAtMin = start == getMinimum();
+                createLabels();
+            }
+
+            public void propertyChange( PropertyChangeEvent e ) {
+                if ( e.getPropertyName().equals( "minimum" ) && startAtMin ) {
+                    start = getMinimum();
+                }
+
+                if ( e.getPropertyName().equals( "minimum" ) ||
+                     e.getPropertyName().equals( "maximum" ) ) {
+
+                    Enumeration keys = getLabelTable().keys();
+                    Object key = null;
+                    Hashtable hashtable = new Hashtable();
+
+                    // Save the labels that were added by the developer
+                    while ( keys.hasMoreElements() ) {
+                        key = keys.nextElement();
+                        Object value = getLabelTable().get( key );
+                        if ( !(value instanceof LabelUIResource) ) {
+                            hashtable.put( key, value );
+                        }
+                    }
+
+                    clear();
+                    createLabels();
+
+                    // Add the saved labels
+                    keys = hashtable.keys();
+                    while ( keys.hasMoreElements() ) {
+                        key = keys.nextElement();
+                        put( key, hashtable.get( key ) );
+                    }
+
+                    ((JSlider)e.getSource()).setLabelTable( this );
+                }
+            }
+
+            void createLabels() {
+                for ( int labelIndex = start; labelIndex <= getMaximum(); labelIndex += increment ) {
+                    put( new Integer( labelIndex ), new LabelUIResource( ""+labelIndex, JLabel.CENTER ) );
+                }
+            }
+        }
+
+        SmartHashtable table = new SmartHashtable( increment, start );
+
+        if ( getLabelTable() != null && (getLabelTable() instanceof PropertyChangeListener) ) {
+            removePropertyChangeListener( (PropertyChangeListener)getLabelTable() );
+        }
+
+        addPropertyChangeListener( table );
+
+        return table;
+!!!9057819.java!!!	getInverted() : boolean
+ 
+        return isInverted; 
+!!!9057947.java!!!	setInverted(inout b : boolean) : void
+ 
+        boolean oldValue = isInverted;
+        isInverted = b; 
+        firePropertyChange("inverted", oldValue, isInverted);
+        if (b != oldValue) {
+            repaint();
+        }
+!!!9058075.java!!!	getMajorTickSpacing() : int
+ 
+        return majorTickSpacing; 
+!!!9058203.java!!!	setMajorTickSpacing(in n : int) : void
+        int oldValue = majorTickSpacing;
+        majorTickSpacing = n;
+        if ( labelTable == null && getMajorTickSpacing() > 0 && getPaintLabels() ) {
+            setLabelTable( createStandardLabels( getMajorTickSpacing() ) );
+        }
+        firePropertyChange("majorTickSpacing", oldValue, majorTickSpacing);
+        if (majorTickSpacing != oldValue && getPaintTicks()) {
+            repaint();
+        }
+!!!9058331.java!!!	getMinorTickSpacing() : int
+ 
+        return minorTickSpacing; 
+!!!9058459.java!!!	setMinorTickSpacing(in n : int) : void
+ 
+        int oldValue = minorTickSpacing;
+        minorTickSpacing = n; 
+        firePropertyChange("minorTickSpacing", oldValue, minorTickSpacing);
+        if (minorTickSpacing != oldValue && getPaintTicks()) {
+            repaint();
+        }
+!!!9058587.java!!!	getSnapToTicks() : boolean
+ 
+        return snapToTicks; 
+!!!9058715.java!!!	getSnapToValue() : boolean
+ 
+        return snapToValue; 
+!!!9058843.java!!!	setSnapToTicks(inout b : boolean) : void
+ 
+        boolean oldValue = snapToTicks;
+        snapToTicks = b; 
+        firePropertyChange("snapToTicks", oldValue, snapToTicks);
+!!!9058971.java!!!	setSnapToValue(inout b : boolean) : void
+ 
+        boolean oldValue = snapToValue;
+        snapToValue = b; 
+        firePropertyChange("snapToValue", oldValue, snapToValue);
+!!!9059099.java!!!	getPaintTicks() : boolean
+ 
+        return paintTicks; 
+!!!9059227.java!!!	setPaintTicks(inout b : boolean) : void
+ 
+        boolean oldValue = paintTicks;
+        paintTicks = b;
+        firePropertyChange("paintTicks", oldValue, paintTicks);
+        if (paintTicks != oldValue) {
+            revalidate();
+            repaint();
+        }
+!!!9059355.java!!!	getPaintTrack() : boolean
+ 
+        return paintTrack; 
+!!!9059483.java!!!	setPaintTrack(inout b : boolean) : void
+ 
+        boolean oldValue = paintTrack;
+        paintTrack = b;
+        firePropertyChange("paintTrack", oldValue, paintTrack);
+        if (paintTrack != oldValue) {
+            repaint();
+        }
+!!!9059611.java!!!	getPaintLabels() : boolean
+ 
+        return paintLabels; 
+!!!9059739.java!!!	setPaintLabels(inout b : boolean) : void
+        boolean oldValue = paintLabels;
+        paintLabels = b;
+        if ( labelTable == null && getMajorTickSpacing() > 0 ) {
+            setLabelTable( createStandardLabels( getMajorTickSpacing() ) );
+        }
+        firePropertyChange("paintLabels", oldValue, paintLabels);
+        if (paintLabels != oldValue) {
+            revalidate();
+            repaint();
+        }
+!!!9059867.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!9059995.java!!!	paramString() : String
+        String paintTicksString = (paintTicks ?
+                                   "true" : "false");
+        String paintTrackString = (paintTrack ?
+                                   "true" : "false");
+        String paintLabelsString = (paintLabels ?
+                                    "true" : "false");
+        String isInvertedString = (isInverted ?
+                                   "true" : "false");
+        String snapToTicksString = (snapToTicks ?
+                                    "true" : "false");
+        String snapToValueString = (snapToValue ?
+                                    "true" : "false");
+        String orientationString = (orientation == HORIZONTAL ?
+                                    "HORIZONTAL" : "VERTICAL");
+
+        return super.paramString() +
+        ",isInverted=" + isInvertedString +
+        ",majorTickSpacing=" + majorTickSpacing +
+        ",minorTickSpacing=" + minorTickSpacing +
+        ",orientation=" + orientationString +
+        ",paintLabels=" + paintLabelsString +
+        ",paintTicks=" + paintTicksString +
+        ",paintTrack=" + paintTrackString +
+        ",snapToTicks=" + snapToTicksString +
+        ",snapToValue=" + snapToValueString;
+!!!9060123.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJSlider();
+        }
+        return accessibleContext;

@@ -1,0 +1,79 @@
+class CharArrayReader
+!!!6833563.java!!!	CharArrayReader(in buf : char)
+	this.buf = buf;
+        this.pos = 0;
+	this.count = buf.length;
+!!!6833691.java!!!	CharArrayReader(in buf : char, in offset : int, in length : int)
+	if ((offset < 0) || (offset > buf.length) || (length < 0) ||
+            ((offset + length) < 0)) {
+	    throw new IllegalArgumentException();
+	}
+	this.buf = buf;
+        this.pos = offset;
+	this.count = Math.min(offset + length, buf.length);
+        this.markedPos = offset;
+!!!6833819.java!!!	ensureOpen() : void
+	if (buf == null)
+	    throw new IOException("Stream closed");
+!!!6833947.java!!!	read() : int
+	synchronized (lock) {
+	    ensureOpen();
+	    if (pos >= count)
+		return -1;
+	    else
+		return buf[pos++];
+	}
+!!!6834075.java!!!	read(in b : char, in off : int, in len : int) : int
+	synchronized (lock) {
+	    ensureOpen();
+            if ((off < 0) || (off > b.length) || (len < 0) ||
+                ((off + len) > b.length) || ((off + len) < 0)) {
+                throw new IndexOutOfBoundsException();
+            } else if (len == 0) {
+                return 0;
+            }
+
+	    if (pos >= count) {
+		return -1;
+	    }
+	    if (pos + len > count) {
+		len = count - pos;
+	    }
+	    if (len <= 0) {
+		return 0;
+	    }
+	    System.arraycopy(buf, pos, b, off, len);
+	    pos += len;
+	    return len;
+	}
+!!!6834203.java!!!	skip(in n : long) : long
+	synchronized (lock) {
+	    ensureOpen();
+	    if (pos + n > count) {
+		n = count - pos;
+	    }
+	    if (n < 0) {
+		return 0;
+	    }
+	    pos += n;
+	    return n;
+	}
+!!!6834331.java!!!	ready() : boolean
+	synchronized (lock) {
+	    ensureOpen();
+	    return (count - pos) > 0;
+	}
+!!!6834459.java!!!	markSupported() : boolean
+	return true;
+!!!6834587.java!!!	mark(in readAheadLimit : int) : void
+	synchronized (lock) {
+	    ensureOpen();
+	    markedPos = pos;
+	}
+!!!6834715.java!!!	reset() : void
+	synchronized (lock) {
+	    ensureOpen();
+	    pos = markedPos;
+	}
+!!!6834843.java!!!	close() : void
+	buf = null;

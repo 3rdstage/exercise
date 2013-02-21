@@ -1,0 +1,53 @@
+class MonthDayDV
+!!!5077019.java!!!	getActualValue(in content : String, inout context : ValidationContext) : Object
+        try{
+            return new DateTimeData(parse(content), this);
+        } catch(Exception ex){
+            throw new InvalidDatatypeValueException("cvc-datatype-valid.1.2.1", new Object[]{content, "gMonthDay"});
+        }
+!!!5077147.java!!!	parse(in str : String) : int
+        int len = str.length();
+        int[] date=new int[TOTAL_SIZE];
+        int[] timeZone = new int[2];
+
+        //initialize
+        date[CY]=YEAR;
+
+        if (str.charAt(0)!='-' || str.charAt(1)!='-') {
+            throw new SchemaDateTimeException("Invalid format for gMonthDay: "+str);
+        }
+        date[M]=parseInt(str, 2, 4);
+        int start=4;
+
+        if (str.charAt(start++)!='-') {
+            throw new SchemaDateTimeException("Invalid format for gMonthDay: " + str);
+        }
+
+        date[D]=parseInt(str, start, start+2);
+
+        if ( MONTHDAY_SIZE<len ) {
+            int sign = findUTCSign(str, MONTHDAY_SIZE, len);
+            if ( sign<0 ) {
+                throw new SchemaDateTimeException ("Error in month parsing:" +str);
+            }
+            else {
+                getTimeZone(str, date, sign, len, timeZone);
+            }
+        }
+        //validate and normalize
+
+        validateDateTime(date, timeZone);
+
+        if ( date[utc]!=0 && date[utc]!='Z' ) {
+            normalize(date, timeZone);
+        }
+        return date;
+!!!5077275.java!!!	dateToString(in date : int) : String
+        StringBuffer message = new StringBuffer(8);
+        message.append('-');
+        message.append('-');
+        append(message, date[M], 2);
+        message.append('-');
+        append(message, date[D], 2);
+        append(message, (char)date[utc], 0);
+        return message.toString();

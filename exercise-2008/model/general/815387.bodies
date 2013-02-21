@@ -1,0 +1,90 @@
+class FuncExtFunction
+!!!6021147.java!!!	fixupVariables(inout vars : Vector, in globalsSize : int) : void
+
+    if (null != m_argVec)
+    {
+      int nArgs = m_argVec.size();
+
+      for (int i = 0; i < nArgs; i++)
+      {
+        Expression arg = (Expression) m_argVec.elementAt(i);
+
+        arg.fixupVariables(vars, globalsSize);
+      }
+    }
+!!!6021275.java!!!	getNamespace() : String
+    return m_namespace;
+!!!6021403.java!!!	getFunctionName() : String
+    return m_extensionName;
+!!!6021531.java!!!	getMethodKey() : Object
+    return m_methodKey;
+!!!6021659.java!!!	getArg(in n : int) : Expression
+    if (n >= 0 && n < m_argVec.size())
+      return (Expression) m_argVec.elementAt(n);
+    else
+      return null;
+!!!6021787.java!!!	getArgCount() : int
+    return m_argVec.size();
+!!!6021915.java!!!	FuncExtFunction(inout namespace : String, inout extensionName : String, inout methodKey : Object)
+    //try{throw new Exception("FuncExtFunction() " + namespace + " " + extensionName);} catch (Exception e){e.printStackTrace();}
+    m_namespace = namespace;
+    m_extensionName = extensionName;
+    m_methodKey = methodKey;
+!!!6022043.java!!!	execute(inout xctxt : XPathContext) : XObject
+
+    XObject result;
+    Vector argVec = new Vector();
+    int nArgs = m_argVec.size();
+
+    for (int i = 0; i < nArgs; i++)
+    {
+      Expression arg = (Expression) m_argVec.elementAt(i);
+      
+      XObject xobj = arg.execute(xctxt);
+      /*
+       * Should cache the arguments for func:function
+       */
+      xobj.allowDetachToRelease(false); 
+      argVec.addElement(xobj);
+    }
+    //dml
+    ExtensionsProvider extProvider = (ExtensionsProvider)xctxt.getOwnerObject();
+    Object val = extProvider.extFunction(this, argVec);
+
+    if (null != val)
+    {
+      result = XObject.create(val, xctxt);
+    }
+    else
+    {
+      result = new XNull();
+    }
+
+    return result;
+!!!6022171.java!!!	setArg(inout arg : Expression, in argNum : int) : void
+    m_argVec.addElement(arg);
+!!!6022811.java!!!	callArgVisitors(inout visitor : XPathVisitor) : void
+      for (int i = 0; i < m_argVec.size(); i++)
+      {
+         Expression exp = (Expression)m_argVec.elementAt(i);
+         exp.callVisitors(new ArgExtOwner(exp), visitor);
+      }
+    
+!!!6022939.java!!!	exprSetParent(inout n : ExpressionNode) : void
+	
+    super.exprSetParent(n);
+      
+    int nArgs = m_argVec.size();
+
+    for (int i = 0; i < nArgs; i++)
+    {
+      Expression arg = (Expression) m_argVec.elementAt(i);
+
+      arg.exprSetParent(n);
+    }		
+!!!6023067.java!!!	reportWrongNumberArgs() : void
+    String fMsg = XSLMessages.createXPATHMessage(
+        XPATHErrorResources.ER_INCORRECT_PROGRAMMER_ASSERTION,
+        new Object[]{ "Programmer's assertion:  the method FunctionMultiArgs.reportWrongNumberArgs() should never be called." });
+
+    throw new RuntimeException(fMsg);

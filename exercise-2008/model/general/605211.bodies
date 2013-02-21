@@ -1,0 +1,128 @@
+class Verifier
+!!!3877147.java!!!	doPass1() : VerificationResult
+		if (p1v == null){
+			p1v = new Pass1Verifier(this);
+		}
+		return p1v.verify();
+!!!3877275.java!!!	doPass2() : VerificationResult
+		if (p2v == null){
+			p2v = new Pass2Verifier(this);
+		}
+		return p2v.verify();
+!!!3877403.java!!!	doPass3a(in method_no : int) : VerificationResult
+		String key = Integer.toString(method_no);
+		Pass3aVerifier p3av;
+		p3av = (Pass3aVerifier) (p3avs.get(key));
+		if (p3avs.get(key) == null){
+			p3av = new Pass3aVerifier(this, method_no);
+			p3avs.put(key, p3av);
+		}
+		return p3av.verify();
+!!!3877531.java!!!	doPass3b(in method_no : int) : VerificationResult
+		String key = Integer.toString(method_no);
+		Pass3bVerifier p3bv;
+		p3bv = (Pass3bVerifier) (p3bvs.get(key));
+		if (p3bvs.get(key) == null){
+			p3bv = new Pass3bVerifier(this, method_no);
+			p3bvs.put(key, p3bv);
+		}
+		return p3bv.verify();
+!!!3877659.java!!!	Verifier()
+		classname = ""; // never executed anyway, make compiler happy.
+!!!3877787.java!!!	Verifier(in fully_qualified_classname : String)
+		classname = fully_qualified_classname;
+		flush();
+!!!3877915.java!!!	getClassName() : String
+		return classname;
+!!!3878043.java!!!	flush() : void
+		p1v = null;
+		p2v = null;
+		p3avs.clear();
+		p3bvs.clear();
+!!!3878171.java!!!	getMessages() : String
+		ArrayList messages = new ArrayList();
+
+		if (p1v != null){
+			String[] p1m = p1v.getMessages();
+			for (int i=0; i<p1m.length; i++){
+				messages.add("Pass 1: "+p1m[i]);
+			}
+		}
+		if (p2v != null){
+			String[] p2m = p2v.getMessages();
+			for (int i=0; i<p2m.length; i++){
+				messages.add("Pass 2: "+p2m[i]);
+			}
+		}
+		Iterator p3as = p3avs.values().iterator();
+		while (p3as.hasNext()){
+			Pass3aVerifier pv = (Pass3aVerifier) p3as.next();
+			String[] p3am = pv.getMessages();
+			int meth = pv.getMethodNo();
+			for (int i=0; i<p3am.length; i++){
+				messages.add("Pass 3a, method "+meth+" ('"+Repository.lookupClass(classname).getMethods()[meth]+"'): "+p3am[i]);
+			}
+		}
+		Iterator p3bs = p3bvs.values().iterator();
+		while (p3bs.hasNext()){
+			Pass3bVerifier pv = (Pass3bVerifier) p3bs.next();
+			String[] p3bm = pv.getMessages();
+			int meth = pv.getMethodNo();
+			for (int i=0; i<p3bm.length; i++){
+				messages.add("Pass 3b, method "+meth+" ('"+Repository.lookupClass(classname).getMethods()[meth]+"'): "+p3bm[i]);
+			}
+		}
+
+		String[] ret = new String[messages.size()];
+		for (int i=0; i< messages.size(); i++){
+			ret[i] = (String) messages.get(i);
+		}
+		
+		return ret;
+!!!3878299.java!!!	_main(in args : String) : void
+		System.out.println("JustIce by Enver Haase, (C) 2001. http://bcel.sourceforge.net\n");
+	  for(int k=0; k < args.length; k++) {
+
+			if (args[k].endsWith(".class")){
+				int dotclasspos = args[k].lastIndexOf(".class");
+				if (dotclasspos != -1) args[k] = args[k].substring(0,dotclasspos);
+			}
+		
+			args[k] = args[k].replace('/', '.');
+		
+			System.out.println("Now verifiying: "+args[k]+"\n");
+
+			Verifier v = VerifierFactory.getVerifier(args[k]);
+			VerificationResult vr;
+		
+			vr = v.doPass1();
+			System.out.println("Pass 1:\n"+vr);
+
+			vr = v.doPass2();
+			System.out.println("Pass 2:\n"+vr);
+
+			if (vr == VerificationResult.VR_OK){
+				JavaClass jc = Repository.lookupClass(args[k]);
+				for (int i=0; i<jc.getMethods().length; i++){
+					vr = v.doPass3a(i);
+					System.out.println("Pass 3a, method "+i+" ['"+jc.getMethods()[i]+"']:\n"+vr);
+
+					vr = v.doPass3b(i);
+					System.out.println("Pass 3b, method number "+i+" ['"+jc.getMethods()[i]+"']:\n"+vr);
+				}
+			}
+		
+			System.out.println("Warnings:");
+			String[] warnings = v.getMessages();
+			if (warnings.length == 0) System.out.println("<none>");
+			for (int j=0; j<warnings.length; j++){
+				System.out.println(warnings[j]);
+			}
+
+			System.out.println("\n");
+	  
+			// avoid swapping.
+	  	v.flush();
+	  	Repository.clearCache();
+			System.gc();
+	  }

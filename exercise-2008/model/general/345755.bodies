@@ -1,0 +1,327 @@
+class IIOMetadataNode
+!!!8191771.java!!!	IIOMetadataNode(in nodeName : String)
+        this.nodeName = nodeName;
+!!!8191899.java!!!	checkNode(inout node : Node) : void
+        if (node == null) {
+            return;
+        }
+        if (!(node instanceof IIOMetadataNode)) {
+            throw new IIODOMException(DOMException.WRONG_DOCUMENT_ERR,
+                                      "Node not an IIOMetadataNode!");
+        }
+!!!8192027.java!!!	getNodeName() : String
+        return nodeName;
+!!!8192155.java!!!	getNodeValue() : String
+        return nodeValue;
+!!!8192283.java!!!	setNodeValue(in nodeValue : String) : void
+        this.nodeValue = nodeValue;
+!!!8192411.java!!!	getNodeType() : short
+        return ELEMENT_NODE;
+!!!8192539.java!!!	getParentNode() : Node
+        return parent;
+!!!8192667.java!!!	getChildNodes() : NodeList
+        return this;
+!!!8192795.java!!!	getFirstChild() : Node
+        return firstChild;
+!!!8192923.java!!!	getLastChild() : Node
+        return lastChild;
+!!!8193051.java!!!	getPreviousSibling() : Node
+        return previousSibling;
+!!!8193179.java!!!	getNextSibling() : Node
+        return nextSibling;
+!!!8193307.java!!!	getAttributes() : NamedNodeMap
+        return new IIONamedNodeMap(attributes);
+!!!8193435.java!!!	getOwnerDocument() : Document
+        return null;
+!!!8193563.java!!!	insertBefore(inout newChild : Node, inout refChild : Node) : Node
+        if (newChild == null) {
+            throw new IllegalArgumentException("newChild == null!");
+        }
+
+        checkNode(newChild);
+        checkNode(refChild);
+
+        IIOMetadataNode newChildNode = (IIOMetadataNode)newChild;
+        IIOMetadataNode refChildNode = (IIOMetadataNode)refChild;
+
+        // Siblings, can be null.
+        IIOMetadataNode previous = null;
+        IIOMetadataNode next = null;
+
+        if (refChild == null) {
+            previous = this.lastChild;
+            next = null;
+            this.lastChild = newChildNode;
+        } else {
+            previous = refChildNode.previousSibling;
+            next = refChildNode;
+        }
+
+        if (previous != null) {
+            previous.nextSibling = newChildNode;
+        }
+        if (next != null) {
+            next.previousSibling = newChildNode;
+        }
+
+        newChildNode.parent = this;
+        newChildNode.previousSibling = previous;
+        newChildNode.nextSibling = next;
+        
+        // N.B.: O.K. if refChild == null
+        if (this.firstChild == refChildNode) {
+            this.firstChild = newChildNode;
+        }
+
+        ++numChildren;
+        return newChildNode;
+!!!8193691.java!!!	replaceChild(inout newChild : Node, inout oldChild : Node) : Node
+        if (newChild == null) {
+            throw new IllegalArgumentException("newChild == null!");
+        }
+        
+        checkNode(newChild);
+        checkNode(oldChild);
+
+        IIOMetadataNode newChildNode = (IIOMetadataNode)newChild;
+        IIOMetadataNode oldChildNode = (IIOMetadataNode)oldChild;
+
+        IIOMetadataNode previous = oldChildNode.previousSibling;
+        IIOMetadataNode next = oldChildNode.nextSibling;
+
+        if (previous != null) {
+            previous.nextSibling = newChildNode;
+        }
+        if (next != null) {
+            next.previousSibling = newChildNode;
+        }
+
+        newChildNode.parent = this;
+        newChildNode.previousSibling = previous;
+        newChildNode.nextSibling = next;
+
+        if (firstChild == oldChildNode) {
+            firstChild = newChildNode;
+        }
+        if (lastChild == oldChildNode) {
+            lastChild = newChildNode;
+        }
+
+        oldChildNode.parent = null;
+        oldChildNode.previousSibling = null;
+        oldChildNode.nextSibling = null;
+
+        return oldChildNode;
+!!!8193819.java!!!	removeChild(inout oldChild : Node) : Node
+        if (oldChild == null) {
+            throw new IllegalArgumentException("oldChild == null!");
+        }
+        checkNode(oldChild);
+
+        IIOMetadataNode oldChildNode = (IIOMetadataNode)oldChild;
+
+        IIOMetadataNode previous = oldChildNode.previousSibling;
+        IIOMetadataNode next = oldChildNode.nextSibling;
+
+        if (previous != null) {
+            previous.nextSibling = next;
+        }
+        if (next != null) {
+            next.previousSibling = previous;
+        }
+
+        if (this.firstChild == oldChildNode) {
+            this.firstChild = next;
+        }
+        if (this.lastChild == oldChildNode) {
+            this.lastChild = previous;
+        }
+
+        oldChildNode.parent = null;
+        oldChildNode.previousSibling = null;
+        oldChildNode.nextSibling = null;
+
+        --numChildren;
+        return oldChildNode;
+!!!8193947.java!!!	appendChild(inout newChild : Node) : Node
+        if (newChild == null) {
+            throw new IllegalArgumentException("newChild == null!");
+        }
+        checkNode(newChild);
+
+        // insertBefore will increment numChildren
+        return insertBefore(newChild, null);
+!!!8194075.java!!!	hasChildNodes() : boolean
+        return numChildren > 0;
+!!!8194203.java!!!	cloneNode(inout deep : boolean) : Node
+        IIOMetadataNode newNode = new IIOMetadataNode(this.nodeName);
+        newNode.setUserObject(getUserObject());
+        // Attributes
+
+        if (deep) {
+            for (IIOMetadataNode child = firstChild;
+                 child != null;
+                 child = child.nextSibling) {
+                newNode.appendChild(child.cloneNode(true));
+            }
+        }
+        
+        return newNode;
+!!!8194459.java!!!	isSupported(in feature : String, in version : String) : boolean
+        return false;
+!!!8194587.java!!!	getNamespaceURI() : String
+        return null;
+!!!8194715.java!!!	getPrefix() : String
+        return null;
+!!!8194971.java!!!	getLocalName() : String
+        return nodeName;
+!!!8195099.java!!!	getTagName() : String
+        return nodeName;
+!!!8195227.java!!!	getAttribute(in name : String) : String
+        Attr attr = getAttributeNode(name);
+        if (attr == null) {
+            return "";
+        }
+        return attr.getValue();
+!!!8195355.java!!!	getAttributeNS(in namespaceURI : String, in localName : String) : String
+        return getAttribute(localName);
+!!!8195483.java!!!	setAttribute(in name : String, in value : String) : void
+        // Note minor dependency on Crimson package
+        // Steal the code if Crimson ever goes away
+        if (!com.sun.imageio.metadata.XmlNames.isName(name)) {
+            throw new IIODOMException(DOMException.INVALID_CHARACTER_ERR,
+                                      "Attribute name is illegal!");
+        }
+        removeAttribute(name, false);
+        attributes.add(new IIOAttr(this, name, value));
+!!!8195611.java!!!	setAttributeNS(in namespaceURI : String, in qualifiedName : String, in value : String) : void
+        setAttribute(qualifiedName, value);
+!!!8195739.java!!!	removeAttribute(in name : String) : void
+        removeAttribute(name, true);
+!!!8195867.java!!!	removeAttribute(in name : String, inout checkPresent : boolean) : void
+        int numAttributes = attributes.size();
+        for (int i = 0; i < numAttributes; i++) {
+            IIOAttr attr = (IIOAttr)attributes.get(i);
+            if (name.equals(attr.getName())) {
+                attr.setOwnerElement(null);
+                attributes.remove(i);
+                return;
+            }
+        }
+
+        // If we get here, the attribute doesn't exist
+        if (checkPresent) {
+            throw new IIODOMException(DOMException.NOT_FOUND_ERR,
+                                      "No such attribute!");
+        }
+!!!8195995.java!!!	removeAttributeNS(in namespaceURI : String, in localName : String) : void
+        removeAttribute(localName);
+!!!8196123.java!!!	getAttributeNode(in name : String) : Attr
+        Node node = getAttributes().getNamedItem(name);
+        return (Attr)node;
+!!!8196251.java!!!	getAttributeNodeNS(in namespaceURI : String, in localName : String) : Attr
+        return getAttributeNode(localName);
+!!!8196379.java!!!	setAttributeNode(inout newAttr : Attr) : Attr
+        Element owner = newAttr.getOwnerElement();
+        if (owner != null) {
+            if (owner == this) {
+                return null;
+            } else {
+                throw new DOMException(DOMException.INUSE_ATTRIBUTE_ERR,
+                                       "Attribute is already in use");
+            }
+        }
+
+        IIOAttr attr;
+        if (newAttr instanceof IIOAttr) {
+            attr = (IIOAttr)newAttr;
+            attr.setOwnerElement(this);
+        } else {
+            attr = new IIOAttr(this,
+                               newAttr.getName(),
+                               newAttr.getValue());
+        }
+
+        Attr oldAttr = getAttributeNode(attr.getName());
+        if (oldAttr != null) {
+            removeAttributeNode(oldAttr);
+        }
+
+        attributes.add(attr);
+
+        return oldAttr;
+!!!8196507.java!!!	setAttributeNodeNS(inout newAttr : Attr) : Attr
+        return setAttributeNode(newAttr);
+!!!8196635.java!!!	removeAttributeNode(inout oldAttr : Attr) : Attr
+        removeAttribute(oldAttr.getName());
+        return oldAttr;
+!!!8196763.java!!!	getElementsByTagName(in name : String) : NodeList
+        List l = new ArrayList();
+        getElementsByTagName(name, l);
+        return new IIONodeList(l);
+!!!8196891.java!!!	getElementsByTagName(in name : String, inout l : List) : void
+        if (nodeName.equals(name)) {
+            l.add(this);
+        }
+
+        Node child = getFirstChild();
+        while (child != null) {
+            ((IIOMetadataNode)child).getElementsByTagName(name, l);
+            child = child.getNextSibling();
+        }
+!!!8197019.java!!!	getElementsByTagNameNS(in namespaceURI : String, in localName : String) : NodeList
+        return getElementsByTagName(localName);
+!!!8197147.java!!!	hasAttributes() : boolean
+	return attributes.size() > 0;
+!!!8197275.java!!!	hasAttribute(in name : String) : boolean
+        return getAttributeNode(name) != null;
+!!!8197403.java!!!	hasAttributeNS(in namespaceURI : String, in localName : String) : boolean
+        return hasAttribute(localName);
+!!!8197531.java!!!	getLength() : int
+        return numChildren;
+!!!8197659.java!!!	item(in index : int) : Node
+        if (index < 0) {
+            return null;
+        }
+
+        Node child = getFirstChild();
+        while (child != null && index-- > 0) {
+            child = child.getNextSibling();
+        }
+        return child;
+!!!8197787.java!!!	getUserObject() : Object
+        return userObject;
+!!!8197915.java!!!	setUserObject(inout userObject : Object) : void
+        this.userObject = userObject;
+!!!8198043.java!!!	setIdAttribute(in name : String, inout isId : boolean) : void
+        throw new DOMException(DOMException.NOT_SUPPORTED_ERR, "Method not supported");
+!!!8198171.java!!!	setIdAttributeNS(in namespaceURI : String, in localName : String, inout isId : boolean) : void
+        throw new DOMException(DOMException.NOT_SUPPORTED_ERR, "Method not supported");
+!!!8198299.java!!!	setIdAttributeNode(inout idAttr : Attr, inout isId : boolean) : void
+        throw new DOMException(DOMException.NOT_SUPPORTED_ERR, "Method not supported");
+!!!8198427.java!!!	getSchemaTypeInfo() : TypeInfo
+        throw new DOMException(DOMException.NOT_SUPPORTED_ERR, "Method not supported");
+!!!8198555.java!!!	setUserData(in key : String, inout data : Object, inout handler : UserDataHandler) : Object
+        throw new DOMException(DOMException.NOT_SUPPORTED_ERR, "Method not supported");
+!!!8198683.java!!!	getUserData(in key : String) : Object
+        throw new DOMException(DOMException.NOT_SUPPORTED_ERR, "Method not supported");
+!!!8198811.java!!!	getFeature(in feature : String, in version : String) : Object
+        throw new DOMException(DOMException.NOT_SUPPORTED_ERR, "Method not supported");
+!!!8198939.java!!!	isSameNode(inout node : Node) : boolean
+        throw new DOMException(DOMException.NOT_SUPPORTED_ERR, "Method not supported");
+!!!8199067.java!!!	isEqualNode(inout node : Node) : boolean
+        throw new DOMException(DOMException.NOT_SUPPORTED_ERR, "Method not supported");
+!!!8199195.java!!!	lookupNamespaceURI(in prefix : String) : String
+        throw new DOMException(DOMException.NOT_SUPPORTED_ERR, "Method not supported");
+!!!8199323.java!!!	isDefaultNamespace(in namespaceURI : String) : boolean
+        throw new DOMException(DOMException.NOT_SUPPORTED_ERR, "Method not supported");
+!!!8199451.java!!!	lookupPrefix(in namespaceURI : String) : String
+        throw new DOMException(DOMException.NOT_SUPPORTED_ERR, "Method not supported");
+!!!8199579.java!!!	getTextContent() : String
+        return textContent;
+!!!8199707.java!!!	setTextContent(in textContent : String) : void
+        this.textContent = textContent; //PENDING
+!!!8199835.java!!!	compareDocumentPosition(inout other : Node) : short
+        throw new DOMException(DOMException.NOT_SUPPORTED_ERR, "Method not supported");
+!!!8199963.java!!!	getBaseURI() : String
+        throw new DOMException(DOMException.NOT_SUPPORTED_ERR, "Method not supported");

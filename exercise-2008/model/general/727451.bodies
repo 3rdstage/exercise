@@ -1,0 +1,209 @@
+class FragmentContentDispatcher
+!!!4949019.java!!!	dispatch(inout complete : boolean) : boolean
+            try {
+                boolean again;
+                do {
+                    again = false;
+                    switch (fScannerState) {
+                        case SCANNER_STATE_CONTENT: {
+                            if (fEntityScanner.skipChar('<')) {
+                                setScannerState(SCANNER_STATE_START_OF_MARKUP);
+                                again = true;
+                            }
+                            else if (fEntityScanner.skipChar('&')) {
+                                setScannerState(SCANNER_STATE_REFERENCE);
+                                again = true;
+                            }
+                            else {
+                                do {
+                                    int c = scanContent();
+                                    if (c == '<') {
+                                        fEntityScanner.scanChar();
+                                        setScannerState(SCANNER_STATE_START_OF_MARKUP);
+                                        break;
+                                    }
+                                    else if (c == '&') {
+                                        fEntityScanner.scanChar();
+                                        setScannerState(SCANNER_STATE_REFERENCE);
+                                        break;
+                                    }
+                                    else if (c != -1 && isInvalidLiteral(c)) {
+                                        if (XMLChar.isHighSurrogate(c)) {
+                                            // special case: surrogates
+                                            fStringBuffer.clear();
+                                            if (scanSurrogates(fStringBuffer)) {
+                                                // call handler
+                                                if (fDocumentHandler != null) {
+                                                    fDocumentHandler.characters(fStringBuffer, null);
+                                                }
+                                            }
+                                        }
+                                        else {
+                                            reportFatalError("InvalidCharInContent",
+                                                             new Object[] {
+                                                Integer.toString(c, 16)});
+                                            fEntityScanner.scanChar();
+                                        }
+                                    }
+                                } while (complete);
+                            }
+                            break;
+                        }
+                        case SCANNER_STATE_START_OF_MARKUP: {
+                            fMarkupDepth++;
+                            if (fEntityScanner.skipChar('/')) {
+                                if (scanEndElement() == 0) {
+                                    if (elementDepthIsZeroHook()) {
+                                        return true;
+                                    }
+                                }
+                                setScannerState(SCANNER_STATE_CONTENT);
+                            }
+                            else if (isValidNameStartChar(fEntityScanner.peekChar())) {
+                                scanStartElement();
+                                setScannerState(SCANNER_STATE_CONTENT);
+                            }
+                            else if (fEntityScanner.skipChar('!')) {
+                                if (fEntityScanner.skipChar('-')) {
+                                    if (!fEntityScanner.skipChar('-')) {
+                                        reportFatalError("InvalidCommentStart",
+                                                         null);
+                                    }
+                                    setScannerState(SCANNER_STATE_COMMENT);
+                                    again = true;
+                                }
+                                else if (fEntityScanner.skipString("[CDATA[")) {
+                                    setScannerState(SCANNER_STATE_CDATA);
+                                    again = true;
+                                }
+                                else if (!scanForDoctypeHook()) {
+                                    reportFatalError("MarkupNotRecognizedInContent",
+                                                     null);
+                                }
+                            }
+                            else if (fEntityScanner.skipChar('?')) {
+                                setScannerState(SCANNER_STATE_PI);
+                                again = true;
+                            }
+                            else if (isValidNameStartHighSurrogate(fEntityScanner.peekChar())) {
+                                scanStartElement();
+                                setScannerState(SCANNER_STATE_CONTENT);
+                            }
+                            else {
+                                reportFatalError("MarkupNotRecognizedInContent",
+                                                 null);
+                                setScannerState(SCANNER_STATE_CONTENT);                 
+                            }
+                            break;
+                        }
+                        case SCANNER_STATE_COMMENT: {
+                            scanComment();
+                            setScannerState(SCANNER_STATE_CONTENT);
+                            break;  
+                        }
+                        case SCANNER_STATE_PI: {
+                            scanPI();
+                            setScannerState(SCANNER_STATE_CONTENT);
+                            break;  
+                        }
+                        case SCANNER_STATE_CDATA: {
+                            scanCDATASection(complete);
+                            setScannerState(SCANNER_STATE_CONTENT);
+                            break;
+                        }
+                        case SCANNER_STATE_REFERENCE: {
+                            fMarkupDepth++;
+                            // NOTE: We need to set the state beforehand
+                            //       because the XMLEntityHandler#startEntity
+                            //       callback could set the state to
+                            //       SCANNER_STATE_TEXT_DECL and we don't want
+                            //       to override that scanner state.
+                            setScannerState(SCANNER_STATE_CONTENT);
+                            if (fEntityScanner.skipChar('#')) {
+                                scanCharReference();
+                            }
+                            else {
+                                scanEntityReference();
+                            }
+                            break;
+                        }
+                        case SCANNER_STATE_TEXT_DECL: {
+                            // scan text decl
+                            if (fEntityScanner.skipString("<?xml")) {
+                                fMarkupDepth++;
+                                // NOTE: special case where entity starts with a PI
+                                //       whose name starts with "xml" (e.g. "xmlfoo")
+                                if (isValidNameChar(fEntityScanner.peekChar())) {
+                                    fStringBuffer.clear();
+                                    fStringBuffer.append("xml");
+                                    if (fNamespaces) {
+                                        while (isValidNCName(fEntityScanner.peekChar())) {
+                                            fStringBuffer.append((char)fEntityScanner.scanChar());
+                                        }
+                                    }
+                                    else {
+                                        while (isValidNameChar(fEntityScanner.peekChar())) {
+                                            fStringBuffer.append((char)fEntityScanner.scanChar());
+                                        }
+                                    }
+                                    String target = fSymbolTable.addSymbol(fStringBuffer.ch, fStringBuffer.offset, fStringBuffer.length);
+                                    scanPIData(target, fTempString);
+                                }
+                
+                                // standard text declaration
+                                else {
+                                    scanXMLDeclOrTextDecl(true);
+                                }
+                            }
+                            // now that we've straightened out the readers, we can read in chunks:
+                            fEntityManager.fCurrentEntity.mayReadChunks = true;
+                            setScannerState(SCANNER_STATE_CONTENT);
+                            break;
+                        }
+                        case SCANNER_STATE_ROOT_ELEMENT: {
+                            if (scanRootElementHook()) {
+                                return true;
+                            }
+                            setScannerState(SCANNER_STATE_CONTENT);
+                            break;
+                        }
+                        case SCANNER_STATE_DOCTYPE: {
+                            reportFatalError("DoctypeIllegalInContent",
+                                             null);
+                            setScannerState(SCANNER_STATE_CONTENT);
+                        }
+                    }
+                } while (complete || again);
+            }
+            // encoding errors
+            catch (MalformedByteSequenceException e) {
+                fErrorReporter.reportError(e.getDomain(), e.getKey(), 
+                    e.getArguments(), XMLErrorReporter.SEVERITY_FATAL_ERROR);
+                return false;
+            }
+            catch (CharConversionException e) {
+                reportFatalError("CharConversionFailure", null);
+                return false;
+            }
+            // premature end of file
+            catch (EOFException e) {
+                endOfFileHook(e);
+                return false;
+            }
+
+            return true;
+
+!!!4949147.java!!!	scanForDoctypeHook() : boolean
+            return false;
+!!!4949275.java!!!	elementDepthIsZeroHook() : boolean
+            return false;
+!!!4949403.java!!!	scanRootElementHook() : boolean
+            return false;
+!!!4949531.java!!!	endOfFileHook(inout e : EOFException) : void
+
+            // NOTE: An end of file is only only an error if we were
+            //       in the middle of scanning some markup. -Ac
+            if (fMarkupDepth != 0) {
+                reportFatalError("PrematureEOF", null);
+            }
+

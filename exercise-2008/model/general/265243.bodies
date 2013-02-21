@@ -1,0 +1,37 @@
+class TOAFactory
+!!!1355419.java!!!	find(inout oaid : ObjectAdapterId) : ObjectAdapter
+	if (oaid.equals( ObjectKeyTemplateBase.JIDL_OAID )  )
+	    // Return the dispatch-only TOA, which can dispatch
+	    // request for objects created by any TOA.
+	    return getTOA() ;
+	else 
+	    throw wrapper.badToaOaid() ;
+!!!1355547.java!!!	init(inout orb : ORB) : void
+	this.orb = orb ;
+	wrapper = ORBUtilSystemException.get( orb,
+	    CORBALogDomains.OA_LIFECYCLE ) ;
+	tom = new TransientObjectManager( orb ) ;
+	codebaseToTOA = new HashMap() ;
+!!!1355675.java!!!	shutdown(inout waitForCompletion : boolean) : void
+	if (Util.instance != null) {
+	    Util.instance.unregisterTargetsForORB(orb);
+	}
+!!!1355803.java!!!	getTOA(in codebase : String) : TOA
+	TOA toa = (TOA)(codebaseToTOA.get( codebase )) ;
+	if (toa == null) {
+	    toa = new TOAImpl( orb, tom, codebase ) ;
+
+	    codebaseToTOA.put( codebase, toa ) ;
+	}
+
+	return toa ;
+!!!1355931.java!!!	getTOA() : TOA
+	if (toa == null)
+	    // The dispatch-only TOA is not used for creating
+	    // objrefs, so its codebase can be null (and must
+	    // be, since we do not have a servant at this point)
+	    toa = new TOAImpl( orb, tom, null ) ;
+
+	return toa ;
+!!!1356059.java!!!	getORB() : ORB
+	return orb ;

@@ -1,0 +1,18 @@
+class PrivilegedThreadFactory
+!!!7938843.java!!!	PrivilegedThreadFactory()
+            super();
+            this.ccl = Thread.currentThread().getContextClassLoader();
+            this.acc = AccessController.getContext();
+            acc.checkPermission(new RuntimePermission("setContextClassLoader"));
+!!!7938971.java!!!	newThread(in r : Runnable) : Thread
+            return super.newThread(new Runnable() {
+                public void run() {
+                    AccessController.doPrivileged(new PrivilegedAction() {
+                        public Object run() { 
+                            Thread.currentThread().setContextClassLoader(ccl);
+                            r.run();
+                            return null; 
+                        }
+                    }, acc);
+                }
+            });

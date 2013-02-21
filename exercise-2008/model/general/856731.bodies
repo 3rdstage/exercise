@@ -1,0 +1,82 @@
+class FileDialog
+!!!6239259.java!!!	FileDialog(inout parent : Frame)
+	this(parent, "", LOAD);
+!!!6239387.java!!!	FileDialog(inout parent : Frame, in title : String)
+	this(parent, title, LOAD);
+!!!6239515.java!!!	FileDialog(inout parent : Frame, in title : String, in mode : int)
+	super(parent, title, true);
+        this.setMode(mode);
+	setLayout(null);
+!!!6239643.java!!!	FileDialog(inout parent : Dialog)
+        this(parent, "", LOAD);
+!!!6239771.java!!!	FileDialog(inout parent : Dialog, in title : String)
+        this(parent, title, LOAD);
+!!!6239899.java!!!	FileDialog(inout parent : Dialog, in title : String, in mode : int)
+        super(parent, title, true);
+        this.setMode(mode);
+        setLayout(null);
+!!!6240027.java!!!	constructComponentName() : String
+        synchronized (getClass()) {
+	    return base + nameCounter++;
+	}
+!!!6240155.java!!!	addNotify() : void
+        synchronized(getTreeLock()) {
+	    if (parent != null && parent.getPeer() == null) {
+		parent.addNotify();
+	    }
+	    if (peer == null)
+	        peer = getToolkit().createFileDialog(this);
+	    super.addNotify();
+	}
+!!!6240283.java!!!	getMode() : int
+	return mode;
+!!!6240411.java!!!	setMode(in mode : int) : void
+	switch (mode) {
+	  case LOAD:
+	  case SAVE:
+	    this.mode = mode;
+	    break;
+	  default:
+	    throw new IllegalArgumentException("illegal file dialog mode");
+	}
+!!!6240539.java!!!	getDirectory() : String
+	return dir;
+!!!6240667.java!!!	setDirectory(in dir : String) : void
+        this.dir = (dir != null && dir.equals("")) ? null : dir;
+	FileDialogPeer peer = (FileDialogPeer)this.peer;
+	if (peer != null) {
+	    peer.setDirectory(this.dir);
+	}
+!!!6240795.java!!!	getFile() : String
+	return file;
+!!!6240923.java!!!	setFile(in file : String) : void
+        this.file = (file != null && file.equals("")) ? null : file;
+	FileDialogPeer peer = (FileDialogPeer)this.peer;
+	if (peer != null) {
+	    peer.setFile(this.file);
+	}
+!!!6241051.java!!!	getFilenameFilter() : FilenameFilter
+	return filter;
+!!!6241179.java!!!	setFilenameFilter(inout filter : FilenameFilter) : void
+	this.filter = filter;
+	FileDialogPeer peer = (FileDialogPeer)this.peer;
+	if (peer != null) {
+	    peer.setFilenameFilter(filter);
+	}
+!!!6241307.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+
+	// 1.1 Compatibility: "" is not converted to null in 1.1
+	if (dir != null && dir.equals("")) {
+	    dir = null;
+	}
+	if (file != null && file.equals("")) {
+	    file = null;
+	}
+!!!6241435.java!!!	paramString() : String
+	String str = super.paramString();
+	str += ",dir= " + dir;
+	str += ",file= " + file;
+	return str + ((mode == LOAD) ? ",load" : ",save");
+!!!6241563.java!!!	postsOldMouseEvents() : boolean
+        return false;

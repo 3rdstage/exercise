@@ -1,0 +1,221 @@
+class EmployeeSimpleDAOImpl
+!!!10529051.java!!!	main(in args : String) : void
+
+
+		EmployeeSimpleDAO dao = new EmployeeSimpleDAOImpl();
+		String[] emp1 = dao.getEmployee(107);
+
+		System.out.print("\n\n");
+		System.out.print("The employee with ID of 107 is : ");
+		for(String str : emp1){
+			System.out.print(str + ", ");
+		}
+		System.out.print("\n");
+		
+		String[][] emps1 = dao.getEmployeesByDepartment(60);
+		System.out.print("\n\n");
+		System.out.println("The employees in department 60 are : ");
+		for(String[] emp : emps1){
+			System.out.print(" Employee with ID of " + emp[0] + " is : ");
+			for(String item : emp) System.out.print(item + ", ");
+			System.out.print("\n");
+		}
+		
+		
+		String[] emp3 = new String[6];
+		//employee_id, first_name, last_name, email, job_id
+		emp3[0] = "301";
+		emp3[1] = "Sangmoon";
+		emp3[2] = "Oh";
+		emp3[3] = "2008-07-28";
+		emp3[4] = "halfface@chollian.net";
+		emp3[5] = "IT_PROG";
+		//dao.addEmployee(emp3);
+		
+		
+		dao.removeEmployee(201);
+		
+!!!10529307.java!!!	getEmployee(in empId : int) : String
+
+
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		String sql = null;
+		ResultSet rs = null;
+
+		String connUrl = "jdbc:oracle:thin:@127.0.0.1:1521:XE";
+		String[] result = null;
+
+		try{
+			// 1) Setup connection
+			Class.forName("oracle.jdbc.OracleDriver");
+			// 2) Open connection
+			conn = DriverManager.getConnection(connUrl, "hr", "hrpwd");
+
+			// 3) Write statement
+			sql = "select e.employee_id, e.last_name, e.phone_number, e.job_id, e.department_id "
+				+ "from employees e where e.employee_id = ?";
+			pstmt = conn.prepareStatement(sql);
+
+			// 4) Execute statement and retrieve data
+			pstmt.setInt(1, empId);
+			rs = pstmt.executeQuery();
+
+			if(rs.next()){
+				result = new String[5];
+				for(int i = 0; i < 5; i++){
+					result[i] = rs.getString(i+1);
+				}
+			}
+
+			return result;
+		}catch(Exception ex){
+			throw new RuntimeException(ex);
+		}finally{
+			if(rs != null){
+				try{ rs.close(); }catch(Exception ex){}
+			}
+			if(pstmt != null){
+				try{ pstmt.close(); }catch(Exception ex){}
+			}
+			if(conn != null){
+				try{ conn.close(); }catch(Exception ex){}
+			}
+		}
+!!!10529435.java!!!	getEmployeesByDepartment(in deptId : int) : String
+
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		String sql = null;
+		ResultSet rs = null;
+
+		String connUrl = "jdbc:oracle:thin:@127.0.0.1:1521:XE";
+		List<String[]> result = new ArrayList<String[]>();
+
+		try{
+			Class.forName("oracle.jdbc.OracleDriver");
+			conn = DriverManager.getConnection(connUrl, "hr", "hrpwd");
+
+			sql = "select e.employee_id, e.last_name, e.phone_number, "
+				+ "       e.job_id, e.department_id, d.department_name "
+				+ "from employees e, departments d "
+				+ "where e.department_id = d.department_id "
+				+ "and d.department_id = ?";
+			pstmt = conn.prepareStatement(sql);
+			pstmt.setInt(1, deptId);
+
+			rs = pstmt.executeQuery();
+
+			String[] row = null;
+			while(rs.next()){
+				row = new String[6];
+				for(int i = 0; i < 6; i++) row[i] = rs.getString(i+1);
+				result.add(row);
+			}
+			
+			return result.toArray(new String[result.size()][6]);
+		}catch(Exception ex){
+			throw new RuntimeException(ex);
+		}finally{
+			if(rs != null){
+				try{ rs.close(); }catch(Exception ex){}
+			}
+			if(pstmt != null){
+				try{ pstmt.close(); }catch(Exception ex){}
+			}
+			if(conn != null){
+				try{ conn.close(); }catch(Exception ex){}
+			}
+		}
+!!!10529563.java!!!	getEmployeesByJob(in jobId : int) : String
+
+		// TODO class work
+		return null;
+!!!10529691.java!!!	addEmployee(in emp : String) : void
+
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		String sql = null;
+
+		String connUrl = "jdbc:oracle:thin:@127.0.0.1:1521:XE";
+
+		try{
+			//setup connection
+			Class.forName("oracle.jdbc.OracleDriver");
+			//open connection
+			conn = DriverManager.getConnection(connUrl, "hr", "hrpwd");
+			
+			//write statement
+			sql = "insert into employees " 
+				 +	"   (employee_id, first_name, last_name, hire_date, email, job_id) "
+				 + "values (?, ?, ?, ?, ?, ?)";
+			
+			pstmt = conn.prepareStatement(sql);
+			pstmt.setInt(1, Integer.valueOf(emp[0]));
+			pstmt.setString(2, emp[1]);
+			pstmt.setString(3, emp[2]);
+			pstmt.setDate(4, java.sql.Date.valueOf(emp[3]));
+			pstmt.setString(5, emp[4]);
+			pstmt.setString(6, emp[5]);
+			//execute statement
+			pstmt.execute();
+
+		}catch(Exception ex){
+			throw new RuntimeException(ex);
+		}finally{ //release resources
+			if(pstmt != null){
+				try{ pstmt.close(); }catch(Exception ex){}
+			}
+			if(conn != null){
+				try{ conn.close(); }catch(Exception ex){}
+			}
+		}	
+!!!10529819.java!!!	removeEmployee(in empId : int) : void
+
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		String sql = null;
+
+		String connUrl = "jdbc:oracle:thin:@127.0.0.1:1521:XE";
+
+		try{
+			Class.forName("oracle.jdbc.OracleDriver");
+			conn = DriverManager.getConnection(connUrl, "hr", "hrpwd");
+			
+			//declare manual transaction control
+			conn.setAutoCommit(false); 
+
+			//delete job history first
+			sql = "delete from job_history where employee_id = ?";
+			pstmt = conn.prepareStatement(sql);
+			pstmt.setInt(1, empId);
+			pstmt.execute();
+			//close the statement before to assign new statement object to pstmt variable.
+			pstmt.close(); 
+
+			//delete employee
+			sql = "delete from employees where employee_id = ?";
+			pstmt = conn.prepareStatement(sql);
+			pstmt.setInt(1, empId);
+			
+			if(false) throw new Exception("intentional exception");
+			
+			pstmt.execute();
+			
+			//commit transaction
+			conn.commit();
+		}catch(Exception ex){
+			try{ 
+				//roll-back transaction
+				conn.rollback(); 
+			}catch(Exception ex2){}
+			
+			throw new RuntimeException(ex);
+		}finally{ //close resources
+			if(pstmt != null){
+				try{ pstmt.close(); }catch(Exception ex){}
+			}
+			if(conn != null){
+				try{ conn.close(); }catch(Exception ex){}
+			}
+		}

@@ -1,0 +1,32 @@
+class Sync
+!!!7964571.java!!!	Sync(in permits : int)
+            setState(permits);
+!!!7964699.java!!!	getPermits() : int
+            return getState();
+!!!7964827.java!!!	nonfairTryAcquireShared(in acquires : int) : int
+            for (;;) {
+                int available = getState();
+                int remaining = available - acquires;
+                if (remaining < 0 ||
+                    compareAndSetState(available, remaining))
+                    return remaining;
+            }
+!!!7964955.java!!!	tryReleaseShared(in releases : int) : boolean
+            for (;;) {
+                int p = getState();
+                if (compareAndSetState(p, p + releases)) 
+                    return true;
+            }
+!!!7965083.java!!!	reducePermits(in reductions : int) : void
+            for (;;) {
+                int current = getState();
+                int next = current - reductions;
+                if (compareAndSetState(current, next))
+                    return;
+            }
+!!!7965211.java!!!	drainPermits() : int
+            for (;;) {
+                int current = getState();
+                if (current == 0 || compareAndSetState(current, 0))
+                    return current;
+            }

@@ -1,0 +1,324 @@
+class NodeSequence
+!!!5968667.java!!!	getVector() : NodeVector
+  	return (NodeVector)m_obj;
+!!!5968795.java!!!	SetVector(inout v : NodeVector) : void
+  	m_obj = v;
+!!!5968923.java!!!	hasCache() : boolean
+  	return (m_obj != null);
+!!!5969051.java!!!	setIter(inout iter : DTMIterator) : void
+  	m_iter = iter;
+!!!5969179.java!!!	getContainedIter() : DTMIterator
+  	return m_iter;
+!!!5969307.java!!!	NodeSequence(inout iter : DTMIterator, in context : int, inout xctxt : XPathContext, inout shouldCacheNodes : boolean)
+  	setIter(iter);
+  	setRoot(context, xctxt);
+  	setShouldCacheNodes(shouldCacheNodes);
+!!!5969435.java!!!	NodeSequence(inout nodeVector : Object)
+  	super(nodeVector);
+  	if(null != nodeVector)
+  	{
+  		assertion(nodeVector instanceof NodeVector, 
+  			"Must have a NodeVector as the object for NodeSequence!");
+  		if(nodeVector instanceof DTMIterator)
+  		{
+  			setIter((DTMIterator)nodeVector);
+  			m_last = ((DTMIterator)nodeVector).getLength();
+  		}
+  		
+  	}
+!!!5969563.java!!!	NodeSequence(inout dtmMgr : DTMManager)
+    super(new NodeVector());
+    m_last = 0;
+    m_dtmMgr = dtmMgr;
+!!!5969819.java!!!	getDTM(in nodeHandle : int) : DTM
+  	DTMManager mgr = getDTMManager();
+  	if(null != mgr)
+    	return getDTMManager().getDTM(nodeHandle);
+    else
+    {
+    	assertion(false, "Can not get a DTM Unless a DTMManager has been set!");
+    	return null;
+    }
+!!!5969947.java!!!	getDTMManager() : DTMManager
+    return m_dtmMgr;
+!!!5970075.java!!!	getRoot() : int
+  	if(null != m_iter)
+    	return m_iter.getRoot();
+  	else
+  	{
+  		// NodeSetDTM will call this, and so it's not a good thing to throw 
+  		// an assertion here.
+  		// assertion(false, "Can not get the root from a non-iterated NodeSequence!");
+  		return DTM.NULL;
+  	}
+!!!5970203.java!!!	setRoot(in nodeHandle : int, inout environment : Object) : void
+  	if(null != m_iter)
+  	{
+  		XPathContext xctxt = (XPathContext)environment;
+  		m_dtmMgr = xctxt.getDTMManager();
+  		m_iter.setRoot(nodeHandle, environment);
+  		if(!m_iter.isDocOrdered())
+  		{
+  			if(!hasCache())
+  				setShouldCacheNodes(true);
+  			runTo(-1);
+  			m_next=0;
+  		}
+  	}
+  	else
+  		assertion(false, "Can not setRoot on a non-iterated NodeSequence!");
+!!!5970331.java!!!	reset() : void
+  	m_next = 0;
+  	// not resetting the iterator on purpose!!!
+!!!5970459.java!!!	getWhatToShow() : int
+    return hasCache() ? (DTMFilter.SHOW_ALL & ~DTMFilter.SHOW_ENTITY_REFERENCE) 
+    	: m_iter.getWhatToShow();
+!!!5970587.java!!!	getExpandEntityReferences() : boolean
+  	if(null != m_iter)
+  		return m_iter.getExpandEntityReferences();
+  	else
+    	return true;
+!!!5970715.java!!!	nextNode() : int
+    // If the cache is on, and the node has already been found, then 
+    // just return from the list.
+    NodeVector vec = getVector();
+    if (null != vec)
+    {	
+    	if(m_next < vec.size())
+    	{
+			int next = vec.elementAt(m_next);
+	    	m_next++;
+	    	return next;
+    	}
+    	else if((-1 != m_last) || (null == m_iter))
+    	{
+    		m_next++;
+    		return DTM.NULL;
+    	}
+    }
+    
+  if (null == m_iter)
+    return DTM.NULL;
+  
+ 	int next = m_iter.nextNode();
+    if(DTM.NULL != next)
+    {
+    	if(hasCache())
+    	{
+    		if(m_iter.isDocOrdered())
+    	    {
+    			getVector().addElement(next);
+    			m_next++;
+    		}
+    		else
+    		{
+    			int insertIndex = addNodeInDocOrder(next);
+    			if(insertIndex >= 0)
+    				m_next++;
+    		}
+    	}
+    	else
+    		m_next++;
+    }
+    else
+    {
+    	m_last = m_next;
+    	m_next++;
+    }
+    	
+    return next;
+!!!5970843.java!!!	previousNode() : int
+  	if(hasCache())
+  	{
+  		if(m_next <= 0)
+  			return DTM.NULL;
+  		else
+  		{
+  			m_next--;
+  			return item(m_next);
+  		}
+  	}
+  	else
+  	{
+	    int n = m_iter.previousNode();
+	    m_next = m_iter.getCurrentPos();
+	    return m_next;
+  	}
+!!!5970971.java!!!	detach() : void
+  	if(null != m_iter)
+  		m_iter.detach();
+  	super.detach();
+!!!5971099.java!!!	allowDetachToRelease(inout allowRelease : boolean) : void
+  	if((false == allowRelease) && !hasCache())
+  	{
+  		setShouldCacheNodes(true);
+  	}
+  	
+  	if(null != m_iter)
+  		m_iter.allowDetachToRelease(allowRelease);
+  	super.allowDetachToRelease(allowRelease);
+!!!5971227.java!!!	getCurrentNode() : int
+  	if(hasCache())
+  	{
+  		int currentIndex = m_next-1;
+  		NodeVector vec = getVector();
+  		if((currentIndex >= 0) && (currentIndex < vec.size()))
+  			return vec.elementAt(currentIndex);
+  		else
+  			return DTM.NULL;
+  	}
+  	
+  	if(null != m_iter)
+  	{
+    	return m_iter.getCurrentNode();
+  	}
+  	else
+  		return DTM.NULL;
+!!!5971355.java!!!	isFresh() : boolean
+    return (0 == m_next);
+!!!5971483.java!!!	setShouldCacheNodes(inout b : boolean) : void
+    if (b)
+    {
+      if(!hasCache())
+      {
+        SetVector(new NodeVector());
+      }
+//	  else
+//	    getVector().RemoveAllNoClear();  // Is this good?
+    }
+    else
+      SetVector(null);
+!!!5971611.java!!!	isMutable() : boolean
+    return hasCache(); // though may be surprising if it also has an iterator!
+!!!5971739.java!!!	getCurrentPos() : int
+    return m_next;
+!!!5971867.java!!!	runTo(in index : int) : void
+    int n;
+    
+    if (-1 == index)
+    {
+      int pos = m_next;
+      while (DTM.NULL != (n = nextNode()));
+      m_next = pos;
+    }
+    else if(m_next == index)
+    {
+      return;
+    }
+    else if(hasCache() && m_next < getVector().size())
+    {
+      m_next = index;
+    }
+    else if((null == getVector()) && (index < m_next))
+    {
+      while ((m_next >= index) && DTM.NULL != (n = previousNode()));
+    }
+    else
+    {   
+      while ((m_next < index) && DTM.NULL != (n = nextNode()));
+    }
+    
+!!!5971995.java!!!	setCurrentPos(in i : int) : void
+  	runTo(i);
+!!!5972123.java!!!	item(in index : int) : int
+  	setCurrentPos(index);
+  	int n = nextNode();
+  	m_next = index;
+  	return n;
+!!!5972251.java!!!	setItem(in node : int, in index : int) : void
+  	NodeVector vec = getVector();
+  	if(null != vec)
+  	{
+  		vec.setElementAt(node, index);
+  		m_last = vec.size();
+  	}
+  	else
+  		m_iter.setItem(node, index);
+!!!5972379.java!!!	getLength() : int
+  	if(hasCache())
+  	{
+        // If this NodeSequence wraps a mutable nodeset, then
+        // m_last will not reflect the size of the nodeset if
+        // it has been mutated...
+        if (m_iter instanceof NodeSetDTM)
+        {
+            return m_iter.getLength();
+        }    
+        
+	  	if(-1 == m_last)
+	  	{
+	  		int pos = m_next;
+	  		runTo(-1);
+	  		m_next = pos;
+	  	}
+	    return m_last;
+  	}
+  	else
+  	{
+  		return (-1 == m_last) ? (m_last = m_iter.getLength()) : m_last;
+  	}
+!!!5972507.java!!!	cloneWithReset() : DTMIterator
+  	NodeSequence seq = (NodeSequence)super.clone();
+    seq.m_next = 0;
+    return seq;
+!!!5972635.java!!!	clone() : Object
+  	return super.clone();
+!!!5972763.java!!!	isDocOrdered() : boolean
+  	if(null != m_iter)
+  		return m_iter.isDocOrdered();
+  	else
+    	return true; // can't be sure?
+!!!5972891.java!!!	getAxis() : int
+  	if(null != m_iter)
+    	return m_iter.getAxis();
+    else
+    {
+    	assertion(false, "Can not getAxis from a non-iterated node sequence!");
+    	return 0;
+    }
+!!!5973019.java!!!	getAnalysisBits() : int
+  	if((null != m_iter) && (m_iter instanceof PathComponent))
+    	return ((PathComponent)m_iter).getAnalysisBits();
+    else
+    	return 0;
+!!!5973147.java!!!	fixupVariables(inout vars : Vector, in globalsSize : int) : void
+  	super.fixupVariables(vars, globalsSize);
+!!!5973275.java!!!	addNodeInDocOrder(in node : int) : int
+      assertion(hasCache(), "addNodeInDocOrder must be done on a mutable sequence!");
+
+      int insertIndex = -1;
+      
+      NodeVector vec = getVector();
+
+      // This needs to do a binary search, but a binary search 
+      // is somewhat tough because the sequence test involves 
+      // two nodes.
+      int size = vec.size(), i;
+
+      for (i = size - 1; i >= 0; i--)
+      {
+        int child = vec.elementAt(i);
+
+        if (child == node)
+        {
+          i = -2; // Duplicate, suppress insert
+
+          break;
+        }
+
+        DTM dtm = m_dtmMgr.getDTM(node);
+        if (!dtm.isNodeAfter(node, child))
+        {
+          break;
+        }
+      }
+
+      if (i != -2)
+      {
+        insertIndex = i + 1;
+
+        vec.insertElementAt(node, insertIndex);
+      }
+
+      // checkDups();
+      return insertIndex;

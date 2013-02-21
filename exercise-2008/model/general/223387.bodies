@@ -1,0 +1,55 @@
+class FreezableList
+!!!843163.java!!!	equals(inout obj : Object) : boolean
+	if (obj == null)
+	    return false ;
+
+	if (!(obj instanceof FreezableList))
+	    return false ;
+
+	FreezableList other = (FreezableList)obj ;
+
+	return delegate.equals( other.delegate ) &&
+	    (immutable == other.immutable) ;
+!!!843291.java!!!	hashCode() : int
+	return delegate.hashCode() ;
+!!!843419.java!!!	FreezableList(inout delegate : List, inout immutable : boolean)
+	this.delegate = delegate ;
+	this.immutable = immutable ;
+!!!843547.java!!!	FreezableList(inout delegate : List)
+	this( delegate, false ) ;
+!!!843675.java!!!	makeImmutable() : void
+	immutable = true ;
+!!!843803.java!!!	isImmutable() : boolean
+	return immutable ;
+!!!843931.java!!!	makeElementsImmutable() : void
+	Iterator iter = iterator() ;
+	while (iter.hasNext()) {
+	    Object obj = iter.next() ;
+	    if (obj instanceof MakeImmutable) {
+		MakeImmutable element = (MakeImmutable)obj ;
+		element.makeImmutable() ;
+	    }
+	}
+!!!844059.java!!!	size() : int
+	return delegate.size() ;
+!!!844187.java!!!	get(in index : int) : Object
+	return delegate.get(index) ;
+!!!844315.java!!!	set(in index : int, inout element : Object) : Object
+	if (immutable)
+	    throw new UnsupportedOperationException() ;
+
+	return delegate.set(index, element) ;
+!!!844443.java!!!	add(in index : int, inout element : Object) : void
+	if (immutable)
+	    throw new UnsupportedOperationException() ;
+
+	delegate.add(index, element) ;
+!!!844571.java!!!	remove(in index : int) : Object
+	if (immutable)
+	    throw new UnsupportedOperationException() ;
+
+	return delegate.remove(index) ;
+!!!844699.java!!!	subList(in fromIndex : int, in toIndex : int) : List
+	List list = delegate.subList(fromIndex, toIndex) ;
+	List result = new FreezableList( list, immutable ) ;
+	return result ;

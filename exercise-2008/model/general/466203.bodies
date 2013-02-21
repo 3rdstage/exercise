@@ -1,0 +1,1256 @@
+class JTree
+!!!9178779.java!!!	getDefaultTreeModel() : TreeModel
+        DefaultMutableTreeNode      root = new DefaultMutableTreeNode("JTree");
+	DefaultMutableTreeNode      parent;
+
+	parent = new DefaultMutableTreeNode("colors");
+	root.add(parent);
+	parent.add(new DefaultMutableTreeNode("blue"));
+	parent.add(new DefaultMutableTreeNode("violet"));
+	parent.add(new DefaultMutableTreeNode("red"));
+	parent.add(new DefaultMutableTreeNode("yellow"));
+
+	parent = new DefaultMutableTreeNode("sports");
+	root.add(parent);
+	parent.add(new DefaultMutableTreeNode("basketball"));
+	parent.add(new DefaultMutableTreeNode("soccer"));
+	parent.add(new DefaultMutableTreeNode("football"));
+	parent.add(new DefaultMutableTreeNode("hockey"));
+
+	parent = new DefaultMutableTreeNode("food");
+	root.add(parent);
+	parent.add(new DefaultMutableTreeNode("hot dogs"));
+	parent.add(new DefaultMutableTreeNode("pizza"));
+	parent.add(new DefaultMutableTreeNode("ravioli"));
+	parent.add(new DefaultMutableTreeNode("bananas"));
+        return new DefaultTreeModel(root);
+!!!9178907.java!!!	createTreeModel(inout value : Object) : TreeModel
+        DefaultMutableTreeNode           root;
+
+        if((value instanceof Object[]) || (value instanceof Hashtable) ||
+           (value instanceof Vector)) {
+            root = new DefaultMutableTreeNode("root");
+            DynamicUtilTreeNode.createChildren(root, value);
+        }
+        else {
+            root = new DynamicUtilTreeNode("root", value);
+        }
+        return new DefaultTreeModel(root, false);
+!!!9179035.java!!!	JTree()
+        this(getDefaultTreeModel());
+!!!9179163.java!!!	JTree(inout value : Object)
+        this(createTreeModel(value));
+        this.setRootVisible(false);
+        this.setShowsRootHandles(true);
+        expandRoot();
+!!!9179291.java!!!	JTree(inout value : Vector)
+        this(createTreeModel(value));
+        this.setRootVisible(false);
+        this.setShowsRootHandles(true);
+        expandRoot();
+!!!9179419.java!!!	JTree(inout value : Hashtable)
+        this(createTreeModel(value));
+        this.setRootVisible(false);
+        this.setShowsRootHandles(true);
+        expandRoot();
+!!!9179547.java!!!	JTree(inout root : TreeNode)
+        this(root, false);
+!!!9179675.java!!!	JTree(inout root : TreeNode, inout asksAllowsChildren : boolean)
+        this(new DefaultTreeModel(root, asksAllowsChildren));
+!!!9179803.java!!!	JTree(inout newModel : TreeModel)
+        super();
+	expandedStack = new Stack();
+	toggleClickCount = 2;
+	expandedState = new Hashtable();
+        setLayout(null);
+        rowHeight = 16;
+        visibleRowCount = 20;
+        rootVisible = true;
+        selectionModel = new DefaultTreeSelectionModel();
+        cellRenderer = null;
+	scrollsOnExpand = true;
+        setOpaque(true);
+	expandsSelectedPaths = true;
+        updateUI();
+        setModel(newModel);
+!!!9179931.java!!!	getUI() : TreeUI
+        return (TreeUI)ui;
+!!!9180059.java!!!	setUI(inout ui : TreeUI) : void
+        if ((TreeUI)this.ui != ui) {
+	    settingUI = true;
+	    uiTreeExpansionListener = null;
+	    try {
+		super.setUI(ui);
+	    }
+	    finally {
+		settingUI = false;
+	    }
+        }
+!!!9180187.java!!!	updateUI() : void
+        setUI((TreeUI)UIManager.getUI(this));
+        invalidate();
+!!!9180315.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!9180443.java!!!	getCellRenderer() : TreeCellRenderer
+        return cellRenderer;
+!!!9180571.java!!!	setCellRenderer(inout x : TreeCellRenderer) : void
+        TreeCellRenderer oldValue = cellRenderer;
+
+        cellRenderer = x;
+        firePropertyChange(CELL_RENDERER_PROPERTY, oldValue, cellRenderer);
+        invalidate();
+!!!9180699.java!!!	setEditable(inout flag : boolean) : void
+        boolean                 oldValue = this.editable;
+
+        this.editable = flag;
+        firePropertyChange(EDITABLE_PROPERTY, oldValue, flag);
+        if (accessibleContext != null) {
+            accessibleContext.firePropertyChange(
+                AccessibleContext.ACCESSIBLE_STATE_PROPERTY, 
+                (oldValue ? AccessibleState.EDITABLE : null),
+                (flag ? AccessibleState.EDITABLE : null));
+        }
+!!!9180827.java!!!	isEditable() : boolean
+        return editable;
+!!!9180955.java!!!	setCellEditor(inout cellEditor : TreeCellEditor) : void
+        TreeCellEditor        oldEditor = this.cellEditor;
+
+        this.cellEditor = cellEditor;
+        firePropertyChange(CELL_EDITOR_PROPERTY, oldEditor, cellEditor);
+        invalidate();
+!!!9181083.java!!!	getCellEditor() : TreeCellEditor
+        return cellEditor;
+!!!9181211.java!!!	getModel() : TreeModel
+        return treeModel;
+!!!9181339.java!!!	setModel(inout newModel : TreeModel) : void
+        clearSelection();
+
+        TreeModel oldModel = treeModel;
+
+	if(treeModel != null && treeModelListener != null)
+	    treeModel.removeTreeModelListener(treeModelListener);
+
+        if (accessibleContext != null) {
+	    if (treeModel != null) {
+                treeModel.removeTreeModelListener((TreeModelListener)accessibleContext);
+	    }
+            if (newModel != null) {
+	        newModel.addTreeModelListener((TreeModelListener)accessibleContext);
+	    }
+        }
+
+        treeModel = newModel;
+	clearToggledPaths();
+	if(treeModel != null) {
+	    if(treeModelListener == null)
+		treeModelListener = createTreeModelListener();
+	    if(treeModelListener != null)
+		treeModel.addTreeModelListener(treeModelListener);
+	    // Mark the root as expanded, if it isn't a leaf.
+	    if(treeModel.getRoot() != null &&
+               !treeModel.isLeaf(treeModel.getRoot())) {
+		expandedState.put(new TreePath(treeModel.getRoot()),
+				  Boolean.TRUE);
+            }
+	}
+        firePropertyChange(TREE_MODEL_PROPERTY, oldModel, treeModel);
+        invalidate();
+!!!9181467.java!!!	isRootVisible() : boolean
+        return rootVisible;
+!!!9181595.java!!!	setRootVisible(inout rootVisible : boolean) : void
+        boolean                oldValue = this.rootVisible;
+
+        this.rootVisible = rootVisible;
+        firePropertyChange(ROOT_VISIBLE_PROPERTY, oldValue, this.rootVisible);
+        if (accessibleContext != null) {
+            ((AccessibleJTree)accessibleContext).fireVisibleDataPropertyChange();
+        }
+!!!9181723.java!!!	setShowsRootHandles(inout newValue : boolean) : void
+        boolean                oldValue = showsRootHandles;
+	TreeModel              model = getModel();
+
+        showsRootHandles = newValue;
+        showsRootHandlesSet = true;
+        firePropertyChange(SHOWS_ROOT_HANDLES_PROPERTY, oldValue,
+                           showsRootHandles);
+        if (accessibleContext != null) {
+            ((AccessibleJTree)accessibleContext).fireVisibleDataPropertyChange();
+        }
+        invalidate();
+!!!9181851.java!!!	getShowsRootHandles() : boolean
+        return showsRootHandles;
+!!!9181979.java!!!	setRowHeight(in rowHeight : int) : void
+        int                oldValue = this.rowHeight;
+
+        this.rowHeight = rowHeight;
+	rowHeightSet = true;
+        firePropertyChange(ROW_HEIGHT_PROPERTY, oldValue, this.rowHeight);
+        invalidate();
+!!!9182107.java!!!	getRowHeight() : int
+        return rowHeight;
+!!!9182235.java!!!	isFixedRowHeight() : boolean
+        return (rowHeight > 0);
+!!!9182363.java!!!	setLargeModel(inout newValue : boolean) : void
+        boolean                oldValue = largeModel;
+
+        largeModel = newValue;
+        firePropertyChange(LARGE_MODEL_PROPERTY, oldValue, newValue);
+!!!9182491.java!!!	isLargeModel() : boolean
+        return largeModel;
+!!!9182619.java!!!	setInvokesStopCellEditing(inout newValue : boolean) : void
+        boolean                  oldValue = invokesStopCellEditing;
+
+        invokesStopCellEditing = newValue;
+        firePropertyChange(INVOKES_STOP_CELL_EDITING_PROPERTY, oldValue,
+                           newValue);
+!!!9182747.java!!!	getInvokesStopCellEditing() : boolean
+        return invokesStopCellEditing;
+!!!9182875.java!!!	setScrollsOnExpand(inout newValue : boolean) : void
+	boolean           oldValue = scrollsOnExpand;
+
+	scrollsOnExpand = newValue;
+	scrollsOnExpandSet = true;
+        firePropertyChange(SCROLLS_ON_EXPAND_PROPERTY, oldValue,
+                           newValue);
+!!!9183003.java!!!	getScrollsOnExpand() : boolean
+	return scrollsOnExpand;
+!!!9183131.java!!!	setToggleClickCount(in clickCount : int) : void
+	int         oldCount = toggleClickCount;
+
+	toggleClickCount = clickCount;
+	firePropertyChange(TOGGLE_CLICK_COUNT_PROPERTY, oldCount,
+			   clickCount);
+!!!9183259.java!!!	getToggleClickCount() : int
+	return toggleClickCount;
+!!!9183387.java!!!	setExpandsSelectedPaths(inout newValue : boolean) : void
+	boolean         oldValue = expandsSelectedPaths;
+
+	expandsSelectedPaths = newValue;
+	firePropertyChange(EXPANDS_SELECTED_PATHS_PROPERTY, oldValue,
+			   newValue);
+!!!9183515.java!!!	getExpandsSelectedPaths() : boolean
+	return expandsSelectedPaths;
+!!!9183643.java!!!	setDragEnabled(inout b : boolean) : void
+        if (b && GraphicsEnvironment.isHeadless()) {
+            throw new HeadlessException();
+        }
+	dragEnabled = b;
+!!!9183771.java!!!	getDragEnabled() : boolean
+	return dragEnabled;
+!!!9183899.java!!!	isPathEditable(inout path : TreePath) : boolean
+        return isEditable();
+!!!9184027.java!!!	getToolTipText(inout event : MouseEvent) : String
+        if(event != null) {
+            Point p = event.getPoint();
+            int selRow = getRowForLocation(p.x, p.y);
+            TreeCellRenderer       r = getCellRenderer();
+
+            if(selRow != -1 && r != null) {
+                TreePath     path = getPathForRow(selRow);
+                Object       lastPath = path.getLastPathComponent();
+                Component    rComponent = r.getTreeCellRendererComponent
+                    (this, lastPath, isRowSelected(selRow),
+                     isExpanded(selRow), getModel().isLeaf(lastPath), selRow,
+                     true);
+
+                if(rComponent instanceof JComponent) {
+                    MouseEvent      newEvent;
+                    Rectangle       pathBounds = getPathBounds(path);
+
+                    p.translate(-pathBounds.x, -pathBounds.y);
+                    newEvent = new MouseEvent(rComponent, event.getID(),
+                                          event.getWhen(),
+                                              event.getModifiers(),
+                                              p.x, p.y, event.getClickCount(),
+                                              event.isPopupTrigger());
+                    
+                    return ((JComponent)rComponent).getToolTipText(newEvent);
+                }
+            }
+        }
+        return null;
+!!!9184155.java!!!	convertValueToText(inout value : Object, inout selected : boolean, inout expanded : boolean, inout leaf : boolean, in row : int, inout hasFocus : boolean) : String
+        if(value != null) {
+            String sValue = value.toString();
+            if (sValue != null) {
+                return sValue;
+            }
+        }
+        return "";
+!!!9184283.java!!!	getRowCount() : int
+        TreeUI            tree = getUI();
+
+        if(tree != null)
+            return tree.getRowCount(this);
+        return 0;
+!!!9184411.java!!!	setSelectionPath(inout path : TreePath) : void
+        getSelectionModel().setSelectionPath(path);
+!!!9184539.java!!!	setSelectionPaths(inout paths : TreePath) : void
+        getSelectionModel().setSelectionPaths(paths);
+!!!9184667.java!!!	setLeadSelectionPath(inout newPath : TreePath) : void
+	TreePath          oldValue = leadPath;
+
+	leadPath = newPath;
+	firePropertyChange(LEAD_SELECTION_PATH_PROPERTY, oldValue, newPath);
+!!!9184795.java!!!	setAnchorSelectionPath(inout newPath : TreePath) : void
+	TreePath          oldValue = anchorPath;
+
+	anchorPath = newPath;
+	firePropertyChange(ANCHOR_SELECTION_PATH_PROPERTY, oldValue, newPath);
+!!!9184923.java!!!	setSelectionRow(in row : int) : void
+        int[]             rows = { row };
+
+        setSelectionRows(rows);
+!!!9185051.java!!!	setSelectionRows(in rows : int) : void
+        TreeUI               ui = getUI();
+
+        if(ui != null && rows != null) {
+            int                  numRows = rows.length;
+            TreePath[]           paths = new TreePath[numRows];
+
+            for(int counter = 0; counter < numRows; counter++) {
+                paths[counter] = ui.getPathForRow(this, rows[counter]);
+	    }
+            setSelectionPaths(paths);
+        }
+!!!9185179.java!!!	addSelectionPath(inout path : TreePath) : void
+        getSelectionModel().addSelectionPath(path);
+!!!9185307.java!!!	addSelectionPaths(inout paths : TreePath) : void
+	getSelectionModel().addSelectionPaths(paths);
+!!!9185435.java!!!	addSelectionRow(in row : int) : void
+        int[]      rows = { row };
+
+        addSelectionRows(rows);
+!!!9185563.java!!!	addSelectionRows(in rows : int) : void
+        TreeUI             ui = getUI();
+
+        if(ui != null && rows != null) {
+            int                  numRows = rows.length;
+            TreePath[]           paths = new TreePath[numRows];
+
+            for(int counter = 0; counter < numRows; counter++)
+                paths[counter] = ui.getPathForRow(this, rows[counter]);
+            addSelectionPaths(paths);
+        }
+!!!9185691.java!!!	getLastSelectedPathComponent() : Object
+        TreePath     selPath = getSelectionModel().getSelectionPath();
+
+        if(selPath != null)
+            return selPath.getLastPathComponent();
+        return null;
+!!!9185819.java!!!	getLeadSelectionPath() : TreePath
+	return leadPath;
+!!!9185947.java!!!	getAnchorSelectionPath() : TreePath
+	return anchorPath;
+!!!9186075.java!!!	getSelectionPath() : TreePath
+        return getSelectionModel().getSelectionPath();
+!!!9186203.java!!!	getSelectionPaths() : TreePath
+        return getSelectionModel().getSelectionPaths();
+!!!9186331.java!!!	getSelectionRows() : int
+        return getSelectionModel().getSelectionRows();
+!!!9186459.java!!!	getSelectionCount() : int
+        return selectionModel.getSelectionCount();
+!!!9186587.java!!!	getMinSelectionRow() : int
+        return getSelectionModel().getMinSelectionRow();
+!!!9186715.java!!!	getMaxSelectionRow() : int
+        return getSelectionModel().getMaxSelectionRow();
+!!!9186843.java!!!	getLeadSelectionRow() : int
+	TreePath leadPath = getLeadSelectionPath();
+
+	if (leadPath != null) {
+	    return getRowForPath(leadPath);
+	}
+        return -1;
+!!!9186971.java!!!	isPathSelected(inout path : TreePath) : boolean
+        return getSelectionModel().isPathSelected(path);
+!!!9187099.java!!!	isRowSelected(in row : int) : boolean
+        return getSelectionModel().isRowSelected(row);
+!!!9187227.java!!!	getExpandedDescendants(inout parent : TreePath) : Enumeration
+	if(!isExpanded(parent))
+	    return null;
+
+	Enumeration       toggledPaths = expandedState.keys();
+	Vector            elements = null;
+	TreePath          path;
+	Object            value;
+
+	if(toggledPaths != null) {
+	    while(toggledPaths.hasMoreElements()) {
+		path = (TreePath)toggledPaths.nextElement();
+		value = expandedState.get(path);
+		// Add the path if it is expanded, a descendant of parent,
+		// and it is visible (all parents expanded). This is rather
+		// expensive!
+		if(path != parent && value != null &&
+		   ((Boolean)value).booleanValue() &&
+		   parent.isDescendant(path) && isVisible(path)) {
+		    if (elements == null) {
+			elements = new Vector();
+		    }
+		    elements.addElement(path);
+		}
+	    }
+	}
+	if (elements == null) {
+	    Set<TreePath> empty = Collections.emptySet();
+	    return Collections.enumeration(empty);
+	}
+	return elements.elements();
+!!!9187355.java!!!	hasBeenExpanded(inout path : TreePath) : boolean
+	return (path != null && expandedState.get(path) != null);
+!!!9187483.java!!!	isExpanded(inout path : TreePath) : boolean
+	if(path == null)
+	    return false;
+
+	// Is this node expanded?
+	Object          value = expandedState.get(path);
+
+	if(value == null || !((Boolean)value).booleanValue())
+	    return false;
+
+	// It is, make sure its parent is also expanded.
+	TreePath        parentPath = path.getParentPath();
+
+	if(parentPath != null)
+	    return isExpanded(parentPath);
+        return true;
+!!!9187611.java!!!	isExpanded(in row : int) : boolean
+        TreeUI                  tree = getUI();
+
+        if(tree != null) {
+	    TreePath         path = tree.getPathForRow(this, row);
+
+	    if(path != null) {
+                Boolean value = (Boolean)expandedState.get(path);
+
+                return (value != null && value.booleanValue());
+            }
+	}
+        return false;
+!!!9187739.java!!!	isCollapsed(inout path : TreePath) : boolean
+	return !isExpanded(path);
+!!!9187867.java!!!	isCollapsed(in row : int) : boolean
+	return !isExpanded(row);
+!!!9187995.java!!!	makeVisible(inout path : TreePath) : void
+        if(path != null) {
+	    TreePath        parentPath = path.getParentPath();
+
+	    if(parentPath != null) {
+		expandPath(parentPath);
+	    }
+        }
+!!!9188123.java!!!	isVisible(inout path : TreePath) : boolean
+        if(path != null) {
+	    TreePath        parentPath = path.getParentPath();
+
+	    if(parentPath != null)
+		return isExpanded(parentPath);
+	    // Root.
+	    return true;
+	}
+        return false;
+!!!9188251.java!!!	getPathBounds(inout path : TreePath) : Rectangle
+        TreeUI                   tree = getUI();
+
+        if(tree != null)
+            return tree.getPathBounds(this, path);
+        return null;
+!!!9188379.java!!!	getRowBounds(in row : int) : Rectangle
+	return getPathBounds(getPathForRow(row));
+!!!9188507.java!!!	scrollPathToVisible(inout path : TreePath) : void
+	if(path != null) {
+	    makeVisible(path);
+
+	    Rectangle          bounds = getPathBounds(path);
+
+	    if(bounds != null) {
+		scrollRectToVisible(bounds);
+		if (accessibleContext != null) {
+		    ((AccessibleJTree)accessibleContext).fireVisibleDataPropertyChange();
+		}
+	    }
+	}
+!!!9188635.java!!!	scrollRowToVisible(in row : int) : void
+	scrollPathToVisible(getPathForRow(row));
+!!!9188763.java!!!	getPathForRow(in row : int) : TreePath
+        TreeUI                  tree = getUI();
+
+        if(tree != null)
+            return tree.getPathForRow(this, row);
+        return null;
+!!!9188891.java!!!	getRowForPath(inout path : TreePath) : int
+        TreeUI                  tree = getUI();
+
+        if(tree != null)
+            return tree.getRowForPath(this, path);
+        return -1;
+!!!9189019.java!!!	expandPath(inout path : TreePath) : void
+	// Only expand if not leaf!
+	TreeModel          model = getModel();
+
+	if(path != null && model != null && 
+	   !model.isLeaf(path.getLastPathComponent())) {
+	    setExpandedState(path, true);
+	}
+!!!9189147.java!!!	expandRow(in row : int) : void
+	expandPath(getPathForRow(row));
+!!!9189275.java!!!	collapsePath(inout path : TreePath) : void
+	setExpandedState(path, false);
+!!!9189403.java!!!	collapseRow(in row : int) : void
+	collapsePath(getPathForRow(row));
+!!!9189531.java!!!	getPathForLocation(in x : int, in y : int) : TreePath
+        TreePath          closestPath = getClosestPathForLocation(x, y);
+
+        if(closestPath != null) {
+            Rectangle       pathBounds = getPathBounds(closestPath);
+
+            if(pathBounds != null &&
+               x >= pathBounds.x && x < (pathBounds.x + pathBounds.width) &&
+               y >= pathBounds.y && y < (pathBounds.y + pathBounds.height))
+                return closestPath;
+        }
+        return null;
+!!!9189659.java!!!	getRowForLocation(in x : int, in y : int) : int
+	return getRowForPath(getPathForLocation(x, y));
+!!!9189787.java!!!	getClosestPathForLocation(in x : int, in y : int) : TreePath
+        TreeUI                  tree = getUI();
+
+        if(tree != null)
+            return tree.getClosestPathForLocation(this, x, y);
+        return null;
+!!!9189915.java!!!	getClosestRowForLocation(in x : int, in y : int) : int
+	return getRowForPath(getClosestPathForLocation(x, y));
+!!!9190043.java!!!	isEditing() : boolean
+        TreeUI                  tree = getUI();
+
+        if(tree != null)
+            return tree.isEditing(this);
+        return false;
+!!!9190171.java!!!	stopEditing() : boolean
+        TreeUI                  tree = getUI();
+
+        if(tree != null)
+            return tree.stopEditing(this);
+        return false;
+!!!9190299.java!!!	cancelEditing() : void
+        TreeUI                  tree = getUI();
+
+        if(tree != null)
+	    tree.cancelEditing(this);
+!!!9190427.java!!!	startEditingAtPath(inout path : TreePath) : void
+        TreeUI                  tree = getUI();
+
+        if(tree != null)
+            tree.startEditingAtPath(this, path);
+!!!9190555.java!!!	getEditingPath() : TreePath
+        TreeUI                  tree = getUI();
+
+        if(tree != null)
+            return tree.getEditingPath(this);
+        return null;
+!!!9190683.java!!!	setSelectionModel(inout selectionModel : TreeSelectionModel) : void
+        if(selectionModel == null)
+            selectionModel = EmptySelectionModel.sharedInstance();
+
+        TreeSelectionModel         oldValue = this.selectionModel;
+
+	if (this.selectionModel != null && selectionRedirector != null) {
+            this.selectionModel.removeTreeSelectionListener
+		                (selectionRedirector);
+	}
+        if (accessibleContext != null) {
+           this.selectionModel.removeTreeSelectionListener((TreeSelectionListener)accessibleContext);
+           selectionModel.addTreeSelectionListener((TreeSelectionListener)accessibleContext);
+        }
+
+        this.selectionModel = selectionModel;
+	if (selectionRedirector != null) {
+            this.selectionModel.addTreeSelectionListener(selectionRedirector);
+	}
+        firePropertyChange(SELECTION_MODEL_PROPERTY, oldValue,
+                           this.selectionModel);
+
+        if (accessibleContext != null) {
+            accessibleContext.firePropertyChange(
+                    AccessibleContext.ACCESSIBLE_SELECTION_PROPERTY,
+                    Boolean.valueOf(false), Boolean.valueOf(true));
+        }
+!!!9190811.java!!!	getSelectionModel() : TreeSelectionModel
+        return selectionModel;
+!!!9190939.java!!!	getPathBetweenRows(in index0 : int, in index1 : int) : TreePath
+        int              newMinIndex, newMaxIndex;
+        TreeUI           tree = getUI();
+
+        newMinIndex = Math.min(index0, index1);
+        newMaxIndex = Math.max(index0, index1);
+
+        if(tree != null) {
+            TreePath[]            selection = new TreePath[newMaxIndex -
+                                                            newMinIndex + 1];
+
+            for(int counter = newMinIndex; counter <= newMaxIndex; counter++)
+                selection[counter - newMinIndex] = tree.getPathForRow(this,
+								      counter);
+            return selection;
+        }
+        return null;
+!!!9191067.java!!!	setSelectionInterval(in index0 : int, in index1 : int) : void
+        TreePath[]         paths = getPathBetweenRows(index0, index1);
+
+        this.getSelectionModel().setSelectionPaths(paths);
+!!!9191195.java!!!	addSelectionInterval(in index0 : int, in index1 : int) : void
+        TreePath[]         paths = getPathBetweenRows(index0, index1);
+
+        this.getSelectionModel().addSelectionPaths(paths);
+!!!9191323.java!!!	removeSelectionInterval(in index0 : int, in index1 : int) : void
+        TreePath[]         paths = getPathBetweenRows(index0, index1);
+
+        this.getSelectionModel().removeSelectionPaths(paths);
+!!!9191451.java!!!	removeSelectionPath(inout path : TreePath) : void
+        this.getSelectionModel().removeSelectionPath(path);
+!!!9191579.java!!!	removeSelectionPaths(inout paths : TreePath) : void
+        this.getSelectionModel().removeSelectionPaths(paths);
+!!!9191707.java!!!	removeSelectionRow(in row : int) : void
+        int[]             rows = { row };
+
+        removeSelectionRows(rows);
+!!!9191835.java!!!	removeSelectionRows(in rows : int) : void
+        TreeUI             ui = getUI();
+
+        if(ui != null && rows != null) {
+            int                  numRows = rows.length;
+            TreePath[]           paths = new TreePath[numRows];
+
+            for(int counter = 0; counter < numRows; counter++)
+                paths[counter] = ui.getPathForRow(this, rows[counter]);
+            removeSelectionPaths(paths);
+        }
+!!!9191963.java!!!	clearSelection() : void
+        getSelectionModel().clearSelection();
+!!!9192091.java!!!	isSelectionEmpty() : boolean
+        return getSelectionModel().isSelectionEmpty();
+!!!9192219.java!!!	addTreeExpansionListener(inout tel : TreeExpansionListener) : void
+	if (settingUI) {
+	    uiTreeExpansionListener = tel;
+	}
+        listenerList.add(TreeExpansionListener.class, tel);
+!!!9192347.java!!!	removeTreeExpansionListener(inout tel : TreeExpansionListener) : void
+        listenerList.remove(TreeExpansionListener.class, tel);
+	if (uiTreeExpansionListener == tel) {
+	    uiTreeExpansionListener = null;
+	}
+!!!9192475.java!!!	getTreeExpansionListeners() : TreeExpansionListener
+        return (TreeExpansionListener[])listenerList.getListeners(
+                TreeExpansionListener.class);
+!!!9192603.java!!!	addTreeWillExpandListener(inout tel : TreeWillExpandListener) : void
+        listenerList.add(TreeWillExpandListener.class, tel);
+!!!9192731.java!!!	removeTreeWillExpandListener(inout tel : TreeWillExpandListener) : void
+        listenerList.remove(TreeWillExpandListener.class, tel);
+!!!9192859.java!!!	getTreeWillExpandListeners() : TreeWillExpandListener
+        return (TreeWillExpandListener[])listenerList.getListeners(
+                TreeWillExpandListener.class);
+!!!9192987.java!!!	fireTreeExpanded(inout path : TreePath) : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        TreeExpansionEvent e = null;
+	if (uiTreeExpansionListener != null) {
+	    e = new TreeExpansionEvent(this, path);
+	    uiTreeExpansionListener.treeExpanded(e);
+	}
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==TreeExpansionListener.class &&
+		listeners[i + 1] != uiTreeExpansionListener) {
+                // Lazily create the event:
+                if (e == null)
+                    e = new TreeExpansionEvent(this, path);
+                ((TreeExpansionListener)listeners[i+1]).
+                    treeExpanded(e);
+            }          
+        }
+!!!9193115.java!!!	fireTreeCollapsed(inout path : TreePath) : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        TreeExpansionEvent e = null;
+	if (uiTreeExpansionListener != null) {
+	    e = new TreeExpansionEvent(this, path);
+	    uiTreeExpansionListener.treeCollapsed(e);
+	}
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==TreeExpansionListener.class &&
+		listeners[i + 1] != uiTreeExpansionListener) {
+                // Lazily create the event:
+                if (e == null)
+                    e = new TreeExpansionEvent(this, path);
+                ((TreeExpansionListener)listeners[i+1]).
+                    treeCollapsed(e);
+            }          
+        }
+!!!9193243.java!!!	fireTreeWillExpand(inout path : TreePath) : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        TreeExpansionEvent e = null;
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==TreeWillExpandListener.class) {
+                // Lazily create the event:
+                if (e == null)
+                    e = new TreeExpansionEvent(this, path);
+                ((TreeWillExpandListener)listeners[i+1]).
+                    treeWillExpand(e);
+            }          
+        }
+!!!9193371.java!!!	fireTreeWillCollapse(inout path : TreePath) : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        TreeExpansionEvent e = null;
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==TreeWillExpandListener.class) {
+                // Lazily create the event:
+                if (e == null)
+                    e = new TreeExpansionEvent(this, path);
+                ((TreeWillExpandListener)listeners[i+1]).
+                    treeWillCollapse(e);
+            }          
+        }
+!!!9193499.java!!!	addTreeSelectionListener(inout tsl : TreeSelectionListener) : void
+        listenerList.add(TreeSelectionListener.class,tsl);
+        if(listenerList.getListenerCount(TreeSelectionListener.class) != 0
+           && selectionRedirector == null) {
+            selectionRedirector = new TreeSelectionRedirector();
+            selectionModel.addTreeSelectionListener(selectionRedirector);
+        }
+!!!9193627.java!!!	removeTreeSelectionListener(inout tsl : TreeSelectionListener) : void
+        listenerList.remove(TreeSelectionListener.class,tsl);
+        if(listenerList.getListenerCount(TreeSelectionListener.class) == 0
+           && selectionRedirector != null) {
+            selectionModel.removeTreeSelectionListener
+                (selectionRedirector);
+            selectionRedirector = null;
+        }
+!!!9193755.java!!!	getTreeSelectionListeners() : TreeSelectionListener
+        return (TreeSelectionListener[])listenerList.getListeners(
+                TreeSelectionListener.class);
+!!!9193883.java!!!	fireValueChanged(inout e : TreeSelectionEvent) : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            // TreeSelectionEvent e = null;
+            if (listeners[i]==TreeSelectionListener.class) {
+                // Lazily create the event:
+                // if (e == null)
+                // e = new ListSelectionEvent(this, firstIndex, lastIndex);
+                ((TreeSelectionListener)listeners[i+1]).valueChanged(e);
+            }          
+        }
+!!!9194011.java!!!	treeDidChange() : void
+        revalidate();
+        repaint();
+!!!9194139.java!!!	setVisibleRowCount(in newCount : int) : void
+        int                 oldCount = visibleRowCount;
+
+        visibleRowCount = newCount;
+        firePropertyChange(VISIBLE_ROW_COUNT_PROPERTY, oldCount,
+                           visibleRowCount);
+        invalidate();
+        if (accessibleContext != null) {
+            ((AccessibleJTree)accessibleContext).fireVisibleDataPropertyChange();
+        }
+!!!9194267.java!!!	getVisibleRowCount() : int
+        return visibleRowCount;
+!!!9194395.java!!!	expandRoot() : void
+	TreeModel              model = getModel();
+
+	if(model != null && model.getRoot() != null) {
+	    expandPath(new TreePath(model.getRoot()));
+	}
+!!!9194523.java!!!	getNextMatch(in prefix : String, in startingRow : int, inout bias : Bias) : TreePath
+
+        int max = getRowCount();
+	if (prefix == null) {
+	    throw new IllegalArgumentException();
+	}
+	if (startingRow < 0 || startingRow >= max) {
+	    throw new IllegalArgumentException();
+	}
+	prefix = prefix.toUpperCase();
+
+	// start search from the next/previous element froom the 
+	// selected element
+	int increment = (bias == Position.Bias.Forward) ? 1 : -1;
+	int row = startingRow;
+	do {
+	    TreePath path = getPathForRow(row);
+	    String text = convertValueToText(
+	        path.getLastPathComponent(), isRowSelected(row),
+		isExpanded(row), true, row, false);
+	    
+	    if (text.toUpperCase().startsWith(prefix)) {
+		return path;
+	    }
+	    row = (row + increment + max) % max;
+	} while (row != startingRow);
+	return null;
+!!!9194651.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        Vector      values = new Vector();
+
+        s.defaultWriteObject();
+        // Save the cellRenderer, if its Serializable.
+        if(cellRenderer != null && cellRenderer instanceof Serializable) {
+            values.addElement("cellRenderer");
+            values.addElement(cellRenderer);
+        }
+        // Save the cellEditor, if its Serializable.
+        if(cellEditor != null && cellEditor instanceof Serializable) {
+            values.addElement("cellEditor");
+            values.addElement(cellEditor);
+        }
+        // Save the treeModel, if its Serializable.
+        if(treeModel != null && treeModel instanceof Serializable) {
+            values.addElement("treeModel");
+            values.addElement(treeModel);
+        }
+        // Save the selectionModel, if its Serializable.
+        if(selectionModel != null && selectionModel instanceof Serializable) {
+            values.addElement("selectionModel");
+            values.addElement(selectionModel);
+        }
+
+	Object      expandedData = getArchivableExpandedState();
+
+	if(expandedData != null) {
+            values.addElement("expandedState");
+            values.addElement(expandedData);
+	}
+
+        s.writeObject(values);
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!9194779.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+
+	// Create an instance of expanded state.
+
+	expandedState = new Hashtable();
+
+	expandedStack = new Stack();
+
+        Vector          values = (Vector)s.readObject();
+        int             indexCounter = 0;
+        int             maxCounter = values.size();
+
+        if(indexCounter < maxCounter && values.elementAt(indexCounter).
+           equals("cellRenderer")) {
+            cellRenderer = (TreeCellRenderer)values.elementAt(++indexCounter);
+            indexCounter++;
+        }
+        if(indexCounter < maxCounter && values.elementAt(indexCounter).
+           equals("cellEditor")) {
+            cellEditor = (TreeCellEditor)values.elementAt(++indexCounter);
+            indexCounter++;
+        }
+        if(indexCounter < maxCounter && values.elementAt(indexCounter).
+           equals("treeModel")) {
+            treeModel = (TreeModel)values.elementAt(++indexCounter);
+            indexCounter++;
+        }
+        if(indexCounter < maxCounter && values.elementAt(indexCounter).
+           equals("selectionModel")) {
+            selectionModel = (TreeSelectionModel)values.elementAt(++indexCounter);
+            indexCounter++;
+        }
+        if(indexCounter < maxCounter && values.elementAt(indexCounter).
+           equals("expandedState")) {
+	    unarchiveExpandedState(values.elementAt(++indexCounter));
+            indexCounter++;
+        }
+	// Reinstall the redirector.
+        if(listenerList.getListenerCount(TreeSelectionListener.class) != 0) {
+            selectionRedirector = new TreeSelectionRedirector();
+            selectionModel.addTreeSelectionListener(selectionRedirector);
+        }
+	// Listener to TreeModel.
+	if(treeModel != null) {
+	    treeModelListener = createTreeModelListener();
+	    if(treeModelListener != null)
+		treeModel.addTreeModelListener(treeModelListener);
+	}
+!!!9194907.java!!!	getArchivableExpandedState() : Object
+	TreeModel       model = getModel();
+
+	if(model != null) {
+	    Enumeration        paths = expandedState.keys();
+
+	    if(paths != null) {
+		Vector         state = new Vector();
+
+		while(paths.hasMoreElements()) {
+		    TreePath   path = (TreePath)paths.nextElement();
+		    Object     archivePath;
+
+		    try {
+			archivePath = getModelIndexsForPath(path);
+		    } catch (Error error) {
+			archivePath = null;
+		    }
+		    if(archivePath != null) {
+			state.addElement(archivePath);
+			state.addElement(expandedState.get(path));
+		    }
+		}
+		return state;
+	    }
+	}
+	return null;
+!!!9195035.java!!!	unarchiveExpandedState(inout state : Object) : void
+	if(state instanceof Vector) {
+	    Vector          paths = (Vector)state;
+
+	    for(int counter = paths.size() - 1; counter >= 0; counter--) {
+		Boolean        eState = (Boolean)paths.elementAt(counter--);
+		TreePath       path;
+
+		try {
+		    path = getPathForIndexs((int[])paths.elementAt(counter));
+		    if(path != null)
+			expandedState.put(path, eState);
+		} catch (Error error) {}
+	    }
+	}
+!!!9195163.java!!!	getModelIndexsForPath(inout path : TreePath) : int
+	if(path != null) {
+	    TreeModel   model = getModel();
+	    int         count = path.getPathCount();
+	    int[]       indexs = new int[count - 1];
+	    Object      parent = model.getRoot();
+
+	    for(int counter = 1; counter < count; counter++) {
+		indexs[counter - 1] = model.getIndexOfChild
+			           (parent, path.getPathComponent(counter));
+		parent = path.getPathComponent(counter);
+		if(indexs[counter - 1] < 0)
+		    return null;
+	    }
+	    return indexs;
+	}
+	return null;
+!!!9195291.java!!!	getPathForIndexs(in indexs : int) : TreePath
+	if(indexs == null)
+	    return null;
+
+	TreeModel    model = getModel();
+
+	if(model == null)
+	    return null;
+
+	int          count = indexs.length;
+	Object       parent = model.getRoot();
+	TreePath     parentPath = new TreePath(parent);
+
+	for(int counter = 0; counter < count; counter++) {
+	    parent = model.getChild(parent, indexs[counter]);
+	    if(parent == null)
+		return null;
+	    parentPath = parentPath.pathByAddingChild(parent);
+	}
+	return parentPath;
+!!!9205147.java!!!	getPreferredScrollableViewportSize() : Dimension
+        int                 width = getPreferredSize().width;
+        int                 visRows = getVisibleRowCount();
+        int                 height = -1;
+
+        if(isFixedRowHeight())
+            height = visRows * getRowHeight();
+        else {
+            TreeUI          ui = getUI();
+
+            if (ui != null && visRows > 0) {
+                int rc = ui.getRowCount(this);
+
+                if (rc >= visRows) {
+                    Rectangle bounds = getRowBounds(visRows - 1);
+                    if (bounds != null) {
+                        height = bounds.y + bounds.height;
+                    }
+                }
+                else if (rc > 0) {
+                    Rectangle bounds = getRowBounds(0);
+                    if (bounds != null) {
+                        height = bounds.height * visRows;
+                    }
+                }
+            }
+            if (height == -1) {
+                height = 16 * visRows;
+            }
+        }
+        return new Dimension(width, height);
+!!!9205275.java!!!	getScrollableUnitIncrement(inout visibleRect : Rectangle, in orientation : int, in direction : int) : int
+        if(orientation == SwingConstants.VERTICAL) {
+            Rectangle       rowBounds;
+            int             firstIndex = getClosestRowForLocation
+                                         (0, visibleRect.y);
+
+            if(firstIndex != -1) {
+                rowBounds = getRowBounds(firstIndex);
+                if(rowBounds.y != visibleRect.y) {
+                    if(direction < 0) {
+                        // UP
+                        return Math.max(0, (visibleRect.y - rowBounds.y));
+                    }
+                    return (rowBounds.y + rowBounds.height - visibleRect.y);
+                }
+                if(direction < 0) { // UP
+                    if(firstIndex != 0) {
+                        rowBounds = getRowBounds(firstIndex - 1);
+                        return rowBounds.height;
+                    }
+                }
+                else {
+                    return rowBounds.height;
+                }
+            }
+            return 0;
+        }
+        return 4;
+!!!9205403.java!!!	getScrollableBlockIncrement(inout visibleRect : Rectangle, in orientation : int, in direction : int) : int
+        return (orientation == SwingConstants.VERTICAL) ? visibleRect.height :
+            visibleRect.width;
+!!!9205531.java!!!	getScrollableTracksViewportWidth() : boolean
+	if (getParent() instanceof JViewport) {
+	    return (((JViewport)getParent()).getWidth() > getPreferredSize().width);
+	}
+	return false;
+!!!9205659.java!!!	getScrollableTracksViewportHeight() : boolean
+	if (getParent() instanceof JViewport) {
+	    return (((JViewport)getParent()).getHeight() > getPreferredSize().height);
+	}
+	return false;
+!!!9205787.java!!!	setExpandedState(inout path : TreePath, inout state : boolean) : void
+	if(path != null) {
+	    // Make sure all parents of path are expanded.
+	    Stack         stack;
+	    TreePath      parentPath = path.getParentPath();
+
+	    if (expandedStack.size() == 0) {
+		stack = new Stack();
+	    }
+	    else {
+		stack = (Stack)expandedStack.pop();
+	    }
+
+	    try {
+		while(parentPath != null) {
+		    if(isExpanded(parentPath)) {
+			parentPath = null;
+		    }
+		    else {
+			stack.push(parentPath);
+			parentPath = parentPath.getParentPath();
+		    }
+		}
+		for(int counter = stack.size() - 1; counter >= 0; counter--) {
+		    parentPath = (TreePath)stack.pop();
+		    if(!isExpanded(parentPath)) {
+			try {
+			    fireTreeWillExpand(parentPath);
+			} catch (ExpandVetoException eve) {
+			    // Expand vetoed!
+			    return;
+			}
+			expandedState.put(parentPath, Boolean.TRUE);
+			fireTreeExpanded(parentPath);
+			if (accessibleContext != null) {
+			    ((AccessibleJTree)accessibleContext).
+			                      fireVisibleDataPropertyChange();
+			}
+		    }
+		}
+	    }
+	    finally {
+		if (expandedStack.size() < TEMP_STACK_SIZE) {
+		    stack.removeAllElements();
+		    expandedStack.push(stack);
+		}
+	    }
+	    if(!state) {
+		// collapse last path.
+		Object          cValue = expandedState.get(path);
+
+		if(cValue != null && ((Boolean)cValue).booleanValue()) {
+		    try {
+			fireTreeWillCollapse(path);
+		    }
+		    catch (ExpandVetoException eve) {
+			return;
+		    }
+		    expandedState.put(path, Boolean.FALSE);
+		    fireTreeCollapsed(path);
+		    if (removeDescendantSelectedPaths(path, false) &&
+			!isPathSelected(path)) {
+			// A descendant was selected, select the parent.
+			addSelectionPath(path);
+		    }
+		    if (accessibleContext != null) {
+			((AccessibleJTree)accessibleContext).
+			            fireVisibleDataPropertyChange();
+		    }
+		}
+	    }
+	    else {
+		// Expand last path.
+		Object          cValue = expandedState.get(path);
+
+		if(cValue == null || !((Boolean)cValue).booleanValue()) {
+		    try {
+			fireTreeWillExpand(path);
+		    }
+		    catch (ExpandVetoException eve) {
+			return;
+		    }
+		    expandedState.put(path, Boolean.TRUE);
+		    fireTreeExpanded(path);
+		    if (accessibleContext != null) {
+			((AccessibleJTree)accessibleContext).
+			                  fireVisibleDataPropertyChange();
+		    }
+		}
+	    }
+	}
+!!!9205915.java!!!	getDescendantToggledPaths(inout parent : TreePath) : Enumeration
+	if(parent == null)
+	    return null;
+
+	Vector            descendants = new Vector();
+	Enumeration       nodes = expandedState.keys();
+	TreePath          path;
+
+	while(nodes.hasMoreElements()) {
+	    path = (TreePath)nodes.nextElement();
+	    if(parent.isDescendant(path))
+		descendants.addElement(path);
+	}
+	return descendants.elements();
+!!!9206043.java!!!	removeDescendantToggledPaths(inout toRemove : Enumeration) : void
+	 if(toRemove != null) {
+	     while(toRemove.hasMoreElements()) {
+		 Enumeration         descendants = getDescendantToggledPaths
+		                         ((TreePath)toRemove.nextElement());
+
+		 if(descendants != null) {
+		     while(descendants.hasMoreElements()) {
+			 expandedState.remove(descendants.nextElement());
+		     }
+		 }
+	     }
+	 }
+!!!9206171.java!!!	clearToggledPaths() : void
+	 expandedState.clear();
+!!!9206299.java!!!	createTreeModelListener() : TreeModelListener
+	 return new TreeModelHandler();
+!!!9206427.java!!!	removeDescendantSelectedPaths(inout path : TreePath, inout includePath : boolean) : boolean
+	TreePath[]    toRemove = getDescendantSelectedPaths(path, includePath);
+
+	if (toRemove != null) {
+	    getSelectionModel().removeSelectionPaths(toRemove);
+	    return true;
+	}
+	return false;
+!!!9206555.java!!!	getDescendantSelectedPaths(inout path : TreePath, inout includePath : boolean) : TreePath
+	TreeSelectionModel   sm = getSelectionModel();
+	TreePath[]           selPaths = (sm != null) ? sm.getSelectionPaths() :
+	                                null;
+
+	if(selPaths != null) {
+	    boolean        shouldRemove = false;
+
+	    for(int counter = selPaths.length - 1; counter >= 0; counter--) {
+		if(selPaths[counter] != null &&
+		   path.isDescendant(selPaths[counter]) &&
+		   (!path.equals(selPaths[counter]) || includePath))
+		    shouldRemove = true;
+		else
+		    selPaths[counter] = null;
+	    }
+	    if(!shouldRemove) {
+		selPaths = null;
+	    }
+	    return selPaths;
+	}
+	return null;
+!!!9206683.java!!!	removeDescendantSelectedPaths(inout e : TreeModelEvent) : void
+	TreePath            pPath = e.getTreePath();
+	Object[]            oldChildren = e.getChildren();
+	TreeSelectionModel  sm = getSelectionModel();
+
+	if (sm != null && pPath != null && oldChildren != null &&
+	    oldChildren.length > 0) {
+	    for (int counter = oldChildren.length - 1; counter >= 0;
+		 counter--) {
+		// Might be better to call getDescendantSelectedPaths
+		// numerous times, then push to the model.
+		removeDescendantSelectedPaths(pPath.pathByAddingChild
+					      (oldChildren[counter]), true);
+	    }
+	}
+!!!9218331.java!!!	setUIProperty(in propertyName : String, inout value : Object) : void
+        if (propertyName == "rowHeight") {
+	    if (!rowHeightSet) {
+		setRowHeight(((Number)value).intValue());
+		rowHeightSet = false;
+	    }
+	} else if (propertyName == "scrollsOnExpand") {
+	    if (!scrollsOnExpandSet) {
+		setScrollsOnExpand(((Boolean)value).booleanValue());
+		scrollsOnExpandSet = false;
+	    }
+	} else if (propertyName == "showsRootHandles") {
+            if (!showsRootHandlesSet) {
+                setShowsRootHandles(((Boolean)value).booleanValue());
+                showsRootHandlesSet = false;
+            }
+        } else {
+	    super.setUIProperty(propertyName, value);
+	}
+!!!9218459.java!!!	paramString() : String
+        String rootVisibleString = (rootVisible ?
+                                    "true" : "false");
+        String showsRootHandlesString = (showsRootHandles ?
+					 "true" : "false");
+        String editableString = (editable ?
+				 "true" : "false");
+        String largeModelString = (largeModel ?
+				   "true" : "false");
+        String invokesStopCellEditingString = (invokesStopCellEditing ?
+					       "true" : "false");
+        String scrollsOnExpandString = (scrollsOnExpand ?
+					"true" : "false");
+
+        return super.paramString() +
+        ",editable=" + editableString +
+        ",invokesStopCellEditing=" + invokesStopCellEditingString +
+        ",largeModel=" + largeModelString +
+        ",rootVisible=" + rootVisibleString +
+        ",rowHeight=" + rowHeight +
+        ",scrollsOnExpand=" + scrollsOnExpandString +
+        ",showsRootHandles=" + showsRootHandlesString +
+        ",toggleClickCount=" + toggleClickCount +
+        ",visibleRowCount=" + visibleRowCount;
+!!!9218587.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJTree();
+        }
+        return accessibleContext;

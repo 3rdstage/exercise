@@ -1,0 +1,111 @@
+class DefaultErrorHandler
+!!!5781659.java!!!	DefaultErrorHandler(inout pw : PrintWriter)
+    m_pw = pw;
+!!!5781787.java!!!	DefaultErrorHandler(inout pw : PrintStream)
+    m_pw = new PrintWriter(pw, true);
+!!!5781915.java!!!	DefaultErrorHandler()
+    m_pw = new PrintWriter(System.err, true);
+!!!5782043.java!!!	warning(inout exception : SAXParseException) : void
+    printLocation(m_pw, exception);
+    m_pw.println("Parser warning: " + exception.getMessage());
+!!!5782171.java!!!	error(inout exception : SAXParseException) : void
+    //printLocation(exception);
+    // m_pw.println(exception.getMessage());
+
+    throw exception;
+!!!5782299.java!!!	fatalError(inout exception : SAXParseException) : void
+    // printLocation(exception);
+    // m_pw.println(exception.getMessage());
+
+    throw exception;
+!!!5782427.java!!!	warning(inout exception : TransformerException) : void
+    printLocation(m_pw, exception);
+
+    m_pw.println(exception.getMessage());
+!!!5782555.java!!!	error(inout exception : TransformerException) : void
+    // printLocation(exception);
+    // ensureLocationSet(exception);
+    
+    printLocation(m_pw, exception);
+    m_pw.println(exception.getMessage());
+
+    //throw exception;
+!!!5782683.java!!!	fatalError(inout exception : TransformerException) : void
+    // printLocation(exception);
+    // ensureLocationSet(exception);
+
+    throw exception;
+!!!5782811.java!!!	ensureLocationSet(inout exception : TransformerException) : void
+    // SourceLocator locator = exception.getLocator();
+    SourceLocator locator = null;
+    Throwable cause = exception;
+    
+    // Try to find the locator closest to the cause.
+    do
+    {
+      if(cause instanceof SAXParseException)
+      {
+        locator = new SAXSourceLocator((SAXParseException)cause);
+      }
+      else if (cause instanceof TransformerException)
+      {
+        SourceLocator causeLocator = ((TransformerException)cause).getLocator();
+        if(null != causeLocator)
+          locator = causeLocator;
+      }
+      
+      if(cause instanceof TransformerException)
+        cause = ((TransformerException)cause).getCause();
+      else if(cause instanceof SAXException)
+        cause = ((SAXException)cause).getException();
+      else
+        cause = null;
+    }
+    while(null != cause);
+    
+    exception.setLocator(locator);
+!!!5782939.java!!!	printLocation(inout pw : PrintStream, inout exception : TransformerException) : void
+    printLocation(new PrintWriter(pw), exception);
+!!!5783067.java!!!	printLocation(inout pw : PrintStream, inout exception : SAXParseException) : void
+    printLocation(new PrintWriter(pw), exception);
+!!!5783195.java!!!	printLocation(inout pw : PrintWriter, inout exception : Throwable) : void
+    SourceLocator locator = null;
+    Throwable cause = exception;
+    
+    // Try to find the locator closest to the cause.
+    do
+    {
+      if(cause instanceof SAXParseException)
+      {
+        locator = new SAXSourceLocator((SAXParseException)cause);
+      }
+      else if (cause instanceof TransformerException)
+      {
+        SourceLocator causeLocator = ((TransformerException)cause).getLocator();
+        if(null != causeLocator)
+          locator = causeLocator;
+      }
+      if(cause instanceof TransformerException)
+        cause = ((TransformerException)cause).getCause();
+      else if(cause instanceof WrappedRuntimeException)
+        cause = ((WrappedRuntimeException)cause).getException();
+      else if(cause instanceof SAXException)
+        cause = ((SAXException)cause).getException();
+      else
+        cause = null;
+    }
+    while(null != cause);
+        
+    if(null != locator)
+    {
+      // m_pw.println("Parser fatal error: "+exception.getMessage());
+      String id = (null != locator.getPublicId() )
+                  ? locator.getPublicId()
+                    : (null != locator.getSystemId())
+                      ? locator.getSystemId() : XMLMessages.createXMLMessage(XMLErrorResources.ER_SYSTEMID_UNKNOWN, null); //"SystemId Unknown";
+
+      pw.print(id + "; " +XMLMessages.createXMLMessage("line", null) + locator.getLineNumber()
+                         + "; " +XMLMessages.createXMLMessage("column", null) + locator.getColumnNumber()+"; ");
+    }
+    else
+      pw.print("("+XMLMessages.createXMLMessage(XMLErrorResources.ER_LOCATION_UNKNOWN, null)+")");

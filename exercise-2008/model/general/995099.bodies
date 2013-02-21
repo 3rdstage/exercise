@@ -1,0 +1,89 @@
+class Sync
+!!!7931675.java!!!	Sync(inout callable : Callable)
+            this.callable = callable;
+!!!7931803.java!!!	ranOrCancelled(in state : int) : boolean
+            return (state & (RAN | CANCELLED)) != 0;
+!!!7931931.java!!!	tryAcquireShared(in ignore : int) : int
+            return innerIsDone()? 1 : -1;
+!!!7932059.java!!!	tryReleaseShared(in ignore : int) : boolean
+            runner = null;
+            return true; 
+!!!7932187.java!!!	innerIsCancelled() : boolean
+            return getState() == CANCELLED;
+!!!7932315.java!!!	innerIsDone() : boolean
+            return ranOrCancelled(getState()) && runner == null;
+!!!7932443.java!!!	innerGet() : V
+            acquireSharedInterruptibly(0);
+            if (getState() == CANCELLED)
+                throw new CancellationException();
+            if (exception != null)
+                throw new ExecutionException(exception);
+            return result;
+!!!7932571.java!!!	innerGet(in nanosTimeout : long) : V
+            if (!tryAcquireSharedNanos(0, nanosTimeout))
+                throw new TimeoutException();                
+            if (getState() == CANCELLED)
+                throw new CancellationException();
+            if (exception != null)
+                throw new ExecutionException(exception);
+            return result;
+!!!7932699.java!!!	innerSet(inout v : V) : void
+	    for (;;) {
+		int s = getState();
+		if (ranOrCancelled(s))
+		    return;
+		if (compareAndSetState(s, RAN))
+		    break;
+	    }
+            result = v;
+            releaseShared(0);
+            done();
+!!!7932827.java!!!	innerSetException(inout t : Throwable) : void
+	    for (;;) {
+		int s = getState();
+		if (ranOrCancelled(s))
+		    return;
+		if (compareAndSetState(s, RAN))
+		    break;
+	    }
+            exception = t;
+            result = null;
+            releaseShared(0);
+            done();
+!!!7932955.java!!!	innerCancel(inout mayInterruptIfRunning : boolean) : boolean
+	    for (;;) {
+		int s = getState();
+		if (ranOrCancelled(s))
+		    return false;
+		if (compareAndSetState(s, CANCELLED))
+		    break;
+	    }
+            if (mayInterruptIfRunning) {
+                Thread r = runner;
+                if (r != null)
+                    r.interrupt();
+            }
+            releaseShared(0);
+            done();
+            return true;
+!!!7933083.java!!!	innerRun() : void
+            if (!compareAndSetState(0, RUNNING)) 
+                return;
+            try {
+                runner = Thread.currentThread();
+                innerSet(callable.call());
+            } catch(Throwable ex) {
+                innerSetException(ex);
+            } 
+!!!7933211.java!!!	innerRunAndReset() : boolean
+            if (!compareAndSetState(0, RUNNING)) 
+                return false;
+            try {
+                runner = Thread.currentThread();
+                callable.call(); // don't set result
+                runner = null;
+                return compareAndSetState(RUNNING, 0);
+            } catch(Throwable ex) {
+                innerSetException(ex);
+                return false;
+            } 

@@ -1,0 +1,136 @@
+class ParagraphView
+!!!9967259.java!!!	ParagraphView(inout elem : Element)
+	super(elem);
+!!!9967387.java!!!	setParent(inout parent : View) : void
+	super.setParent(parent);
+        if (parent != null) {
+	    setPropertiesFromAttributes();
+        }
+!!!9967515.java!!!	getAttributes() : AttributeSet
+	if (attr == null) {
+	    StyleSheet sheet = getStyleSheet();
+	    attr = sheet.getViewAttributes(this);
+	}
+	return attr;
+!!!9967643.java!!!	setPropertiesFromAttributes() : void
+	StyleSheet sheet = getStyleSheet();
+	attr = sheet.getViewAttributes(this);
+	painter = sheet.getBoxPainter(attr);
+	if (attr != null) {
+	    super.setPropertiesFromAttributes();
+	    setInsets((short) painter.getInset(TOP, this),
+		      (short) painter.getInset(LEFT, this),
+		      (short) painter.getInset(BOTTOM, this),
+		      (short) painter.getInset(RIGHT, this));
+	    Object o = attr.getAttribute(CSS.Attribute.TEXT_ALIGN);
+	    if (o != null) {
+		// set horizontal alignment
+		String ta = o.toString();
+		if (ta.equals("left")) {
+		    setJustification(StyleConstants.ALIGN_LEFT);
+		} else if (ta.equals("center")) {
+		    setJustification(StyleConstants.ALIGN_CENTER);
+		} else if (ta.equals("right")) {
+		    setJustification(StyleConstants.ALIGN_RIGHT);
+		} else if (ta.equals("justify")) {
+		    setJustification(StyleConstants.ALIGN_JUSTIFIED);
+		}
+	    }
+            // Get the width/height
+            cssWidth = (CSS.LengthValue)attr.getAttribute(
+                                        CSS.Attribute.WIDTH);
+            cssHeight = (CSS.LengthValue)attr.getAttribute(
+                                         CSS.Attribute.HEIGHT);
+	}
+!!!9967771.java!!!	getStyleSheet() : StyleSheet
+	HTMLDocument doc = (HTMLDocument) getDocument();
+	return doc.getStyleSheet();
+!!!9967899.java!!!	calculateMinorAxisRequirements(in axis : int, inout r : SizeRequirements) : SizeRequirements
+	r = super.calculateMinorAxisRequirements(axis, r);
+
+        if (!BlockView.spanSetFromAttributes(axis, r, cssWidth, cssHeight)) {
+            // PENDING(prinz) Need to make this better so it doesn't require
+            // InlineView and works with font changes within the word.
+
+            // find the longest minimum span.
+            float min = 0;
+            int n = getLayoutViewCount();
+            for (int i = 0; i < n; i++) {
+                View v = getLayoutView(i);
+                if (v instanceof InlineView) {
+                    float wordSpan = ((InlineView) v).getLongestWordSpan();
+                    min = Math.max(wordSpan, min);
+                } else {
+                    min = Math.max(v.getMinimumSpan(axis), min);
+                }
+            }
+            r.minimum = Math.max(r.minimum, (int) min);
+            r.preferred = Math.max(r.minimum,  r.preferred);
+            r.maximum = Math.max(r.preferred, r.maximum);
+        }
+        else {
+            // Offset by the margins so that pref/min/max return the
+            // right value.
+            int margin = (axis == X_AXIS) ? getLeftInset() + getRightInset() :
+                                            getTopInset() + getBottomInset();
+            r.minimum -= margin;
+            r.preferred -= margin;
+            r.maximum -= margin;
+        }
+	return r;
+!!!9968027.java!!!	isVisible() : boolean
+	
+	int n = getLayoutViewCount() - 1;
+	for (int i = 0; i < n; i++) {
+	    View v = getLayoutView(i);
+	    if (v.isVisible()) {
+		return true;
+	    }
+	}
+	if (n > 0) {
+	    View v = getLayoutView(n);
+	    if ((v.getEndOffset() - v.getStartOffset()) == 1) {
+		return false;
+	    }
+	}
+	// If it's the last paragraph and not editable, it shouldn't
+	// be visible.
+	if (getStartOffset() == getDocument().getLength()) {
+	    boolean editable = false;
+	    Component c = getContainer();
+	    if (c instanceof JTextComponent) {
+		editable = ((JTextComponent)c).isEditable();
+	    }
+	    if (!editable) {
+		return false;
+	    }
+	}
+	return true;
+!!!9968155.java!!!	paint(inout g : Graphics, inout a : Shape) : void
+        if (a == null) {
+            return;
+        }
+
+	Rectangle r;
+	if (a instanceof Rectangle) {
+	    r = (Rectangle) a;
+	} else {
+	    r = a.getBounds();
+	}
+	painter.paint(g, r.x, r.y, r.width, r.height, this);
+        super.paint(g, a);
+!!!9968283.java!!!	getPreferredSpan(in axis : int) : float
+	if (!isVisible()) {
+	    return 0;
+	}
+	return super.getPreferredSpan(axis);
+!!!9968411.java!!!	getMinimumSpan(in axis : int) : float
+	if (!isVisible()) {
+	    return 0;
+	}
+	return super.getMinimumSpan(axis);
+!!!9968539.java!!!	getMaximumSpan(in axis : int) : float
+	if (!isVisible()) {
+	    return 0;
+	}
+	return super.getMaximumSpan(axis);

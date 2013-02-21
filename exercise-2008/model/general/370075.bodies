@@ -1,0 +1,129 @@
+class MenuComponent
+!!!6175259.java!!!	MenuComponent()
+        GraphicsEnvironment.checkHeadless();
+	appContext = AppContext.getAppContext();
+!!!6175387.java!!!	constructComponentName() : String
+        return null; // For strict compliance with prior platform versions, a MenuComponent
+                     // that doesn't set its name should return null from
+                     // getName()
+!!!6175515.java!!!	getName() : String
+        if (name == null && !nameExplicitlySet) {
+            synchronized(this) {
+                if (name == null && !nameExplicitlySet)
+                    name = constructComponentName();
+            }
+        }
+        return name;
+!!!6175643.java!!!	setName(in name : String) : void
+        synchronized(this) {
+            this.name = name;
+            nameExplicitlySet = true;
+        }
+!!!6175771.java!!!	getParent() : MenuContainer
+	return getParent_NoClientCode();
+!!!6175899.java!!!	getParent_NoClientCode() : MenuContainer
+	return parent;
+!!!6176027.java!!!	getPeer() : MenuComponentPeer
+	return peer;
+!!!6176155.java!!!	getFont() : Font
+	Font font = this.font;
+	if (font != null) {
+	    return font;
+	}
+	MenuContainer parent = this.parent;
+	if (parent != null) {
+	    return parent.getFont();
+	}
+	return null;
+!!!6176283.java!!!	getFont_NoClientCode() : Font
+	Font font = this.font;
+	if (font != null) {
+	    return font;
+	}
+
+	// The MenuContainer interface does not have getFont_NoClientCode()
+	// and it cannot, because it must be package-private. Because of
+	// this, we must manually cast classes that implement 
+	// MenuContainer.
+	Object parent = this.parent;
+	if (parent != null) {
+	    if (parent instanceof Component) {
+		font = ((Component)parent).getFont_NoClientCode();
+	    } else if (parent instanceof MenuComponent) {
+		font = ((MenuComponent)parent).getFont_NoClientCode();
+	    }
+	}
+	return font;
+!!!6176411.java!!!	setFont(inout f : Font) : void
+	font = f;
+        if (peer != null) {
+            peer.setFont(f);
+        }
+!!!6176539.java!!!	removeNotify() : void
+        synchronized (getTreeLock()) {
+	    MenuComponentPeer p = (MenuComponentPeer)this.peer;
+	    if (p != null) {
+	        Toolkit.getEventQueue().removeSourceEvents(this, true);
+		this.peer = null;
+		p.dispose();
+	    }
+	}
+!!!6176667.java!!!	postEvent(inout evt : Event) : boolean
+	MenuContainer parent = this.parent;
+	if (parent != null) {
+	    parent.postEvent(evt);
+	}
+	return false;
+!!!6176795.java!!!	dispatchEvent(inout e : AWTEvent) : void
+        dispatchEventImpl(e);
+!!!6176923.java!!!	dispatchEventImpl(inout e : AWTEvent) : void
+        EventQueue.setCurrentEventAndMostRecentTime(e);
+
+        Toolkit.getDefaultToolkit().notifyAWTEventListeners(e);
+
+        if (newEventsOnly || 
+            (parent != null && parent instanceof MenuComponent &&
+             ((MenuComponent)parent).newEventsOnly)) {
+            if (eventEnabled(e)) {
+                processEvent(e);
+            } else if (e instanceof ActionEvent && parent != null) {
+                e.setSource(parent);
+                ((MenuComponent)parent).dispatchEvent(e);
+            }
+                
+        } else { // backward compatibility
+            Event olde = e.convertToOld();
+            if (olde != null) {
+                postEvent(olde);
+            }
+        }
+!!!6177051.java!!!	eventEnabled(inout e : AWTEvent) : boolean
+        return false;
+!!!6177307.java!!!	paramString() : String
+        String thisName = getName();
+        return (thisName != null? thisName : "");
+!!!6177435.java!!!	toString() : String
+	return getClass().getName() + "[" + paramString() + "]";
+!!!6177563.java!!!	getTreeLock() : Object
+        return Component.LOCK;
+!!!6177691.java!!!	readObject(inout s : ObjectInputStream) : void
+        GraphicsEnvironment.checkHeadless();
+        s.defaultReadObject();
+
+        privateKey = new Object();
+	appContext = AppContext.getAppContext();
+!!!6177947.java!!!	getAccessibleContext() : AccessibleContext
+        return accessibleContext;
+!!!6183963.java!!!	getAccessibleIndexInParent() : int
+        MenuContainer localParent = parent;
+        if (!(localParent instanceof MenuComponent)) {
+            // MenuComponents only have accessible index when inside MenuComponents
+            return -1; 
+        }
+        MenuComponent localParentMenu = (MenuComponent)localParent;
+        return localParentMenu.getAccessibleChildIndex(this);
+!!!6184091.java!!!	getAccessibleChildIndex(inout child : MenuComponent) : int
+        return -1; // Overridden in subclasses.
+!!!6184219.java!!!	getAccessibleStateSet() : AccessibleStateSet
+        AccessibleStateSet states = new AccessibleStateSet();
+        return states;

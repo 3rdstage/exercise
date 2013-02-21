@@ -1,0 +1,86 @@
+class JCheckBox
+!!!8908955.java!!!	JCheckBox()
+        this(null, null, false);
+!!!8909083.java!!!	JCheckBox(inout icon : Icon)
+        this(null, icon, false);
+!!!8909211.java!!!	JCheckBox(inout icon : Icon, inout selected : boolean)
+        this(null, icon, selected);
+!!!8909339.java!!!	JCheckBox(in text : String)
+        this(text, null, false);
+!!!8909467.java!!!	JCheckBox(inout a : Action)
+        this();
+	setAction(a);
+!!!8909595.java!!!	JCheckBox(in text : String, inout selected : boolean)
+        this(text, null, selected);
+!!!8909723.java!!!	JCheckBox(in text : String, inout icon : Icon)
+        this(text, icon, false);
+!!!8909851.java!!!	JCheckBox(in text : String, inout icon : Icon, inout selected : boolean)
+        super(text, icon, selected);
+        setUIProperty("borderPainted", Boolean.FALSE);
+        setHorizontalAlignment(LEADING);
+!!!8909979.java!!!	setBorderPaintedFlat(inout b : boolean) : void
+        boolean oldValue = flat;
+        flat = b;
+        firePropertyChange(BORDER_PAINTED_FLAT_CHANGED_PROPERTY, oldValue, flat);
+        if (b != oldValue) {
+            revalidate();
+            repaint();
+	}
+!!!8910107.java!!!	isBorderPaintedFlat() : boolean
+	return flat;
+!!!8910235.java!!!	updateUI() : void
+        setUI((ButtonUI)UIManager.getUI(this));
+!!!8910363.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!8910491.java!!!	configurePropertiesFromAction(inout a : Action) : void
+        String[] types = { Action.MNEMONIC_KEY, Action.NAME,
+                           Action.SHORT_DESCRIPTION,
+                           Action.ACTION_COMMAND_KEY, "enabled" };
+        configurePropertiesFromAction(a, types);
+!!!8910619.java!!!	createActionPropertyChangeListener(inout a : Action) : PropertyChangeListener
+        return new AbstractActionPropertyChangeListener(this, a) {
+	    public void propertyChange(PropertyChangeEvent e) {	    
+		String propertyName = e.getPropertyName();
+		AbstractButton button = (AbstractButton)getTarget();
+		if (button == null) {   //WeakRef GC'ed in 1.2
+		    Action action = (Action)e.getSource();
+		    action.removePropertyChangeListener(this);
+		} else {
+		    if (propertyName.equals(Action.NAME)) {
+			String text = (String) e.getNewValue();
+			button.setText(text);
+			button.repaint();
+		    } else if (propertyName.equals(Action.SHORT_DESCRIPTION)) {
+			String text = (String) e.getNewValue();
+			button.setToolTipText(text);
+		    } else if (propertyName.equals("enabled")) {
+			Boolean enabledState = (Boolean) e.getNewValue();
+			button.setEnabled(enabledState.booleanValue());
+			button.repaint();
+		    } else if (propertyName.equals(Action.ACTION_COMMAND_KEY)) {
+                        button.setActionCommand((String)e.getNewValue());
+		    } 
+		}
+	    }
+	};
+!!!8910747.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!8910875.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+	if (getUIClassID().equals(uiClassID)) {
+	    updateUI();
+	}
+!!!8911003.java!!!	paramString() : String
+	return super.paramString();
+!!!8911131.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJCheckBox();
+        }
+        return accessibleContext;

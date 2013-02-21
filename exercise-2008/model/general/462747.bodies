@@ -1,0 +1,139 @@
+class Handler
+!!!2862491.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+            JTabbedPane pane = (JTabbedPane)e.getSource();
+            String name = e.getPropertyName();
+            boolean isScrollLayout = scrollableTabLayoutEnabled();
+            if (name == "mnemonicAt") {
+                updateMnemonics();
+                pane.repaint();
+            }
+            else if (name == "displayedMnemonicIndexAt") {
+                pane.repaint();
+            }
+            else if (name =="indexForTitle") {
+                int index = ((Integer)e.getNewValue()).intValue();
+                String title = tabPane.getTitleAt(index);
+                if (BasicHTML.isHTMLString(title)) {
+                    if (htmlViews==null) {    // Initialize vector
+                        htmlViews = createHTMLVector();
+                    } else {                  // Vector already exists
+                        View v = BasicHTML.createHTMLView(tabPane, title);
+                        htmlViews.setElementAt(v, index);
+                    }
+                } else {
+                    if (htmlViews != null && htmlViews.elementAt(index) != null) {
+                        htmlViews.setElementAt(null, index); 
+                    }
+                }    
+                updateMnemonics();
+            } else if (name == "tabLayoutPolicy") {
+                BasicTabbedPaneUI.this.uninstallUI(pane);
+                BasicTabbedPaneUI.this.installUI(pane);
+            } else if (name == "tabPlacement") {
+                if (scrollableTabLayoutEnabled()) {
+                    tabScroller.createButtons();
+                }
+            } else if (name == "opaque" && isScrollLayout) {
+                boolean newVal = ((Boolean)e.getNewValue()).booleanValue();
+                tabScroller.tabPanel.setOpaque(newVal);
+                tabScroller.viewport.setOpaque(newVal);
+            } else if (name == "background" && isScrollLayout) {
+                Color newVal = (Color)e.getNewValue();
+                tabScroller.tabPanel.setBackground(newVal);
+                tabScroller.viewport.setBackground(newVal);
+                Color newColor = selectedColor == null ? newVal : selectedColor;
+                tabScroller.scrollForwardButton.setBackground(newColor);
+                tabScroller.scrollBackwardButton.setBackground(newColor);
+            }
+!!!2862619.java!!!	stateChanged(inout e : ChangeEvent) : void
+            JTabbedPane tabPane = (JTabbedPane)e.getSource();
+            tabPane.revalidate();
+            tabPane.repaint();
+
+            setFocusIndex(tabPane.getSelectedIndex(), false);
+
+            if (scrollableTabLayoutEnabled()) {
+                int index = tabPane.getSelectedIndex();
+                if (index < rects.length && index != -1) {
+                    tabScroller.tabPanel.scrollRectToVisible(
+                            (Rectangle)rects[index].clone());
+                }
+            }
+!!!2863003.java!!!	mouseEntered(inout e : MouseEvent) : void
+            setRolloverTab(e.getX(), e.getY());
+!!!2863131.java!!!	mouseExited(inout e : MouseEvent) : void
+            setRolloverTab(-1);
+!!!2863259.java!!!	mousePressed(inout e : MouseEvent) : void
+            if (!tabPane.isEnabled()) {
+                return;
+            }
+            int tabIndex = tabForCoordinate(tabPane, e.getX(), e.getY());
+            if (tabIndex >= 0 && tabPane.isEnabledAt(tabIndex)) {
+                if (tabIndex != tabPane.getSelectedIndex()) {
+                    // Clicking on unselected tab, change selection, do NOT
+                    // request focus.
+                    // This will trigger the focusIndex to change by way
+                    // of stateChanged.
+                    tabPane.setSelectedIndex(tabIndex);
+                }
+                else if (tabPane.isRequestFocusEnabled()) {
+                    // Clicking on selected tab, try and give the tabbedpane
+                    // focus.  Repaint will occur in focusGained.
+                    tabPane.requestFocus();
+                }
+            }
+!!!2863515.java!!!	mouseMoved(inout e : MouseEvent) : void
+            setRolloverTab(e.getX(), e.getY());
+!!!2863643.java!!!	focusGained(inout e : FocusEvent) : void
+ 
+           setFocusIndex(tabPane.getSelectedIndex(), true);
+!!!2863771.java!!!	focusLost(inout e : FocusEvent) : void
+            repaintTab(focusIndex);
+!!!2863899.java!!!	componentAdded(inout e : ContainerEvent) : void
+            JTabbedPane tp = (JTabbedPane)e.getContainer();
+            Component child = e.getChild();
+            if (child instanceof UIResource) {
+                return;
+            }
+            int index = tp.indexOfComponent(child);
+            String title = tp.getTitleAt(index);
+            boolean isHTML = BasicHTML.isHTMLString(title);
+            if (isHTML) {
+                if (htmlViews==null) {    // Initialize vector
+                    htmlViews = createHTMLVector();
+                } else {                  // Vector already exists
+                    View v = BasicHTML.createHTMLView(tp, title);
+                    htmlViews.insertElementAt(v, index);
+                }
+            } else {                             // Not HTML
+                if (htmlViews!=null) {           // Add placeholder
+                    htmlViews.insertElementAt(null, index);
+                }                                // else nada!
+            }
+            isRunsDirty = true;
+            updateMnemonics();
+!!!2864027.java!!!	componentRemoved(inout e : ContainerEvent) : void
+            JTabbedPane tp = (JTabbedPane)e.getContainer();
+            Component child = e.getChild();
+            if (child instanceof UIResource) {
+                return;
+            }
+
+            // NOTE 4/15/2002 (joutwate):
+            // This fix is implemented using client properties since there is
+            // currently no IndexPropertyChangeEvent.  Once
+            // IndexPropertyChangeEvents have been added this code should be
+            // modified to use it.
+            Integer indexObj =
+                (Integer)tp.getClientProperty("__index_to_remove__");
+            if (indexObj != null) {
+                int index = indexObj.intValue();
+                if (htmlViews != null && htmlViews.size() > index) {
+                    htmlViews.removeElementAt(index);
+                }           
+                tp.putClientProperty("__index_to_remove__", null);
+            }
+            isRunsDirty = true;
+            updateMnemonics();
+
+            validateFocusIndex();

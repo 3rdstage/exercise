@@ -1,0 +1,390 @@
+class ResourceBundle
+!!!316571.java!!!	getString(in key : String) : String
+        return (String) getObject(key);
+!!!316699.java!!!	getStringArray(in key : String) : String
+        return (String[]) getObject(key);
+!!!316827.java!!!	getObject(in key : String) : Object
+        Object obj = handleGetObject(key);
+        if (obj == null) {
+            if (parent != null) {
+                obj = parent.getObject(key);
+            }
+            if (obj == null)
+                throw new MissingResourceException("Can't find resource for bundle "
+                                                   +this.getClass().getName()
+                                                   +", key "+key,
+                                                   this.getClass().getName(),
+                                                   key);
+        }
+        return obj;
+!!!316955.java!!!	getLocale() : Locale
+        return locale;
+!!!317083.java!!!	setLocale(in baseName : String, in bundleName : String) : void
+        if (baseName.length() == bundleName.length()) {
+            locale = new Locale("", "");
+        } else if (baseName.length() < bundleName.length()) {
+            int pos = baseName.length();
+            String temp = bundleName.substring(pos + 1);
+            pos = temp.indexOf('_');
+            if (pos == -1) {
+                locale = new Locale(temp, "", "");
+                return;
+            }
+
+            String language = temp.substring(0, pos);
+            temp = temp.substring(pos + 1);
+            pos = temp.indexOf('_');
+            if (pos == -1) {
+                locale = new Locale(language, temp, "");
+                return;
+            }
+
+            String country = temp.substring(0, pos);
+            temp = temp.substring(pos + 1);
+
+            locale = new Locale(language, country, temp);
+        } else {
+            //The base name is longer than the bundle name.  Something is very wrong
+            //with the calling code.
+            throw new IllegalArgumentException();
+        }
+!!!317211.java!!!	getLoader() : ClassLoader
+        Class[] stack = getClassContext();
+        /* Magic number 2 identifies our caller's caller */
+        Class c = stack[2];
+        ClassLoader cl = (c == null) ? null : c.getClassLoader();
+        if (cl == null) {
+            cl = ClassLoader.getSystemClassLoader();
+        }
+        return cl;
+!!!317467.java!!!	setParent(inout parent : ResourceBundle) : void
+        this.parent = parent;
+!!!318491.java!!!	getBundle(in baseName : String) : ResourceBundle
+        return getBundleImpl(baseName, Locale.getDefault(),
+        /* must determine loader here, else we break stack invariant */
+        getLoader());
+!!!318619.java!!!	getBundle(in baseName : String, inout locale : Locale) : ResourceBundle
+        return getBundleImpl(baseName, locale, getLoader());
+!!!318747.java!!!	getBundle(in baseName : String, inout locale : Locale, inout loader : ClassLoader) : ResourceBundle
+        if (loader == null) {
+            throw new NullPointerException();
+        }
+        return getBundleImpl(baseName, locale, loader);
+!!!318875.java!!!	getBundleImpl(in baseName : String, inout locale : Locale, inout loader : ClassLoader) : ResourceBundle
+        if (baseName == null) {
+            throw new NullPointerException();
+        }
+
+        //fast path the case where the bundle is cached
+        String bundleName = baseName;
+        String localeSuffix = locale.toString();
+        if (localeSuffix.length() > 0) {
+            bundleName += "_" + localeSuffix;
+        } else if (locale.getVariant().length() > 0) {
+            //This corrects some strange behavior in Locale where
+            //new Locale("", "", "VARIANT").toString == ""
+            bundleName += "___" + locale.getVariant();
+        }
+        
+        // The default locale may influence the lookup result, and
+        // it may change, so we get it here once.
+        Locale defaultLocale = Locale.getDefault();
+
+        Object lookup = findBundleInCache(loader, bundleName, defaultLocale);
+        if (lookup == NOT_FOUND) {
+            throwMissingResourceException(baseName, locale);
+        } else if (lookup != null) {
+            return (ResourceBundle)lookup;
+        }
+
+        //The bundle was not cached, so start doing lookup at the root
+        //Resources are loaded starting at the root and working toward
+        //the requested bundle.
+
+        //If findBundle returns null, we become responsible for defining
+        //the bundle, and must call putBundleInCache to complete this
+        //task.  This is critical because other threads may be waiting
+        //for us to finish.
+
+        Object parent = NOT_FOUND;
+        try {
+            //locate the root bundle and work toward the desired child
+            Object root = findBundle(loader, baseName, defaultLocale, baseName, null);
+            if (root == null) {
+                putBundleInCache(loader, baseName, defaultLocale, NOT_FOUND);
+                root = NOT_FOUND;
+            }
+
+            // Search the main branch of the search tree.
+            // We need to keep references to the bundles we find on the main path
+            // so they don't get garbage collected before we get to propagate().
+            final Vector names = calculateBundleNames(baseName, locale);
+            Vector bundlesFound = new Vector(MAX_BUNDLES_SEARCHED);
+	    // if we found the root bundle and no other bundle names are needed
+	    // we can stop here. We don't need to search or load anything further.
+            boolean foundInMainBranch = (root != NOT_FOUND && names.size() == 0);
+	    
+	    if (!foundInMainBranch) {
+	      parent = root;
+	      for (int i = 0; i < names.size(); i++) {
+                bundleName = (String)names.elementAt(i);
+                lookup = findBundle(loader, bundleName, defaultLocale, baseName, parent);
+                bundlesFound.addElement(lookup);
+                if (lookup != null) {
+                    parent = lookup;
+                    foundInMainBranch = true;
+                }
+	      }
+            }
+            parent = root;
+            if (!foundInMainBranch) {
+                //we didn't find anything on the main branch, so we do the fallback branch
+                final Vector fallbackNames = calculateBundleNames(baseName, defaultLocale);
+                for (int i = 0; i < fallbackNames.size(); i++) {
+                    bundleName = (String)fallbackNames.elementAt(i);
+                    if (names.contains(bundleName)) {
+                        //the fallback branch intersects the main branch so we can stop now.
+                        break;
+                    }
+                    lookup = findBundle(loader, bundleName, defaultLocale, baseName, parent);
+                    if (lookup != null) {
+                        parent = lookup;
+                    } else {
+                        //propagate the parent to the child.  We can do this
+                        //here because we are in the default path.
+                        putBundleInCache(loader, bundleName, defaultLocale, parent);
+                    }
+                }
+            }
+            //propagate the inheritance/fallback down through the main branch
+            parent = propagate(loader, names, bundlesFound, defaultLocale, parent);
+        } catch (Exception e) {
+            //We should never get here unless there has been a change
+            //to the code that doesn't catch it's own exceptions.
+            cleanUpConstructionList();
+            throwMissingResourceException(baseName, locale);
+        } catch (Error e) {
+            //The only Error that can currently hit this code is a ThreadDeathError
+            //but errors might be added in the future, so we'll play it safe and
+            //clean up.
+            cleanUpConstructionList();
+            throw e;
+        }
+        if (parent == NOT_FOUND) {
+            throwMissingResourceException(baseName, locale);
+        }
+        return (ResourceBundle)parent;
+!!!319003.java!!!	propagate(inout loader : ClassLoader, inout names : Vector, inout bundlesFound : Vector, inout defaultLocale : Locale, inout parent : Object) : Object
+        for (int i = 0; i < names.size(); i++) {
+            final String bundleName = (String)names.elementAt(i);
+            final Object lookup = bundlesFound.elementAt(i);
+            if (lookup == null) {
+                putBundleInCache(loader, bundleName, defaultLocale, parent);
+            } else {
+                parent = lookup;
+            }
+        }
+        return parent;
+!!!319131.java!!!	throwMissingResourceException(in baseName : String, inout locale : Locale) : void
+        throw new MissingResourceException("Can't find bundle for base name "
+                                           + baseName + ", locale " + locale,
+                                           baseName + "_" + locale,"");
+!!!319259.java!!!	cleanUpConstructionList() : void
+        synchronized (cacheList) {
+            final Collection entries = underConstruction.values();
+            final Thread thisThread = Thread.currentThread();
+            while (entries.remove(thisThread)) {
+            }
+	    // Wake up threads that have been waiting for construction
+	    // completion. (6329105)
+	    cacheList.notifyAll();
+        }
+!!!319387.java!!!	findBundle(inout loader : ClassLoader, in bundleName : String, inout defaultLocale : Locale, in baseName : String, inout parent : Object) : Object
+        Object result;
+        synchronized (cacheList) {
+            // Before we do the real work of this method, see
+            // whether we need to do some housekeeping:
+            // If references to class loaders have been nulled out,
+            // remove all related information from the cache
+            Reference ref = referenceQueue.poll();
+            while (ref != null) {
+                cacheList.remove(((LoaderReference) ref).getCacheKey());
+                ref = referenceQueue.poll();
+            }
+            
+            //check for bundle in cache
+            cacheKey.setKeyValues(loader, bundleName, defaultLocale);
+            result = cacheList.get(cacheKey);
+            if (result != null) {
+                cacheKey.clear();
+                return result;
+            }
+            // check to see if some other thread is building this bundle.
+            // Note that there is a rare chance that this thread is already
+            // working on this bundle, and in the process getBundle was called
+            // again, in which case we can't wait (4300693)
+            Thread builder = (Thread) underConstruction.get(cacheKey);
+            boolean beingBuilt = (builder != null && builder != Thread.currentThread());
+            //if some other thread is building the bundle...
+            if (beingBuilt) {
+                //while some other thread is building the bundle...
+                while (beingBuilt) {
+                    cacheKey.clear();
+                    try {
+                        //Wait until the bundle is complete
+                        cacheList.wait();
+                    } catch (InterruptedException e) {
+                    }
+                    cacheKey.setKeyValues(loader, bundleName, defaultLocale);
+                    beingBuilt = underConstruction.containsKey(cacheKey);
+                }
+                //if someone constructed the bundle for us, return it
+                result = cacheList.get(cacheKey);
+                if (result != null) {
+                    cacheKey.clear();
+                    return result;
+                }
+            }
+            //The bundle isn't in the cache, so we are now responsible for
+            //loading it and adding it to the cache.
+            final Object key = cacheKey.clone();
+            underConstruction.put(key, Thread.currentThread());
+            //the bundle is removed from the cache by putBundleInCache
+            cacheKey.clear();
+        }
+
+        //try loading the bundle via the class loader
+        result = loadBundle(loader, bundleName, defaultLocale);
+        if (result != null) {
+            // check whether we're still responsible for construction -
+            // a recursive call to getBundle might have handled it (4300693)
+            boolean constructing;
+            synchronized (cacheList) {
+                cacheKey.setKeyValues(loader, bundleName, defaultLocale);
+                constructing = underConstruction.get(cacheKey) == Thread.currentThread();
+                cacheKey.clear();
+            }
+            if (constructing) {
+                // set the bundle's parent and put it in the cache
+                final ResourceBundle bundle = (ResourceBundle)result;
+                if (parent != NOT_FOUND && bundle.parent == null) {
+                    bundle.setParent((ResourceBundle) parent);
+                }
+                bundle.setLocale(baseName, bundleName);
+                putBundleInCache(loader, bundleName, defaultLocale, result);
+            }
+        }
+        return result;
+!!!319515.java!!!	calculateBundleNames(in baseName : String, inout locale : Locale) : Vector
+        final Vector result = new Vector(MAX_BUNDLES_SEARCHED);
+        final String language = locale.getLanguage();
+        final int languageLength = language.length();
+        final String country = locale.getCountry();
+        final int countryLength = country.length();
+        final String variant = locale.getVariant();
+        final int variantLength = variant.length();
+
+        if (languageLength + countryLength + variantLength == 0) {
+            //The locale is "", "", "".
+            return result;
+        }
+        final StringBuffer temp = new StringBuffer(baseName);
+        temp.append('_');
+        temp.append(language);
+        if (languageLength > 0) {
+            result.addElement(temp.toString());
+        }
+
+        if (countryLength + variantLength == 0) {
+            return result;
+        }
+        temp.append('_');
+        temp.append(country);
+        if (countryLength > 0) {
+            result.addElement(temp.toString());
+        }
+
+        if (variantLength == 0) {
+            return result;
+        }
+        temp.append('_');
+        temp.append(variant);
+        result.addElement(temp.toString());
+
+        return result;
+!!!319643.java!!!	findBundleInCache(inout loader : ClassLoader, in bundleName : String, inout defaultLocale : Locale) : Object
+        //Synchronize access to cacheList, cacheKey, and underConstruction
+        synchronized (cacheList) {
+            cacheKey.setKeyValues(loader, bundleName, defaultLocale);
+            Object result = cacheList.get(cacheKey);
+            cacheKey.clear();
+            return result;
+        }
+!!!319771.java!!!	putBundleInCache(inout loader : ClassLoader, in bundleName : String, inout defaultLocale : Locale, inout value : Object) : void
+        //we use a static shared cacheKey but we use the lock in cacheList since
+        //the key is only used to interact with cacheList.
+        synchronized (cacheList) {
+            cacheKey.setKeyValues(loader, bundleName, defaultLocale);
+            cacheList.put(cacheKey.clone(), value);
+            underConstruction.remove(cacheKey);
+            cacheKey.clear();
+            //notify waiters that we're done constructing the bundle
+            cacheList.notifyAll();
+        }
+!!!319899.java!!!	loadBundle(in loader : ClassLoader, in bundleName : String, inout defaultLocale : Locale) : Object
+        // Search for class file using class loader
+        try {
+            Class bundleClass;
+            if (loader != null) {
+                bundleClass = loader.loadClass(bundleName);
+            } else {
+                bundleClass = Class.forName(bundleName);
+            }
+            if (ResourceBundle.class.isAssignableFrom(bundleClass)) {
+                Object myBundle = bundleClass.newInstance();
+                // Creating the instance may have triggered a recursive call to getBundle,
+                // in which case the bundle created by the recursive call would be in the
+                // cache now (4300693). For consistency, we'd then return the bundle from the cache.
+                Object otherBundle = findBundleInCache(loader, bundleName, defaultLocale);
+                if (otherBundle != null) {
+                    return otherBundle;
+                } else {
+                    return myBundle;
+                }
+            }
+        } catch (Exception e) {
+        } catch (LinkageError e) {
+        }
+
+        // Next search for a Properties file.
+        final String resName = bundleName.replace('.', '/') + ".properties";
+        InputStream stream = (InputStream)java.security.AccessController.doPrivileged(
+            new java.security.PrivilegedAction() {
+                public Object run() {
+                    if (loader != null) {
+                        return loader.getResourceAsStream(resName);
+                    } else {
+                        return ClassLoader.getSystemResourceAsStream(resName);
+                    }
+                }
+            }
+        );
+
+        if (stream != null) {
+            // make sure it is buffered
+            stream = new java.io.BufferedInputStream(stream);
+            try {
+                return new PropertyResourceBundle(stream);
+            } catch (Exception e) {
+            } finally {
+                try {
+                    stream.close();
+                } catch (Exception e) {
+                    // to avoid propagating an IOException back into the caller
+                    // (I'm assuming this is never going to happen, and if it does,
+                    // I'm obeying the precedent of swallowing exceptions set by the
+                    // existing code above)
+                }
+            }
+        }
+        return null;

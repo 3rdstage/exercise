@@ -1,0 +1,760 @@
+class XMLDocumentFragmentScannerImpl
+!!!4944283.java!!!	setInputSource(inout inputSource : XMLInputSource) : void
+        fEntityManager.setEntityHandler(this);
+        fEntityManager.startEntity("$fragment$", inputSource, false, true);
+        //fDocumentSystemId = fEntityManager.expandSystemId(inputSource.getSystemId());
+!!!4944411.java!!!	scanDocument(inout complete : boolean) : boolean
+        
+        // reset entity scanner
+        fEntityScanner = fEntityManager.getEntityScanner();
+        
+        // keep dispatching "events"
+        fEntityManager.setEntityHandler(this);
+        do {
+            if (!fDispatcher.dispatch(complete)) {
+                return false;
+            }
+        } while (complete);
+
+        // return success
+        return true;
+
+!!!4944539.java!!!	reset(inout componentManager : XMLComponentManager) : void
+
+        super.reset(componentManager);
+
+        // other settings
+        //fDocumentSystemId = null;
+
+        // sax features
+        fAttributes.setNamespaces(fNamespaces);
+
+        // initialize vars
+        fMarkupDepth = 0;
+        fCurrentElement = null;
+        fElementStack.clear();
+        fHasExternalDTD = false;
+        fStandalone = false;
+        fInScanContent = false;
+
+		// setup dispatcher
+        try {
+            fSecurityManager = (SecurityManager)componentManager.getProperty(Constants.SECURITY_MANAGER);
+        } catch (XMLConfigurationException e) {
+            fSecurityManager = null;
+        }
+        
+		fElementAttributeLimit = (fSecurityManager != null)?fSecurityManager.getElementAttrLimit():0;
+		setScannerState(SCANNER_STATE_CONTENT);
+		setDispatcher(fContentDispatcher);
+
+        if (fParserSettings) {
+            // parser settings have changed. reset them.
+        	
+            // xerces features
+            try {
+                fNotifyBuiltInRefs = componentManager.getFeature(NOTIFY_BUILTIN_REFS);
+            } catch (XMLConfigurationException e) {
+                fNotifyBuiltInRefs = false;
+            }
+            
+            // xerces properties
+            try {
+                Object resolver = componentManager.getProperty(ENTITY_RESOLVER);
+                fExternalSubsetResolver = (resolver instanceof ExternalSubsetResolver) ?
+                    (ExternalSubsetResolver) resolver : null;
+            }
+            catch (XMLConfigurationException e) {
+                fExternalSubsetResolver = null;
+            }
+        }
+
+!!!4944667.java!!!	getRecognizedFeatures() : String
+        return (String[])(RECOGNIZED_FEATURES.clone());
+!!!4944795.java!!!	setFeature(in featureId : String, inout state : boolean) : void
+
+        super.setFeature(featureId, state);
+            
+        // Xerces properties
+        if (featureId.startsWith(Constants.XERCES_FEATURE_PREFIX)) {
+            final int suffixLength = featureId.length() - Constants.XERCES_FEATURE_PREFIX.length();
+            if (suffixLength == Constants.NOTIFY_BUILTIN_REFS_FEATURE.length() && 
+                featureId.endsWith(Constants.NOTIFY_BUILTIN_REFS_FEATURE)) {
+                fNotifyBuiltInRefs = state;
+            }
+        }
+
+!!!4944923.java!!!	getRecognizedProperties() : String
+        return (String[])(RECOGNIZED_PROPERTIES.clone());
+!!!4945051.java!!!	setProperty(in propertyId : String, inout value : Object) : void
+        
+        super.setProperty(propertyId, value);
+
+        // Xerces properties
+        if (propertyId.startsWith(Constants.XERCES_PROPERTY_PREFIX)) {
+            final int suffixLength = propertyId.length() - Constants.XERCES_PROPERTY_PREFIX.length();
+            if (suffixLength == Constants.ENTITY_MANAGER_PROPERTY.length() && 
+                propertyId.endsWith(Constants.ENTITY_MANAGER_PROPERTY)) {
+                fEntityManager = (XMLEntityManager)value;
+                return;
+            }
+            if (suffixLength == Constants.ENTITY_RESOLVER_PROPERTY.length() && 
+                propertyId.endsWith(Constants.ENTITY_RESOLVER_PROPERTY)) {
+                fExternalSubsetResolver = (value instanceof ExternalSubsetResolver) ?
+                    (ExternalSubsetResolver) value : null;
+                return;
+            }
+        }
+        
+!!!4945179.java!!!	getFeatureDefault(in featureId : String) : Boolean
+        for (int i = 0; i < RECOGNIZED_FEATURES.length; i++) {
+            if (RECOGNIZED_FEATURES[i].equals(featureId)) {
+                return FEATURE_DEFAULTS[i];
+            }
+        }
+        return null;
+!!!4945307.java!!!	getPropertyDefault(in propertyId : String) : Object
+        for (int i = 0; i < RECOGNIZED_PROPERTIES.length; i++) {
+            if (RECOGNIZED_PROPERTIES[i].equals(propertyId)) {
+                return PROPERTY_DEFAULTS[i];
+            }
+        }
+        return null;
+!!!4945435.java!!!	setDocumentHandler(inout documentHandler : XMLDocumentHandler) : void
+        fDocumentHandler = documentHandler;
+!!!4945563.java!!!	getDocumentHandler() : XMLDocumentHandler
+        return fDocumentHandler;
+!!!4945691.java!!!	startEntity(in name : String, inout identifier : XMLResourceIdentifier, in encoding : String, inout augs : Augmentations) : void
+
+        // keep track of this entity before fEntityDepth is increased
+        if (fEntityDepth == fEntityStack.length) {
+            int[] entityarray = new int[fEntityStack.length * 2];
+            System.arraycopy(fEntityStack, 0, entityarray, 0, fEntityStack.length);
+            fEntityStack = entityarray;
+        }
+        fEntityStack[fEntityDepth] = fMarkupDepth;
+
+        super.startEntity(name, identifier, encoding, augs);
+
+        // WFC:  entity declared in external subset in standalone doc
+        if(fStandalone && fEntityManager.isEntityDeclInExternalSubset(name)) {
+            reportFatalError("MSG_REFERENCE_TO_EXTERNALLY_DECLARED_ENTITY_WHEN_STANDALONE",
+                new Object[]{name});
+        }
+
+        // call handler
+        if (fDocumentHandler != null && !fScanningAttribute) {
+            if (!name.equals("[xml]")) {
+                fDocumentHandler.startGeneralEntity(name, identifier, encoding, augs);
+            }
+        }
+
+!!!4945819.java!!!	endEntity(in name : String, inout augs : Augmentations) : void
+
+        // flush possible pending output buffer - see scanContent
+        if (fInScanContent && fStringBuffer.length != 0
+            && fDocumentHandler != null) {
+            fDocumentHandler.characters(fStringBuffer, null);
+            fStringBuffer.length = 0; // make sure we know it's been flushed
+        }
+
+        super.endEntity(name, augs);
+
+        // make sure markup is properly balanced
+        if (fMarkupDepth != fEntityStack[fEntityDepth]) {
+            reportFatalError("MarkupEntityMismatch", null);
+        }
+
+        // call handler
+        if (fDocumentHandler != null && !fScanningAttribute) {
+            if (!name.equals("[xml]")) {
+                fDocumentHandler.endGeneralEntity(name, augs);
+            }
+        }
+        
+!!!4945947.java!!!	createContentDispatcher() : Dispatcher
+        return new FragmentContentDispatcher();
+!!!4946075.java!!!	scanXMLDeclOrTextDecl(inout scanningTextDecl : boolean) : void
+
+        // scan decl
+        super.scanXMLDeclOrTextDecl(scanningTextDecl, fStrings);
+        fMarkupDepth--;
+
+        // pseudo-attribute values
+        String version = fStrings[0];
+        String encoding = fStrings[1];
+        String standalone = fStrings[2];
+
+        // set standalone
+        fStandalone = standalone != null && standalone.equals("yes");
+        fEntityManager.setStandalone(fStandalone);
+
+        // call handler
+        if (fDocumentHandler != null) {
+            if (scanningTextDecl) {
+                fDocumentHandler.textDecl(version, encoding, null);
+            }
+            else {
+                fDocumentHandler.xmlDecl(version, encoding, standalone, null);
+            }
+        }
+
+        // set encoding on reader
+        if (encoding != null && !fEntityScanner.fCurrentEntity.isDeclaredEncoding()) {
+            fEntityScanner.setEncoding(encoding);
+        }
+
+!!!4946203.java!!!	scanPIData(in target : String, inout data : XMLString) : void
+
+        super.scanPIData(target, data);
+        fMarkupDepth--;
+
+        // call handler
+        if (fDocumentHandler != null) {
+            fDocumentHandler.processingInstruction(target, data, null);
+        }
+
+!!!4946331.java!!!	scanComment() : void
+
+        scanComment(fStringBuffer);
+        fMarkupDepth--;
+
+        // call handler
+        if (fDocumentHandler != null) {
+            fDocumentHandler.comment(fStringBuffer, null);
+        }
+
+!!!4946459.java!!!	scanStartElement() : boolean
+        if (DEBUG_CONTENT_SCANNING) System.out.println(">>> scanStartElement()");
+
+        // name
+        if (fNamespaces) {
+            fEntityScanner.scanQName(fElementQName);
+        }
+        else {
+            String name = fEntityScanner.scanName();
+            fElementQName.setValues(null, name, name, null);
+        }
+        String rawname = fElementQName.rawname;
+
+        // push element stack
+        fCurrentElement = fElementStack.pushElement(fElementQName);
+
+        // attributes
+        boolean empty = false;
+        fAttributes.removeAllAttributes();
+        do {
+            // spaces
+            boolean sawSpace = fEntityScanner.skipSpaces();
+
+            // end tag?
+            int c = fEntityScanner.peekChar();
+            if (c == '>') {
+                fEntityScanner.scanChar();
+                break;
+            }
+            else if (c == '/') {
+                fEntityScanner.scanChar();
+                if (!fEntityScanner.skipChar('>')) {
+                    reportFatalError("ElementUnterminated",
+                                     new Object[]{rawname});
+                }
+                empty = true;
+                break;
+            }
+            else if (!isValidNameStartChar(c) || !sawSpace) {
+                // Second chance. Check if this character is a high
+                // surrogate of a valid name start character.
+                if (!isValidNameStartHighSurrogate(c) || !sawSpace) {
+                    reportFatalError("ElementUnterminated",
+                                     new Object[] { rawname });
+                }
+            }
+
+            // attributes
+            scanAttribute(fAttributes);
+            if (fSecurityManager != null && fAttributes.getLength() > fElementAttributeLimit){                
+                fErrorReporter.reportError(XMLMessageFormatter.XML_DOMAIN,
+                                             "ElementAttributeLimit",
+                                             new Object[]{rawname, new Integer(fAttributes.getLength()) },
+                                             XMLErrorReporter.SEVERITY_FATAL_ERROR );
+            }           
+        } while (true);
+
+        // call handler
+        if (fDocumentHandler != null) {
+            if (empty) {
+
+                //decrease the markup depth..
+                fMarkupDepth--;
+                // check that this element was opened in the same entity
+                if (fMarkupDepth < fEntityStack[fEntityDepth - 1]) {
+                    reportFatalError("ElementEntityMismatch",
+                                     new Object[]{fCurrentElement.rawname});
+                }
+
+                fDocumentHandler.emptyElement(fElementQName, fAttributes, null);
+
+                //pop the element off the stack..
+                fElementStack.popElement(fElementQName);
+            }
+            else {
+                fDocumentHandler.startElement(fElementQName, fAttributes, null);
+            }
+        }
+
+        if (DEBUG_CONTENT_SCANNING) System.out.println("<<< scanStartElement(): "+empty);
+        return empty;
+
+!!!4946587.java!!!	scanStartElementName() : void
+        // name
+        if (fNamespaces) {
+            fEntityScanner.scanQName(fElementQName);
+        }
+        else {
+            String name = fEntityScanner.scanName();
+            fElementQName.setValues(null, name, name, null);
+        }
+        // Must skip spaces here because the DTD scanner
+        // would consume them at the end of the external subset.
+        fSawSpace = fEntityScanner.skipSpaces();
+!!!4946715.java!!!	scanStartElementAfterName() : boolean
+        String rawname = fElementQName.rawname;
+
+        // push element stack
+        fCurrentElement = fElementStack.pushElement(fElementQName);
+
+        // attributes
+        boolean empty = false;
+        fAttributes.removeAllAttributes();
+        do {
+        	
+            // end tag?
+            int c = fEntityScanner.peekChar();
+            if (c == '>') {
+                fEntityScanner.scanChar();
+                break;
+            }
+            else if (c == '/') {
+                fEntityScanner.scanChar();
+                if (!fEntityScanner.skipChar('>')) {
+                    reportFatalError("ElementUnterminated",
+                                     new Object[]{rawname});
+                }
+                empty = true;
+                break;
+            }
+            else if (!isValidNameStartChar(c) || !fSawSpace) {
+                // Second chance. Check if this character is a high
+                // surrogate of a valid name start character.
+                if (!isValidNameStartHighSurrogate(c) || !fSawSpace) {
+                    reportFatalError("ElementUnterminated",
+                                     new Object[] { rawname });
+                }
+            }
+
+            // attributes
+            scanAttribute(fAttributes);
+            
+            // spaces
+            fSawSpace = fEntityScanner.skipSpaces();
+
+        } while (true);
+
+        // call handler
+        if (fDocumentHandler != null) {
+            if (empty) {
+
+                //decrease the markup depth..
+                fMarkupDepth--;
+                // check that this element was opened in the same entity
+                if (fMarkupDepth < fEntityStack[fEntityDepth - 1]) {
+                    reportFatalError("ElementEntityMismatch",
+                                     new Object[]{fCurrentElement.rawname});
+                }
+
+                fDocumentHandler.emptyElement(fElementQName, fAttributes, null);
+
+                //pop the element off the stack..
+                fElementStack.popElement(fElementQName);
+            }
+            else {
+                fDocumentHandler.startElement(fElementQName, fAttributes, null);
+            }
+        }
+
+        if (DEBUG_CONTENT_SCANNING) System.out.println("<<< scanStartElementAfterName(): "+empty);
+        return empty;
+!!!4946843.java!!!	scanAttribute(inout attributes : XMLAttributes) : void
+        if (DEBUG_CONTENT_SCANNING) System.out.println(">>> scanAttribute()");
+
+        // name
+        if (fNamespaces) {
+            fEntityScanner.scanQName(fAttributeQName);
+        }
+        else {
+            String name = fEntityScanner.scanName();
+            fAttributeQName.setValues(null, name, name, null);
+        }
+
+        // equals
+        fEntityScanner.skipSpaces();
+        if (!fEntityScanner.skipChar('=')) {
+            reportFatalError("EqRequiredInAttribute",
+                             new Object[]{fCurrentElement.rawname,fAttributeQName.rawname});
+        }
+        fEntityScanner.skipSpaces();
+
+        // content
+        int oldLen = attributes.getLength();
+        int attrIndex = attributes.addAttribute(fAttributeQName, XMLSymbols.fCDATASymbol, null);
+
+        // WFC: Unique Att Spec
+        if (oldLen == attributes.getLength()) {
+            reportFatalError("AttributeNotUnique",
+                             new Object[]{fCurrentElement.rawname,
+                                          fAttributeQName.rawname});
+        }
+        //REVISIT: one more case needs to be included: external PE and standalone is no
+        boolean isVC =  fHasExternalDTD && !fStandalone;        
+        scanAttributeValue(fTempString, fTempString2,
+                           fAttributeQName.rawname, isVC, 
+                           fCurrentElement.rawname);
+        attributes.setValue(attrIndex, fTempString.toString());
+        attributes.setNonNormalizedValue(attrIndex, fTempString2.toString());
+        attributes.setSpecified(attrIndex, true);
+
+        if (DEBUG_CONTENT_SCANNING) System.out.println("<<< scanAttribute()");
+!!!4946971.java!!!	scanContent() : int
+
+        XMLString content = fTempString;
+        int c = fEntityScanner.scanContent(content);
+        if (c == '\r') {
+            // happens when there is the character reference &#13;
+            fEntityScanner.scanChar();
+            fStringBuffer.clear();
+            fStringBuffer.append(fTempString);
+            fStringBuffer.append((char)c);
+            content = fStringBuffer;
+            c = -1;
+        }
+        if (fDocumentHandler != null && content.length > 0) {
+            fDocumentHandler.characters(content, null);
+        }
+
+        if (c == ']' && fTempString.length == 0) {
+            fStringBuffer.clear();
+            fStringBuffer.append((char)fEntityScanner.scanChar());
+            // remember where we are in case we get an endEntity before we
+            // could flush the buffer out - this happens when we're parsing an
+            // entity which ends with a ]
+            fInScanContent = true;
+            //
+            // We work on a single character basis to handle cases such as:
+            // ']]]>' which we might otherwise miss.
+            //
+            if (fEntityScanner.skipChar(']')) {
+                fStringBuffer.append(']');
+                while (fEntityScanner.skipChar(']')) {
+                    fStringBuffer.append(']');
+                }
+                if (fEntityScanner.skipChar('>')) {
+                    reportFatalError("CDEndInContent", null);
+                }
+            }
+            if (fDocumentHandler != null && fStringBuffer.length != 0) {
+                fDocumentHandler.characters(fStringBuffer, null);
+            }
+            fInScanContent = false;
+            c = -1;
+        }
+        return c;
+
+!!!4947099.java!!!	scanCDATASection(inout complete : boolean) : boolean
+        
+        // call handler
+        if (fDocumentHandler != null) {
+            fDocumentHandler.startCDATA(null);
+        }
+
+        while (true) {
+            fStringBuffer.clear();
+            if (!fEntityScanner.scanData("]]", fStringBuffer)) {
+                if (fDocumentHandler != null && fStringBuffer.length > 0) {
+                    fDocumentHandler.characters(fStringBuffer, null);
+                }
+                int brackets = 0;
+                while (fEntityScanner.skipChar(']')) {
+                    brackets++;
+                }
+                if (fDocumentHandler != null && brackets > 0) {
+                    fStringBuffer.clear();
+                    if (brackets > XMLEntityManager.DEFAULT_BUFFER_SIZE) {
+                        // Handle large sequences of ']'
+                        int chunks = brackets / XMLEntityManager.DEFAULT_BUFFER_SIZE;
+                        int remainder = brackets % XMLEntityManager.DEFAULT_BUFFER_SIZE;
+                        for (int i = 0; i < XMLEntityManager.DEFAULT_BUFFER_SIZE; i++) {
+                            fStringBuffer.append(']');
+                        }
+                        for (int i = 0; i < chunks; i++) {
+                            fDocumentHandler.characters(fStringBuffer, null);
+                        }
+                        if (remainder != 0) {
+                            fStringBuffer.length = remainder;
+                            fDocumentHandler.characters(fStringBuffer, null);
+                        }
+                    }
+                    else {
+                    	for (int i = 0; i < brackets; i++) {
+                    	    fStringBuffer.append(']');
+                    	}
+                       fDocumentHandler.characters(fStringBuffer, null);
+                    }
+                }
+                if (fEntityScanner.skipChar('>')) {
+                    break;
+                }
+                if (fDocumentHandler != null) {
+                    fStringBuffer.clear();
+                    fStringBuffer.append("]]");
+                    fDocumentHandler.characters(fStringBuffer, null);
+                }
+            }
+            else {
+                if (fDocumentHandler != null) {
+                    fDocumentHandler.characters(fStringBuffer, null);
+                }
+                int c = fEntityScanner.peekChar();
+                if (c != -1 && isInvalidLiteral(c)) {
+                    if (XMLChar.isHighSurrogate(c)) {
+                        fStringBuffer.clear();
+                        scanSurrogates(fStringBuffer);
+                        if (fDocumentHandler != null) {
+                            fDocumentHandler.characters(fStringBuffer, null);
+                        }
+                    }
+                    else {
+                        reportFatalError("InvalidCharInCDSect",
+                                        new Object[]{Integer.toString(c,16)});
+                        fEntityScanner.scanChar();
+                    }
+                }
+            }
+        }
+        fMarkupDepth--;
+
+        // call handler
+        if (fDocumentHandler != null) {
+            fDocumentHandler.endCDATA(null);
+        }
+
+        return true;
+
+!!!4947227.java!!!	scanEndElement() : int
+        if (DEBUG_CONTENT_SCANNING) System.out.println(">>> scanEndElement()");
+
+        fElementStack.popElement(fElementQName) ;
+
+        // Take advantage of the fact that next string _should_ be "fElementQName.rawName",
+        //In scanners most of the time is consumed on checks done for XML characters, we can
+        // optimize on it and avoid the checks done for endElement,
+        //we will also avoid symbol table lookup - neeraj.bajaj@sun.com
+
+        // this should work both for namespace processing true or false...
+
+        //REVISIT: if the string is not the same as expected.. we need to do better error handling..
+        //We can skip this for now... In any case if the string doesn't match -- document is not well formed.
+        if (!fEntityScanner.skipString(fElementQName.rawname)) {
+            reportFatalError("ETagRequired", new Object[]{fElementQName.rawname});
+        }
+
+        // end
+        fEntityScanner.skipSpaces();
+        if (!fEntityScanner.skipChar('>')) {
+            reportFatalError("ETagUnterminated",
+                             new Object[]{fElementQName.rawname});
+        }
+        fMarkupDepth--;
+
+        //we have increased the depth for two markup "<" characters
+        fMarkupDepth--;
+      
+        // check that this element was opened in the same entity
+        if (fMarkupDepth < fEntityStack[fEntityDepth - 1]) {
+            reportFatalError("ElementEntityMismatch",
+                             new Object[]{fCurrentElement.rawname});
+        }
+
+        // call handler
+        if (fDocumentHandler != null ) {
+            fDocumentHandler.endElement(fElementQName, null);
+        }
+
+        return fMarkupDepth;
+ 
+!!!4947355.java!!!	scanCharReference() : void
+
+        fStringBuffer2.clear();
+        int ch = scanCharReferenceValue(fStringBuffer2, null);
+        fMarkupDepth--;
+        if (ch != -1) {
+            // call handler
+            if (fDocumentHandler != null) {
+                if (fNotifyCharRefs) {
+                    fDocumentHandler.startGeneralEntity(fCharRefLiteral, null, null, null);
+                }
+                Augmentations augs = null;
+                if (fValidation && ch <= 0x20) {
+                    augs = new AugmentationsImpl();
+                    augs.putItem(Constants.CHAR_REF_PROBABLE_WS, Boolean.TRUE);
+                }
+                fDocumentHandler.characters(fStringBuffer2, augs);
+                if (fNotifyCharRefs) {
+                    fDocumentHandler.endGeneralEntity(fCharRefLiteral, null);
+                }
+            }
+        }
+
+!!!4947483.java!!!	scanEntityReference() : void
+
+        // name
+        String name = fEntityScanner.scanName();
+        if (name == null) {
+            reportFatalError("NameRequiredInReference", null);
+            return;
+        }
+
+        // end
+        if (!fEntityScanner.skipChar(';')) {
+            reportFatalError("SemicolonRequiredInReference", new Object []{name});
+        }
+        fMarkupDepth--;
+
+        // handle built-in entities
+        if (name == fAmpSymbol) {
+            handleCharacter('&', fAmpSymbol);
+        }
+        else if (name == fLtSymbol) {
+            handleCharacter('<', fLtSymbol);
+        }
+        else if (name == fGtSymbol) {
+            handleCharacter('>', fGtSymbol);
+        }
+        else if (name == fQuotSymbol) {
+            handleCharacter('"', fQuotSymbol);
+        }
+        else if (name == fAposSymbol) {
+            handleCharacter('\'', fAposSymbol);
+        }
+        // start general entity
+        else if (fEntityManager.isUnparsedEntity(name)) {
+            reportFatalError("ReferenceToUnparsedEntity", new Object[]{name});
+        }
+        else {
+            if (!fEntityManager.isDeclaredEntity(name)) {
+                //REVISIT: one more case needs to be included: external PE and standalone is no
+                if ( fHasExternalDTD && !fStandalone) {
+                    if (fValidation)
+                        fErrorReporter.reportError( XMLMessageFormatter.XML_DOMAIN,"EntityNotDeclared", 
+                                                    new Object[]{name}, XMLErrorReporter.SEVERITY_ERROR);
+                }
+                else 
+                    reportFatalError("EntityNotDeclared", new Object[]{name});
+            }
+            fEntityManager.startEntity(name, false);
+        }
+
+!!!4947611.java!!!	handleCharacter(in c : char, in entity : String) : void
+        if (fDocumentHandler != null) {
+            if (fNotifyBuiltInRefs) {
+                fDocumentHandler.startGeneralEntity(entity, null, null, null);
+            }
+            
+            fSingleChar[0] = c;
+            fTempString.setValues(fSingleChar, 0, 1);
+            fDocumentHandler.characters(fTempString, null);
+            
+            if (fNotifyBuiltInRefs) {
+                fDocumentHandler.endGeneralEntity(entity, null);
+            }
+        }
+!!!4947739.java!!!	handleEndElement(inout element : QName, inout isEmpty : boolean) : int
+
+        fMarkupDepth--;
+        // check that this element was opened in the same entity
+        if (fMarkupDepth < fEntityStack[fEntityDepth - 1]) {
+            reportFatalError("ElementEntityMismatch",
+                             new Object[]{fCurrentElement.rawname});
+        }
+        // make sure the elements match
+        QName startElement = fQName;
+        fElementStack.popElement(startElement);
+        if (element.rawname != startElement.rawname) {
+            reportFatalError("ETagRequired",
+                             new Object[]{startElement.rawname});
+        }
+
+        // bind namespaces
+        if (fNamespaces) {
+            element.uri = startElement.uri;
+        }
+        
+        // call handler
+        if (fDocumentHandler != null && !isEmpty) {
+            fDocumentHandler.endElement(element, null);
+        }
+
+        return fMarkupDepth;
+
+!!!4947867.java!!!	setScannerState(in state : int) : void
+
+        fScannerState = state;
+        if (DEBUG_SCANNER_STATE) {
+            System.out.print("### setScannerState: ");
+            System.out.print(getScannerStateName(state));
+            System.out.println();
+        }
+
+!!!4947995.java!!!	setDispatcher(inout dispatcher : Dispatcher) : void
+        fDispatcher = dispatcher;
+        if (DEBUG_DISPATCHER) {
+            System.out.print("%%% setDispatcher: ");
+            System.out.print(getDispatcherName(dispatcher));
+            System.out.println();
+        }
+!!!4948123.java!!!	getScannerStateName(in state : int) : String
+
+        switch (state) {
+            case SCANNER_STATE_DOCTYPE: return "SCANNER_STATE_DOCTYPE";
+            case SCANNER_STATE_ROOT_ELEMENT: return "SCANNER_STATE_ROOT_ELEMENT";
+            case SCANNER_STATE_START_OF_MARKUP: return "SCANNER_STATE_START_OF_MARKUP";
+            case SCANNER_STATE_COMMENT: return "SCANNER_STATE_COMMENT";
+            case SCANNER_STATE_PI: return "SCANNER_STATE_PI";
+            case SCANNER_STATE_CONTENT: return "SCANNER_STATE_CONTENT";
+            case SCANNER_STATE_REFERENCE: return "SCANNER_STATE_REFERENCE";
+            case SCANNER_STATE_END_OF_INPUT: return "SCANNER_STATE_END_OF_INPUT";
+            case SCANNER_STATE_TERMINATED: return "SCANNER_STATE_TERMINATED";
+            case SCANNER_STATE_CDATA: return "SCANNER_STATE_CDATA";
+            case SCANNER_STATE_TEXT_DECL: return "SCANNER_STATE_TEXT_DECL";
+        }
+
+        return "??? ("+state+')';
+
+!!!4948251.java!!!	getDispatcherName(inout dispatcher : Dispatcher) : String
+
+        if (DEBUG_DISPATCHER) {
+            if (dispatcher != null) {
+                String name = dispatcher.getClass().getName();
+                int index = name.lastIndexOf('.');
+                if (index != -1) {
+                    name = name.substring(index + 1);
+                    index = name.lastIndexOf('$');
+                    if (index != -1) {
+                        name = name.substring(index + 1);
+                    }
+                }
+                return name;
+            }
+        }
+        return "null";
+

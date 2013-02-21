@@ -1,0 +1,130 @@
+class JTextPane
+!!!9166875.java!!!	JTextPane()
+        super();
+        setEditorKit(createDefaultEditorKit());
+!!!9167003.java!!!	JTextPane(inout doc : StyledDocument)
+        this();
+        setStyledDocument(doc);
+!!!9167131.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!9167259.java!!!	setDocument(inout doc : Document) : void
+        if (doc instanceof StyledDocument) {
+            super.setDocument(doc);
+        } else {
+            throw new IllegalArgumentException("Model must be StyledDocument");
+        }
+!!!9167387.java!!!	setStyledDocument(inout doc : StyledDocument) : void
+        super.setDocument(doc);
+!!!9167515.java!!!	getStyledDocument() : StyledDocument
+        return (StyledDocument) getDocument();
+!!!9167643.java!!!	replaceSelection(in content : String) : void
+        replaceSelection(content, true);
+!!!9167771.java!!!	replaceSelection(in content : String, inout checkEditable : boolean) : void
+        if (checkEditable && !isEditable()) {
+	    UIManager.getLookAndFeel().provideErrorFeedback(JTextPane.this);
+            return;
+        }
+        Document doc = getStyledDocument();
+        if (doc != null) {
+            try {
+                Caret caret = getCaret();
+                int p0 = Math.min(caret.getDot(), caret.getMark());
+                int p1 = Math.max(caret.getDot(), caret.getMark());
+		AttributeSet attr = getInputAttributes().copyAttributes();
+                if (doc instanceof AbstractDocument) {
+                    ((AbstractDocument)doc).replace(p0, p1 - p0, content,attr);
+                }
+                else {
+                    if (p0 != p1) {
+                        doc.remove(p0, p1 - p0);
+                    }
+                    if (content != null && content.length() > 0) {
+                        doc.insertString(p0, content, attr);
+                    }
+                }
+            } catch (BadLocationException e) {
+	        UIManager.getLookAndFeel().provideErrorFeedback(JTextPane.this);
+            }
+        }
+!!!9167899.java!!!	insertComponent(inout c : Component) : void
+        MutableAttributeSet inputAttributes = getInputAttributes();
+        inputAttributes.removeAttributes(inputAttributes);
+        StyleConstants.setComponent(inputAttributes, c);
+        replaceSelection(" ", false);
+        inputAttributes.removeAttributes(inputAttributes);
+!!!9168027.java!!!	insertIcon(inout g : Icon) : void
+        MutableAttributeSet inputAttributes = getInputAttributes();
+        inputAttributes.removeAttributes(inputAttributes);
+        StyleConstants.setIcon(inputAttributes, g);
+        replaceSelection(" ", false);
+        inputAttributes.removeAttributes(inputAttributes);
+!!!9168155.java!!!	addStyle(in nm : String, inout parent : Style) : Style
+        StyledDocument doc = getStyledDocument();
+        return doc.addStyle(nm, parent);
+!!!9168283.java!!!	removeStyle(in nm : String) : void
+        StyledDocument doc = getStyledDocument();
+        doc.removeStyle(nm);
+!!!9168411.java!!!	getStyle(in nm : String) : Style
+        StyledDocument doc = getStyledDocument();
+        return doc.getStyle(nm);
+!!!9168539.java!!!	setLogicalStyle(inout s : Style) : void
+        StyledDocument doc = getStyledDocument();
+        doc.setLogicalStyle(getCaretPosition(), s);
+!!!9168667.java!!!	getLogicalStyle() : Style
+        StyledDocument doc = getStyledDocument();
+        return doc.getLogicalStyle(getCaretPosition());
+!!!9168795.java!!!	getCharacterAttributes() : AttributeSet
+        StyledDocument doc = getStyledDocument();
+        Element run = doc.getCharacterElement(getCaretPosition());
+        if (run != null) {
+            return run.getAttributes();
+        }
+        return null;
+!!!9168923.java!!!	setCharacterAttributes(inout attr : AttributeSet, inout replace : boolean) : void
+        int p0 = getSelectionStart();
+        int p1 = getSelectionEnd();
+        if (p0 != p1) {
+            StyledDocument doc = getStyledDocument();
+            doc.setCharacterAttributes(p0, p1 - p0, attr, replace);
+        } else {
+            MutableAttributeSet inputAttributes = getInputAttributes();
+            if (replace) {
+                inputAttributes.removeAttributes(inputAttributes);
+            }
+            inputAttributes.addAttributes(attr);
+        }
+!!!9169051.java!!!	getParagraphAttributes() : AttributeSet
+        StyledDocument doc = getStyledDocument();
+        Element paragraph = doc.getParagraphElement(getCaretPosition());
+        if (paragraph != null) {
+            return paragraph.getAttributes();
+        }
+        return null;
+!!!9169179.java!!!	setParagraphAttributes(inout attr : AttributeSet, inout replace : boolean) : void
+        int p0 = getSelectionStart();
+        int p1 = getSelectionEnd();
+        StyledDocument doc = getStyledDocument();
+        doc.setParagraphAttributes(p0, p1 - p0, attr, replace);
+!!!9169307.java!!!	getInputAttributes() : MutableAttributeSet
+        return getStyledEditorKit().getInputAttributes();
+!!!9169435.java!!!	getStyledEditorKit() : StyledEditorKit
+        return (StyledEditorKit) getEditorKit();
+!!!9169563.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!9169691.java!!!	createDefaultEditorKit() : EditorKit
+        return new StyledEditorKit();
+!!!9169819.java!!!	setEditorKit(inout kit : EditorKit) : void
+        if (kit instanceof StyledEditorKit) {
+            super.setEditorKit(kit);
+        } else {
+            throw new IllegalArgumentException("Must be StyledEditorKit");
+        }
+!!!9169947.java!!!	paramString() : String
+        return super.paramString();

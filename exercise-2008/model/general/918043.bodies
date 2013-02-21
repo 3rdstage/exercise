@@ -1,0 +1,188 @@
+class System
+!!!7080091.java!!!	setIn(inout in : InputStream) : void
+	checkIO();
+	setIn0(in);
+!!!7080219.java!!!	setOut(inout out : PrintStream) : void
+	checkIO();
+	setOut0(out);
+!!!7080347.java!!!	setErr(inout err : PrintStream) : void
+	checkIO();
+	setErr0(err);
+!!!7080475.java!!!	inheritedChannel() : Channel
+        return SelectorProvider.provider().inheritedChannel();
+!!!7080603.java!!!	checkIO() : void
+        if (security != null)
+	    security.checkPermission(new RuntimePermission("setIO"));
+!!!7081115.java!!!	setSecurityManager(in s : SecurityManager) : void
+        try {
+            s.checkPackageAccess("java.lang");
+        } catch (Exception e) {
+            // no-op
+        }
+        setSecurityManager0(s);
+!!!7081243.java!!!	setSecurityManager0(in s : SecurityManager) : void
+	if (security != null) {
+ 	    // ask the currently installed security manager if we
+ 	    // can replace it.
+ 	    security.checkPermission(new RuntimePermission
+				     ("setSecurityManager"));
+	}
+
+	if ((s != null) && (s.getClass().getClassLoader() != null)) {
+	    // New security manager class is not on bootstrap classpath.
+	    // Cause policy to get initialized before we install the new
+	    // security manager, in order to prevent infinite loops when
+	    // trying to initialize the policy (which usually involves
+	    // accessing some security and/or system properties, which in turn
+	    // calls the installed security manager's checkPermission method
+	    // which will loop infinitely if there is a non-system class
+	    // (in this case: the new security manager class) on the stack).
+	    AccessController.doPrivileged(new PrivilegedAction() {
+		public Object run() {
+		    s.getClass().getProtectionDomain().implies
+			(SecurityConstants.ALL_PERMISSION);
+		    return null;
+		}
+	    });
+	}
+
+	security = s;
+	InetAddressCachePolicy.setIfNotSet(InetAddressCachePolicy.FOREVER);
+!!!7081371.java!!!	getSecurityManager() : SecurityManager
+	return security;
+!!!7082139.java!!!	getProperties() : Properties
+	if (security != null) {
+	    security.checkPropertiesAccess();
+	}
+	return props;
+!!!7082267.java!!!	setProperties(inout props : Properties) : void
+	if (security != null) {
+	    security.checkPropertiesAccess();
+	}
+        if (props == null) {
+            props = new Properties();
+            initProperties(props);
+        }
+	System.props = props;
+!!!7082395.java!!!	getProperty(in key : String) : String
+	checkKey(key);
+	if (security != null) {
+	    security.checkPropertyAccess(key);
+	}
+	return props.getProperty(key);
+!!!7082523.java!!!	getProperty(in key : String, in def : String) : String
+	checkKey(key);
+	if (security != null) {
+	    security.checkPropertyAccess(key);
+	}
+	return props.getProperty(key, def);
+!!!7082651.java!!!	setProperty(in key : String, in value : String) : String
+	checkKey(key);
+	if (security != null)
+	    security.checkPermission(new PropertyPermission(key,
+		SecurityConstants.PROPERTY_WRITE_ACTION));
+	return (String) props.setProperty(key, value);
+!!!7082779.java!!!	clearProperty(in key : String) : String
+        checkKey(key);
+        if (security != null)
+            security.checkPermission(new PropertyPermission(key, "write"));
+        return (String) props.remove(key);
+!!!7082907.java!!!	checkKey(in key : String) : void
+        if (key == null) {
+            throw new NullPointerException("key can't be null");
+        }
+        if (key.equals("")) {
+            throw new IllegalArgumentException("key can't be empty");
+        }
+!!!7083035.java!!!	getenv(in name : String) : String
+	if (security != null)
+	    security.checkPermission(new RuntimePermission("getenv."+name));
+
+	return ProcessEnvironment.getenv(name);
+!!!7083163.java!!!	getenv() : Map
+	if (security != null)
+	    security.checkPermission(new RuntimePermission("getenv.*"));
+
+	return ProcessEnvironment.getenv();
+!!!7083291.java!!!	exit(in status : int) : void
+	Runtime.getRuntime().exit(status);
+!!!7083419.java!!!	gc() : void
+	Runtime.getRuntime().gc();
+!!!7083547.java!!!	runFinalization() : void
+	Runtime.getRuntime().runFinalization();
+!!!7083675.java!!!	runFinalizersOnExit(inout value : boolean) : void
+	Runtime.getRuntime().runFinalizersOnExit(value);
+!!!7083803.java!!!	load(in filename : String) : void
+	Runtime.getRuntime().load0(getCallerClass(), filename);
+!!!7083931.java!!!	loadLibrary(in libname : String) : void
+	Runtime.getRuntime().loadLibrary0(getCallerClass(), libname);
+!!!7084187.java!!!	nullInputStream() : InputStream
+	if (currentTimeMillis() > 0)
+	    return null;
+	throw new NullPointerException();
+!!!7084315.java!!!	nullPrintStream() : PrintStream
+	if (currentTimeMillis() > 0)
+	    return null;
+	throw new NullPointerException();
+!!!7084443.java!!!	initializeSystemClass() : void
+	props = new Properties();
+	initProperties(props);
+	sun.misc.Version.init();
+	FileInputStream fdIn = new FileInputStream(FileDescriptor.in);
+	FileOutputStream fdOut = new FileOutputStream(FileDescriptor.out);
+	FileOutputStream fdErr = new FileOutputStream(FileDescriptor.err);
+	setIn0(new BufferedInputStream(fdIn));
+	setOut0(new PrintStream(new BufferedOutputStream(fdOut, 128), true));
+	setErr0(new PrintStream(new BufferedOutputStream(fdErr, 128), true));
+
+	// Load the zip library now in order to keep java.util.zip.ZipFile
+	// from trying to use itself to load this library later.
+	loadLibrary("zip");
+
+        // Currently File.deleteOnExit is built on JVM_Exit, which is a
+        // separate mechanism from shutdown hooks. Unfortunately in order to
+        // work properly JVM_Exit implicitly requires that Java signal
+        // handlers be set up for HUP, TERM, and INT (where available). If
+        // File.deleteOnExit were implemented in terms of shutdown hooks this
+        // call to Terminator.setup() could be removed.
+        Terminator.setup();
+
+	// Set the maximum amount of direct memory.  This value is controlled
+	// by the vm option -XX:MaxDirectMemorySize=<size>.  This method acts
+	// as an initializer only if it is called before sun.misc.VM.booted().
+ 	sun.misc.VM.maxDirectMemory();
+
+	// Set a boolean to determine whether ClassLoader.loadClass accepts
+	// array syntax.  This value is controlled by the system property
+	// "sun.lang.ClassLoader.allowArraySyntax".  This method acts as
+	// an initializer only if it is called before sun.misc.VM.booted().
+	sun.misc.VM.allowArraySyntax();
+
+	// Subsystems that are invoked during initialization can invoke
+	// sun.misc.VM.isBooted() in order to avoid doing things that should
+	// wait until the application class loader has been set up.
+	sun.misc.VM.booted();
+
+        // The main thread is not added to its thread group in the same
+        // way as other threads; we must do it ourselves here.
+        Thread current = Thread.currentThread();
+        current.getThreadGroup().add(current);
+
+        // Allow privileged classes outside of java.lang
+        sun.misc.SharedSecrets.setJavaLangAccess(new sun.misc.JavaLangAccess(){
+            public sun.reflect.ConstantPool getConstantPool(Class klass) {
+                return klass.getConstantPool();
+            }
+            public void setAnnotationType(Class klass, AnnotationType type) {
+                klass.setAnnotationType(type);
+            }
+            public AnnotationType getAnnotationType(Class klass) {
+                return klass.getAnnotationType();
+            }
+            public void blockedOn(Thread t, Interruptible b) {
+                t.blockedOn(b);
+            }
+        });
+!!!7084571.java!!!	getCallerClass() : Class
+        // NOTE use of more generic Reflection.getCallerClass()
+        return Reflection.getCallerClass(3);

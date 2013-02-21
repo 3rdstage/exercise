@@ -1,0 +1,65 @@
+class EllipticCurve
+!!!7687835.java!!!	checkValidity(inout field : ECField, inout c : BigInteger, in cName : String) : void
+ 
+	// can only perform check if field is ECFieldFp or ECFieldF2m. 
+	if (field instanceof ECFieldFp) {
+	    BigInteger p = ((ECFieldFp)field).getP();
+	    if (p.compareTo(c) != 1) {
+		throw new IllegalArgumentException(cName + " is too large");
+	    } else if (c.signum() != 1) {
+		throw new IllegalArgumentException(cName + " is negative");
+	    }
+	} else if (field instanceof ECFieldF2m) {
+	    int m = ((ECFieldF2m)field).getM();
+	    if (c.bitLength() > m) {
+		throw new IllegalArgumentException(cName + " is too large");
+	    } 
+	}
+!!!7687963.java!!!	EllipticCurve(inout field : ECField, inout a : BigInteger, inout b : BigInteger)
+	this(field, a, b, null);
+!!!7688091.java!!!	EllipticCurve(inout field : ECField, inout a : BigInteger, inout b : BigInteger, in seed : byte)
+        if (field == null) {
+            throw new NullPointerException("field is null");
+        }
+        if (a == null) {
+	    throw new NullPointerException("first coefficient is null");
+	}
+        if (b == null) {
+            throw new NullPointerException("second coefficient is null");
+        }
+        checkValidity(field, a, "first coefficient");
+	checkValidity(field, b, "second coefficient");
+        this.field = field;
+        this.a = a;
+        this.b = b;
+	if (seed != null) {
+	    this.seed = (byte[]) seed.clone();
+	} else {
+	    this.seed = null;
+	}
+!!!7688219.java!!!	getField() : ECField
+	return field;
+!!!7688347.java!!!	getA() : BigInteger
+	return a;
+!!!7688475.java!!!	getB() : BigInteger
+	return b;
+!!!7688603.java!!!	getSeed() : byte
+	if (seed == null) return null;
+	else return (byte[]) seed.clone();
+!!!7688731.java!!!	equals(inout obj : Object) : boolean
+	if (this == obj) return true;
+	if (obj instanceof EllipticCurve) {
+	    EllipticCurve curve = (EllipticCurve) obj;
+	    if ((field.equals(curve.field)) &&
+		(a.equals(curve.a)) &&
+		(b.equals(curve.b)) &&
+		(Arrays.equals(seed, curve.seed))) {
+		return true;
+	    } 
+	}
+	return false;
+!!!7688859.java!!!	hashCode() : int
+	return (field.hashCode() << 6 + 
+	    (a.hashCode() << 4) +
+	    (b.hashCode() << 2) + 
+	    (seed==null? 0:seed.length));

@@ -1,0 +1,210 @@
+class AccessibleProgressMonitor
+!!!9249819.java!!!	optionPaneCreated() : void
+	    accessibleJOptionPane = 
+		((ProgressOptionPane)pane).getAccessibleJOptionPane();
+
+	    // add a listener for progress bar ChangeEvents
+	    if (myBar != null) {
+		myBar.addChangeListener(this);
+	    }
+
+	    // add a listener for note label PropertyChangeEvents
+	    if (noteLabel != null) {
+		noteLabel.addPropertyChangeListener(this);
+	    }
+!!!9249947.java!!!	stateChanged(inout e : ChangeEvent) : void
+            if (e == null) {
+                return;
+            }
+	    if (myBar != null) {
+		// the progress bar value changed
+		Object newModelValue = myBar.getValue();
+		firePropertyChange(ACCESSIBLE_VALUE_PROPERTY, 
+				   oldModelValue, 
+				   newModelValue);
+		oldModelValue = newModelValue;
+	    }
+!!!9250075.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+	    if (e.getSource() == noteLabel && e.getPropertyName() == "text") {
+		// the note label text changed
+		firePropertyChange(ACCESSIBLE_TEXT_PROPERTY, null, 0);
+	    } 
+!!!9250203.java!!!	getAccessibleName() : String
+	    if (accessibleName != null) { // defined in AccessibleContext
+		return accessibleName;
+	    } else if (accessibleJOptionPane != null) {
+		// delegate to the AccessibleJOptionPane
+		return accessibleJOptionPane.getAccessibleName();
+	    } 
+	    return null;
+!!!9250331.java!!!	getAccessibleDescription() : String
+	    if (accessibleDescription != null) { // defined in AccessibleContext
+		return accessibleDescription; 
+	    } else if (accessibleJOptionPane != null) {
+		// delegate to the AccessibleJOptionPane
+		return accessibleJOptionPane.getAccessibleDescription();
+	    } 
+	    return null;
+!!!9250459.java!!!	getAccessibleRole() : AccessibleRole
+	    return AccessibleRole.PROGRESS_MONITOR;
+!!!9250587.java!!!	getAccessibleStateSet() : AccessibleStateSet
+	    if (accessibleJOptionPane != null) {
+		// delegate to the AccessibleJOptionPane
+		return accessibleJOptionPane.getAccessibleStateSet();
+	    } 
+	    return null;
+!!!9250715.java!!!	getAccessibleParent() : Accessible
+	    if (dialog != null) {
+		return (Accessible)dialog;
+	    }
+	    return null;
+!!!9250843.java!!!	getParentAccessibleContext() : AccessibleContext
+	    if (dialog != null) {
+		return dialog.getAccessibleContext();
+	    }
+	    return null;
+!!!9250971.java!!!	getAccessibleIndexInParent() : int
+	    if (accessibleJOptionPane != null) {
+		// delegate to the AccessibleJOptionPane
+		return accessibleJOptionPane.getAccessibleIndexInParent();
+	    }
+	    return -1;
+!!!9251099.java!!!	getAccessibleChildrenCount() : int
+	    // return the number of children in the JPanel containing
+	    // the message, note label and progress bar
+	    AccessibleContext ac = getPanelAccessibleContext();
+	    if (ac != null) {
+		return ac.getAccessibleChildrenCount();
+	    }
+	    return 0;
+!!!9251227.java!!!	getAccessibleChild(in i : int) : Accessible
+	    // return a child in the JPanel containing the message, note label 
+	    // and progress bar
+	    AccessibleContext ac = getPanelAccessibleContext();
+	    if (ac != null) {
+		return ac.getAccessibleChild(i);
+	    }
+	    return null;
+!!!9251355.java!!!	getPanelAccessibleContext() : AccessibleContext
+	    if (myBar != null) {
+		Component c = myBar.getParent();
+		if (c instanceof Accessible) {
+		    return ((Accessible)c).getAccessibleContext();
+		}
+	    }
+	    return null;
+!!!9251483.java!!!	getLocale() : Locale
+	    if (accessibleJOptionPane != null) {
+		// delegate to the AccessibleJOptionPane
+		return accessibleJOptionPane.getLocale();
+	    }
+	    return null;
+!!!9251611.java!!!	getAccessibleComponent() : AccessibleComponent
+	    if (accessibleJOptionPane != null) {
+		// delegate to the AccessibleJOptionPane
+		return accessibleJOptionPane.getAccessibleComponent();
+	    }
+	    return null;
+!!!9251739.java!!!	getAccessibleValue() : AccessibleValue
+	    if (myBar != null) {
+		// delegate to the AccessibleJProgressBar
+		return myBar.getAccessibleContext().getAccessibleValue();
+	    }
+	    return null;
+!!!9251867.java!!!	getAccessibleText() : AccessibleText
+	    if (getNoteLabelAccessibleText() != null) {
+		return this;
+	    }
+	    return null;
+!!!9251995.java!!!	getNoteLabelAccessibleText() : AccessibleText
+	    if (noteLabel != null) {
+		// AccessibleJLabel implements AccessibleText if the
+		// JLabel contains HTML text
+		return noteLabel.getAccessibleContext().getAccessibleText();
+	    }
+	    return null;
+!!!9252123.java!!!	getIndexAtPoint(inout p : Point) : int
+	    AccessibleText at = getNoteLabelAccessibleText();
+	    if (at != null && sameWindowAncestor(pane, noteLabel)) {
+		// convert point from the option pane bounds
+		// to the note label bounds.
+		Point noteLabelPoint = SwingUtilities.convertPoint(pane,
+								   p,
+								   noteLabel);
+		if (noteLabelPoint != null) {
+		    return at.getIndexAtPoint(noteLabelPoint);
+		}
+	    }
+	    return -1;
+!!!9252251.java!!!	getCharacterBounds(in i : int) : Rectangle
+	    AccessibleText at = getNoteLabelAccessibleText();
+	    if (at != null && sameWindowAncestor(pane, noteLabel)) {
+		// return rectangle in the option pane bounds
+		Rectangle noteLabelRect = at.getCharacterBounds(i);
+		if (noteLabelRect != null) {
+		    return SwingUtilities.convertRectangle(noteLabel,
+							   noteLabelRect,
+							   pane);
+		}
+	    }
+	    return null;
+!!!9252379.java!!!	sameWindowAncestor(inout src : Component, inout dest : Component) : boolean
+	    if (src == null || dest == null) {
+		return false;
+	    }
+	    return SwingUtilities.getWindowAncestor(src) ==
+		SwingUtilities.getWindowAncestor(dest);
+!!!9252507.java!!!	getCharCount() : int
+	    AccessibleText at = getNoteLabelAccessibleText();
+	    if (at != null) {	// JLabel contains HTML text
+		return at.getCharCount();
+	    } 
+	    return -1;
+!!!9252635.java!!!	getCaretPosition() : int
+	    AccessibleText at = getNoteLabelAccessibleText();
+	    if (at != null) {	// JLabel contains HTML text
+		return at.getCaretPosition();
+	    }
+	    return -1;
+!!!9252763.java!!!	getAtIndex(in part : int, in index : int) : String
+	    AccessibleText at = getNoteLabelAccessibleText();
+	    if (at != null) {	// JLabel contains HTML text
+		return at.getAtIndex(part, index);
+	    }
+	    return null;
+!!!9252891.java!!!	getAfterIndex(in part : int, in index : int) : String
+	    AccessibleText at = getNoteLabelAccessibleText();
+	    if (at != null) {	// JLabel contains HTML text
+		return at.getAfterIndex(part, index);
+	    }
+	    return null;
+!!!9253019.java!!!	getBeforeIndex(in part : int, in index : int) : String
+	    AccessibleText at = getNoteLabelAccessibleText();
+	    if (at != null) {	// JLabel contains HTML text
+		return at.getBeforeIndex(part, index);
+	    }
+	    return null;
+!!!9253147.java!!!	getCharacterAttribute(in i : int) : AttributeSet
+	    AccessibleText at = getNoteLabelAccessibleText();
+	    if (at != null) {	// JLabel contains HTML text
+		return at.getCharacterAttribute(i);
+	    }
+	    return null;
+!!!9253275.java!!!	getSelectionStart() : int
+	    AccessibleText at = getNoteLabelAccessibleText();
+	    if (at != null) {	// JLabel contains HTML text
+		return at.getSelectionStart();
+	    }
+	    return -1;
+!!!9253403.java!!!	getSelectionEnd() : int
+	    AccessibleText at = getNoteLabelAccessibleText();
+	    if (at != null) {	// JLabel contains HTML text
+		return at.getSelectionEnd();
+	    }
+	    return -1;
+!!!9253531.java!!!	getSelectedText() : String
+	    AccessibleText at = getNoteLabelAccessibleText();
+	    if (at != null) {	// JLabel contains HTML text
+		return at.getSelectedText();
+	    }
+	    return null;

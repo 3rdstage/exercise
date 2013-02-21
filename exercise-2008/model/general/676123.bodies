@@ -1,0 +1,88 @@
+class StringType
+!!!4532635.java!!!	toString() : String
+	return "string";
+!!!4532763.java!!!	identicalTo(inout other : Type) : boolean
+	return this == other;
+!!!4532891.java!!!	toSignature() : String
+	return "Ljava/lang/String;";
+!!!4533019.java!!!	isSimple() : boolean
+	return true;
+!!!4533147.java!!!	toJCType() : Type
+	return com.sun.org.apache.bcel.internal.generic.Type.STRING;
+!!!4533275.java!!!	translateTo(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout type : Type) : void
+	if (type == Type.Boolean) {
+	    translateTo(classGen, methodGen, (BooleanType) type);
+	}
+	else if (type == Type.Real) {
+	    translateTo(classGen, methodGen, (RealType) type);
+	}
+	else if (type == Type.Reference) {
+	    translateTo(classGen, methodGen, (ReferenceType) type);
+	}
+        else if (type == Type.ObjectString) {
+            // NOP -> same representation
+        }
+	else {
+	    ErrorMsg err = new ErrorMsg(ErrorMsg.DATA_CONVERSION_ERR,
+					toString(), type.toString());
+	    classGen.getParser().reportError(Constants.FATAL, err);
+	}
+!!!4533403.java!!!	translateTo(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout type : BooleanType) : void
+	final InstructionList il = methodGen.getInstructionList();
+	FlowList falsel = translateToDesynthesized(classGen, methodGen, type);
+	il.append(ICONST_1);
+	final BranchHandle truec = il.append(new GOTO(null));
+	falsel.backPatch(il.append(ICONST_0));
+	truec.setTarget(il.append(NOP));
+!!!4533531.java!!!	translateTo(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout type : RealType) : void
+	final ConstantPoolGen cpg = classGen.getConstantPool();
+	final InstructionList il = methodGen.getInstructionList();
+	il.append(new INVOKESTATIC(cpg.addMethodref(BASIS_LIBRARY_CLASS,
+						    STRING_TO_REAL,
+						    STRING_TO_REAL_SIG)));
+!!!4533659.java!!!	translateToDesynthesized(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout type : BooleanType) : FlowList
+	final ConstantPoolGen cpg = classGen.getConstantPool();
+	final InstructionList il = methodGen.getInstructionList();
+
+	il.append(new INVOKEVIRTUAL(cpg.addMethodref(STRING_CLASS,
+						     "length", "()I")));
+	return new FlowList(il.append(new IFEQ(null)));
+!!!4533787.java!!!	translateTo(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout type : ReferenceType) : void
+	methodGen.getInstructionList().append(NOP);
+!!!4533915.java!!!	translateTo(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout clazz : Class) : void
+        // Is String <: clazz? I.e. clazz in { String, Object }
+        if (clazz.isAssignableFrom(java.lang.String.class)) {
+	    methodGen.getInstructionList().append(NOP);
+	}
+	else {
+	    ErrorMsg err = new ErrorMsg(ErrorMsg.DATA_CONVERSION_ERR,
+					toString(), clazz.getName());
+	    classGen.getParser().reportError(Constants.FATAL, err);
+	}
+!!!4534043.java!!!	translateFrom(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout clazz : Class) : void
+	final ConstantPoolGen cpg = classGen.getConstantPool();
+	final InstructionList il = methodGen.getInstructionList();
+
+	if (clazz.getName().equals("java.lang.String")) {
+	    // same internal representation, convert null to ""
+	    il.append(DUP);
+	    final BranchHandle ifNonNull = il.append(new IFNONNULL(null));
+	    il.append(POP);
+	    il.append(new PUSH(cpg, ""));
+	    ifNonNull.setTarget(il.append(NOP));
+	}
+	else {
+	    ErrorMsg err = new ErrorMsg(ErrorMsg.DATA_CONVERSION_ERR,
+					toString(), clazz.getName());
+	    classGen.getParser().reportError(Constants.FATAL, err);
+	}
+!!!4534171.java!!!	translateBox(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	translateTo(classGen, methodGen, Type.Reference);
+!!!4534299.java!!!	translateUnBox(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	methodGen.getInstructionList().append(NOP);
+!!!4534427.java!!!	getClassName() : String
+	return(STRING_CLASS);
+!!!4534555.java!!!	LOAD(in slot : int) : Instruction
+	return new ALOAD(slot);
+!!!4534683.java!!!	STORE(in slot : int) : Instruction
+	return new ASTORE(slot);

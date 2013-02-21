@@ -1,0 +1,37 @@
+class TargetDataLineInputStream
+!!!8726043.java!!!	TargetDataLineInputStream(inout line : TargetDataLine)
+	    super();
+	    this.line = line;
+!!!8726171.java!!!	available() : int
+	    return line.available();
+!!!8726299.java!!!	close() : void
+	    // the line needs to be flushed and stopped to avoid a dead lock...
+	    // Probably related to bugs 4417527, 4334868, 4383457
+	    if (line.isActive()) {
+		line.flush();
+		line.stop();
+	    }
+	    line.close();
+!!!8726427.java!!!	read() : int
+	    
+	    byte[] b = new byte[1];
+	    
+	    int value = read(b, 0, 1);
+	    
+	    if (value == -1) {
+		return -1;
+	    }
+	    
+	    value = (int)b[0];
+	    
+	    if (line.getFormat().getEncoding().equals(AudioFormat.Encoding.PCM_SIGNED)) {
+		value += 128;
+	    }
+
+	    return value;
+!!!8726555.java!!!	read(in b : byte, in off : int, in len : int) : int
+	    try {
+		return line.read(b, off, len);
+	    } catch (IllegalArgumentException e) {
+		throw new IOException(e.getMessage());
+	    }

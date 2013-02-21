@@ -1,0 +1,261 @@
+class ThreadLocalMap
+!!!6993819.java!!!	setThreshold(in len : int) : void
+            threshold = len * 2 / 3;
+!!!6993947.java!!!	nextIndex(in i : int, in len : int) : int
+            return ((i + 1 < len) ? i + 1 : 0);
+!!!6994075.java!!!	prevIndex(in i : int, in len : int) : int
+            return ((i - 1 >= 0) ? i - 1 : len - 1);
+!!!6994203.java!!!	ThreadLocalMap(inout firstKey : ThreadLocal, inout firstValue : Object)
+            table = new Entry[INITIAL_CAPACITY];
+            int i = firstKey.threadLocalHashCode & (INITIAL_CAPACITY - 1);
+            table[i] = new Entry(firstKey, firstValue);
+            size = 1;
+            setThreshold(INITIAL_CAPACITY);
+!!!6994331.java!!!	ThreadLocalMap(inout parentMap : ThreadLocalMap)
+            Entry[] parentTable = parentMap.table;
+            int len = parentTable.length;
+            setThreshold(len);
+            table = new Entry[len];
+
+            for (int j = 0; j < len; j++) {
+                Entry e = parentTable[j];
+                if (e != null) {
+                    ThreadLocal k = e.get();
+                    if (k != null) {
+                        ThreadLocal key = k;
+                        Object value = key.childValue(e.value);
+                        Entry c = new Entry(key, value);
+                        int h = key.threadLocalHashCode & (len - 1);
+                        while (table[h] != null)
+                            h = nextIndex(h, len);
+                        table[h] = c;
+                        size++;
+                    }
+                }
+            }
+!!!6994459.java!!!	get(inout key : ThreadLocal) : Object
+            int i = key.threadLocalHashCode & (table.length - 1);
+            Entry e = table[i];
+            if (e != null && e.get() == key)
+                return e.value;
+
+            return getAfterMiss(key, i, e);
+!!!6994587.java!!!	getAfterMiss(inout key : ThreadLocal, in i : int, inout e : Entry) : Object
+            Entry[] tab = table;
+            int len = tab.length;
+
+            while (e != null) {
+                ThreadLocal k = e.get();
+                if (k == key)
+                    return e.value;
+                if (k == null)
+                    return replaceStaleEntry(key, null, i, true);
+
+                i = nextIndex(i, len);
+                e = tab[i];
+            }
+
+            Object value = key.initialValue();
+            tab[i] = new Entry(key, value);
+            int sz = ++size;
+            if (!cleanSomeSlots(i, sz) && sz >= threshold)
+                rehash();
+
+            return value;
+!!!6994715.java!!!	set(inout key : ThreadLocal, inout value : Object) : void
+
+            // We don't use a fast path as with get() because it is at
+            // least as common to use set() to create new entries as
+            // it is to replace existing ones, in which case, a fast
+            // path would fail more often than not.
+
+            Entry[] tab = table;
+            int len = tab.length;
+            int i = key.threadLocalHashCode & (len-1);
+
+            for (Entry e = tab[i];
+		 e != null;
+		 e = tab[i = nextIndex(i, len)]) {
+                ThreadLocal k = e.get();
+
+                if (k == key) {
+                    e.value = value;
+                    return;
+                }
+
+                if (k == null) {
+                    replaceStaleEntry(key, value, i, false);
+                    return;
+                }
+            }
+
+            tab[i] = new Entry(key, value);
+            int sz = ++size;
+            if (!cleanSomeSlots(i, sz) && sz >= threshold)
+                rehash();
+!!!6994843.java!!!	remove(inout key : ThreadLocal) : void
+            Entry[] tab = table;
+            int len = tab.length;
+            int i = key.threadLocalHashCode & (len-1);
+            for (Entry e = tab[i];
+		 e != null;
+		 e = tab[i = nextIndex(i, len)]) {
+                if (e.get() == key) {
+                    e.clear();
+                    expungeStaleEntry(i);
+                    return;
+                }
+            }
+!!!6994971.java!!!	replaceStaleEntry(inout key : ThreadLocal, inout value : Object, in staleSlot : int, inout actAsGet : boolean) : Object
+            Entry[] tab = table;
+            int len = tab.length;
+            Entry e;
+
+            // Back up to check for prior stale entry in current run.
+            // We clean out whole runs at a time to avoid continual
+            // incremental rehashing due to garbage collector freeing
+            // up refs in bunches (i.e., whenever the collector runs).
+            int slotToExpunge = staleSlot;
+            for (int i = prevIndex(staleSlot, len);
+		 (e = tab[i]) != null;
+                 i = prevIndex(i, len))
+                if (e.get() == null)
+                    slotToExpunge = i;
+
+            // Find either the key or trailing null slot of run, whichever
+            // occurs first
+            for (int i = nextIndex(staleSlot, len);
+		 (e = tab[i]) != null;
+                 i = nextIndex(i, len)) {
+                ThreadLocal k = e.get();
+
+                // If we find key, then we need to swap it
+                // with the stale entry to maintain hash table order.
+                // The newly stale slot, or any other stale slot
+                // encountered above it, can then be sent to expungeStaleEntry
+                // to remove or rehash all of the other entries in run.
+                if (k == key) {
+                    if (actAsGet)
+                        value = e.value;
+                    else
+                        e.value = value;
+
+                    tab[i] = tab[staleSlot];
+                    tab[staleSlot] = e;
+
+                    // Start expunge at preceding stale entry if it exists
+                    if (slotToExpunge == staleSlot)
+                        slotToExpunge = i;
+                    cleanSomeSlots(expungeStaleEntry(slotToExpunge), len);
+                    return value;
+                }
+
+                // If we didn't find stale entry on backward scan, the
+                // first stale entry seen while scanning for key is the
+                // first still present in the run.
+                if (k == null && slotToExpunge == staleSlot)
+                    slotToExpunge = i;
+            }
+
+            // If key not found, put new entry in stale slot
+            if (actAsGet)
+                value = key.initialValue();
+            tab[staleSlot].value = null;   // Help the GC
+            tab[staleSlot] = new Entry(key, value);
+
+            // If there are any other stale entries in run, expunge them
+            if (slotToExpunge != staleSlot)
+                cleanSomeSlots(expungeStaleEntry(slotToExpunge), len);
+
+            return value;
+!!!6995099.java!!!	expungeStaleEntry(in staleSlot : int) : int
+            Entry[] tab = table;
+            int len = tab.length;
+
+            // expunge entry at staleSlot
+            tab[staleSlot].value = null;   // Help the GC
+            tab[staleSlot] = null;
+            size--;
+
+            // Rehash until we encounter null
+            Entry e;
+            int i;
+            for (i = nextIndex(staleSlot, len);
+		 (e = tab[i]) != null;
+                 i = nextIndex(i, len)) {
+                ThreadLocal k = e.get();
+                if (k == null) {
+                    e.value = null;   // Help the GC
+                    tab[i] = null;
+                    size--;
+                } else {
+                    ThreadLocal key = k;
+                    int h = key.threadLocalHashCode & (len - 1);
+                    if (h != i) {
+                        tab[i] = null;
+
+                        // Unlike Knuth 6.4 Algorithm R, we must scan until
+                        // null because multiple entries could have been stale.
+                        while (tab[h] != null)
+                            h = nextIndex(h, len);
+                        tab[h] = e;
+                    }
+                }
+            }
+            return i;
+!!!6995227.java!!!	cleanSomeSlots(in i : int, in n : int) : boolean
+            boolean removed = false;
+            Entry[] tab = table;
+            int len = tab.length;
+            do {
+                i = nextIndex(i, len);
+                Entry e = tab[i];
+                if (e != null && e.get() == null) {
+                    n = len;
+                    removed = true;
+                    i = expungeStaleEntry(i);
+                }
+            } while ( (n >>>= 1) != 0);
+            return removed;
+!!!6995355.java!!!	rehash() : void
+            expungeStaleEntries();
+
+            // Use lower threshold for doubling to avoid hysteresis
+            if (size >= threshold - threshold / 4)
+                resize();
+!!!6995483.java!!!	resize() : void
+            Entry[] oldTab = table;
+            int oldLen = oldTab.length;
+            int newLen = oldLen * 2;
+            Entry[] newTab = new Entry[newLen];
+            int count = 0;
+
+            for (int j = 0; j < oldLen; ++j) {
+                Entry e = oldTab[j];
+                oldTab[j] = null; // Help the GC
+                if (e != null) {
+                    ThreadLocal k = e.get();
+                    if (k == null) {
+                        e.value = null; // Help the GC
+                    } else {
+                        ThreadLocal key = k;
+                        int h = key.threadLocalHashCode & (newLen - 1);
+                        while (newTab[h] != null)
+                            h = nextIndex(h, newLen);
+                        newTab[h] = e;
+                        count++;
+                    }
+                }
+            }
+
+            setThreshold(newLen);
+            size = count;
+            table = newTab;
+!!!6995611.java!!!	expungeStaleEntries() : void
+            Entry[] tab = table;
+            int len = tab.length;
+            for (int j = 0; j < len; j++) {
+                Entry e = tab[j];
+                if (e != null && e.get() == null)
+                    expungeStaleEntry(j);
+            }

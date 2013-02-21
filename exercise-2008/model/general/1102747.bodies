@@ -1,0 +1,93 @@
+class DefaultCellEditor
+!!!8869915.java!!!	DefaultCellEditor(in textField : JTextField)
+        editorComponent = textField;
+	this.clickCountToStart = 2;
+        delegate = new EditorDelegate() {
+            public void setValue(Object value) {
+		textField.setText((value != null) ? value.toString() : "");
+            }
+
+	    public Object getCellEditorValue() {
+		return textField.getText();
+	    }
+        };
+	textField.addActionListener(delegate);
+!!!8870043.java!!!	DefaultCellEditor(in checkBox : JCheckBox)
+        editorComponent = checkBox;
+        delegate = new EditorDelegate() {
+            public void setValue(Object value) { 
+            	boolean selected = false; 
+		if (value instanceof Boolean) {
+		    selected = ((Boolean)value).booleanValue();
+		}
+		else if (value instanceof String) {
+		    selected = value.equals("true");
+		}
+		checkBox.setSelected(selected);
+            }
+
+	    public Object getCellEditorValue() {
+		return Boolean.valueOf(checkBox.isSelected());
+	    }
+        };
+	checkBox.addActionListener(delegate);
+
+        if (DRAG_FIX) {
+            checkBox.setRequestFocusEnabled(false);
+        }
+!!!8870171.java!!!	DefaultCellEditor(in comboBox : JComboBox)
+        editorComponent = comboBox;
+	comboBox.putClientProperty("JComboBox.isTableCellEditor", Boolean.TRUE);
+        delegate = new EditorDelegate() {
+	    public void setValue(Object value) {
+		comboBox.setSelectedItem(value);
+            }
+
+	    public Object getCellEditorValue() {
+		return comboBox.getSelectedItem();
+	    }
+                
+            public boolean shouldSelectCell(EventObject anEvent) { 
+                if (anEvent instanceof MouseEvent) { 
+                    MouseEvent e = (MouseEvent)anEvent;
+                    return e.getID() != MouseEvent.MOUSE_DRAGGED;
+                }
+                return true;
+            }
+	    public boolean stopCellEditing() {
+		if (comboBox.isEditable()) {
+		    // Commit edited value.
+		    comboBox.actionPerformed(new ActionEvent(
+				     DefaultCellEditor.this, 0, ""));
+		}
+		return super.stopCellEditing();
+	    }
+        };
+	comboBox.addActionListener(delegate);
+!!!8870299.java!!!	getComponent() : Component
+	return editorComponent;
+!!!8870427.java!!!	setClickCountToStart(in count : int) : void
+	clickCountToStart = count;
+!!!8870555.java!!!	getClickCountToStart() : int
+	return clickCountToStart;
+!!!8870683.java!!!	getCellEditorValue() : Object
+        return delegate.getCellEditorValue();
+!!!8870811.java!!!	isCellEditable(inout anEvent : EventObject) : boolean
+ 
+	return delegate.isCellEditable(anEvent); 
+!!!8870939.java!!!	shouldSelectCell(inout anEvent : EventObject) : boolean
+ 
+	return delegate.shouldSelectCell(anEvent); 
+!!!8871067.java!!!	stopCellEditing() : boolean
+	return delegate.stopCellEditing();
+!!!8871195.java!!!	cancelCellEditing() : void
+	delegate.cancelCellEditing();
+!!!8871323.java!!!	getTreeCellEditorComponent(inout tree : JTree, inout value : Object, inout isSelected : boolean, inout expanded : boolean, inout leaf : boolean, in row : int) : Component
+	String         stringValue = tree.convertValueToText(value, isSelected,
+					    expanded, leaf, row, false);
+
+	delegate.setValue(stringValue);
+	return editorComponent;
+!!!8871451.java!!!	getTableCellEditorComponent(inout table : JTable, inout value : Object, inout isSelected : boolean, in row : int, in column : int) : Component
+        delegate.setValue(value);
+	return editorComponent;

@@ -1,0 +1,89 @@
+class NativeInLightFixer
+!!!2155035.java!!!	NativeInLightFixer()
+            lightParents = new Vector();
+            install(parent);
+!!!2155163.java!!!	install(inout parent : Container) : void
+            lightParents.clear();
+            Container p = parent;
+            boolean isLwParentsVisible = true;
+            // stash a reference to the components that are being observed so that
+            // we can reliably remove ourself as a listener later.
+            for (; p.peer instanceof LightweightPeer; p = p.parent) {
+
+                // register listeners and stash a reference
+                p.addComponentListener(this);
+                p.addContainerListener(this);
+                lightParents.addElement(p);
+                isLwParentsVisible &= p.isVisible();
+            }
+            // register with the native host (native parent of associated native)
+            // to get notified if the top-level lightweight is removed.
+            nativeHost = p;
+            p.addContainerListener(this);
+
+            // kick start the fixup.  Since the event isn't looked at
+            // we can simulate movement notification.
+            componentMoved(null);
+            if (!isLwParentsVisible) {
+                synchronized (getTreeLock()) {
+                    if (peer != null) {
+                        peer.hide();
+                    }
+                }
+            }
+!!!2155419.java!!!	componentMoved(inout e : ComponentEvent) : void
+            synchronized (getTreeLock()) {
+                int nativeX = x;
+                int nativeY = y;
+                for(Component c = parent; (c != null) &&
+                        (c.peer instanceof LightweightPeer);
+                    c = c.parent) {
+
+                    nativeX += c.x;
+                    nativeY += c.y;
+                }
+                if (peer != null) {
+                    peer.setBounds(nativeX, nativeY, width, height,
+                                   ComponentPeer.SET_LOCATION);
+                }
+            }
+!!!2155547.java!!!	componentShown(inout e : ComponentEvent) : void
+            if (isShowing()) {
+                synchronized (getTreeLock()) {
+                    if (peer != null) {
+                        peer.show();
+                    }
+                }
+            }
+!!!2155675.java!!!	componentHidden(inout e : ComponentEvent) : void
+            if (visible) {
+                synchronized (getTreeLock()) {
+                    if (peer != null) {
+                        peer.hide();
+                    }
+                }
+            }
+!!!2155931.java!!!	componentRemoved(inout e : ContainerEvent) : void
+            Component c = e.getChild();
+            if (c == Component.this) {
+                removeReferences();
+            } else {
+                int n = lightParents.size();
+                for (int i = 0; i < n; i++) {
+                    Container p = (Container) lightParents.elementAt(i);
+                    if (p == c) {
+                        removeReferences();
+                        break;
+                    }
+                }
+            }
+!!!2156059.java!!!	removeReferences() : void
+            int n = lightParents.size();
+            for (int i = 0; i < n; i++) {
+                Container c = (Container) lightParents.elementAt(i);
+                c.removeComponentListener(this);
+                c.removeContainerListener(this);
+            }
+            nativeHost.removeContainerListener(this);
+            lightParents.clear();
+            nativeHost = null;

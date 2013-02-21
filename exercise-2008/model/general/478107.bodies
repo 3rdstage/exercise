@@ -1,0 +1,37 @@
+class WindowsDesktopManager
+!!!2947611.java!!!	activateFrame(inout f : JInternalFrame) : void
+        try {
+            super.activateFrame(f);
+
+            if (currentFrame != null && f != currentFrame) {
+                // If the current frame is maximized, transfer that 
+                // attribute to the frame being activated.
+                if (currentFrame.isMaximum() &&
+		    (f.getClientProperty("JInternalFrame.frameType") !=
+		    "optionDialog") ) {
+                    //Special case.  If key binding was used to select next
+                    //frame instead of minimizing the icon via the minimize
+                    //icon.
+                    if (!currentFrame.isIcon()) {
+                        currentFrame.setMaximum(false);
+                    }
+                    if (f.isMaximizable()) {
+                        if (!f.isMaximum()) {
+                            f.setMaximum(true);
+                        } else if (f.isMaximum() && f.isIcon()) {
+                            f.setIcon(false);
+                        } else {
+                            f.setMaximum(false);
+                        }
+                    }
+                }
+                if (currentFrame.isSelected()) {
+                    currentFrame.setSelected(false);
+                }
+            }
+
+            if (!f.isSelected()) {
+                f.setSelected(true);
+            }
+            currentFrame = f;
+        } catch (PropertyVetoException e) {}

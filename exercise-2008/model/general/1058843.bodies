@@ -1,0 +1,67 @@
+class StartTlsRequest
+!!!8535451.java!!!	getID() : String
+        return OID;
+!!!8535579.java!!!	getEncodedValue() : byte
+        return null;
+!!!8535707.java!!!	createExtendedResponse(in id : String, in berValue : byte, in offset : int, in length : int) : ExtendedResponse
+
+	// Confirm that the object identifier is correct
+	if ((id != null) && (!id.equals(OID))) {
+	    throw new ConfigurationException(
+		"Start TLS received the following response instead of " +
+		OID + ": " + id);
+	}
+
+	StartTlsResponse resp = null;
+
+	Iterator ps = Service.providers(StartTlsResponse.class,
+	    getContextClassLoader());
+
+	while (resp == null && privilegedHasNext(ps)) {
+	    resp = (StartTlsResponse)ps.next();
+	}
+
+	if (resp != null) {
+	    return resp;
+	}
+
+        try {
+	    VersionHelper helper = VersionHelper.getVersionHelper();
+	    Class clas = helper.loadClass(
+		"com.sun.jndi.ldap.ext.StartTlsResponseImpl");
+
+	    resp = (StartTlsResponse) clas.newInstance();
+
+        } catch (IllegalAccessException e) {
+	    throw wrapException(e);
+
+        } catch (InstantiationException e) {
+	    throw wrapException(e);
+
+        } catch (ClassNotFoundException e) {
+	    throw wrapException(e);
+        }
+
+	return resp;
+!!!8535835.java!!!	wrapException(inout e : Exception) : ConfigurationException
+	ConfigurationException ce = new ConfigurationException(
+	    "Cannot load implementation of javax.naming.ldap.StartTlsResponse");
+
+	ce.setRootCause(e);
+	return ce;
+!!!8535963.java!!!	getContextClassLoader() : ClassLoader
+	return (ClassLoader) AccessController.doPrivileged(
+	    new PrivilegedAction() {
+		public Object run() {
+		    return Thread.currentThread().getContextClassLoader();
+		}
+	    }
+	);
+!!!8536091.java!!!	privilegedHasNext(in iter : Iterator) : boolean
+	Boolean answer = (Boolean) AccessController.doPrivileged(
+	    new PrivilegedAction() {
+	    public Object run() {
+		return new Boolean(iter.hasNext());
+	    }
+	});
+	return answer.booleanValue();

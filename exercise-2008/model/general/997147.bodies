@@ -1,0 +1,63 @@
+class Itr
+!!!7945627.java!!!	Itr()
+            final ReentrantLock putLock = LinkedBlockingQueue.this.putLock;
+            final ReentrantLock takeLock = LinkedBlockingQueue.this.takeLock;
+            putLock.lock();
+            takeLock.lock();
+            try {
+                current = head.next;
+                if (current != null)
+                    currentElement = current.item;
+            } finally {
+                takeLock.unlock();
+                putLock.unlock();
+            }
+!!!7945755.java!!!	hasNext() : boolean
+            return current != null;
+!!!7945883.java!!!	next() : E
+            final ReentrantLock putLock = LinkedBlockingQueue.this.putLock;
+            final ReentrantLock takeLock = LinkedBlockingQueue.this.takeLock;
+            putLock.lock();
+            takeLock.lock();
+            try {
+                if (current == null)
+                    throw new NoSuchElementException();
+                E x = currentElement;
+                lastRet = current;
+                current = current.next;
+                if (current != null)
+                    currentElement = current.item;
+                return x;
+            } finally {
+                takeLock.unlock();
+                putLock.unlock();
+            }
+!!!7946011.java!!!	remove() : void
+            if (lastRet == null)
+                throw new IllegalStateException();
+            final ReentrantLock putLock = LinkedBlockingQueue.this.putLock;
+            final ReentrantLock takeLock = LinkedBlockingQueue.this.takeLock;
+            putLock.lock();
+            takeLock.lock();
+            try {
+                Node<E> node = lastRet;
+                lastRet = null;
+                Node<E> trail = head;
+                Node<E> p = head.next;
+                while (p != null && p != node) {
+                    trail = p;
+                    p = p.next;
+                }
+                if (p == node) {
+                    p.item = null;
+                    trail.next = p.next;
+                    if (last == p)
+                        last = trail;
+                    int c = count.getAndDecrement();
+                    if (c == capacity)
+                        notFull.signalAll();
+                }
+            } finally {
+                takeLock.unlock();
+                putLock.unlock();
+            }

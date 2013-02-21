@@ -1,0 +1,199 @@
+class SnmpVarBindList
+!!!3342875.java!!!	SnmpVarBindList()
+        super(5, 5) ;
+!!!3343003.java!!!	SnmpVarBindList(in initialCapacity : int)
+        super(initialCapacity) ;
+!!!3343131.java!!!	SnmpVarBindList(in name : String)
+        super(5, 5) ;
+        identity = name ;
+!!!3343259.java!!!	SnmpVarBindList(inout list : SnmpVarBindList)
+        super(list.size(), 5) ;
+        list.copyInto(elementData) ;
+        elementCount = list.size() ;
+!!!3343387.java!!!	SnmpVarBindList(inout list : Vector)
+        super(list.size(), 5);
+        for (Enumeration e = list.elements(); e.hasMoreElements();) {
+            final SnmpVarBind varBind = (SnmpVarBind)e.nextElement();
+            addElement((SnmpVarBind)varBind.clone());
+        }
+!!!3343515.java!!!	SnmpVarBindList(in name : String, inout list : Vector)
+        this(list);
+        identity = name;
+!!!3343643.java!!!	getTimestamp() : Timestamp
+        return timestamp ;
+!!!3343771.java!!!	setTimestamp(inout tstamp : Timestamp) : void
+        timestamp = tstamp ;
+!!!3343899.java!!!	getVarBindAt(in pos : int) : SnmpVarBind
+        return (SnmpVarBind)(elementAt(pos)) ;
+!!!3344027.java!!!	getVarBindCount() : int
+        return size() ;
+!!!3344155.java!!!	getVarBindList() : Enumeration
+        return elements() ;
+!!!3344283.java!!!	setVarBindList(inout list : Vector) : void
+        setVarBindList(list, false) ;
+!!!3344411.java!!!	setVarBindList(inout list : Vector, inout copy : boolean) : void
+        synchronized (list) {
+            final int max = list.size();
+            setSize(max) ;
+            list.copyInto(this.elementData) ;
+            if (copy) { 	// do deepcopy of all vars.
+                for (int i = 0; i < max ; i++) {
+                    SnmpVarBind avar = (SnmpVarBind)elementData[i] ;
+                    elementData[i] = avar.clone() ;
+                }
+            }
+        }
+!!!3344539.java!!!	addVarBindList(inout list : SnmpVarBindList) : void
+        ensureCapacity(list.size() + size()) ;
+        for (int i = 0; i < list.size(); i++) {
+            addElement(list.getVarBindAt(i)) ;
+        }
+!!!3344667.java!!!	removeVarBindList(inout list : SnmpVarBindList) : boolean
+        boolean result = true;
+        for (int i = 0; i < list.size(); i++) {
+            result = removeElement(list.getVarBindAt(i)) ;
+        }
+        return result;
+!!!3344795.java!!!	replaceVarBind(inout var : SnmpVarBind, in pos : int) : void
+        setElementAt(var, pos) ;
+!!!3344923.java!!!	addVarBind(in list : String, in inst : String) : void
+        for (int i = 0; i < list.length; i++) {
+            SnmpVarBind avar = new SnmpVarBind(list[i]) ;
+            avar.addInstance(inst) ;
+            addElement(avar) ;
+        }
+!!!3345051.java!!!	removeVarBind(in list : String, in inst : String) : boolean
+        boolean result = true;
+        for (int i = 0; i < list.length; i++) {
+            SnmpVarBind avar = new SnmpVarBind(list[i]) ;
+            avar.addInstance(inst) ;
+            int indexOid = indexOfOid(avar) ;
+            try {
+                removeElementAt(indexOid) ;
+            } catch (ArrayIndexOutOfBoundsException e) {
+                result = false ;
+            }
+        }
+        return result ;
+!!!3345179.java!!!	addVarBind(in list : String) : void
+        addVarBind(list, null) ;
+!!!3345307.java!!!	removeVarBind(in list : String) : boolean
+        return removeVarBind(list, null) ;
+!!!3345435.java!!!	addVarBind(in name : String) : void
+        SnmpVarBind avar ;
+        avar = new SnmpVarBind(name) ;
+        addVarBind(avar) ;
+!!!3345563.java!!!	removeVarBind(in name : String) : boolean
+        SnmpVarBind avar ;
+        int indexOid ;
+        avar = new SnmpVarBind(name) ;
+        indexOid = indexOfOid(avar) ;
+        try {
+            removeElementAt(indexOid) ;
+            return true ;
+        } catch (ArrayIndexOutOfBoundsException e) {
+            return false ;
+        }
+!!!3345691.java!!!	addVarBind(inout var : SnmpVarBind) : void
+        addElement(var) ;
+!!!3345819.java!!!	removeVarBind(inout var : SnmpVarBind) : boolean
+        return removeElement(var) ;
+!!!3345947.java!!!	addInstance(in inst : String) : void
+        int max= size();
+        for (int i = 0; i < max;  i++) {
+            ((SnmpVarBind)elementData[i]).addInstance(inst) ;
+        }
+!!!3346075.java!!!	concat(inout list : Vector) : void
+        ensureCapacity(size() + list.size()) ;
+        for (Enumeration e = list.elements() ; e.hasMoreElements() ; ) {
+            addElement(e.nextElement()) ;
+        }
+!!!3346203.java!!!	checkForValidValues() : boolean
+        int max= this.size();
+        for (int i = 0; i < max ; i++) {
+            SnmpVarBind avar = (SnmpVarBind)elementData[i] ;
+            if (avar.isValidValue() == false)
+                return false ;
+        }
+        return true ;
+!!!3346331.java!!!	checkForUnspecifiedValue() : boolean
+        int max= this.size();
+        for (int i = 0; i < max ; i++) {
+            SnmpVarBind avar = (SnmpVarBind)elementData[i] ;
+            if (avar.isUnspecifiedValue())
+                return true ;
+        }
+        return false ;
+!!!3346459.java!!!	splitAt(in pos : int) : SnmpVarBindList
+        SnmpVarBindList splitVb = null ;
+        if (pos > elementCount)
+            return splitVb ;
+        splitVb = new SnmpVarBindList() ; // size() - atPosition) ;
+        int max= size();
+        for (int i = pos; i < max ; i++)
+            splitVb.addElement(elementData[i]) ;
+        elementCount = pos ;
+        trimToSize() ;
+        return splitVb ;
+!!!3346587.java!!!	indexOfOid(inout var : SnmpVarBind, in min : int, in max : int) : int
+        SnmpOid oidarg = var.getOid() ;
+        for (int i = min; i < max ; i++) {
+            SnmpVarBind avar = (SnmpVarBind)elementData[i] ;
+            if (oidarg.equals(avar.getOid()))
+                return i ;
+        }
+        return -1 ;
+!!!3346715.java!!!	indexOfOid(inout var : SnmpVarBind) : int
+        return indexOfOid(var, 0, size()) ;
+!!!3346843.java!!!	indexOfOid(inout oid : SnmpOid) : int
+        int max = size();
+        for (int i = 0; i < max ; i++) {
+            SnmpVarBind avar = (SnmpVarBind)elementData[i] ;
+            if (oid.equals(avar.getOid()))
+                return i ;
+        }
+        return -1 ;
+!!!3346971.java!!!	cloneWithValue() : SnmpVarBindList
+        SnmpVarBindList newvb = new SnmpVarBindList() ;
+        newvb.setTimestamp(this.getTimestamp()) ;
+        newvb.ensureCapacity(this.size()) ;
+        for (int i = 0; i < this.size() ; i++) {
+            SnmpVarBind avar = (SnmpVarBind)elementData[i] ;
+            newvb.addElement(avar.clone()) ;
+        }
+        return newvb ;
+!!!3347099.java!!!	cloneWithoutValue() : SnmpVarBindList
+        SnmpVarBindList newvb = new SnmpVarBindList() ;
+        int max = this.size();
+        newvb.ensureCapacity(max) ;
+        for (int i = 0; i < max ; i++) {
+            SnmpVarBind avar = (SnmpVarBind)elementData[i] ;
+            newvb.addElement(avar.cloneWithoutValue()) ;
+        }
+        return newvb ;
+!!!3347227.java!!!	clone() : Object
+        return cloneWithValue() ;
+!!!3347355.java!!!	toVector(inout copy : boolean) : Vector
+        final int count = elementCount;
+        if (copy == false) return (Vector) super.clone();
+        Vector result = new Vector(count,5);
+        for (int i = 0; i < count ; i++) {
+            SnmpVarBind avar = (SnmpVarBind)elementData[i] ;
+            result.addElement(avar.clone()) ;
+        }
+        return result;
+!!!3347483.java!!!	oidListToString() : String
+        StringBuffer s = new StringBuffer(300) ;
+        for (int i = 0 ; i < elementCount ; i++) {
+            SnmpVarBind avar = (SnmpVarBind)elementData[i] ;
+            s.append(avar.getOid().toString() + "\n") ;
+        }
+        return s.toString() ;
+!!!3347611.java!!!	varBindListToString() : String
+        StringBuffer s = new StringBuffer(300) ;
+        for (int i = 0; i < elementCount ; i++) {
+            s.append(elementData[i].toString() + "\n")  ;
+        }
+        return s.toString() ;
+!!!3347739.java!!!	finalize() : void
+        removeAllElements() ;

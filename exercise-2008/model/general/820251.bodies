@@ -1,0 +1,55 @@
+class FilterExprIterator
+!!!5955483.java!!!	FilterExprIterator()
+    super(null);
+!!!5955611.java!!!	FilterExprIterator(inout expr : Expression)
+    super(null);
+    m_expr = expr;
+!!!5955739.java!!!	setRoot(in context : int, inout environment : Object) : void
+  	super.setRoot(context, environment);
+ 	
+  	m_exprObj = FilterExprIteratorSimple.executeFilterExpr(context, 
+  	                  m_execContext, getPrefixResolver(), 
+  	                  getIsTopLevel(), m_stackFrame, m_expr);
+!!!5955867.java!!!	getNextNode() : int
+    if (null != m_exprObj)
+    {
+      m_lastFetched = m_exprObj.nextNode();
+    }
+    else
+      m_lastFetched = DTM.NULL;
+
+    return m_lastFetched;
+!!!5955995.java!!!	detach() : void
+  
+  	super.detach();
+  	m_exprObj.detach();
+  	m_exprObj = null;
+!!!5956123.java!!!	fixupVariables(inout vars : Vector, in globalsSize : int) : void
+    super.fixupVariables(vars, globalsSize);
+    m_expr.fixupVariables(vars, globalsSize);
+!!!5956251.java!!!	getInnerExpression() : Expression
+    return m_expr;
+!!!5956379.java!!!	setInnerExpression(inout expr : Expression) : void
+    expr.exprSetParent(this);
+    m_expr = expr;
+!!!5956507.java!!!	getAnalysisBits() : int
+    if (null != m_expr && m_expr instanceof PathComponent)
+    {
+      return ((PathComponent) m_expr).getAnalysisBits();
+    }
+    return WalkerFactory.BIT_FILTER;
+!!!5956635.java!!!	isDocOrdered() : boolean
+    return m_exprObj.isDocOrdered();
+!!!5957019.java!!!	callPredicateVisitors(inout visitor : XPathVisitor) : void
+    m_expr.callVisitors(new filterExprOwner(), visitor);
+
+    super.callPredicateVisitors(visitor);
+!!!5957147.java!!!	deepEquals(inout expr : Expression) : boolean
+    if (!super.deepEquals(expr))
+      return false;
+
+    FilterExprIterator fet = (FilterExprIterator) expr;
+    if (!m_expr.deepEquals(fet.m_expr))
+      return false;
+
+    return true;

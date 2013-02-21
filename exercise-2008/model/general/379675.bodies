@@ -1,0 +1,205 @@
+class VetoableChangeSupport
+!!!6791963.java!!!	VetoableChangeSupport(inout sourceBean : Object)
+	if (sourceBean == null) {
+	    throw new NullPointerException();
+	}
+	source = sourceBean;
+!!!6792091.java!!!	addVetoableChangeListener(inout listener : VetoableChangeListener) : void
+        if (listener == null) {
+            return;
+        }
+        if (listener instanceof VetoableChangeListenerProxy) {
+            VetoableChangeListenerProxy proxy =
+                    (VetoableChangeListenerProxy)listener;
+            // Call two argument add method.
+            addVetoableChangeListener(proxy.getPropertyName(),
+                    (VetoableChangeListener)proxy.getListener());
+        } else {
+            if (listeners == null) {
+                listeners = new java.util.Vector();
+            }
+        }
+        listeners.addElement(listener);
+!!!6792219.java!!!	removeVetoableChangeListener(inout listener : VetoableChangeListener) : void
+        if (listener == null) {
+            return;
+        }
+        if (listener instanceof VetoableChangeListenerProxy) {
+            VetoableChangeListenerProxy proxy =
+                    (VetoableChangeListenerProxy)listener;
+            // Call two argument remove method.
+            removeVetoableChangeListener(proxy.getPropertyName(),
+                    (VetoableChangeListener)proxy.getListener());
+        } else {
+            if (listeners == null) {
+                return;
+            }
+            listeners.removeElement(listener);
+        }
+!!!6792347.java!!!	getVetoableChangeListeners() : VetoableChangeListener
+        List returnList = new ArrayList();
+
+        // Add all the VetoableChangeListeners
+        if (listeners != null) {
+            returnList.addAll(listeners);
+        }
+
+        // Add all the VetoableChangeListenerProxys
+        if (children != null) {
+            Iterator iterator = children.keySet().iterator();
+            while (iterator.hasNext()) {
+                String key = (String)iterator.next();
+                VetoableChangeSupport child =
+                        (VetoableChangeSupport)children.get(key);
+                VetoableChangeListener[] childListeners =
+                    child.getVetoableChangeListeners();
+                for (int index = childListeners.length - 1; index >= 0;
+                        index--) {
+                    returnList.add(new VetoableChangeListenerProxy(
+                            key, childListeners[index]));
+                }
+            }
+        }
+	return (VetoableChangeListener[])(returnList.toArray(
+                new VetoableChangeListener[0]));
+!!!6792475.java!!!	addVetoableChangeListener(in propertyName : String, inout listener : VetoableChangeListener) : void
+        if (listener == null || propertyName == null) {
+            return;
+        }
+        if (children == null) {
+            children = new java.util.Hashtable();
+        }
+        VetoableChangeSupport child = (VetoableChangeSupport)children.get(propertyName);
+        if (child == null) {
+            child = new VetoableChangeSupport(source);
+            children.put(propertyName, child);
+        }
+        child.addVetoableChangeListener(listener);
+!!!6792603.java!!!	removeVetoableChangeListener(in propertyName : String, inout listener : VetoableChangeListener) : void
+        if (listener == null || propertyName == null) {
+            return;
+        }
+        if (children == null) {
+            return;
+        }
+        VetoableChangeSupport child = (VetoableChangeSupport)children.get(propertyName);
+        if (child == null) {
+            return;
+        }
+        child.removeVetoableChangeListener(listener);
+!!!6792731.java!!!	getVetoableChangeListeners(in propertyName : String) : VetoableChangeListener
+        List returnList = new ArrayList();
+
+        if (children != null && propertyName != null) {
+            VetoableChangeSupport support =
+                    (VetoableChangeSupport)children.get(propertyName);
+            if (support != null) {
+                returnList.addAll(
+                        Arrays.asList(support.getVetoableChangeListeners()));
+            }
+        }
+        return (VetoableChangeListener[])(returnList.toArray(new
+                VetoableChangeListener[0]));
+!!!6792859.java!!!	fireVetoableChange(in propertyName : String, inout oldValue : Object, inout newValue : Object) : void
+	if (listeners == null && children == null) {
+	    return;
+	}
+
+       	PropertyChangeEvent evt = new PropertyChangeEvent(source, propertyName,
+							    oldValue, newValue);
+	fireVetoableChange(evt);
+!!!6792987.java!!!	fireVetoableChange(in propertyName : String, in oldValue : int, in newValue : int) : void
+	if (oldValue == newValue) {
+	    return;
+	}
+	fireVetoableChange(propertyName, new Integer(oldValue), new Integer(newValue));
+!!!6793115.java!!!	fireVetoableChange(in propertyName : String, inout oldValue : boolean, inout newValue : boolean) : void
+	if (oldValue == newValue) {
+	    return;
+	}
+	fireVetoableChange(propertyName, Boolean.valueOf(oldValue), Boolean.valueOf(newValue));
+!!!6793243.java!!!	fireVetoableChange(inout evt : PropertyChangeEvent) : void
+
+	Object oldValue = evt.getOldValue();
+	Object newValue = evt.getNewValue();
+	String propertyName = evt.getPropertyName();
+	if (oldValue != null && newValue != null && oldValue.equals(newValue)) {
+	    return;
+	}
+
+	java.util.Vector targets = null;
+	VetoableChangeSupport child = null;
+	synchronized (this) {
+	    if (listeners != null) {
+	        targets = (java.util.Vector) listeners.clone();
+	    }
+	    if (children != null && propertyName != null) {
+		child = (VetoableChangeSupport)children.get(propertyName);
+	    }
+	}
+
+	if (listeners != null) {
+	    try {
+	        for (int i = 0; i < targets.size(); i++) {
+	            VetoableChangeListener target = 
+				(VetoableChangeListener)targets.elementAt(i);
+	            target.vetoableChange(evt);
+	        }
+	    } catch (PropertyVetoException veto) {
+	        // Create an event to revert everyone to the old value.
+       	        evt = new PropertyChangeEvent(source, propertyName, newValue, oldValue);
+	        for (int i = 0; i < targets.size(); i++) {
+		    try {
+	                VetoableChangeListener target =
+				(VetoableChangeListener)targets.elementAt(i);
+	                target.vetoableChange(evt);
+		    } catch (PropertyVetoException ex) {
+		         // We just ignore exceptions that occur during reversions.
+		    }
+	        }
+	        // And now rethrow the PropertyVetoException.
+	        throw veto;
+	    }
+	}
+
+	if (child != null) {
+	    child.fireVetoableChange(evt);
+	}
+!!!6793371.java!!!	hasListeners(in propertyName : String) : boolean
+	if (listeners != null && !listeners.isEmpty()) {
+	    // there is a generic listener
+	    return true;
+	}
+	if (children != null && propertyName != null) {
+	    VetoableChangeSupport child = (VetoableChangeSupport)children.get(propertyName);
+	    if (child != null && child.listeners != null) {
+		return !child.listeners.isEmpty();
+	    }
+	}
+	return false;
+!!!6793499.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+
+	java.util.Vector v = null;
+	synchronized (this) {
+	    if (listeners != null) {
+	        v = (java.util.Vector) listeners.clone();
+            }
+	}
+
+	if (v != null) {
+	    for(int i = 0; i < v.size(); i++) {
+	        VetoableChangeListener l = (VetoableChangeListener)v.elementAt(i);
+	        if (l instanceof Serializable) {
+	            s.writeObject(l);
+	        }
+            }
+        }
+        s.writeObject(null);
+!!!6793627.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+      
+        Object listenerOrNull;
+        while(null != (listenerOrNull = s.readObject())) {
+	    addVetoableChangeListener((VetoableChangeListener)listenerOrNull);
+        }

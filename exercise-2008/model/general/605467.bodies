@@ -1,0 +1,143 @@
+class Pass2Verifier
+!!!3908123.java!!!	Pass2Verifier(inout owner : Verifier)
+		myOwner = owner;
+!!!3908251.java!!!	getLocalVariablesInfo(in method_nr : int) : LocalVariablesInfo
+		if (this.verify() != VerificationResult.VR_OK) return null; // It's cached, don't worry.
+		if (method_nr < 0 || method_nr >= localVariablesInfos.length){
+			throw new AssertionViolatedException("Method number out of range.");
+		}
+		return localVariablesInfos[method_nr];
+!!!3908379.java!!!	do_verify() : VerificationResult
+		VerificationResult vr1 = myOwner.doPass1();
+		if (vr1.equals(VerificationResult.VR_OK)){
+			
+			// For every method, we could have information about the local variables out of LocalVariableTable attributes of
+			// the Code attributes.
+			localVariablesInfos = new LocalVariablesInfo[Repository.lookupClass(myOwner.getClassName()).getMethods().length];
+
+			VerificationResult vr = VerificationResult.VR_OK; // default.
+			try{
+				constant_pool_entries_satisfy_static_constraints();
+				field_and_method_refs_are_valid();
+				every_class_has_an_accessible_superclass();
+				final_methods_are_not_overridden();
+			}
+			catch (ClassConstraintException cce){
+				vr = new VerificationResult(VerificationResult.VERIFIED_REJECTED, cce.getMessage());
+			}
+			return vr;
+		}
+		else
+			return VerificationResult.VR_NOTYET;
+!!!3908507.java!!!	every_class_has_an_accessible_superclass() : void
+		HashSet hs = new HashSet(); // save class names to detect circular inheritance
+		JavaClass jc = Repository.lookupClass(myOwner.getClassName());
+		int supidx = -1;
+
+		while (supidx != 0){
+			supidx = jc.getSuperclassNameIndex();
+		
+			if (supidx == 0){
+				if (jc != Repository.lookupClass(Type.OBJECT.getClassName())){
+					throw new ClassConstraintException("Superclass of '"+jc.getClassName()+"' missing but not "+Type.OBJECT.getClassName()+" itself!");
+				}
+			}
+			else{
+				String supername = jc.getSuperclassName();
+				if (! hs.add(supername)){	// If supername already is in the list
+					throw new ClassConstraintException("Circular superclass hierarchy detected.");
+				}
+				Verifier v = VerifierFactory.getVerifier(supername);
+				VerificationResult vr = v.doPass1();
+
+				if (vr != VerificationResult.VR_OK){
+					throw new ClassConstraintException("Could not load in ancestor class '"+supername+"'.");
+				}
+				jc = Repository.lookupClass(supername);
+
+				if (jc.isFinal()){
+					throw new ClassConstraintException("Ancestor class '"+supername+"' has the FINAL access modifier and must therefore not be subclassed.");
+				}
+			}
+		}
+!!!3908635.java!!!	final_methods_are_not_overridden() : void
+		HashMap hashmap = new HashMap();
+		JavaClass jc = Repository.lookupClass(myOwner.getClassName());
+		
+		int supidx = -1;
+		while (supidx != 0){
+			supidx = jc.getSuperclassNameIndex();
+
+			ConstantPoolGen cpg = new ConstantPoolGen(jc.getConstantPool());
+			Method[] methods = jc.getMethods();
+			for (int i=0; i<methods.length; i++){
+				String name_and_sig = (methods[i].getName()+methods[i].getSignature());
+
+				if (hashmap.containsKey(name_and_sig)){
+					if (methods[i].isFinal()){
+						throw new ClassConstraintException("Method '"+name_and_sig+"' in class '"+hashmap.get(name_and_sig)+"' overrides the final (not-overridable) definition in class '"+jc.getClassName()+"'.");
+					}
+					else{
+						if (!methods[i].isStatic()){ // static methods don't inherit
+							hashmap.put(name_and_sig, jc.getClassName());
+						}
+					}
+				}
+				else{
+					if (!methods[i].isStatic()){ // static methods don't inherit
+						hashmap.put(name_and_sig, jc.getClassName());
+					}
+				}
+			}
+		
+			jc = Repository.lookupClass(jc.getSuperclassName());	// Well, for OBJECT this returns OBJECT so it works (could return anything but must not throw an Exception).
+		}
+
+!!!3908763.java!!!	constant_pool_entries_satisfy_static_constraints() : void
+		// Most of the consistency is handled internally by BCEL; here
+		// we only have to verify if the indices of the constants point
+		// to constants of the appropriate type and such.
+		JavaClass jc = Repository.lookupClass(myOwner.getClassName());
+		new CPESSC_Visitor(jc); // constructor implicitely traverses jc
+!!!3912859.java!!!	field_and_method_refs_are_valid() : void
+		JavaClass jc = Repository.lookupClass(myOwner.getClassName());
+		DescendingVisitor v = new DescendingVisitor(jc, new FAMRAV_Visitor(jc));
+		v.visit();
+!!!3913499.java!!!	validClassName(in name : String) : boolean
+		// Are there restrictions?
+		return true;
+!!!3913627.java!!!	validMethodName(in name : String, inout allowStaticInit : boolean) : boolean
+		if (validJavaLangMethodName(name)) return true;
+		
+		if (allowStaticInit){
+			return (name.equals(CONSTRUCTOR_NAME) || name.equals(STATIC_INITIALIZER_NAME));
+		}
+		else{
+			return name.equals(CONSTRUCTOR_NAME);
+		}
+!!!3913755.java!!!	validClassMethodName(in name : String) : boolean
+		return validMethodName(name, false);
+!!!3913883.java!!!	validJavaLangMethodName(in name : String) : boolean
+		if (!Character.isJavaIdentifierStart(name.charAt(0))) return false;
+		
+		for (int i=1; i<name.length(); i++){
+			if (!Character.isJavaIdentifierPart(name.charAt(i))) return false;
+		}
+		return true;
+!!!3914011.java!!!	validInterfaceMethodName(in name : String) : boolean
+		// I guess we should assume special names forbidden here.
+		if (name.startsWith("<")) return false;
+		return validJavaLangMethodName(name);
+!!!3914139.java!!!	validJavaIdentifier(in name : String) : boolean
+		// vmspec2 2.7, vmspec2 2.2
+		if (!Character.isJavaIdentifierStart(name.charAt(0))) return false;
+		
+		for (int i=1; i<name.length(); i++){
+			if (!Character.isJavaIdentifierPart(name.charAt(i))) return false;
+		}
+		return true;
+!!!3914267.java!!!	validFieldName(in name : String) : boolean
+		// vmspec2 2.7, vmspec2 2.2
+		return validJavaIdentifier(name);
+!!!3914907.java!!!	tostring(inout n : Node) : String
+		return new StringRepresentation(n).toString();

@@ -1,0 +1,133 @@
+class SynthMenuUI
+!!!9696667.java!!!	createUI(inout x : JComponent) : ComponentUI
+	return new SynthMenuUI();
+!!!9696795.java!!!	installDefaults() : void
+        updateStyle(menuItem);
+!!!9696923.java!!!	installListeners() : void
+        super.installListeners();
+        menuItem.addPropertyChangeListener(this);
+!!!9697051.java!!!	updateStyle(inout mi : JMenuItem) : void
+        SynthStyle oldStyle = style;
+        SynthContext context = getContext(mi, ENABLED);
+
+        style = SynthLookAndFeel.updateStyle(context, this);
+        if (oldStyle != style) {
+            String prefix = getPropertyPrefix();
+            defaultTextIconGap = style.getInt(
+                           context, prefix + ".textIconGap", 4);
+            if (menuItem.getMargin() == null || 
+                         (menuItem.getMargin() instanceof UIResource)) {
+                Insets insets = (Insets)style.get(context, prefix + ".margin");
+
+                if (insets == null) {
+                    // Some places assume margins are non-null.
+                    insets = SynthLookAndFeel.EMPTY_UIRESOURCE_INSETS;
+                }
+                menuItem.setMargin(insets);
+            }
+            acceleratorDelimiter = style.getString(context, prefix +
+                                            ".acceleratorDelimiter", "+");
+
+            arrowIcon = style.getIcon(context, prefix + ".arrowIcon");
+
+            checkIcon = style.getIcon(context, prefix + ".checkIcon");
+
+            
+            ((JMenu)menuItem).setDelay(style.getInt(context, prefix +
+                                                    ".delay", 200));
+            if (oldStyle != null) {
+                uninstallKeyboardActions();
+                installKeyboardActions();
+            }
+        }
+        context.dispose();
+
+        SynthContext accContext = getContext(mi, Region.MENU_ITEM_ACCELERATOR,
+                                             ENABLED);
+
+        accStyle = SynthLookAndFeel.updateStyle(accContext, this);
+        accContext.dispose();
+!!!9697179.java!!!	uninstallDefaults() : void
+        SynthContext context = getContext(menuItem, ENABLED);
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+
+        SynthContext accContext = getContext(menuItem,
+                                     Region.MENU_ITEM_ACCELERATOR, ENABLED);
+        accStyle.uninstallDefaults(accContext);
+        accContext.dispose();
+        accStyle = null;
+
+        super.uninstallDefaults();
+!!!9697307.java!!!	uninstallListeners() : void
+	super.uninstallListeners();
+        menuItem.removePropertyChangeListener(this);
+!!!9697435.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9697563.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        Region region = getRegion(c);
+        return SynthContext.getContext(SynthContext.class, c, region,
+                                       style, state);
+!!!9697691.java!!!	getContext(inout c : JComponent, inout region : Region) : SynthContext
+        return getContext(c, region, getComponentState(c, region));
+!!!9697819.java!!!	getContext(inout c : JComponent, inout region : Region, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c,
+                                       region, accStyle, state);
+!!!9697947.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9698075.java!!!	getComponentState(inout c : JComponent) : int
+        int state;
+
+        if (!c.isEnabled()) {
+            return DISABLED;
+        }
+        if (menuItem.isArmed()) {
+            state = MOUSE_OVER;
+        }
+        else {
+            state = SynthLookAndFeel.getComponentState(c);
+        }
+        if (menuItem.isSelected()) {
+            state |= SELECTED;
+        }
+        return state;
+!!!9698203.java!!!	getComponentState(inout c : JComponent, inout region : Region) : int
+        return getComponentState(c);
+!!!9698331.java!!!	getPreferredMenuItemSize(inout c : JComponent, inout checkIcon : Icon, inout arrowIcon : Icon, in defaultTextIconGap : int) : Dimension
+        SynthContext context = getContext(c);
+        SynthContext accContext = getContext(c, Region.MENU_ITEM_ACCELERATOR);
+        Dimension value = SynthMenuItemUI.getPreferredMenuItemSize(
+                  context, accContext, useCheckAndArrow(), c, checkIcon,
+                  arrowIcon, defaultTextIconGap, acceleratorDelimiter);
+        context.dispose();
+        accContext.dispose();
+        return value;
+!!!9698459.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintMenuBackground(context,
+                          g, 0, 0, c.getWidth(), c.getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9698587.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9698715.java!!!	paint(inout context : SynthContext, inout g : Graphics) : void
+        SynthContext accContext = getContext(menuItem,
+                                             Region.MENU_ITEM_ACCELERATOR);
+        SynthMenuItemUI.paint(context, accContext, g, checkIcon, arrowIcon,
+                        useCheckAndArrow(), acceleratorDelimiter,
+                        defaultTextIconGap);
+        accContext.dispose();
+!!!9698843.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        context.getPainter().paintMenuBorder(context, g, x, y, w, h);
+!!!9698971.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+        if (SynthLookAndFeel.shouldUpdateStyle(e)) {
+            updateStyle((JMenu)e.getSource());
+        }
+!!!9699099.java!!!	useCheckAndArrow() : boolean
+        return !((JMenu)menuItem).isTopLevelMenu();

@@ -1,0 +1,43 @@
+class GZIPOutputStream
+!!!8149019.java!!!	GZIPOutputStream(inout out : OutputStream, in size : int)
+	super(out, new Deflater(Deflater.DEFAULT_COMPRESSION, true), size);
+        usesDefaultDeflater = true;
+	writeHeader();
+	crc.reset();
+!!!8149147.java!!!	GZIPOutputStream(inout out : OutputStream)
+	this(out, 512);
+!!!8149275.java!!!	write(in buf : byte, in off : int, in len : int) : void
+	super.write(buf, off, len);
+	crc.update(buf, off, len);
+!!!8149403.java!!!	finish() : void
+	if (!def.finished()) {
+	    def.finish();
+	    while (!def.finished()) {
+                int len = def.deflate(buf, 0, buf.length);
+                if (def.finished() && len <= buf.length - TRAILER_SIZE) {
+                    // last deflater buffer. Fit trailer at the end 
+                    writeTrailer(buf, len);
+                    len = len + TRAILER_SIZE;
+                    out.write(buf, 0, len);
+                    return;
+                }
+                if (len > 0)
+                    out.write(buf, 0, len);
+	    }
+            // if we can't fit the trailer at the end of the last
+            // deflater buffer, we write it separately
+            byte[] trailer = new byte[TRAILER_SIZE];
+	    writeTrailer(trailer, 0);
+            out.write(trailer);
+	}
+!!!8149531.java!!!	writeHeader() : void
+        out.write(header);
+!!!8149659.java!!!	writeTrailer(in buf : byte, in offset : int) : void
+        writeInt((int)crc.getValue(), buf, offset); // CRC-32 of uncompr. data
+        writeInt(def.getTotalIn(), buf, offset + 4); // Number of uncompr. bytes
+!!!8149787.java!!!	writeInt(in i : int, in buf : byte, in offset : int) : void
+        writeShort(i & 0xffff, buf, offset);
+        writeShort((i >> 16) & 0xffff, buf, offset + 2);
+!!!8149915.java!!!	writeShort(in s : int, in buf : byte, in offset : int) : void
+        buf[offset] = (byte)(s & 0xff);
+        buf[offset + 1] = (byte)((s >> 8) & 0xff);

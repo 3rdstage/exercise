@@ -1,0 +1,732 @@
+class JList
+!!!8983195.java!!!	JList(inout dataModel : ListModel)
+        if (dataModel == null) {
+            throw new IllegalArgumentException("dataModel must be non null");
+        }
+
+        // Register with the ToolTipManager so that tooltips from the
+        // renderer show through.
+        ToolTipManager toolTipManager = ToolTipManager.sharedInstance();
+        toolTipManager.registerComponent(this);
+        
+        layoutOrientation = VERTICAL;
+
+        this.dataModel = dataModel;
+        selectionModel = createSelectionModel();
+        setAutoscrolls(true);
+        setOpaque(true);
+        updateUI();
+!!!8983323.java!!!	JList(in listData : Object)
+        this (
+            new AbstractListModel() {
+                public int getSize() { return listData.length; }
+                public Object getElementAt(int i) { return listData[i]; }
+            }
+        );
+!!!8983451.java!!!	JList(in listData : Vector)
+        this (
+            new AbstractListModel() {
+                public int getSize() { return listData.size(); }
+                public Object getElementAt(int i) { return listData.elementAt(i); }
+            }
+        );
+!!!8983579.java!!!	JList()
+        this (
+            new AbstractListModel() {
+              public int getSize() { return 0; }
+              public Object getElementAt(int i) { return "No Data Model"; }
+            }
+        );
+!!!8983707.java!!!	getUI() : ListUI
+        return (ListUI)ui;
+!!!8983835.java!!!	setUI(inout ui : ListUI) : void
+        super.setUI(ui);
+!!!8983963.java!!!	updateUI() : void
+        setUI((ListUI)UIManager.getUI(this));
+        invalidate();
+!!!8984091.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!8984219.java!!!	updateFixedCellSize() : void
+        ListCellRenderer cr = getCellRenderer();
+        Object value = getPrototypeCellValue();
+
+        if ((cr != null) && (value != null)) {
+            Component c = cr.getListCellRendererComponent(this, value, 0, false, false);
+
+            /* The ListUI implementation will add Component c to its private
+             * CellRendererPane however we can't assume that's already
+             * been done here.  So we temporarily set the one "inherited"
+             * property that may affect the renderer components preferred size:
+             * its font.
+             */
+            Font f = c.getFont();
+            c.setFont(getFont());
+
+            Dimension d = c.getPreferredSize();
+            fixedCellWidth = d.width;
+            fixedCellHeight = d.height;
+
+            c.setFont(f);
+        }
+!!!8984347.java!!!	getPrototypeCellValue() : Object
+        return prototypeCellValue;
+!!!8984475.java!!!	setPrototypeCellValue(inout prototypeCellValue : Object) : void
+        Object oldValue = this.prototypeCellValue;
+        this.prototypeCellValue = prototypeCellValue;
+
+        /* If the cellRenderer has changed and prototypeCellValue
+         * was set, then recompute fixedCellWidth and fixedCellHeight.
+         */
+
+        if ((prototypeCellValue != null) && !prototypeCellValue.equals(oldValue)) {
+            updateFixedCellSize();
+        }
+
+        firePropertyChange("prototypeCellValue", oldValue, prototypeCellValue);
+!!!8984603.java!!!	getFixedCellWidth() : int
+        return fixedCellWidth;
+!!!8984731.java!!!	setFixedCellWidth(in width : int) : void
+        int oldValue = fixedCellWidth;
+        fixedCellWidth = width;
+        firePropertyChange("fixedCellWidth", oldValue, fixedCellWidth);
+!!!8984859.java!!!	getFixedCellHeight() : int
+        return fixedCellHeight;
+!!!8984987.java!!!	setFixedCellHeight(in height : int) : void
+        int oldValue = fixedCellHeight;
+        fixedCellHeight = height;
+        firePropertyChange("fixedCellHeight", oldValue, fixedCellHeight);
+!!!8985115.java!!!	getCellRenderer() : ListCellRenderer
+        return cellRenderer;
+!!!8985243.java!!!	setCellRenderer(inout cellRenderer : ListCellRenderer) : void
+        ListCellRenderer oldValue = this.cellRenderer;
+        this.cellRenderer = cellRenderer;
+
+        /* If the cellRenderer has changed and prototypeCellValue
+         * was set, then recompute fixedCellWidth and fixedCellHeight.
+         */
+        if ((cellRenderer != null) && !cellRenderer.equals(oldValue)) {
+            updateFixedCellSize();
+        }
+
+        firePropertyChange("cellRenderer", oldValue, cellRenderer);
+!!!8985371.java!!!	getSelectionForeground() : Color
+        return selectionForeground;
+!!!8985499.java!!!	setSelectionForeground(inout selectionForeground : Color) : void
+        Color oldValue = this.selectionForeground;
+        this.selectionForeground = selectionForeground;
+        firePropertyChange("selectionForeground", oldValue, selectionForeground);
+!!!8985627.java!!!	getSelectionBackground() : Color
+        return selectionBackground;
+!!!8985755.java!!!	setSelectionBackground(inout selectionBackground : Color) : void
+        Color oldValue = this.selectionBackground;
+        this.selectionBackground = selectionBackground;
+        firePropertyChange("selectionBackground", oldValue, selectionBackground);
+!!!8985883.java!!!	getVisibleRowCount() : int
+        return visibleRowCount;
+!!!8986011.java!!!	setVisibleRowCount(in visibleRowCount : int) : void
+        int oldValue = this.visibleRowCount;
+        this.visibleRowCount = Math.max(0, visibleRowCount);
+        firePropertyChange("visibleRowCount", oldValue, visibleRowCount);
+!!!8986139.java!!!	getLayoutOrientation() : int
+	return layoutOrientation;
+!!!8986267.java!!!	setLayoutOrientation(in layoutOrientation : int) : void
+	int oldValue = this.layoutOrientation;
+	switch (layoutOrientation) {
+	case VERTICAL:
+	case VERTICAL_WRAP:
+        case HORIZONTAL_WRAP:
+	    this.layoutOrientation = layoutOrientation;
+	    firePropertyChange("layoutOrientation", oldValue, layoutOrientation);
+	    break;
+	default:
+            throw new IllegalArgumentException("layoutOrientation must be one of: VERTICAL, HORIZONTAL_WRAP or VERTICAL_WRAP");
+	}
+!!!8986395.java!!!	getFirstVisibleIndex() : int
+	Rectangle r = getVisibleRect();
+        int first;
+        if (this.getComponentOrientation().isLeftToRight()) {
+            first = locationToIndex(r.getLocation());
+        } else {
+            first = locationToIndex(new Point((r.x + r.width) - 1, r.y));
+        }
+	if (first != -1) {
+	    Rectangle bounds = getCellBounds(first, first);
+	    if (bounds != null) {
+                SwingUtilities.computeIntersection(r.x, r.y, r.width, r.height, bounds);
+                if (bounds.width == 0 || bounds.height == 0) {		
+		    first = -1;
+		}
+	    }
+	}
+	return first;
+!!!8986523.java!!!	getLastVisibleIndex() : int
+        boolean leftToRight = this.getComponentOrientation().isLeftToRight();
+        Rectangle r = getVisibleRect();
+        Point lastPoint;
+        if (leftToRight) {
+            lastPoint = new Point((r.x + r.width) - 1, (r.y + r.height) - 1);
+        } else {
+            lastPoint = new Point(r.x, (r.y + r.height) - 1);
+        }
+        int location = locationToIndex(lastPoint);
+
+        if (location != -1) {
+            Rectangle bounds = getCellBounds(location, location);
+
+            if (bounds != null) {
+                SwingUtilities.computeIntersection(r.x, r.y, r.width, r.height, bounds);
+                if (bounds.width == 0 || bounds.height == 0) {
+		    // Try the lower left corner, and then go across checking
+		    // each cell.
+		    Point visibleLL = new Point(r.x, lastPoint.y);
+		    int last;
+		    int llIndex = -1;
+		    int lrIndex = location;
+		    location = -1;
+
+		    do {
+			last = llIndex;
+			llIndex = locationToIndex(visibleLL);
+
+			if (llIndex != -1) {
+			    bounds = getCellBounds(llIndex, llIndex);
+			    if (llIndex != lrIndex && bounds != null &&
+				bounds.contains(visibleLL)) {
+				location = llIndex;
+				visibleLL.x = bounds.x + bounds.width + 1;
+				if (visibleLL.x >= lastPoint.x) {
+                                // Past visible region, bail.
+				    last = llIndex;
+				}
+			    }
+			    else {
+				last = llIndex;
+			    }
+			}
+		    } while (llIndex != -1 && last != llIndex);
+		}
+            }
+        }
+        return location;
+!!!8986651.java!!!	ensureIndexIsVisible(in index : int) : void
+        Rectangle cellBounds = getCellBounds(index, index);
+        if (cellBounds != null) {
+            scrollRectToVisible(cellBounds);
+        }
+!!!8986779.java!!!	setDragEnabled(inout b : boolean) : void
+        if (b && GraphicsEnvironment.isHeadless()) {
+            throw new HeadlessException();
+        }
+	dragEnabled = b;
+!!!8986907.java!!!	getDragEnabled() : boolean
+	return dragEnabled;
+!!!8987035.java!!!	getNextMatch(in prefix : String, in startIndex : int, inout bias : Bias) : int
+	ListModel model = getModel();
+	int max = model.getSize();
+	if (prefix == null) {
+	    throw new IllegalArgumentException();
+	}
+	if (startIndex < 0 || startIndex >= max) {
+	    throw new IllegalArgumentException();
+	}
+	prefix = prefix.toUpperCase();
+
+	// start search from the next element after the selected element
+	int increment = (bias == Position.Bias.Forward) ? 1 : -1;
+	int index = startIndex;
+	do {
+	    Object o = model.getElementAt(index);
+	    
+	    if (o != null) {
+		String string;
+		
+		if (o instanceof String) {
+		    string = ((String)o).toUpperCase();
+		}
+		else {
+		    string = o.toString();
+		    if (string != null) {
+			string = string.toUpperCase();
+		    }
+		}
+		
+		if (string != null && string.startsWith(prefix)) {
+		    return index;
+		}
+	    }
+	    index = (index + increment + max) % max;
+	} while (index != startIndex);
+	return -1;
+!!!8987163.java!!!	getToolTipText(inout event : MouseEvent) : String
+        if(event != null) {
+            Point p = event.getPoint();
+            int index = locationToIndex(p);
+            ListCellRenderer r = getCellRenderer();
+            Rectangle cellBounds;
+
+            if (index != -1 && r != null && (cellBounds =
+                               getCellBounds(index, index)) != null &&
+                               cellBounds.contains(p.x, p.y)) {
+                ListSelectionModel lsm = getSelectionModel();
+                Component rComponent = r.getListCellRendererComponent(
+                           this, getModel().getElementAt(index), index,
+                           lsm.isSelectedIndex(index),
+                           (hasFocus() && (lsm.getLeadSelectionIndex() ==
+                                           index)));
+
+                if(rComponent instanceof JComponent) {
+                    MouseEvent      newEvent;
+
+                    p.translate(-cellBounds.x, -cellBounds.y);
+                    newEvent = new MouseEvent(rComponent, event.getID(),
+                                              event.getWhen(),
+                                              event.getModifiers(),
+                                              p.x, p.y, event.getClickCount(),
+                                              event.isPopupTrigger());
+
+                    String tip = ((JComponent)rComponent).getToolTipText(
+                                              newEvent);
+
+                    if (tip != null) {
+                        return tip;
+                    }
+                }
+            }
+        }
+        return super.getToolTipText();
+!!!8987291.java!!!	locationToIndex(inout location : Point) : int
+        ListUI ui = getUI();
+        return (ui != null) ? ui.locationToIndex(this, location) : -1;
+!!!8987419.java!!!	indexToLocation(in index : int) : Point
+        ListUI ui = getUI();
+        return (ui != null) ? ui.indexToLocation(this, index) : null;
+!!!8987547.java!!!	getCellBounds(in index0 : int, in index1 : int) : Rectangle
+        ListUI ui = getUI();
+        return (ui != null) ? ui.getCellBounds(this, index0, index1) : null;
+!!!8987675.java!!!	getModel() : ListModel
+        return dataModel;
+!!!8987803.java!!!	setModel(inout model : ListModel) : void
+        if (model == null) {
+            throw new IllegalArgumentException("model must be non null");
+        }
+        ListModel oldValue = dataModel;
+        dataModel = model;
+        firePropertyChange("model", oldValue, dataModel);
+        clearSelection();
+!!!8987931.java!!!	setListData(in listData : Object) : void
+        setModel (
+            new AbstractListModel() {
+                public int getSize() { return listData.length; }
+                public Object getElementAt(int i) { return listData[i]; }
+            }
+        );
+!!!8988059.java!!!	setListData(in listData : Vector) : void
+        setModel (
+            new AbstractListModel() {
+                public int getSize() { return listData.size(); }
+                public Object getElementAt(int i) { return listData.elementAt(i); }
+            }
+        );
+!!!8988187.java!!!	createSelectionModel() : ListSelectionModel
+        return new DefaultListSelectionModel();
+!!!8988315.java!!!	getSelectionModel() : ListSelectionModel
+        return selectionModel;
+!!!8988443.java!!!	fireSelectionValueChanged(in firstIndex : int, in lastIndex : int, inout isAdjusting : boolean) : void
+        Object[] listeners = listenerList.getListenerList();
+        ListSelectionEvent e = null;
+
+        for (int i = listeners.length - 2; i >= 0; i -= 2) {
+            if (listeners[i] == ListSelectionListener.class) {
+                if (e == null) {
+                    e = new ListSelectionEvent(this, firstIndex, lastIndex,
+                                               isAdjusting);
+                }
+                ((ListSelectionListener)listeners[i+1]).valueChanged(e);
+            }
+        }
+!!!8988699.java!!!	addListSelectionListener(inout listener : ListSelectionListener) : void
+        if (selectionListener == null) {
+            selectionListener = new ListSelectionHandler();
+            getSelectionModel().addListSelectionListener(selectionListener);
+        }
+
+        listenerList.add(ListSelectionListener.class, listener);
+!!!8988827.java!!!	removeListSelectionListener(inout listener : ListSelectionListener) : void
+        listenerList.remove(ListSelectionListener.class, listener);
+!!!8988955.java!!!	getListSelectionListeners() : ListSelectionListener
+        return (ListSelectionListener[])listenerList.getListeners(
+                ListSelectionListener.class);
+!!!8989083.java!!!	setSelectionModel(inout selectionModel : ListSelectionModel) : void
+        if (selectionModel == null) {
+            throw new IllegalArgumentException("selectionModel must be non null");
+        }
+
+        /* Remove the forwarding ListSelectionListener from the old
+         * selectionModel, and add it to the new one, if necessary.
+         */
+        if (selectionListener != null) {
+            this.selectionModel.removeListSelectionListener(selectionListener);
+            selectionModel.addListSelectionListener(selectionListener);
+        }
+
+        ListSelectionModel oldValue = this.selectionModel;
+        this.selectionModel = selectionModel;
+        firePropertyChange("selectionModel", oldValue, selectionModel);
+!!!8989211.java!!!	setSelectionMode(in selectionMode : int) : void
+        getSelectionModel().setSelectionMode(selectionMode);
+!!!8989339.java!!!	getSelectionMode() : int
+        return getSelectionModel().getSelectionMode();
+!!!8989467.java!!!	getAnchorSelectionIndex() : int
+        return getSelectionModel().getAnchorSelectionIndex();
+!!!8989595.java!!!	getLeadSelectionIndex() : int
+        return getSelectionModel().getLeadSelectionIndex();
+!!!8989723.java!!!	getMinSelectionIndex() : int
+        return getSelectionModel().getMinSelectionIndex();
+!!!8989851.java!!!	getMaxSelectionIndex() : int
+        return getSelectionModel().getMaxSelectionIndex();
+!!!8989979.java!!!	isSelectedIndex(in index : int) : boolean
+        return getSelectionModel().isSelectedIndex(index);
+!!!8990107.java!!!	isSelectionEmpty() : boolean
+        return getSelectionModel().isSelectionEmpty();
+!!!8990235.java!!!	clearSelection() : void
+        getSelectionModel().clearSelection();
+!!!8990363.java!!!	setSelectionInterval(in anchor : int, in lead : int) : void
+        getSelectionModel().setSelectionInterval(anchor, lead);
+!!!8990491.java!!!	addSelectionInterval(in anchor : int, in lead : int) : void
+        getSelectionModel().addSelectionInterval(anchor, lead);
+!!!8990619.java!!!	removeSelectionInterval(in index0 : int, in index1 : int) : void
+        getSelectionModel().removeSelectionInterval(index0, index1);
+!!!8990747.java!!!	setValueIsAdjusting(inout b : boolean) : void
+        getSelectionModel().setValueIsAdjusting(b);
+!!!8990875.java!!!	getValueIsAdjusting() : boolean
+        return getSelectionModel().getValueIsAdjusting();
+!!!8991003.java!!!	getSelectedIndices() : int
+        ListSelectionModel sm = getSelectionModel();
+        int iMin = sm.getMinSelectionIndex();
+        int iMax = sm.getMaxSelectionIndex();
+
+        if ((iMin < 0) || (iMax < 0)) {
+            return new int[0];
+        }
+
+        int[] rvTmp = new int[1+ (iMax - iMin)];
+        int n = 0;
+        for(int i = iMin; i <= iMax; i++) {
+            if (sm.isSelectedIndex(i)) {
+                rvTmp[n++] = i;
+            }
+        }
+        int[] rv = new int[n];
+        System.arraycopy(rvTmp, 0, rv, 0, n);
+        return rv;
+!!!8991131.java!!!	setSelectedIndex(in index : int) : void
+	if (index >= getModel().getSize()) {
+	    return;
+	}
+        getSelectionModel().setSelectionInterval(index, index);
+!!!8991259.java!!!	setSelectedIndices(in indices : int) : void
+        ListSelectionModel sm = getSelectionModel();
+        sm.clearSelection();
+	int size = getModel().getSize();
+        for(int i = 0; i < indices.length; i++) {
+	    if (indices[i] < size) {
+		sm.addSelectionInterval(indices[i], indices[i]);
+	    }
+        }
+!!!8991387.java!!!	getSelectedValues() : Object
+        ListSelectionModel sm = getSelectionModel();
+        ListModel dm = getModel();
+
+        int iMin = sm.getMinSelectionIndex();
+        int iMax = sm.getMaxSelectionIndex();
+
+        if ((iMin < 0) || (iMax < 0)) {
+            return new Object[0];
+        }
+
+        Object[] rvTmp = new Object[1+ (iMax - iMin)];
+        int n = 0;
+        for(int i = iMin; i <= iMax; i++) {
+            if (sm.isSelectedIndex(i)) {
+                rvTmp[n++] = dm.getElementAt(i);
+            }
+        }
+        Object[] rv = new Object[n];
+        System.arraycopy(rvTmp, 0, rv, 0, n);
+        return rv;
+!!!8991515.java!!!	getSelectedIndex() : int
+        return getMinSelectionIndex();
+!!!8991643.java!!!	getSelectedValue() : Object
+        int i = getMinSelectionIndex();
+        return (i == -1) ? null : getModel().getElementAt(i);
+!!!8991771.java!!!	setSelectedValue(inout anObject : Object, inout shouldScroll : boolean) : void
+        if(anObject == null)
+            setSelectedIndex(-1);
+        else if(!anObject.equals(getSelectedValue())) {
+            int i,c;
+            ListModel dm = getModel();
+            for(i=0,c=dm.getSize();i<c;i++)
+                if(anObject.equals(dm.getElementAt(i))){
+                    setSelectedIndex(i);
+                    if(shouldScroll)
+                        ensureIndexIsVisible(i);
+                    repaint();  /** FIX-ME setSelectedIndex does not redraw all the time with the basic l&f**/
+                    return;
+                }
+            setSelectedIndex(-1);
+        }
+        repaint(); /** FIX-ME setSelectedIndex does not redraw all the time with the basic l&f**/
+!!!8991899.java!!!	checkScrollableParameters(inout visibleRect : Rectangle, in orientation : int) : void
+	if (visibleRect == null) {
+	    throw new IllegalArgumentException("visibleRect must be non-null");
+	}
+        switch (orientation) {
+        case SwingConstants.VERTICAL:
+        case SwingConstants.HORIZONTAL:
+            break;
+        default:
+            throw new IllegalArgumentException("orientation must be one of: VERTICAL, HORIZONTAL");
+        }
+!!!8992027.java!!!	getPreferredScrollableViewportSize() : Dimension
+        if (getLayoutOrientation() != VERTICAL) {
+            return getPreferredSize();
+        }
+        Insets insets = getInsets();
+        int dx = insets.left + insets.right;
+        int dy = insets.top + insets.bottom;
+
+        int visibleRowCount = getVisibleRowCount();
+        int fixedCellWidth = getFixedCellWidth();
+        int fixedCellHeight = getFixedCellHeight();
+
+        if ((fixedCellWidth > 0) && (fixedCellHeight > 0)) {
+            int width = fixedCellWidth + dx;
+            int height = (visibleRowCount * fixedCellHeight) + dy;
+            return new Dimension(width, height);
+        }
+        else if (getModel().getSize() > 0) {
+            int width = getPreferredSize().width;
+            int height;
+            Rectangle r = getCellBounds(0, 0);
+            if (r != null) {
+                height = (visibleRowCount * r.height) + dy;
+            }
+            else {
+                // Will only happen if UI null, shouldn't matter what we return
+                height = 1;
+            }
+            return new Dimension(width, height);
+        }
+        else {
+            fixedCellWidth = (fixedCellWidth > 0) ? fixedCellWidth : 256;
+            fixedCellHeight = (fixedCellHeight > 0) ? fixedCellHeight : 16;
+            return new Dimension(fixedCellWidth, fixedCellHeight * visibleRowCount);
+        }
+!!!8992155.java!!!	getScrollableUnitIncrement(inout visibleRect : Rectangle, in orientation : int, in direction : int) : int
+	checkScrollableParameters(visibleRect, orientation);
+
+        if (orientation == SwingConstants.VERTICAL) {
+            int row = getFirstVisibleIndex();
+
+            if (row == -1) {
+                return 0;
+            }
+            else {
+                /* Scroll Down */
+                if (direction > 0) {
+                    Rectangle r = getCellBounds(row, row);
+                    return (r == null) ? 0 : r.height - (visibleRect.y - r.y);
+                }
+                /* Scroll Up */
+                else {
+                    Rectangle r = getCellBounds(row, row);
+
+                    /* The first row is completely visible and it's row 0.
+                     * We're done.
+                     */
+                    if ((r.y == visibleRect.y) && (row == 0))  {
+                        return 0;
+                    }
+                    /* The first row is completely visible, return the
+                     * height of the previous row or 0 if the first row
+                     * is the top row of the list.
+                     */
+                    else if (r.y == visibleRect.y) {
+			Point loc = r.getLocation();
+			loc.y--;
+			int prevIndex = locationToIndex(loc);
+                        Rectangle prevR = getCellBounds(prevIndex, prevIndex);
+
+                        if (prevR == null || prevR.y >= r.y) {
+                            return 0;
+                        }
+                        return prevR.height;
+                    }
+                    /* The first row is partially visible, return the
+                     * height of hidden part.
+                     */
+                    else {
+                        return visibleRect.y - r.y;
+                    }
+                }
+            }
+        } else if (orientation == SwingConstants.HORIZONTAL &&
+                           getLayoutOrientation() != JList.VERTICAL) {
+	    int index = locationToIndex(visibleRect.getLocation());
+
+            if (index != -1) {
+                Rectangle cellBounds = getCellBounds(index, index);
+
+                if (cellBounds != null) {
+                    if (cellBounds.x != visibleRect.x) {
+                        if (direction < 0) {
+                            return Math.abs(cellBounds.x - visibleRect.x);
+                        }
+                        return cellBounds.width + cellBounds.x - visibleRect.x;
+                    }
+                    return cellBounds.width;
+                }
+            }
+        }
+	Font f = getFont();
+	return (f != null) ? f.getSize() : 1;
+!!!8992283.java!!!	getScrollableBlockIncrement(inout visibleRect : Rectangle, in orientation : int, in direction : int) : int
+	checkScrollableParameters(visibleRect, orientation);
+        if (orientation == SwingConstants.VERTICAL) {
+            int inc = visibleRect.height;
+            /* Scroll Down */
+            if (direction > 0) {
+                // last cell is the lowest left cell
+                int last = locationToIndex(new Point(visibleRect.x, visibleRect.y+visibleRect.height-1));
+                if (last != -1) {
+		    Rectangle lastRect = getCellBounds(last,last);
+		    if (lastRect != null) {
+			inc = lastRect.y - visibleRect.y;
+			if ( (inc == 0) && (last < getModel().getSize()-1) ) {
+			    inc = lastRect.height;
+			}
+		    }
+                }
+            }
+            /* Scroll Up */
+            else {
+                int newFirst = locationToIndex(new Point(visibleRect.x, visibleRect.y-visibleRect.height));
+                int first = getFirstVisibleIndex();
+                if (newFirst != -1) {
+		    if (first == -1) {
+			first = locationToIndex(visibleRect.getLocation());
+		    }
+                    Rectangle newFirstRect = getCellBounds(newFirst,newFirst);
+                    Rectangle firstRect = getCellBounds(first,first);
+		    if ((newFirstRect != null) && (firstRect!=null)) {
+			while ( (newFirstRect.y + visibleRect.height <
+				 firstRect.y + firstRect.height) &&
+				(newFirstRect.y < firstRect.y) ) {
+			    newFirst++;
+			    newFirstRect = getCellBounds(newFirst,newFirst);
+			}
+			inc = visibleRect.y - newFirstRect.y;
+			if ( (inc <= 0) && (newFirstRect.y > 0)) {
+			    newFirst--;
+			    newFirstRect = getCellBounds(newFirst,newFirst);
+			    if (newFirstRect != null) {
+				inc = visibleRect.y - newFirstRect.y;
+			    }
+			}
+		    }    
+		}
+            }
+            return inc;
+        }
+	else if (orientation == SwingConstants.HORIZONTAL &&
+		 getLayoutOrientation() != JList.VERTICAL) {
+	    int inc = visibleRect.width;
+	    /* Scroll Right */
+	    if (direction > 0) {
+		// last cell is an upper right cell
+		int last = locationToIndex(new Point(visibleRect.x + visibleRect.width - 1,
+						     visibleRect.y));
+		if (last != -1) {
+		    Rectangle lastRect = getCellBounds(last,last);
+		    if (lastRect != null) {
+			inc = lastRect.x - visibleRect.x;
+			if (inc < 0) {
+			    inc += lastRect.width;
+			} else if ( (inc == 0) && (last < getModel().getSize()-1) ) {
+			    inc = lastRect.width;
+			}
+		    }
+		}
+	    }
+	    /* Scroll Left */
+	    else {
+		// first cell is a cell at the upper left corner of the visibleRect
+		// shifted left by the visibleRect.width
+		int first = locationToIndex(new Point(visibleRect.x - visibleRect.width,
+							 visibleRect.y));
+		if (first != -1) {
+		    Rectangle firstRect = getCellBounds(first,first);
+		    if (firstRect != null) {
+			if (firstRect.x < visibleRect.x - visibleRect.width) {
+			    if (firstRect.x + firstRect.width >= visibleRect.x) {
+				inc = visibleRect.x - firstRect.x;
+			    } else {
+				inc = visibleRect.x - firstRect.x - firstRect.width;
+			    }
+			} else {
+			    inc = visibleRect.x - firstRect.x;
+			}
+		    }
+		}
+	    }
+	    return inc;
+	}
+        return visibleRect.width;
+!!!8992411.java!!!	getScrollableTracksViewportWidth() : boolean
+        if (getLayoutOrientation() == HORIZONTAL_WRAP &&
+                                      getVisibleRowCount() <= 0) {
+            return true;
+        }
+	if (getParent() instanceof JViewport) {
+	    return (((JViewport)getParent()).getWidth() > getPreferredSize().width);
+	}
+	return false;
+!!!8992539.java!!!	getScrollableTracksViewportHeight() : boolean
+        if (getLayoutOrientation() == VERTICAL_WRAP &&
+                     getVisibleRowCount() <= 0) {
+            return true;
+        }
+	if (getParent() instanceof JViewport) {
+	    return (((JViewport)getParent()).getHeight() > getPreferredSize().height);
+	}
+	return false;
+!!!8992667.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!8992795.java!!!	paramString() : String
+        String selectionForegroundString = (selectionForeground != null ?
+                                            selectionForeground.toString() :
+                                            "");
+        String selectionBackgroundString = (selectionBackground != null ?
+                                            selectionBackground.toString() :
+                                            "");
+
+	return super.paramString() +
+        ",fixedCellHeight=" + fixedCellHeight +
+        ",fixedCellWidth=" + fixedCellWidth +
+        ",horizontalScrollIncrement=" + horizontalScrollIncrement +
+        ",selectionBackground=" + selectionBackgroundString +
+        ",selectionForeground=" + selectionForegroundString +
+        ",visibleRowCount=" + visibleRowCount +
+        ",layoutOrientation=" + layoutOrientation;
+!!!8992923.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJList();
+        }
+        return accessibleContext;

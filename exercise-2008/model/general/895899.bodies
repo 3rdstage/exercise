@@ -1,0 +1,37 @@
+class java_awt_Component_PersistenceDelegate
+!!!6776219.java!!!	initialize(inout type : Class, inout oldInstance : Object, inout newInstance : Object, inout out : Encoder) : void
+        super.initialize(type, oldInstance, newInstance, out);
+        java.awt.Component c = (java.awt.Component)oldInstance;
+        java.awt.Component c2 = (java.awt.Component)newInstance;
+        // The "background", "foreground" and "font" properties.
+        // The foreground and font properties of Windows change from
+        // null to defined values after the Windows are made visible -
+        // special case them for now.
+        if (!(oldInstance instanceof java.awt.Window)) {
+            String[] fieldNames = new String[]{"background", "foreground", "font"};
+            for(int i = 0; i < fieldNames.length; i++) {
+                String name = fieldNames[i];
+                Object oldValue = ReflectionUtils.getPrivateField(oldInstance, java.awt.Component.class, name, out.getExceptionListener());
+                Object newValue = (newInstance == null) ? null : ReflectionUtils.getPrivateField(newInstance, java.awt.Component.class, name, out.getExceptionListener());
+                if (oldValue != null && !oldValue.equals(newValue)) {
+                    invokeStatement(oldInstance, "set" + NameGenerator.capitalize(name), new Object[]{oldValue}, out);
+                }
+            }
+        }
+
+        // Bounds
+        java.awt.Container p = c.getParent();
+        if (p == null || p.getLayout() == null && !(p instanceof javax.swing.JLayeredPane)) { 
+            // Use the most concise construct.
+            boolean locationCorrect = c.getLocation().equals(c2.getLocation()); 
+            boolean sizeCorrect = c.getSize().equals(c2.getSize()); 
+            if (!locationCorrect && !sizeCorrect) { 
+                invokeStatement(oldInstance, "setBounds", new Object[]{c.getBounds()}, out);
+            } 
+            else if (!locationCorrect) { 
+                invokeStatement(oldInstance, "setLocation", new Object[]{c.getLocation()}, out);
+            } 
+            else if (!sizeCorrect) { 
+                invokeStatement(oldInstance, "setSize", new Object[]{c.getSize()}, out);
+            }             
+        }

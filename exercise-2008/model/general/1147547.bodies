@@ -1,0 +1,65 @@
+class LengthValue
+!!!9937435.java!!!	LengthValue()
+	    this(false);
+!!!9937563.java!!!	LengthValue(inout mayBeNegative : boolean)
+	    this.mayBeNegative = mayBeNegative;
+!!!9937691.java!!!	getValue() : float
+            return getValue(false);
+!!!9937819.java!!!	getValue(inout isW3CLengthUnits : boolean) : float
+	    return getValue(0, isW3CLengthUnits);
+!!!9937947.java!!!	getValue(in currentValue : float) : float
+            return getValue(currentValue, false);
+!!!9938075.java!!!	getValue(in currentValue : float, inout isW3CLengthUnits : boolean) : float
+	    if (percentage) {
+		return span * currentValue;
+	    }
+	    return LengthUnit.getValue(span, units, isW3CLengthUnits);
+!!!9938203.java!!!	isPercentage() : boolean
+	    return percentage;
+!!!9938331.java!!!	parseCssValue(in value : String) : Object
+	    LengthValue lv;
+	    try {
+		// Assume pixels
+		float absolute = Float.valueOf(value).floatValue();
+		lv = new LengthValue();
+		lv.span = absolute;
+	    } catch (NumberFormatException nfe) {
+		// Not pixels, use LengthUnit
+		LengthUnit lu = new LengthUnit(value,
+					       LengthUnit.UNINITALIZED_LENGTH,
+					       0);
+
+		// PENDING: currently, we only support absolute values and
+		// percentages.
+		switch (lu.type) {
+		case 0:
+		    // Absolute
+		    lv = new LengthValue();
+		    lv.span = 
+			(mayBeNegative) ? lu.value : Math.max(0, lu.value);
+                    lv.units = lu.units;
+		    break;
+		case 1:
+		    // %
+		    lv = new LengthValue();
+		    lv.span = Math.max(0, Math.min(1, lu.value));
+		    lv.percentage = true;
+		    break;
+		default:
+		    return null;
+		}
+	    }
+	    lv.svalue = value;
+	    return lv;
+!!!9938459.java!!!	parseHtmlValue(in value : String) : Object
+	    if (value.equals(HTML.NULL_ATTRIBUTE_VALUE)) {
+		value = "1";
+	    }
+	    return parseCssValue(value);
+!!!9938587.java!!!	fromStyleConstants(inout key : StyleConstants, inout value : Object) : Object
+	    LengthValue v = new LengthValue();
+	    v.svalue = value.toString();
+	    v.span = ((Float)value).floatValue();
+	    return v;
+!!!9938715.java!!!	toStyleConstants(inout key : StyleConstants, inout v : View) : Object
+ 	    return new Float(getValue(false));

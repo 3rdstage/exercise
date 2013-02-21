@@ -1,0 +1,151 @@
+class CharacterDataImpl
+!!!4815387.java!!!	CharacterDataImpl(inout ownerDocument : CoreDocumentImpl, in data : String)
+        super(ownerDocument);
+        this.data = data;
+!!!4815515.java!!!	getChildNodes() : NodeList
+        return singletonNodeList;
+!!!4815643.java!!!	getNodeValue() : String
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+        return data;
+!!!4815771.java!!!	setNodeValueInternal(in value : String) : void
+    	if (isReadOnly()) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "NO_MODIFICATION_ALLOWED_ERR", null);
+            throw new DOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR, msg);
+        }
+        // revisit: may want to set the value in ownerDocument.
+    	// Default behavior, overridden in some subclasses
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+
+        // keep old value for document notification
+        String oldvalue = this.data;
+
+        CoreDocumentImpl ownerDocument = ownerDocument();
+
+        // notify document
+        ownerDocument.modifyingCharacterData(this);
+
+    	this.data = value;
+
+        // notify document
+        ownerDocument.modifiedCharacterData(this, oldvalue, value);
+!!!4815899.java!!!	setNodeValue(in value : String) : void
+
+        setNodeValueInternal(value);
+
+        // notify document
+        ownerDocument().replacedText(this);
+!!!4816027.java!!!	getData() : String
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+        return data;
+!!!4816155.java!!!	getLength() : int
+   
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+        return data.length();
+!!!4816283.java!!!	appendData(in data : String) : void
+
+    	if (isReadOnly()) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "NO_MODIFICATION_ALLOWED_ERR", null);
+            throw new DOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR, msg);
+        }
+        if (data == null) {
+            return;
+        }
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+        
+        setNodeValue(this.data + data);
+
+!!!4816411.java!!!	deleteData(in offset : int, in count : int) : void
+
+    	if (isReadOnly()) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "NO_MODIFICATION_ALLOWED_ERR", null);
+            throw new DOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR, msg);
+        }
+
+        if (count < 0) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "INDEX_SIZE_ERR", null);
+            throw new DOMException(DOMException.INDEX_SIZE_ERR, msg);
+        }
+
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+        int tailLength = Math.max(data.length() - count - offset, 0);
+        try {
+            String value = data.substring(0, offset) +
+                (tailLength > 0
+                 ? data.substring(offset + count, offset + count + tailLength) 
+                 : "");
+
+            setNodeValueInternal(value);
+
+            // notify document
+            ownerDocument().deletedText(this, offset, count);
+        }
+        catch (StringIndexOutOfBoundsException e) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "INDEX_SIZE_ERR", null);
+            throw new DOMException(DOMException.INDEX_SIZE_ERR, msg);
+        }
+
+!!!4816539.java!!!	insertData(in offset : int, in data : String) : void
+
+        if (isReadOnly()) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "NO_MODIFICATION_ALLOWED_ERR", null);
+            throw new DOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR, msg);
+        }
+
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+        try {
+            String value =
+                new StringBuffer(this.data).insert(offset, data).toString();
+
+            setNodeValueInternal(value);
+
+            // notify document
+            ownerDocument().insertedText(this, offset, data.length());
+        }
+        catch (StringIndexOutOfBoundsException e) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "INDEX_SIZE_ERR", null);
+            throw new DOMException(DOMException.INDEX_SIZE_ERR, msg);
+        }
+
+!!!4816667.java!!!	replaceData(in offset : int, in count : int, in data : String) : void
+
+        // The read-only check is done by deleteData()
+        // ***** This could be more efficient w/r/t Mutation Events,
+        // specifically by aggregating DOMAttrModified and
+        // DOMSubtreeModified. But mutation events are 
+        // underspecified; I don't feel compelled
+        // to deal with it right now.
+        deleteData(offset, count);
+        insertData(offset, data);
+
+!!!4816795.java!!!	setData(in value : String) : void
+        setNodeValue(value);
+!!!4816923.java!!!	substringData(in offset : int, in count : int) : String
+
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+        
+        int length = data.length();
+        if (count < 0 || offset < 0 || offset > length - 1) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "INDEX_SIZE_ERR", null);
+            throw new DOMException(DOMException.INDEX_SIZE_ERR, msg);
+        }
+
+        int tailIndex = Math.min(offset + count, length);
+
+        return data.substring(offset, tailIndex);
+

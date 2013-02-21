@@ -1,0 +1,46 @@
+class IdentityScope
+!!!7574683.java!!!	initializeSystemScope() : void
+
+	String classname = (String) AccessController.doPrivileged(
+						       new PrivilegedAction() {
+	    public Object run() {
+		return Security.getProperty("system.scope");
+	    }
+	});
+
+	if (classname == null) {
+	    return;
+
+        } else {
+
+	    try {
+		Class.forName(classname);
+	    } catch (ClassNotFoundException e) {
+		//Security.error("unable to establish a system scope from " +
+		//	       classname);
+		e.printStackTrace();
+	    }
+	}
+!!!7574811.java!!!	IdentityScope()
+	this("restoring...");
+!!!7574939.java!!!	IdentityScope(in name : String)
+	super(name);
+!!!7575067.java!!!	IdentityScope(in name : String, inout scope : IdentityScope)
+	super(name, scope);
+!!!7575195.java!!!	getSystemScope() : IdentityScope
+	if (scope == null) {
+	    initializeSystemScope();
+	}
+	return scope;
+!!!7575323.java!!!	setSystemScope(inout scope : IdentityScope) : void
+	check("setSystemScope");
+	IdentityScope.scope = scope;
+!!!7575707.java!!!	getIdentity(inout principal : Principal) : Identity
+	return getIdentity(principal.getName());
+!!!7576347.java!!!	toString() : String
+	return super.toString() + "[" + size() + "]";
+!!!7576475.java!!!	check(in directive : String) : void
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkSecurityAccess(directive);
+	}

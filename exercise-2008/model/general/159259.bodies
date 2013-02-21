@@ -1,0 +1,153 @@
+class UUID
+!!!387227.java!!!	UUID(in data : byte)
+        long msb = 0;
+        long lsb = 0;
+        assert data.length == 16;
+        for (int i=0; i<8; i++)
+            msb = (msb << 8) | (data[i] & 0xff);
+        for (int i=8; i<16; i++)
+            lsb = (lsb << 8) | (data[i] & 0xff);
+        this.mostSigBits = msb;
+        this.leastSigBits = lsb;
+!!!387355.java!!!	UUID(in mostSigBits : long, in leastSigBits : long)
+        this.mostSigBits = mostSigBits;
+        this.leastSigBits = leastSigBits;
+!!!387483.java!!!	randomUUID() : UUID
+        SecureRandom ng = numberGenerator;
+        if (ng == null) {
+            numberGenerator = ng = new SecureRandom();
+        }
+
+        byte[] randomBytes = new byte[16];
+        ng.nextBytes(randomBytes);
+        randomBytes[6]  &= 0x0f;  /* clear version        */
+        randomBytes[6]  |= 0x40;  /* set to version 4     */
+        randomBytes[8]  &= 0x3f;  /* clear variant        */
+        randomBytes[8]  |= 0x80;  /* set to IETF variant  */
+        UUID result = new UUID(randomBytes);
+        return new UUID(randomBytes);
+!!!387611.java!!!	nameUUIDFromBytes(in name : byte) : UUID
+        MessageDigest md;
+        try {
+            md = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException nsae) {
+            throw new InternalError("MD5 not supported");
+        }
+        byte[] md5Bytes = md.digest(name);
+        md5Bytes[6]  &= 0x0f;  /* clear version        */
+        md5Bytes[6]  |= 0x30;  /* set to version 3     */
+        md5Bytes[8]  &= 0x3f;  /* clear variant        */
+        md5Bytes[8]  |= 0x80;  /* set to IETF variant  */
+        return new UUID(md5Bytes);
+!!!387739.java!!!	fromString(in name : String) : UUID
+        String[] components = name.split("-");
+        if (components.length != 5)
+            throw new IllegalArgumentException("Invalid UUID string: "+name);
+        for (int i=0; i<5; i++)
+            components[i] = "0x"+components[i];
+
+        long mostSigBits = Long.decode(components[0]).longValue();
+        mostSigBits <<= 16;
+        mostSigBits |= Long.decode(components[1]).longValue();
+        mostSigBits <<= 16;
+        mostSigBits |= Long.decode(components[2]).longValue();
+
+        long leastSigBits = Long.decode(components[3]).longValue();
+        leastSigBits <<= 48;
+        leastSigBits |= Long.decode(components[4]).longValue();
+
+        return new UUID(mostSigBits, leastSigBits);
+!!!387867.java!!!	getLeastSignificantBits() : long
+        return leastSigBits;
+!!!387995.java!!!	getMostSignificantBits() : long
+        return mostSigBits;
+!!!388123.java!!!	version() : int
+        if (version < 0) {
+            // Version is bits masked by 0x000000000000F000 in MS long
+            version = (int)((mostSigBits >> 12) & 0x0f);
+        }
+        return version;
+!!!388251.java!!!	variant() : int
+        if (variant < 0) {
+            // This field is composed of a varying number of bits
+            if ((leastSigBits >>> 63) == 0) {
+                variant = 0;
+            } else if ((leastSigBits >>> 62) == 2) {
+                variant = 2;
+            } else {
+                variant = (int)(leastSigBits >>> 61);
+            }
+        }
+        return variant;
+!!!388379.java!!!	timestamp() : long
+        if (version() != 1) {
+            throw new UnsupportedOperationException("Not a time-based UUID");
+        }
+        long result = timestamp;
+        if (result < 0) {
+            result = (mostSigBits & 0x0000000000000FFFL) << 48;
+            result |= ((mostSigBits >> 16) & 0xFFFFL) << 32;
+            result |= mostSigBits >>> 32;
+            timestamp = result;
+        }
+        return result;
+!!!388507.java!!!	clockSequence() : int
+        if (version() != 1) {
+            throw new UnsupportedOperationException("Not a time-based UUID");
+        }
+        if (sequence < 0) {
+            sequence = (int)((leastSigBits & 0x3FFF000000000000L) >>> 48);
+        }
+        return sequence;
+!!!388635.java!!!	node() : long
+        if (version() != 1) {
+            throw new UnsupportedOperationException("Not a time-based UUID");
+        }
+        if (node < 0) {
+            node = leastSigBits & 0x0000FFFFFFFFFFFFL;
+        }
+        return node;
+!!!388763.java!!!	toString() : String
+	return (digits(mostSigBits >> 32, 8) + "-" +
+		digits(mostSigBits >> 16, 4) + "-" +
+		digits(mostSigBits, 4) + "-" +
+		digits(leastSigBits >> 48, 4) + "-" +
+		digits(leastSigBits, 12));
+!!!388891.java!!!	digits(in val : long, in digits : int) : String
+	long hi = 1L << (digits * 4);
+	return Long.toHexString(hi | (val & (hi - 1))).substring(1);
+!!!389019.java!!!	hashCode() : int
+        if (hashCode == -1) {
+            hashCode = (int)((mostSigBits >> 32) ^
+                             mostSigBits ^
+                             (leastSigBits >> 32) ^
+                             leastSigBits);
+        }
+        return hashCode;
+!!!389147.java!!!	equals(inout obj : Object) : boolean
+	if (!(obj instanceof UUID))
+	    return false;
+        if (((UUID)obj).variant() != this.variant())
+            return false;
+        UUID id = (UUID)obj;
+	return (mostSigBits == id.mostSigBits &&
+                leastSigBits == id.leastSigBits);
+!!!389275.java!!!	compareTo(inout val : UUID) : int
+        // The ordering is intentionally set up so that the UUIDs
+        // can simply be numerically compared as two numbers
+        return (this.mostSigBits < val.mostSigBits ? -1 : 
+                (this.mostSigBits > val.mostSigBits ? 1 :
+                 (this.leastSigBits < val.leastSigBits ? -1 :
+                  (this.leastSigBits > val.leastSigBits ? 1 :
+                   0))));
+!!!389403.java!!!	readObject(inout in : java.io.ObjectInputStream) : void
+
+        in.defaultReadObject();
+
+        // Set "cached computation" fields to their initial values
+        version = -1;
+        variant = -1;
+        timestamp = -1;
+        sequence = -1;
+        node = -1;
+        hashCode = -1;

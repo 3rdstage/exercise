@@ -1,0 +1,164 @@
+class JRootPane
+!!!9034139.java!!!	JRootPane()
+        setGlassPane(createGlassPane());
+        setLayeredPane(createLayeredPane());
+        setContentPane(createContentPane());
+        setLayout(createRootLayout());
+        setDoubleBuffered(true);
+	updateUI();
+!!!9034267.java!!!	getWindowDecorationStyle() : int
+        return windowDecorationStyle;
+!!!9034395.java!!!	setWindowDecorationStyle(in windowDecorationStyle : int) : void
+        if (windowDecorationStyle < 0 ||
+                  windowDecorationStyle > WARNING_DIALOG) {
+            throw new IllegalArgumentException("Invalid decoration style");
+        }
+        int oldWindowDecorationStyle = getWindowDecorationStyle();
+        this.windowDecorationStyle = windowDecorationStyle;
+        firePropertyChange("windowDecorationStyle", 
+                            oldWindowDecorationStyle,
+                            windowDecorationStyle);
+!!!9034523.java!!!	getUI() : RootPaneUI
+        return (RootPaneUI)ui;
+!!!9034651.java!!!	setUI(inout ui : RootPaneUI) : void
+        super.setUI(ui);
+!!!9034779.java!!!	updateUI() : void
+        setUI((RootPaneUI)UIManager.getUI(this));
+!!!9034907.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!9035035.java!!!	createLayeredPane() : JLayeredPane
+        JLayeredPane p = new JLayeredPane();
+        p.setName(this.getName()+".layeredPane");
+        return p;
+!!!9035163.java!!!	createContentPane() : Container
+        JComponent c = new JPanel();
+        c.setName(this.getName()+".contentPane");
+        c.setLayout(new BorderLayout() {
+            /* This BorderLayout subclass maps a null constraint to CENTER.
+             * Although the reference BorderLayout also does this, some VMs
+             * throw an IllegalArgumentException.
+             */
+            public void addLayoutComponent(Component comp, Object constraints) {
+                if (constraints == null) {
+                    constraints = BorderLayout.CENTER;
+                }
+                super.addLayoutComponent(comp, constraints);
+            }
+        });
+        return c;
+!!!9035291.java!!!	createGlassPane() : Component
+        JComponent c = new JPanel();
+        c.setName(this.getName()+".glassPane");
+        c.setVisible(false);
+        ((JPanel)c).setOpaque(false);
+        return c;
+!!!9035419.java!!!	createRootLayout() : LayoutManager
+        return new RootLayout();
+!!!9035547.java!!!	setJMenuBar(inout menu : JMenuBar) : void
+        if(menuBar != null && menuBar.getParent() == layeredPane)
+            layeredPane.remove(menuBar);
+        menuBar = menu;
+
+        if(menuBar != null)
+            layeredPane.add(menuBar, JLayeredPane.FRAME_CONTENT_LAYER);
+!!!9035675.java!!!	setMenuBar(inout menu : JMenuBar) : void
+        if(menuBar != null && menuBar.getParent() == layeredPane)
+            layeredPane.remove(menuBar);
+        menuBar = menu;
+
+        if(menuBar != null)
+            layeredPane.add(menuBar, JLayeredPane.FRAME_CONTENT_LAYER);
+!!!9035803.java!!!	getJMenuBar() : JMenuBar
+ return menuBar;
+!!!9035931.java!!!	getMenuBar() : JMenuBar
+ return menuBar;
+!!!9036059.java!!!	setContentPane(inout content : Container) : void
+        if(content == null)
+            throw new IllegalComponentStateException("contentPane cannot be set to null.");
+        if(contentPane != null && contentPane.getParent() == layeredPane)
+            layeredPane.remove(contentPane);
+        contentPane = content;
+
+        layeredPane.add(contentPane, JLayeredPane.FRAME_CONTENT_LAYER);
+!!!9036187.java!!!	getContentPane() : Container
+ return contentPane;
+!!!9036315.java!!!	setLayeredPane(inout layered : JLayeredPane) : void
+        if(layered == null)
+            throw new IllegalComponentStateException("layeredPane cannot be set to null.");
+        if(layeredPane != null && layeredPane.getParent() == this)
+            this.remove(layeredPane);
+        layeredPane = layered;
+
+        this.add(layeredPane, -1);
+!!!9036443.java!!!	getLayeredPane() : JLayeredPane
+ return layeredPane;
+!!!9036571.java!!!	setGlassPane(inout glass : Component) : void
+        if (glass == null) {
+            throw new NullPointerException("glassPane cannot be set to null.");
+        }
+
+        boolean visible = false;
+        if (glassPane != null && glassPane.getParent() == this) {
+            this.remove(glassPane);
+            visible = glassPane.isVisible();
+        }
+
+        glass.setVisible(visible);
+        glassPane = glass;
+        this.add(glassPane, 0);
+        if (visible) {
+            repaint();
+        }
+!!!9036699.java!!!	getGlassPane() : Component
+ 
+        return glassPane; 
+!!!9036827.java!!!	isValidateRoot() : boolean
+	return true;
+!!!9036955.java!!!	isOptimizedDrawingEnabled() : boolean
+        return !glassPane.isVisible();
+!!!9037083.java!!!	addNotify() : void
+	SystemEventQueueUtilities.addRunnableCanvas(this);
+        super.addNotify();
+        enableEvents(AWTEvent.KEY_EVENT_MASK);
+!!!9037211.java!!!	removeNotify() : void
+	SystemEventQueueUtilities.removeRunnableCanvas(this);
+        super.removeNotify();
+!!!9037339.java!!!	setDefaultButton(inout defaultButton : JButton) : void
+ 
+        JButton oldDefault = this.defaultButton;
+
+        if (oldDefault != defaultButton) {
+            this.defaultButton = defaultButton;
+
+            if (oldDefault != null) {
+                oldDefault.repaint();
+            }
+            if (defaultButton != null) {
+                defaultButton.repaint();
+            } 
+        }
+
+        firePropertyChange("defaultButton", oldDefault, defaultButton);        
+!!!9037467.java!!!	getDefaultButton() : JButton
+ 
+        return defaultButton;
+!!!9038107.java!!!	addImpl(inout comp : Component, inout constraints : Object, in index : int) : void
+        super.addImpl(comp, constraints, index);
+        
+        /// We are making sure the glassPane is on top. 
+        if(glassPane != null 
+            && glassPane.getParent() == this
+            && getComponent(0) != glassPane) {
+            add(glassPane, 0);
+        }
+!!!9039515.java!!!	setMostRecentFocusOwner(inout focusOwner : Component) : void
+	mostRecentFocusOwner = focusOwner;
+!!!9039643.java!!!	getMostRecentFocusOwner() : Component
+	return mostRecentFocusOwner;
+!!!9039771.java!!!	paramString() : String
+	return super.paramString();
+!!!9039899.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJRootPane();
+        }
+        return accessibleContext;

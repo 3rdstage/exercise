@@ -1,0 +1,48 @@
+class StackMapType
+!!!3663771.java!!!	StackMapType(inout file : DataInputStream, inout constant_pool : ConstantPool)
+    this(file.readByte(), -1, constant_pool);
+
+    if(hasIndex())
+      setIndex(file.readShort());
+
+    setConstantPool(constant_pool);
+!!!3663899.java!!!	StackMapType(in type : byte, in index : int, inout constant_pool : ConstantPool)
+    setType(type);
+    setIndex(index);
+    setConstantPool(constant_pool);
+!!!3664027.java!!!	setType(in t : byte) : void
+    if((t < Constants.ITEM_Bogus) || (t > Constants.ITEM_NewObject))
+      throw new RuntimeException("Illegal type for StackMapType: " + t);
+    type = t;
+!!!3664155.java!!!	getType() : byte
+ return type;
+!!!3664283.java!!!	setIndex(in t : int) : void
+ index = t;
+!!!3664411.java!!!	getIndex() : int
+ return index;
+!!!3664539.java!!!	dump(inout file : DataOutputStream) : void
+    file.writeByte(type);
+    if(hasIndex())
+      file.writeShort(getIndex());
+!!!3664667.java!!!	hasIndex() : boolean
+    return ((type == Constants.ITEM_Object) ||
+	    (type == Constants.ITEM_NewObject));
+!!!3664795.java!!!	printIndex() : String
+    if(type == Constants.ITEM_Object)
+      return ", class=" + constant_pool.constantToString(index, Constants.CONSTANT_Class);
+    else if(type == Constants.ITEM_NewObject)
+      return ", offset=" + index;
+    else
+      return "";
+!!!3664923.java!!!	toString() : String
+    return "(type=" + Constants.ITEM_NAMES[type] + printIndex() + ")";
+!!!3665051.java!!!	copy() : StackMapType
+    try {
+      return (StackMapType)clone();
+    } catch(CloneNotSupportedException e) {}
+
+    return null;
+!!!3665179.java!!!	getConstantPool() : ConstantPool
+ return constant_pool;
+!!!3665307.java!!!	setConstantPool(inout constant_pool : ConstantPool) : void
+    this.constant_pool = constant_pool;

@@ -1,0 +1,167 @@
+class Line2D
+!!!6555035.java!!!	setLine(inout p1 : Point2D, inout p2 : Point2D) : void
+	setLine(p1.getX(), p1.getY(), p2.getX(), p2.getY());
+!!!6555163.java!!!	setLine(inout l : Line2D) : void
+	setLine(l.getX1(), l.getY1(), l.getX2(), l.getY2());
+!!!6555291.java!!!	relativeCCW(in X1 : double, in Y1 : double, in X2 : double, in Y2 : double, in PX : double, in PY : double) : int
+	X2 -= X1;
+	Y2 -= Y1;
+	PX -= X1;
+	PY -= Y1;
+	double ccw = PX * Y2 - PY * X2;
+	if (ccw == 0.0) {
+	    // The point is colinear, classify based on which side of
+	    // the segment the point falls on.  We can calculate a
+	    // relative value using the projection of PX,PY onto the
+	    // segment - a negative value indicates the point projects
+	    // outside of the segment in the direction of the particular
+	    // endpoint used as the origin for the projection.
+	    ccw = PX * X2 + PY * Y2;
+	    if (ccw > 0.0) {
+		// Reverse the projection to be relative to the original X2,Y2
+		// X2 and Y2 are simply negated.
+		// PX and PY need to have (X2 - X1) or (Y2 - Y1) subtracted
+		//    from them (based on the original values)
+		// Since we really want to get a positive answer when the
+		//    point is "beyond (X2,Y2)", then we want to calculate
+		//    the inverse anyway - thus we leave X2 & Y2 negated.
+		PX -= X2;
+		PY -= Y2;
+		ccw = PX * X2 + PY * Y2;
+		if (ccw < 0.0) {
+		    ccw = 0.0;
+		}
+	    }
+	}
+	return (ccw < 0.0) ? -1 : ((ccw > 0.0) ? 1 : 0);
+!!!6555419.java!!!	relativeCCW(in PX : double, in PY : double) : int
+	return relativeCCW(getX1(), getY1(), getX2(), getY2(), PX, PY);
+!!!6555547.java!!!	relativeCCW(inout p : Point2D) : int
+	return relativeCCW(getX1(), getY1(), getX2(), getY2(),
+			   p.getX(), p.getY());
+!!!6555675.java!!!	linesIntersect(in X1 : double, in Y1 : double, in X2 : double, in Y2 : double, in X3 : double, in Y3 : double, in X4 : double, in Y4 : double) : boolean
+	return ((relativeCCW(X1, Y1, X2, Y2, X3, Y3) *
+		 relativeCCW(X1, Y1, X2, Y2, X4, Y4) <= 0)
+		&& (relativeCCW(X3, Y3, X4, Y4, X1, Y1) *
+		    relativeCCW(X3, Y3, X4, Y4, X2, Y2) <= 0));
+!!!6555803.java!!!	intersectsLine(in X1 : double, in Y1 : double, in X2 : double, in Y2 : double) : boolean
+	return linesIntersect(X1, Y1, X2, Y2,
+			      getX1(), getY1(), getX2(), getY2());
+!!!6555931.java!!!	intersectsLine(inout l : Line2D) : boolean
+	return linesIntersect(l.getX1(), l.getY1(), l.getX2(), l.getY2(),
+			      getX1(), getY1(), getX2(), getY2());
+!!!6556059.java!!!	ptSegDistSq(in X1 : double, in Y1 : double, in X2 : double, in Y2 : double, in PX : double, in PY : double) : double
+	// Adjust vectors relative to X1,Y1
+	// X2,Y2 becomes relative vector from X1,Y1 to end of segment
+	X2 -= X1;
+	Y2 -= Y1;
+	// PX,PY becomes relative vector from X1,Y1 to test point
+	PX -= X1;
+	PY -= Y1;
+	double dotprod = PX * X2 + PY * Y2;
+	double projlenSq;
+	if (dotprod <= 0.0) {
+	    // PX,PY is on the side of X1,Y1 away from X2,Y2
+	    // distance to segment is length of PX,PY vector
+	    // "length of its (clipped) projection" is now 0.0
+	    projlenSq = 0.0;
+	} else {
+	    // switch to backwards vectors relative to X2,Y2
+	    // X2,Y2 are already the negative of X1,Y1=>X2,Y2
+	    // to get PX,PY to be the negative of PX,PY=>X2,Y2
+	    // the dot product of two negated vectors is the same
+	    // as the dot product of the two normal vectors
+	    PX = X2 - PX;
+	    PY = Y2 - PY;
+	    dotprod = PX * X2 + PY * Y2;
+	    if (dotprod <= 0.0) {
+		// PX,PY is on the side of X2,Y2 away from X1,Y1
+		// distance to segment is length of (backwards) PX,PY vector
+		// "length of its (clipped) projection" is now 0.0
+		projlenSq = 0.0;
+	    } else {
+		// PX,PY is between X1,Y1 and X2,Y2
+		// dotprod is the length of the PX,PY vector
+		// projected on the X2,Y2=>X1,Y1 vector times the
+		// length of the X2,Y2=>X1,Y1 vector
+		projlenSq = dotprod * dotprod / (X2 * X2 + Y2 * Y2);
+	    }
+	}
+	// Distance to line is now the length of the relative point
+	// vector minus the length of its projection onto the line
+	// (which is zero if the projection falls outside the range
+	//  of the line segment).
+	double lenSq = PX * PX + PY * PY - projlenSq;
+	if (lenSq < 0) {
+	    lenSq = 0;
+	}
+	return lenSq;
+!!!6556187.java!!!	ptSegDist(in X1 : double, in Y1 : double, in X2 : double, in Y2 : double, in PX : double, in PY : double) : double
+	return Math.sqrt(ptSegDistSq(X1, Y1, X2, Y2, PX, PY));
+!!!6556315.java!!!	ptSegDistSq(in PX : double, in PY : double) : double
+	return ptSegDistSq(getX1(), getY1(), getX2(), getY2(), PX, PY);
+!!!6556443.java!!!	ptSegDistSq(inout pt : Point2D) : double
+	return ptSegDistSq(getX1(), getY1(), getX2(), getY2(),
+			   pt.getX(), pt.getY());
+!!!6556571.java!!!	ptSegDist(in PX : double, in PY : double) : double
+	return ptSegDist(getX1(), getY1(), getX2(), getY2(), PX, PY);
+!!!6556699.java!!!	ptSegDist(inout pt : Point2D) : double
+	return ptSegDist(getX1(), getY1(), getX2(), getY2(),
+			 pt.getX(), pt.getY());
+!!!6556827.java!!!	ptLineDistSq(in X1 : double, in Y1 : double, in X2 : double, in Y2 : double, in PX : double, in PY : double) : double
+	// Adjust vectors relative to X1,Y1
+	// X2,Y2 becomes relative vector from X1,Y1 to end of segment
+	X2 -= X1;
+	Y2 -= Y1;
+	// PX,PY becomes relative vector from X1,Y1 to test point
+	PX -= X1;
+	PY -= Y1;
+	double dotprod = PX * X2 + PY * Y2;
+	// dotprod is the length of the PX,PY vector
+	// projected on the X1,Y1=>X2,Y2 vector times the
+	// length of the X1,Y1=>X2,Y2 vector
+	double projlenSq = dotprod * dotprod / (X2 * X2 + Y2 * Y2);
+	// Distance to line is now the length of the relative point
+	// vector minus the length of its projection onto the line
+	double lenSq = PX * PX + PY * PY - projlenSq;
+	if (lenSq < 0) {
+	    lenSq = 0;
+	}
+	return lenSq;
+!!!6556955.java!!!	ptLineDist(in X1 : double, in Y1 : double, in X2 : double, in Y2 : double, in PX : double, in PY : double) : double
+	return Math.sqrt(ptLineDistSq(X1, Y1, X2, Y2, PX, PY));
+!!!6557083.java!!!	ptLineDistSq(in PX : double, in PY : double) : double
+	return ptLineDistSq(getX1(), getY1(), getX2(), getY2(), PX, PY);
+!!!6557211.java!!!	ptLineDistSq(inout pt : Point2D) : double
+	return ptLineDistSq(getX1(), getY1(), getX2(), getY2(),
+			    pt.getX(), pt.getY());
+!!!6557339.java!!!	ptLineDist(in PX : double, in PY : double) : double
+	return ptLineDist(getX1(), getY1(), getX2(), getY2(), PX, PY);
+!!!6557467.java!!!	ptLineDist(inout pt : Point2D) : double
+	return ptLineDist(getX1(), getY1(), getX2(), getY2(),
+			 pt.getX(), pt.getY());
+!!!6557595.java!!!	contains(in x : double, in y : double) : boolean
+	return false;
+!!!6557723.java!!!	contains(inout p : Point2D) : boolean
+	return false;
+!!!6557851.java!!!	intersects(in x : double, in y : double, in w : double, in h : double) : boolean
+	return intersects(new Rectangle2D.Double(x, y, w, h));
+!!!6557979.java!!!	intersects(inout r : Rectangle2D) : boolean
+	return r.intersectsLine(getX1(), getY1(), getX2(), getY2());
+!!!6558107.java!!!	contains(in x : double, in y : double, in w : double, in h : double) : boolean
+	return false;
+!!!6558235.java!!!	contains(inout r : Rectangle2D) : boolean
+	return false;
+!!!6558363.java!!!	getBounds() : Rectangle
+	return getBounds2D().getBounds();
+!!!6558491.java!!!	getPathIterator(inout at : AffineTransform) : PathIterator
+	return new LineIterator(this, at);
+!!!6558619.java!!!	getPathIterator(inout at : AffineTransform, in flatness : double) : PathIterator
+	return new LineIterator(this, at);
+!!!6558747.java!!!	clone() : Object
+	try {
+	    return super.clone();
+	} catch (CloneNotSupportedException e) {
+	    // this shouldn't happen, since we are Cloneable
+	    throw new InternalError();
+	}

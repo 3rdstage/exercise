@@ -1,0 +1,346 @@
+class Frame
+!!!3878427.java!!!	Frame()
+        this("");
+!!!3878555.java!!!	Frame(inout gc : GraphicsConfiguration)
+        this("", gc);
+!!!3878683.java!!!	Frame(in title : String)
+        init(title, null);
+!!!3878811.java!!!	Frame(in title : String, inout gc : GraphicsConfiguration)
+        super(gc);
+        init(title, gc);
+!!!3878939.java!!!	init(in title : String, inout gc : GraphicsConfiguration) : void
+        this.title = title;
+        weakThis = new WeakReference(this);
+        addToFrameList();
+        SunToolkit.checkAndSetPolicy(this, false);
+!!!3879067.java!!!	finalize() : void
+        // We have to remove the (hard) reference to weakThis in the
+        // AppContext's Frame list Vector, otherwise the WeakReference 
+        // instance that points to this Frame will never get garbage 
+        // collected.
+        removeFromFrameList();
+        super.finalize();
+!!!3879195.java!!!	constructComponentName() : String
+        synchronized (getClass()) {
+	    return base + nameCounter++;
+	}
+!!!3879323.java!!!	addNotify() : void
+	synchronized (getTreeLock()) {
+	    if (peer == null) {
+		peer = getToolkit().createFrame(this);
+	    }
+	    FramePeer p = (FramePeer)peer;
+	    MenuBar menuBar = this.menuBar;
+	    if (menuBar != null) {
+	        mbManagement = true;
+		menuBar.addNotify();
+		p.setMenuBar(menuBar);
+	    }
+	    p.setMaximizedBounds(maximizedBounds);
+	    super.addNotify();
+	}
+!!!3879451.java!!!	getTitle() : String
+	return title;
+!!!3879579.java!!!	setTitle(in title : String) : void
+        String oldTitle = this.title;
+        if (title == null) {
+            title = "";
+        }
+
+
+        synchronized(this) {
+            this.title = title;
+            FramePeer peer = (FramePeer)this.peer;
+            if (peer != null) {
+                peer.setTitle(title);
+            }
+        }
+        firePropertyChange("title", oldTitle, title);
+!!!3879707.java!!!	getIconImage() : Image
+	return icon;
+!!!3879835.java!!!	setIconImage(inout image : Image) : void
+	this.icon = image;
+    	FramePeer peer = (FramePeer)this.peer;
+	if (peer != null) {
+	    peer.setIconImage(image);
+	}
+!!!3879963.java!!!	getMenuBar() : MenuBar
+	return menuBar;
+!!!3880091.java!!!	setMenuBar(inout mb : MenuBar) : void
+        synchronized (getTreeLock()) {
+	    if (menuBar == mb) {
+	        return;
+	    }
+	    if ((mb != null) && (mb.parent != null)) {
+	        mb.parent.remove(mb);
+	    }
+	    if (menuBar != null) {
+	        remove(menuBar);
+	    }
+	    menuBar = mb;
+	    if (menuBar != null) {
+	        menuBar.parent = this;
+
+		FramePeer peer = (FramePeer)this.peer;
+		if (peer != null) {
+		    mbManagement = true;
+		    menuBar.addNotify();
+		    if (valid) {
+		        invalidate();
+		    }
+		    peer.setMenuBar(menuBar);
+		}
+	    }
+	}
+!!!3880219.java!!!	isResizable() : boolean
+	return resizable;
+!!!3880347.java!!!	setResizable(inout resizable : boolean) : void
+        boolean oldResizable = this.resizable;
+        boolean testvalid = false;
+
+        synchronized (this) {
+	    this.resizable = resizable;
+	    FramePeer peer = (FramePeer)this.peer;
+	    if (peer != null) {
+	        peer.setResizable(resizable);
+		testvalid = true;
+	    }
+	}
+
+	// On some platforms, changing the resizable state affects
+	// the insets of the Frame. If we could, we'd call invalidate()
+	// from the peer, but we need to guarantee that we're not holding
+	// the Frame lock when we call invalidate().
+	if (testvalid && valid) {
+	    invalidate();
+	}
+        firePropertyChange("resizable", oldResizable, resizable);
+!!!3880475.java!!!	setState(in state : int) : void
+	int current = getExtendedState();
+	if (state == ICONIFIED && (current & ICONIFIED) == 0) {
+	    setExtendedState(current | ICONIFIED);
+	}
+	else if (state == NORMAL && (current & ICONIFIED) != 0) {
+	    setExtendedState(current & ~ICONIFIED);
+	}
+!!!3880603.java!!!	setExtendedState(in state : int) : void
+        if ( !isFrameStateSupported( state ) ) {
+            return;
+        }    
+        this.state = state;
+        FramePeer peer = (FramePeer)this.peer;
+        if (peer != null) {
+            peer.setState(state);
+        }
+!!!3880731.java!!!	isFrameStateSupported(in state : int) : boolean
+        if( !getToolkit().isFrameStateSupported( state ) ) {
+            // * Toolkit.isFrameStateSupported returns always false 
+            // on compound state even if all parts are supported;
+            // * if part of state is not supported, state is not supported;
+            // * MAXIMIZED_BOTH is not a compound state.
+            if( ((state & ICONIFIED) != 0) &&
+                !getToolkit().isFrameStateSupported( ICONIFIED )) {
+                return false;
+            }else {
+                state &= ~ICONIFIED;
+            }
+            return getToolkit().isFrameStateSupported( state );
+        }    
+        return true;
+!!!3880859.java!!!	getState() : int
+        return (getExtendedState() & ICONIFIED) != 0 ? ICONIFIED : NORMAL;
+!!!3880987.java!!!	getExtendedState() : int
+        FramePeer peer = (FramePeer)this.peer;
+        if (peer != null) {
+            state = peer.getState();
+        }
+        return state;
+!!!3881115.java!!!	setMaximizedBounds(inout bounds : Rectangle) : void
+	this.maximizedBounds = bounds;
+        FramePeer peer = (FramePeer)this.peer;
+	if (peer != null) {
+	    peer.setMaximizedBounds(bounds);
+	}
+!!!3881243.java!!!	getMaximizedBounds() : Rectangle
+	return maximizedBounds;
+!!!3881371.java!!!	setUndecorated(inout undecorated : boolean) : void
+        /* Make sure we don't run in the middle of peer creation.*/
+        synchronized (getTreeLock()) {
+            if (isDisplayable()) {
+                throw new IllegalComponentStateException("The frame is displayable.");
+            }
+            this.undecorated = undecorated;
+        }
+!!!3881499.java!!!	isUndecorated() : boolean
+        return undecorated;
+!!!3881627.java!!!	remove(inout m : MenuComponent) : void
+	synchronized (getTreeLock()) {
+	    if (m == menuBar) {
+		menuBar = null;
+		FramePeer peer = (FramePeer)this.peer;
+		if (peer != null) {
+		    mbManagement = true;
+		    if (valid) {
+		        invalidate();
+		    }
+		    peer.setMenuBar(null);
+		    m.removeNotify();
+		}
+		m.parent = null;
+	    } else {
+		super.remove(m);
+	    }
+	}
+!!!3881755.java!!!	removeNotify() : void
+        synchronized (getTreeLock()) {
+	    FramePeer peer = (FramePeer)this.peer;
+	    if (peer != null) {
+                // get the latest Frame state before disposing
+                getState();
+
+                if (menuBar != null) {
+	            mbManagement = true;
+		    peer.setMenuBar(null);
+		    menuBar.removeNotify();
+                }
+	    }
+	    super.removeNotify();
+	}
+!!!3881883.java!!!	postProcessKeyEvent(inout e : KeyEvent) : void
+        if (menuBar != null && menuBar.handleShortcut(e)) {
+            e.consume();
+            return;
+        }
+        super.postProcessKeyEvent(e);
+!!!3882011.java!!!	paramString() : String
+	String str = super.paramString();
+	if (title != null) {
+	    str += ",title=" + title;
+	}
+	if (resizable) {
+	    str += ",resizable";
+	}
+	getExtendedState();	// sync with peer
+	if (state == NORMAL) {
+	    str += ",normal";
+	}
+	else {
+	    if ((state & ICONIFIED) != 0) {
+		str += ",iconified";
+	    }
+	    if ((state & MAXIMIZED_BOTH) == MAXIMIZED_BOTH) {
+		str += ",maximized";
+	    }
+	    else if ((state & MAXIMIZED_HORIZ) != 0) {
+		str += ",maximized_horiz";
+	    }
+	    else if ((state & MAXIMIZED_VERT) != 0) {
+		str += ",maximized_vert";
+	    }
+	}
+	return str;
+!!!3882139.java!!!	setCursor(in cursorType : int) : void
+	if (cursorType < DEFAULT_CURSOR || cursorType > MOVE_CURSOR) {
+	    throw new IllegalArgumentException("illegal cursor type");
+	}
+	setCursor(Cursor.getPredefinedCursor(cursorType));
+!!!3882267.java!!!	getCursorType() : int
+	return (getCursor().getType());
+!!!3882395.java!!!	getFrames() : Frame
+        synchronized (Frame.class) {
+            Frame realCopy[];
+            Vector frameList =
+		(Vector)AppContext.getAppContext().get(Frame.class);
+            if (frameList != null) {
+	        // Recall that frameList is actually a Vector of WeakReferences
+	        // and calling get() on one of these references may return
+	        // null. Make two arrays-- one the size of the Vector 
+	        // (fullCopy with size fullSize), and one the size of all
+	        // non-null get()s (realCopy with size realSize).
+	        int fullSize = frameList.size();
+		int realSize = 0;
+		Frame fullCopy[] = new Frame[fullSize];
+
+		for (int i = 0; i < fullSize; i++) {
+		    fullCopy[realSize] = (Frame) 
+		        (((WeakReference) (frameList.elementAt(i))).get());
+
+		    if (fullCopy[realSize] != null) {
+		        realSize++;
+		    }
+		}
+
+		if (fullSize != realSize) {
+		    realCopy = new Frame[realSize];
+		    System.arraycopy(fullCopy, 0, realCopy, 0, realSize);
+		} else {
+		    realCopy = fullCopy;
+		}
+            } else {
+                realCopy = new Frame[0];
+            }
+            return realCopy;
+        }
+!!!3882523.java!!!	addToFrameList() : void
+        synchronized (Frame.class) {
+            Vector frameList = (Vector)appContext.get(Frame.class);
+            if (frameList == null) {
+                frameList = new Vector();
+                appContext.put(Frame.class, frameList);
+            }
+            frameList.addElement(weakThis);
+        }
+!!!3882651.java!!!	removeFromFrameList() : void
+        synchronized (Frame.class) {
+            Vector frameList = (Vector)appContext.get(Frame.class);
+            if (frameList != null) {
+                frameList.removeElement(weakThis);
+            }
+        }
+!!!3882779.java!!!	writeObject(inout s : ObjectOutputStream) : void
+      s.defaultWriteObject();
+      if (icon instanceof Serializable) {
+          s.writeObject(icon);
+      }
+      else
+      {
+          s.writeObject(null);
+      }
+!!!3882907.java!!!	readObject(inout s : ObjectInputStream) : void
+      // HeadlessException is thrown by Window's readObject
+      s.defaultReadObject();
+      
+      try {
+ 	  icon = (Image) s.readObject();
+      } catch (java.io.OptionalDataException e) {
+      // pre-1.4 instances will not have this optional data.
+      // e.eof will be true to indicate that there is no more
+      // data available for this object.
+
+     // If e.eof is not true, throw the exception as it
+     // might have been caused by unrelated reasons.
+         if (!e.eof) {
+             throw (e);
+          }
+      }
+
+      if (menuBar != null)
+	menuBar.parent = this;
+
+      // Ensure 1.1 serialized Frames can read & hook-up
+      // owned windows properly
+      //
+      if (ownedWindows != null) {
+          for (int i = 0; i < ownedWindows.size(); i++) {
+	      connectOwnedWindow((Window) ownedWindows.elementAt(i));
+	  }
+          ownedWindows = null;  
+      }
+
+      weakThis = new WeakReference(this);
+      addToFrameList();
+!!!3883163.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleAWTFrame();
+        }
+        return accessibleContext;

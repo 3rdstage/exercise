@@ -1,0 +1,128 @@
+class TreePath
+!!!10058395.java!!!	TreePath(inout path : Object)
+        if(path == null || path.length == 0)
+            throw new IllegalArgumentException("path in TreePath must be non null and not empty.");
+	lastPathComponent = path[path.length - 1];
+	if(path.length > 1)
+	    parentPath = new TreePath(path, path.length - 1);
+!!!10058523.java!!!	TreePath(inout singlePath : Object)
+        if(singlePath == null)
+            throw new IllegalArgumentException("path in TreePath must be non null.");
+	lastPathComponent = singlePath;
+	parentPath = null;
+!!!10058651.java!!!	TreePath(inout parent : TreePath, inout lastElement : Object)
+	if(lastElement == null)
+            throw new IllegalArgumentException("path in TreePath must be non null.");
+	parentPath = parent;
+	lastPathComponent = lastElement;
+!!!10058779.java!!!	TreePath(inout path : Object, in length : int)
+	lastPathComponent = path[length - 1];
+	if(length > 1)
+	    parentPath = new TreePath(path, length - 1);
+!!!10059035.java!!!	getPath() : Object
+	int            i = getPathCount();
+        Object[]       result = new Object[i--];
+
+        for(TreePath path = this; path != null; path = path.parentPath) {
+            result[i--] = path.lastPathComponent;
+        }
+	return result;
+!!!10059163.java!!!	getLastPathComponent() : Object
+	return lastPathComponent;
+!!!10059291.java!!!	getPathCount() : int
+        int        result = 0;
+        for(TreePath path = this; path != null; path = path.parentPath) {
+            result++;
+        }
+	return result;
+!!!10059419.java!!!	getPathComponent(in element : int) : Object
+        int          pathLength = getPathCount();
+
+        if(element < 0 || element >= pathLength)
+            throw new IllegalArgumentException("Index " + element + " is out of the specified range");
+
+        TreePath         path = this;
+
+        for(int i = pathLength-1; i != element; i--) {
+           path = path.parentPath;
+        }
+	return path.lastPathComponent;
+!!!10059547.java!!!	equals(inout o : Object) : boolean
+	if(o == this)
+	    return true;
+        if(o instanceof TreePath) {
+            TreePath            oTreePath = (TreePath)o;
+
+	    if(getPathCount() != oTreePath.getPathCount())
+		return false;
+	    for(TreePath path = this; path != null; path = path.parentPath) {
+		if (!(path.lastPathComponent.equals
+		      (oTreePath.lastPathComponent))) {
+		    return false;
+		}
+		oTreePath = oTreePath.parentPath;
+	    }
+	    return true;
+        }
+        return false;
+!!!10059675.java!!!	hashCode() : int
+ 
+	return lastPathComponent.hashCode();
+!!!10059803.java!!!	isDescendant(inout aTreePath : TreePath) : boolean
+	if(aTreePath == this)
+	    return true;
+
+        if(aTreePath != null) {
+            int                 pathLength = getPathCount();
+	    int                 oPathLength = aTreePath.getPathCount();
+
+	    if(oPathLength < pathLength)
+		// Can't be a descendant, has fewer components in the path.
+		return false;
+	    while(oPathLength-- > pathLength)
+		aTreePath = aTreePath.getParentPath();
+	    return equals(aTreePath);
+        }
+        return false;
+!!!10059931.java!!!	pathByAddingChild(inout child : Object) : TreePath
+	if(child == null)
+	    throw new NullPointerException("Null child not allowed");
+
+	return new TreePath(this, child);
+!!!10060059.java!!!	getParentPath() : TreePath
+	return parentPath;
+!!!10060187.java!!!	toString() : String
+        StringBuffer tempSpot = new StringBuffer("[");
+
+        for(int counter = 0, maxCounter = getPathCount();counter < maxCounter;
+	    counter++) {
+            if(counter > 0)
+                tempSpot.append(", ");
+            tempSpot.append(getPathComponent(counter));
+        }
+        tempSpot.append("]");
+        return tempSpot.toString();
+!!!10060315.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+
+        Vector      values = new Vector();
+        boolean     writePath = true;
+
+	if(lastPathComponent != null &&
+	   (lastPathComponent instanceof Serializable)) {
+            values.addElement("lastPathComponent");
+            values.addElement(lastPathComponent);
+        }
+        s.writeObject(values);
+!!!10060443.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+
+        Vector          values = (Vector)s.readObject();
+        int             indexCounter = 0;
+        int             maxCounter = values.size();
+
+        if(indexCounter < maxCounter && values.elementAt(indexCounter).
+           equals("lastPathComponent")) {
+            lastPathComponent = values.elementAt(++indexCounter);
+            indexCounter++;
+        }

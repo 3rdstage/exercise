@@ -1,0 +1,150 @@
+class Rfc2253Parser
+!!!8531867.java!!!	Rfc2253Parser(in name : String)
+	    this.name = name;
+	    len = name.length();
+	    chars = name.toCharArray();
+!!!8531995.java!!!	parseDn() : List
+	    cur = 0;
+
+	    // ArrayList<Rdn> rdns =
+	    //	new ArrayList<Rdn>(len / 3 + 10);  // leave room for growth
+
+	    ArrayList rdns =
+		new ArrayList(len / 3 + 10);  // leave room for growth
+
+	    if (len == 0) {
+		return rdns;
+	    }
+
+	    rdns.add(doParse(new Rdn()));
+	    while (cur < len) {
+		if (chars[cur] == ',' || chars[cur] == ';') {
+		    ++cur;
+		    rdns.add(0, doParse(new Rdn()));
+		} else {
+		    throw new InvalidNameException("Invalid name: " + name);
+		}
+	    }
+	    return rdns;
+!!!8532123.java!!!	parseRdn() : Rdn
+	    return parseRdn(new Rdn());
+!!!8532251.java!!!	parseRdn(inout rdn : Rdn) : Rdn
+	    rdn = doParse(rdn);
+	    if (cur < len) {
+		throw new InvalidNameException("Invalid RDN: " + name);
+	    }
+	    return rdn;
+!!!8532379.java!!!	doParse(inout rdn : Rdn) : Rdn
+
+	    while (cur < len) {
+		consumeWhitespace();
+		String attrType = parseAttrType();
+		consumeWhitespace();
+		if (cur >= len || chars[cur] != '=') {
+		    throw new InvalidNameException("Invalid name: " + name);
+		}
+		++cur;		// consume '='
+		consumeWhitespace();
+		String value = parseAttrValue();
+		consumeWhitespace();
+
+		rdn.put(attrType, Rdn.unescapeValue(value));
+		if (cur >= len || chars[cur] != '+') {
+		    break;
+		}
+		++cur;		// consume '+'
+	    }
+	    rdn.sort();
+	    return rdn;
+!!!8532507.java!!!	parseAttrType() : String
+
+	    final int beg = cur;
+	    while (cur < len) {
+		char c = chars[cur];
+		if (Character.isLetterOrDigit(c) ||
+			c == '.' ||
+			c == '-' ||
+			c == ' ') {
+		    ++cur;
+		} else {
+		    break;
+		}
+	    }
+	    // Back out any trailing spaces.
+	    while ((cur > beg) && (chars[cur - 1] == ' ')) {
+		--cur;
+	    }
+
+	    if (beg == cur) {
+		throw new InvalidNameException("Invalid name: " + name);
+	    }
+	    return new String(chars, beg, cur - beg);
+!!!8532635.java!!!	parseAttrValue() : String
+
+	    if (cur < len && chars[cur] == '#') {
+		return parseBinaryAttrValue();
+	    } else if (cur < len && chars[cur] == '"') {
+		return parseQuotedAttrValue();
+	    } else {
+		return parseStringAttrValue();
+	    }
+!!!8532763.java!!!	parseBinaryAttrValue() : String
+	    final int beg = cur;
+	    ++cur;			// consume '#'
+	    while ((cur < len) &&
+		    Character.isLetterOrDigit(chars[cur])) {
+		++cur;
+	    }
+	    return new String(chars, beg, cur - beg);
+!!!8532891.java!!!	parseQuotedAttrValue() : String
+
+	    final int beg = cur;
+	    ++cur;			// consume '"'
+
+	    while ((cur < len) && chars[cur] != '"') {
+		if (chars[cur] == '\\') {
+		    ++cur;		// consume backslash, then what follows
+		}
+		++cur;
+	    }
+	    if (cur >= len) {	// no closing quote
+		throw new InvalidNameException("Invalid name: " + name);
+	    }
+	    ++cur;	// consume closing quote
+
+	    return new String(chars, beg, cur - beg);
+!!!8533019.java!!!	parseStringAttrValue() : String
+
+	    final int beg = cur;
+	    int esc = -1;	// index of the most recently escaped character
+
+	    while ((cur < len) && !atTerminator()) {
+		if (chars[cur] == '\\') {
+		    ++cur;		// consume backslash, then what follows
+		    esc = cur;
+		}
+		++cur;
+	    }
+	    if (cur > len) {		// 'twas backslash followed by nothing
+		throw new InvalidNameException("Invalid name: " + name);
+	    }
+
+	    // Trim off (unescaped) trailing whitespace.
+	    int end;
+	    for (end = cur; end > beg; end--) {
+		if (!isWhitespace(chars[end - 1]) || (esc == end - 1)) {
+		    break;
+		}
+	    }
+	    return new String(chars, beg, end - beg);
+!!!8533147.java!!!	consumeWhitespace() : void
+	    while ((cur < len) && isWhitespace(chars[cur])) {
+		++cur;
+	    }
+!!!8533275.java!!!	atTerminator() : boolean
+	    return (cur < len &&
+		    (chars[cur] == ',' ||
+			chars[cur] == ';' ||
+			chars[cur] == '+'));
+!!!8533403.java!!!	isWhitespace(in c : char) : boolean
+	    return (c == ' ' || c == '\r');

@@ -1,0 +1,53 @@
+class Activatable
+!!!7522203.java!!!	Activatable(in location : String, inout data : MarshalledObject, inout restart : boolean, in port : int)
+	super();
+	id = exportObject(this, location, data, restart, port);
+!!!7522331.java!!!	Activatable(in location : String, inout data : MarshalledObject, inout restart : boolean, in port : int, inout csf : RMIClientSocketFactory, inout ssf : RMIServerSocketFactory)
+	super();
+	id = exportObject(this, location, data, restart, port, csf, ssf);
+!!!7522459.java!!!	Activatable(inout id : ActivationID, in port : int)
+	super();
+	this.id = id;
+	exportObject(this, id, port);
+!!!7522587.java!!!	Activatable(inout id : ActivationID, in port : int, inout csf : RMIClientSocketFactory, inout ssf : RMIServerSocketFactory)
+	super();
+	this.id = id;
+	exportObject(this, id, port, csf, ssf);
+!!!7522715.java!!!	getID() : ActivationID
+	return id;
+!!!7522843.java!!!	register(inout desc : ActivationDesc) : Remote
+	// register object with activator.
+	ActivationID id =
+	    ActivationGroup.getSystem().registerObject(desc);
+	return sun.rmi.server.ActivatableRef.getStub(desc, id);
+!!!7522971.java!!!	inactive(inout id : ActivationID) : boolean
+	return ActivationGroup.currentGroup().inactiveObject(id);
+!!!7523099.java!!!	unregister(inout id : ActivationID) : void
+	ActivationGroup.getSystem().unregisterObject(id);
+!!!7523227.java!!!	exportObject(inout obj : Remote, in location : String, inout data : MarshalledObject, inout restart : boolean, in port : int) : ActivationID
+	ActivationDesc desc = new ActivationDesc(obj.getClass().getName(),
+						 location, data, restart);
+	ActivationID id = ActivationGroup.getSystem().registerObject(desc);
+	Remote stub = exportObject(obj, id, port);
+	ActivationGroup.currentGroup().activeObject(id, obj); 
+	return id;
+!!!7523355.java!!!	exportObject(inout obj : Remote, in location : String, inout data : MarshalledObject, inout restart : boolean, in port : int, inout csf : RMIClientSocketFactory, inout ssf : RMIServerSocketFactory) : ActivationID
+	ActivationDesc desc = new ActivationDesc(obj.getClass().getName(),
+						 location, data, restart);
+	ActivationID id = ActivationGroup.getSystem().registerObject(desc);
+	Remote stub = exportObject(obj, id, port, csf, ssf);
+	ActivationGroup.currentGroup().activeObject(id, obj); 
+	return id;
+!!!7523483.java!!!	exportObject(inout obj : Remote, inout id : ActivationID, in port : int) : Remote
+	return exportObject(obj, new ActivatableServerRef(id, port));
+!!!7523611.java!!!	exportObject(inout obj : Remote, inout id : ActivationID, in port : int, inout csf : RMIClientSocketFactory, inout ssf : RMIServerSocketFactory) : Remote
+	return exportObject(obj, new ActivatableServerRef(id, port, csf, ssf));
+!!!7523739.java!!!	unexportObject(inout obj : Remote, inout force : boolean) : boolean
+	return sun.rmi.transport.ObjectTable.unexportObject(obj, force);
+!!!7523867.java!!!	exportObject(inout obj : Remote, inout sref : ActivatableServerRef) : Remote
+	// if obj extends Activatable, set its ref.
+	if (obj instanceof Activatable) {
+	    ((Activatable) obj).ref = sref;
+
+	}
+	return sref.exportObject(obj, null, false);

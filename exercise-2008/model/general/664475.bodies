@@ -1,0 +1,76 @@
+class FilterParentPath
+!!!4376987.java!!!	FilterParentPath(inout filterExpr : Expression, inout path : Expression)
+	(_path = path).setParent(this);
+	(_filterExpr = filterExpr).setParent(this);
+!!!4377115.java!!!	setParser(inout parser : Parser) : void
+	super.setParser(parser);
+	_filterExpr.setParser(parser);
+	_path.setParser(parser);
+!!!4377243.java!!!	toString() : String
+	return "FilterParentPath(" + _filterExpr + ", " + _path + ')';
+!!!4377371.java!!!	setDescendantAxis() : void
+	_hasDescendantAxis = true;
+!!!4377499.java!!!	typeCheck(inout stable : SymbolTable) : Type
+	final Type ftype = _filterExpr.typeCheck(stable);
+	if (ftype instanceof NodeSetType == false) {
+	    if (ftype instanceof ReferenceType)  {
+		_filterExpr = new CastExpr(_filterExpr, Type.NodeSet);
+	    }
+	    /*
+	    else if (ftype instanceof ResultTreeType)  {
+		_filterExpr = new CastExpr(_filterExpr, Type.NodeSet);
+	    }
+	    */
+	    else if (ftype instanceof NodeType)  {
+		_filterExpr = new CastExpr(_filterExpr, Type.NodeSet);
+	    }
+	    else {
+		throw new TypeCheckError(this);
+	    }
+	}
+
+	// Wrap single node path in a node set
+	final Type ptype = _path.typeCheck(stable);
+	if (!(ptype instanceof NodeSetType)) {
+	    _path = new CastExpr(_path, Type.NodeSet);
+	}
+
+	return _type = Type.NodeSet;	
+!!!4377627.java!!!	translate(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	final ConstantPoolGen cpg = classGen.getConstantPool();
+	final InstructionList il = methodGen.getInstructionList();
+	// Create new StepIterator
+	final int initSI = cpg.addMethodref(STEP_ITERATOR_CLASS,
+					    "<init>",
+					    "("
+					    +NODE_ITERATOR_SIG
+					    +NODE_ITERATOR_SIG
+					    +")V");
+	il.append(new NEW(cpg.addClass(STEP_ITERATOR_CLASS)));
+	il.append(DUP);
+
+	// Recursively compile 2 iterators
+	_filterExpr.translate(classGen, methodGen);
+	_path.translate(classGen, methodGen);
+
+	// Initialize StepIterator with iterators from the stack
+	il.append(new INVOKESPECIAL(initSI));
+
+	// This is a special case for the //* path with or without predicates
+        if (_hasDescendantAxis) {
+	    final int incl = cpg.addMethodref(NODE_ITERATOR_BASE,
+					      "includeSelf",
+					      "()" + NODE_ITERATOR_SIG);
+	    il.append(new INVOKEVIRTUAL(incl));
+	}
+
+	if (!(getParent() instanceof RelativeLocationPath) &&
+	    !(getParent() instanceof FilterParentPath)) {
+	    final int order = cpg.addInterfaceMethodref(DOM_INTF,
+							ORDER_ITERATOR,
+							ORDER_ITERATOR_SIG);
+	    il.append(methodGen.loadDOM());
+	    il.append(SWAP);
+	    il.append(methodGen.loadContextNode());
+	    il.append(new INVOKEINTERFACE(order, 3));
+	}

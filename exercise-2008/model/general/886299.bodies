@@ -1,0 +1,169 @@
+class MemoryImageSource
+!!!6671131.java!!!	MemoryImageSource(in w : int, in h : int, inout cm : ColorModel, in pix : byte, in off : int, in scan : int)
+	initialize(w, h, cm, (Object) pix, off, scan, null);
+!!!6671259.java!!!	MemoryImageSource(in w : int, in h : int, inout cm : ColorModel, in pix : byte, in off : int, in scan : int, inout props : Hashtable)
+	initialize(w, h, cm, (Object) pix, off, scan, props);
+!!!6671387.java!!!	MemoryImageSource(in w : int, in h : int, inout cm : ColorModel, in pix : int, in off : int, in scan : int)
+	initialize(w, h, cm, (Object) pix, off, scan, null);
+!!!6671515.java!!!	MemoryImageSource(in w : int, in h : int, inout cm : ColorModel, in pix : int, in off : int, in scan : int, inout props : Hashtable)
+	initialize(w, h, cm, (Object) pix, off, scan, props);
+!!!6671643.java!!!	initialize(in w : int, in h : int, inout cm : ColorModel, inout pix : Object, in off : int, in scan : int, inout props : Hashtable) : void
+	width = w;
+	height = h;
+	model = cm;
+	pixels = pix;
+	pixeloffset = off;
+	pixelscan = scan;
+	if (props == null) {
+	    props = new Hashtable();
+	}
+	properties = props;
+!!!6671771.java!!!	MemoryImageSource(in w : int, in h : int, in pix : int, in off : int, in scan : int)
+	initialize(w, h, ColorModel.getRGBdefault(),
+		   (Object) pix, off, scan, null);
+!!!6671899.java!!!	MemoryImageSource(in w : int, in h : int, in pix : int, in off : int, in scan : int, inout props : Hashtable)
+	initialize(w, h, ColorModel.getRGBdefault(),
+		   (Object) pix, off, scan, props);
+!!!6672027.java!!!	addConsumer(inout ic : ImageConsumer) : void
+	if (theConsumers.contains(ic)) {
+	    return;
+	}
+	theConsumers.addElement(ic);
+	try {
+	    initConsumer(ic);
+	    sendPixels(ic, 0, 0, width, height);
+	    if (isConsumer(ic)) {
+		ic.imageComplete(animating
+				 ? ImageConsumer.SINGLEFRAMEDONE
+				 : ImageConsumer.STATICIMAGEDONE);
+		if (!animating && isConsumer(ic)) {
+		    ic.imageComplete(ImageConsumer.IMAGEERROR);
+		    removeConsumer(ic);
+		}
+	    }
+	} catch (Exception e) {
+	    if (isConsumer(ic)) {
+		ic.imageComplete(ImageConsumer.IMAGEERROR);
+	    }
+	}
+!!!6672155.java!!!	isConsumer(inout ic : ImageConsumer) : boolean
+	return theConsumers.contains(ic);
+!!!6672283.java!!!	removeConsumer(inout ic : ImageConsumer) : void
+	theConsumers.removeElement(ic);
+!!!6672411.java!!!	startProduction(inout ic : ImageConsumer) : void
+	addConsumer(ic);
+!!!6672539.java!!!	requestTopDownLeftRightResend(inout ic : ImageConsumer) : void
+	// Ignored.  The data is either single frame and already in TDLR
+	// format or it is multi-frame and TDLR resends aren't critical.
+!!!6672667.java!!!	setAnimated(inout animated : boolean) : void
+	this.animating = animated;
+	if (!animating) {
+	    Enumeration enum_ = theConsumers.elements();
+	    while (enum_.hasMoreElements()) {
+	    	ImageConsumer ic = (ImageConsumer) enum_.nextElement();
+		ic.imageComplete(ImageConsumer.STATICIMAGEDONE);
+		if (isConsumer(ic)) {
+		    ic.imageComplete(ImageConsumer.IMAGEERROR);
+		}
+	    }
+	    theConsumers.removeAllElements();
+	}
+!!!6672795.java!!!	setFullBufferUpdates(inout fullbuffers : boolean) : void
+	if (this.fullbuffers == fullbuffers) {
+	    return;
+	}
+	this.fullbuffers = fullbuffers;
+	if (animating) {
+	    Enumeration enum_ = theConsumers.elements();
+	    while (enum_.hasMoreElements()) {
+	    	ImageConsumer ic = (ImageConsumer) enum_.nextElement();
+		ic.setHints(fullbuffers
+			    ? (ImageConsumer.TOPDOWNLEFTRIGHT |
+			       ImageConsumer.COMPLETESCANLINES)
+			    : ImageConsumer.RANDOMPIXELORDER);
+	    }
+	}
+!!!6672923.java!!!	newPixels() : void
+	newPixels(0, 0, width, height, true);
+!!!6673051.java!!!	newPixels(in x : int, in y : int, in w : int, in h : int) : void
+	newPixels(x, y, w, h, true);
+!!!6673179.java!!!	newPixels(in x : int, in y : int, in w : int, in h : int, inout framenotify : boolean) : void
+	if (animating) {
+	    if (fullbuffers) {
+		x = y = 0;
+		w = width;
+		h = height;
+	    } else {
+		if (x < 0) {
+		    w += x;
+		    x = 0;
+		}
+		if (x + w > width) {
+		    w = width - x;
+		}
+		if (y < 0) {
+		    h += y;
+		    y = 0;
+		}
+		if (y + h > height) {
+		    h = height - y;
+		}
+	    }
+	    if ((w <= 0 || h <= 0) && !framenotify) {
+		return;
+	    }
+	    Enumeration enum_ = theConsumers.elements();
+	    while (enum_.hasMoreElements()) {
+	    	ImageConsumer ic = (ImageConsumer) enum_.nextElement();
+		if (w > 0 && h > 0) {
+		    sendPixels(ic, x, y, w, h);
+		}
+		if (framenotify && isConsumer(ic)) {
+		    ic.imageComplete(ImageConsumer.SINGLEFRAMEDONE);
+		}
+	    }
+	}
+!!!6673307.java!!!	newPixels(in newpix : byte, inout newmodel : ColorModel, in offset : int, in scansize : int) : void
+	this.pixels = newpix;
+	this.model = newmodel;
+	this.pixeloffset = offset;
+	this.pixelscan = scansize;
+	newPixels();
+!!!6673435.java!!!	newPixels(in newpix : int, inout newmodel : ColorModel, in offset : int, in scansize : int) : void
+	this.pixels = newpix;
+	this.model = newmodel;
+	this.pixeloffset = offset;
+	this.pixelscan = scansize;
+	newPixels();
+!!!6673563.java!!!	initConsumer(inout ic : ImageConsumer) : void
+	if (isConsumer(ic)) {
+	    ic.setDimensions(width, height);
+	}
+	if (isConsumer(ic)) {
+	    ic.setProperties(properties);
+	}
+	if (isConsumer(ic)) {
+	    ic.setColorModel(model);
+	}
+	if (isConsumer(ic)) {
+	    ic.setHints(animating
+			? (fullbuffers
+			   ? (ImageConsumer.TOPDOWNLEFTRIGHT |
+			      ImageConsumer.COMPLETESCANLINES)
+			   : ImageConsumer.RANDOMPIXELORDER)
+			: (ImageConsumer.TOPDOWNLEFTRIGHT |
+			   ImageConsumer.COMPLETESCANLINES |
+			   ImageConsumer.SINGLEPASS |
+			   ImageConsumer.SINGLEFRAME));
+	}
+!!!6673691.java!!!	sendPixels(inout ic : ImageConsumer, in x : int, in y : int, in w : int, in h : int) : void
+	int off = pixeloffset + pixelscan * y + x;
+	if (isConsumer(ic)) {
+	    if (pixels instanceof byte[]) {
+		ic.setPixels(x, y, w, h, model,
+			     ((byte[]) pixels), off, pixelscan);
+	    } else {
+		ic.setPixels(x, y, w, h, model,
+			     ((int[]) pixels), off, pixelscan);
+	    }
+	}

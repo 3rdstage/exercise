@@ -1,0 +1,96 @@
+class SynthTitlePaneLayout
+!!!9687579.java!!!	preferredLayoutSize(inout c : Container) : Dimension
+	    return minimumLayoutSize(c);
+!!!9687707.java!!!	minimumLayoutSize(inout c : Container) : Dimension
+            // Calculate width.
+            int width = 22;
+ 
+            if (frame.isClosable()) {
+                width += 19;
+            }
+            if (frame.isMaximizable()) {
+                width += 19;
+            }
+            if (frame.isIconifiable()) {
+                width += 19;
+            }
+
+            FontMetrics fm = frame.getFontMetrics(getFont());
+            SynthContext context = getContext(frame);
+            SynthGraphicsUtils graphicsUtils = context.getStyle().
+                                       getGraphicsUtils(context);
+            String frameTitle = frame.getTitle();
+            int title_w = frameTitle != null ? graphicsUtils.
+                               computeStringWidth(context, fm.getFont(),
+                               fm, frameTitle) : 0;
+            int title_length = frameTitle != null ? frameTitle.length() : 0;
+
+            // Leave room for three characters in the title.
+            if (title_length > 3) {
+                int subtitle_w = graphicsUtils.computeStringWidth(context,
+                    fm.getFont(), fm, frameTitle.substring(0, 3) + "...");
+                width += (title_w < subtitle_w) ? title_w : subtitle_w;
+            } else {
+                width += title_w;
+            }
+
+            // Calculate height.
+            Icon icon = frame.getFrameIcon();
+            int fontHeight = fm.getHeight();
+            fontHeight += 2;
+            int iconHeight = 0;
+            if (icon != null) {
+                // SystemMenuBar forces the icon to be 16x16 or less.
+                iconHeight = Math.min(icon.getIconHeight(), 16);
+            }
+            iconHeight += 2;
+      
+            int height = Math.max( fontHeight, iconHeight );
+
+            Dimension dim = new Dimension(width, height);
+
+            // Take into account the border insets if any.
+            if (getBorder() != null) {
+                Insets insets = getBorder().getBorderInsets(c);
+                dim.height += insets.top + insets.bottom;
+                dim.width += insets.left + insets.right;
+            }
+            context.dispose();
+            return dim;
+!!!9687835.java!!!	layoutContainer(inout c : Container) : void
+            boolean leftToRight = SynthLookAndFeel.isLeftToRight(frame);
+
+            int w = getWidth();
+            int h = getHeight();
+            int x;
+
+            Icon closeIcon = closeButton.getIcon();
+            int buttonHeight = (closeIcon != null) ? closeIcon.getIconHeight(): 12;
+	    if (buttonHeight == 0) {
+		buttonHeight = 12;
+	    }
+            //int buttonWidth = closeButton.getIcon().getIconWidth();
+
+            Icon icon = frame.getFrameIcon();
+            int iconHeight = (icon != null) ? icon.getIconHeight() : buttonHeight;
+
+	    Insets insets = frame.getInsets();
+
+            x = (leftToRight) ? insets.left : w - 16 - insets.right;
+            menuButton.setBounds(x, (h - iconHeight) / 2, 16, 14);
+
+            x = (leftToRight) ? w - 16 - insets.right : insets.left;
+
+            if (frame.isClosable()) {
+                closeButton.setBounds(x, (h - buttonHeight) / 2, 16, 14);
+                x += (leftToRight) ? -(16 + 2) : 16 + 2;
+            } 
+
+            if (frame.isMaximizable()) {
+                maxButton.setBounds(x, (h - buttonHeight) / 2, 16, 14);
+                x += (leftToRight) ? -(16 + 2) : 16 + 2;
+            }
+
+            if (frame.isIconifiable()) {
+                iconButton.setBounds(x, (h - buttonHeight) / 2, 16, 14);
+            } 

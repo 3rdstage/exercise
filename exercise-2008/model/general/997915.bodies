@@ -1,0 +1,124 @@
+class ScheduledThreadPoolExecutor
+!!!7957915.java!!!	now() : long
+	return System.nanoTime() - NANO_ORIGIN;
+!!!7959067.java!!!	delayedExecute(inout command : Runnable) : void
+        if (isShutdown()) {
+            reject(command);
+            return;
+        }
+        // Prestart a thread if necessary. We cannot prestart it
+        // running the task because the task (probably) shouldn't be
+        // run yet, so thread will just idle until delay elapses.
+        if (getPoolSize() < getCorePoolSize())
+            prestartCoreThread();
+            
+        super.getQueue().add(command);
+!!!7959195.java!!!	cancelUnwantedTasks() : void
+        boolean keepDelayed = getExecuteExistingDelayedTasksAfterShutdownPolicy();
+        boolean keepPeriodic = getContinueExistingPeriodicTasksAfterShutdownPolicy();
+        if (!keepDelayed && !keepPeriodic) 
+            super.getQueue().clear();
+        else if (keepDelayed || keepPeriodic) {
+            Object[] entries = super.getQueue().toArray();
+            for (int i = 0; i < entries.length; ++i) {
+                Object e = entries[i];
+                if (e instanceof ScheduledFutureTask) {
+                    ScheduledFutureTask<?> t = (ScheduledFutureTask<?>)e;
+                    if (t.isPeriodic()? !keepPeriodic : !keepDelayed)
+                        t.cancel(false);
+                }
+            }
+            entries = null;
+            purge();
+        }
+!!!7959323.java!!!	remove(inout task : Runnable) : boolean
+	if (!(task instanceof ScheduledFutureTask))
+	    return false;
+	return getQueue().remove(task);
+!!!7959451.java!!!	ScheduledThreadPoolExecutor(in corePoolSize : int)
+        super(corePoolSize, Integer.MAX_VALUE, 0, TimeUnit.NANOSECONDS,
+              new DelayedWorkQueue());
+!!!7959579.java!!!	ScheduledThreadPoolExecutor(in corePoolSize : int, inout threadFactory : ThreadFactory)
+        super(corePoolSize, Integer.MAX_VALUE, 0, TimeUnit.NANOSECONDS,
+              new DelayedWorkQueue(), threadFactory);
+!!!7959707.java!!!	ScheduledThreadPoolExecutor(in corePoolSize : int, inout handler : RejectedExecutionHandler)
+        super(corePoolSize, Integer.MAX_VALUE, 0, TimeUnit.NANOSECONDS,
+              new DelayedWorkQueue(), handler);
+!!!7959835.java!!!	ScheduledThreadPoolExecutor(in corePoolSize : int, inout threadFactory : ThreadFactory, inout handler : RejectedExecutionHandler)
+        super(corePoolSize, Integer.MAX_VALUE, 0, TimeUnit.NANOSECONDS,
+              new DelayedWorkQueue(), threadFactory, handler);
+!!!7959963.java!!!	schedule(inout command : Runnable, in delay : long, inout unit : TimeUnit) : ScheduledFuture
+        if (command == null || unit == null)
+            throw new NullPointerException();
+        long triggerTime = now() + unit.toNanos(delay);
+        ScheduledFutureTask<?> t = 
+            new ScheduledFutureTask<Boolean>(command, null, triggerTime);
+        delayedExecute(t);
+        return t;
+!!!7960091.java!!!	schedule(inout callable : Callable, in delay : long, inout unit : TimeUnit) : ScheduledFuture
+        if (callable == null || unit == null)
+            throw new NullPointerException();
+        if (delay < 0) delay = 0;
+        long triggerTime = now() + unit.toNanos(delay);
+        ScheduledFutureTask<V> t = 
+            new ScheduledFutureTask<V>(callable, triggerTime);
+        delayedExecute(t);
+        return t;
+!!!7960219.java!!!	scheduleAtFixedRate(inout command : Runnable, in initialDelay : long, in period : long, inout unit : TimeUnit) : ScheduledFuture
+        if (command == null || unit == null)
+            throw new NullPointerException();
+        if (period <= 0)
+            throw new IllegalArgumentException();
+        if (initialDelay < 0) initialDelay = 0;
+        long triggerTime = now() + unit.toNanos(initialDelay);
+        ScheduledFutureTask<?> t = 
+            new ScheduledFutureTask<Object>(command, 
+                                            null,
+                                            triggerTime,
+                                            unit.toNanos(period));
+        delayedExecute(t);
+        return t;
+!!!7960347.java!!!	scheduleWithFixedDelay(inout command : Runnable, in initialDelay : long, in delay : long, inout unit : TimeUnit) : ScheduledFuture
+        if (command == null || unit == null)
+            throw new NullPointerException();
+        if (delay <= 0)
+            throw new IllegalArgumentException();
+        if (initialDelay < 0) initialDelay = 0;
+        long triggerTime = now() + unit.toNanos(initialDelay);
+        ScheduledFutureTask<?> t = 
+            new ScheduledFutureTask<Boolean>(command, 
+                                             null,
+                                             triggerTime,
+                                             unit.toNanos(-delay));
+        delayedExecute(t);
+        return t;
+!!!7960475.java!!!	execute(inout command : Runnable) : void
+        if (command == null)
+            throw new NullPointerException();
+        schedule(command, 0, TimeUnit.NANOSECONDS);
+!!!7960603.java!!!	submit(inout task : Runnable) : Future
+        return schedule(task, 0, TimeUnit.NANOSECONDS);
+!!!7960731.java!!!	submit(inout task : Runnable, inout result : T) : Future
+        return schedule(Executors.callable(task, result), 
+                        0, TimeUnit.NANOSECONDS);
+!!!7960859.java!!!	submit(inout task : Callable) : Future
+        return schedule(task, 0, TimeUnit.NANOSECONDS);
+!!!7960987.java!!!	setContinueExistingPeriodicTasksAfterShutdownPolicy(inout value : boolean) : void
+        continueExistingPeriodicTasksAfterShutdown = value;
+        if (!value && isShutdown())
+            cancelUnwantedTasks();
+!!!7961115.java!!!	getContinueExistingPeriodicTasksAfterShutdownPolicy() : boolean
+        return continueExistingPeriodicTasksAfterShutdown;
+!!!7961243.java!!!	setExecuteExistingDelayedTasksAfterShutdownPolicy(inout value : boolean) : void
+        executeExistingDelayedTasksAfterShutdown = value;
+        if (!value && isShutdown())
+            cancelUnwantedTasks();
+!!!7961371.java!!!	getExecuteExistingDelayedTasksAfterShutdownPolicy() : boolean
+        return executeExistingDelayedTasksAfterShutdown;
+!!!7961499.java!!!	shutdown() : void
+        cancelUnwantedTasks();
+        super.shutdown();
+!!!7961627.java!!!	shutdownNow() : List
+        return super.shutdownNow();
+!!!7961755.java!!!	getQueue() : BlockingQueue
+        return super.getQueue();

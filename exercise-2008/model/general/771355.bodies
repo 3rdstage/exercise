@@ -1,0 +1,36 @@
+class XSDUniqueOrKeyTraverser
+!!!5350555.java!!!	XSDUniqueOrKeyTraverser(inout handler : XSDHandler, inout gAttrCheck : XSAttributeChecker)
+        super(handler, gAttrCheck);
+!!!5350683.java!!!	traverse(inout uElem : Element, inout element : XSElementDecl, inout schemaDoc : XSDocumentInfo, inout grammar : SchemaGrammar) : void
+
+        // General Attribute Checking
+        Object[] attrValues = fAttrChecker.checkAttributes(uElem, false, schemaDoc);
+
+        // create identity constraint
+        String uName = (String)attrValues[XSAttributeChecker.ATTIDX_NAME];
+
+        if(uName == null){
+            reportSchemaError("s4s-att-must-appear", new Object [] {DOMUtil.getLocalName(uElem) , SchemaSymbols.ATT_NAME }, uElem);
+            //return this array back to pool
+            fAttrChecker.returnAttrArray(attrValues, schemaDoc);
+            return;
+        }
+
+        UniqueOrKey uniqueOrKey = null;
+        if(DOMUtil.getLocalName(uElem).equals(SchemaSymbols.ELT_UNIQUE)) {
+            uniqueOrKey = new UniqueOrKey(schemaDoc.fTargetNamespace, uName, element.fName, IdentityConstraint.IC_UNIQUE);
+        } else {
+            uniqueOrKey = new UniqueOrKey(schemaDoc.fTargetNamespace, uName, element.fName, IdentityConstraint.IC_KEY);
+        }
+        // it's XSDElementTraverser's job to ensure that there's no
+        // duplication (or if there is that restriction is involved
+        // and there's identity).
+
+        // get selector and fields
+        traverseIdentityConstraint(uniqueOrKey, uElem, schemaDoc, attrValues);
+
+        // and stuff this in the grammar
+        grammar.addIDConstraintDecl(element, uniqueOrKey);
+
+        // and fix up attributeChecker
+        fAttrChecker.returnAttrArray(attrValues, schemaDoc);

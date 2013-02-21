@@ -1,0 +1,12 @@
+insert into sm_category (id, name, parent_id, seq) values ('CAT0001', 'Electronics', null, 1);
+insert into sm_category (id, name, parent_id, seq) values ('CAT0002', 'Cell Phones', 'CAT0001', 1);
+insert into sm_category (id, name, parent_id, seq) values ('CAT0003', 'Smartphones', 'CAT0001', 2);
+insert into sm_category (id, name, parent_id, seq) values ('CAT0004', 'Digital Camera', 'CAT0001', 3);
+insert into sm_category (id, name, parent_id, seq) values ('CAT0005', 'Fashion', null, 2);
+insert into sm_category (id, name, parent_id, seq) values ('CAT0006', 'Women''s Clothing', 'CAT0005', 1);
+insert into sm_category (id, name, parent_id, seq) values ('CAT0007', 'Women''s Handbags', 'CAT0005', 2);
+insert into sm_category (id, name, parent_id, seq) values ('CAT0008', 'Women''s Shoes', 'CAT0005', 3);
+insert into sm_category (id, name, parent_id, seq) values ('CAT0009', 'Women''s Accessories', 'CAT0005', 4);
+insert into sm_category (id, name, parent_id, seq) values ('CAT0010', 'Men''s Clothing', 'CAT0005', 5);
+insert into sm_category (id, name, parent_id, seq) values ('CAT0011', 'Men''s Shoes', 'CAT0005', 6);
+insert into sm_category (id, name, parent_id, seq) values ('CAT0012', 'Men''s Accessories', 'CAT0005', 7);

@@ -1,0 +1,180 @@
+class ConcurrentLinkedQueue
+!!!7906331.java!!!	casTail(inout cmp : Node, inout val : Node) : boolean
+        return tailUpdater.compareAndSet(this, cmp, val);
+!!!7906459.java!!!	casHead(inout cmp : Node, inout val : Node) : boolean
+        return headUpdater.compareAndSet(this, cmp, val);
+!!!7906715.java!!!	ConcurrentLinkedQueue(inout c : Collection)
+        for (Iterator<? extends E> it = c.iterator(); it.hasNext();)
+            add(it.next());
+!!!7906843.java!!!	add(inout o : E) : boolean
+        return offer(o);
+!!!7906971.java!!!	offer(inout o : E) : boolean
+        if (o == null) throw new NullPointerException();
+        Node<E> n = new Node<E>(o, null);
+        for(;;) {
+            Node<E> t = tail;
+            Node<E> s = t.getNext();
+            if (t == tail) {
+                if (s == null) {
+                    if (t.casNext(s, n)) {
+                        casTail(t, n);
+                        return true;
+                    }
+                } else {
+                    casTail(t, s);
+                }
+            }
+        }
+!!!7907099.java!!!	poll() : E
+        for (;;) {
+            Node<E> h = head;
+            Node<E> t = tail;
+            Node<E> first = h.getNext();
+            if (h == head) {
+                if (h == t) {
+                    if (first == null)
+                        return null;
+                    else
+                        casTail(t, first);
+                } else if (casHead(h, first)) {
+                    E item = first.getItem();
+                    if (item != null) {
+                        first.setItem(null);
+                        return item;
+                    }
+                    // else skip over deleted item, continue loop,
+                }
+            }
+        }
+!!!7907227.java!!!	peek() : E
+ // same as poll except don't remove item
+        for (;;) {
+            Node<E> h = head;
+            Node<E> t = tail;
+            Node<E> first = h.getNext();
+            if (h == head) {
+                if (h == t) {
+                    if (first == null)
+                        return null;
+                    else
+                        casTail(t, first);
+                } else {
+                    E item = first.getItem();
+                    if (item != null)
+                        return item;
+                    else // remove deleted node and continue
+                        casHead(h, first);
+                }
+            }
+        }
+!!!7907355.java!!!	first() : Node
+        for (;;) {
+            Node<E> h = head;
+            Node<E> t = tail;
+            Node<E> first = h.getNext();
+            if (h == head) {
+                if (h == t) {
+                    if (first == null)
+                        return null;
+                    else
+                        casTail(t, first);
+                } else {
+                    if (first.getItem() != null)
+                        return first;
+                    else // remove deleted node and continue
+                        casHead(h, first);
+                }
+            }
+        }
+!!!7907483.java!!!	isEmpty() : boolean
+        return first() == null;
+!!!7907611.java!!!	size() : int
+        int count = 0;
+        for (Node<E> p = first(); p != null; p = p.getNext()) {
+            if (p.getItem() != null) {
+                // Collections.size() spec says to max out
+                if (++count == Integer.MAX_VALUE)
+                    break;
+            }
+        }
+        return count;
+!!!7907739.java!!!	contains(inout o : Object) : boolean
+        if (o == null) return false;
+        for (Node<E> p = first(); p != null; p = p.getNext()) {
+            E item = p.getItem();
+            if (item != null &&
+                o.equals(item))
+                return true;
+        }
+        return false;
+!!!7907867.java!!!	remove(inout o : Object) : boolean
+        if (o == null) return false;
+        for (Node<E> p = first(); p != null; p = p.getNext()) {
+            E item = p.getItem();
+            if (item != null &&
+                o.equals(item) &&
+                p.casItem(item, null))
+                return true;
+        }
+        return false;
+!!!7907995.java!!!	toArray() : Object
+        // Use ArrayList to deal with resizing.
+        ArrayList<E> al = new ArrayList<E>();
+        for (Node<E> p = first(); p != null; p = p.getNext()) {
+            E item = p.getItem();
+            if (item != null)
+                al.add(item);
+        }
+        return al.toArray();
+!!!7908123.java!!!	toArray(inout a : T) : T
+        // try to use sent-in array
+        int k = 0;
+        Node<E> p;
+        for (p = first(); p != null && k < a.length; p = p.getNext()) {
+            E item = p.getItem();
+            if (item != null)
+                a[k++] = (T)item;
+        }
+        if (p == null) {
+            if (k < a.length)
+                a[k] = null;
+            return a;
+        }
+
+        // If won't fit, use ArrayList version
+        ArrayList<E> al = new ArrayList<E>();
+        for (Node<E> q = first(); q != null; q = q.getNext()) {
+            E item = q.getItem();
+            if (item != null)
+                al.add(item);
+        }
+        return (T[])al.toArray(a);
+!!!7908251.java!!!	iterator() : Iterator
+        return new Itr();
+!!!7909019.java!!!	writeObject(inout s : ObjectOutputStream) : void
+
+        // Write out any hidden stuff
+        s.defaultWriteObject();
+
+        // Write out all elements in the proper order.
+        for (Node<E> p = first(); p != null; p = p.getNext()) {
+            Object item = p.getItem();
+            if (item != null)
+                s.writeObject(item);
+        }
+
+        // Use trailing null as sentinel
+        s.writeObject(null);
+!!!7909147.java!!!	readObject(inout s : ObjectInputStream) : void
+        // Read in capacity, and any hidden stuff
+        s.defaultReadObject();
+        head = new Node<E>(null, null);
+        tail = head;
+        // Read in all elements and place in queue
+        for (;;) {
+            E item = (E)s.readObject();
+            if (item == null)
+                break;
+            else
+                offer(item);
+        }

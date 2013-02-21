@@ -1,0 +1,286 @@
+class Matcher
+!!!8095515.java!!!	Matcher(inout parent : Pattern, inout text : CharSequence)
+        this.parentPattern = parent;
+        this.text = text;
+
+        // Allocate state storage
+        int parentGroupCount = Math.max(parent.capturingGroupCount, 10);
+        groups = new int[parentGroupCount * 2];
+        locals = new int[parent.localCount];
+
+        // Put fields into initial states
+        reset();
+!!!8095643.java!!!	pattern() : Pattern
+        return parentPattern;
+!!!8095771.java!!!	toMatchResult() : MatchResult
+        Matcher result = new Matcher(this.parentPattern, text.toString());
+        result.first = this.first;
+        result.last = this.last;
+        result.groups = (int[])(this.groups.clone());
+        return result;
+!!!8095899.java!!!	usePattern(inout newPattern : Pattern) : Matcher
+        if (newPattern == null)
+            throw new IllegalArgumentException("Pattern cannot be null");
+        parentPattern = newPattern;
+     
+        // Reallocate state storage
+        int parentGroupCount = Math.max(newPattern.capturingGroupCount, 10);
+        groups = new int[parentGroupCount * 2];
+        locals = new int[newPattern.localCount];
+        for (int i = 0; i < groups.length; i++)
+            groups[i] = -1;
+        for (int i = 0; i < locals.length; i++)
+            locals[i] = -1;
+        return this;
+!!!8096027.java!!!	reset() : Matcher
+        first = -1;
+        last = 0;
+        oldLast = -1;
+        for(int i=0; i<groups.length; i++)
+            groups[i] = -1;
+        for(int i=0; i<locals.length; i++)
+            locals[i] = -1;
+        lastAppendPosition = 0;
+        from = 0;
+        to = getTextLength();
+	return this;
+!!!8096155.java!!!	reset(inout input : CharSequence) : Matcher
+        text = input;
+        return reset();
+!!!8096283.java!!!	start() : int
+        if (first < 0)
+            throw new IllegalStateException("No match available");
+        return first;
+!!!8096411.java!!!	start(in group : int) : int
+        if (first < 0)
+            throw new IllegalStateException("No match available");
+        if (group > groupCount())
+            throw new IndexOutOfBoundsException("No group " + group);
+        return groups[group * 2];
+!!!8096539.java!!!	end() : int
+        if (first < 0)
+            throw new IllegalStateException("No match available");
+        return last;
+!!!8096667.java!!!	end(in group : int) : int
+        if (first < 0)
+            throw new IllegalStateException("No match available");
+        if (group > groupCount())
+            throw new IndexOutOfBoundsException("No group " + group);
+        return groups[group * 2 + 1];
+!!!8096795.java!!!	group() : String
+        return group(0);
+!!!8096923.java!!!	group(in group : int) : String
+        if (first < 0)
+            throw new IllegalStateException("No match found");
+        if (group < 0 || group > groupCount())
+            throw new IndexOutOfBoundsException("No group " + group);
+        if ((groups[group*2] == -1) || (groups[group*2+1] == -1))
+            return null;
+        return getSubSequence(groups[group * 2], groups[group * 2 + 1]).toString();
+!!!8097051.java!!!	groupCount() : int
+        return parentPattern.capturingGroupCount - 1;
+!!!8097179.java!!!	matches() : boolean
+        return match(from, ENDANCHOR);
+!!!8097307.java!!!	find() : boolean
+        int nextSearchIndex = last;
+        if (nextSearchIndex == first)
+            nextSearchIndex++;
+
+        // If next search starts before region, start it at region
+        if (nextSearchIndex < from)
+            nextSearchIndex = from;
+
+        // If next search starts beyond region then it fails
+        if (nextSearchIndex > to) {
+            for (int i = 0; i < groups.length; i++)
+                groups[i] = -1;
+            return false;
+        }
+        return search(nextSearchIndex);
+!!!8097435.java!!!	find(in start : int) : boolean
+        int limit = getTextLength();
+        if ((start < 0) || (start > limit))
+            throw new IndexOutOfBoundsException("Illegal start index");
+        reset();
+        return search(start);
+!!!8097563.java!!!	lookingAt() : boolean
+        return match(from, NOANCHOR);
+!!!8097691.java!!!	quoteReplacement(in s : String) : String
+        if ((s.indexOf('\\') == -1) && (s.indexOf('$') == -1))
+            return s;
+        StringBuffer sb = new StringBuffer();
+        for (int i=0; i<s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\\') {
+                sb.append('\\'); sb.append('\\');
+            } else if (c == '$') {
+                sb.append('\\'); sb.append('$');
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+!!!8097819.java!!!	appendReplacement(inout sb : StringBuffer, in replacement : String) : Matcher
+
+        // If no match, return error
+        if (first < 0)
+            throw new IllegalStateException("No match available");
+
+        // Process substitution string to replace group references with groups
+        int cursor = 0;
+        String s = replacement;
+        StringBuffer result = new StringBuffer();
+
+        while (cursor < replacement.length()) {
+            char nextChar = replacement.charAt(cursor);
+            if (nextChar == '\\') {
+                cursor++;
+                nextChar = replacement.charAt(cursor);
+                result.append(nextChar);
+                cursor++;
+            } else if (nextChar == '$') {
+                // Skip past $
+                cursor++;
+
+                // The first number is always a group
+                int refNum = (int)replacement.charAt(cursor) - '0';
+                if ((refNum < 0)||(refNum > 9))
+                    throw new IllegalArgumentException(
+                        "Illegal group reference");
+                cursor++;
+
+                // Capture the largest legal group string
+                boolean done = false;
+                while (!done) {
+                    if (cursor >= replacement.length()) {
+                        break;
+                    }
+                    int nextDigit = replacement.charAt(cursor) - '0';
+                    if ((nextDigit < 0)||(nextDigit > 9)) { // not a number
+                        break;
+                    }
+                    int newRefNum = (refNum * 10) + nextDigit;
+                    if (groupCount() < newRefNum) {
+                        done = true;
+                    } else {
+                        refNum = newRefNum;
+                        cursor++;
+                    }
+                }
+
+                // Append group
+                if (group(refNum) != null)
+                    result.append(group(refNum));
+            } else {
+                result.append(nextChar);
+                cursor++;
+            }
+        }
+
+        // Append the intervening text
+        sb.append(getSubSequence(lastAppendPosition, first));
+        // Append the match substitution
+        sb.append(result.toString());
+
+        lastAppendPosition = last;
+	return this;
+!!!8097947.java!!!	appendTail(inout sb : StringBuffer) : StringBuffer
+        sb.append(getSubSequence(lastAppendPosition, getTextLength()).toString());
+	return sb;
+!!!8098075.java!!!	replaceAll(in replacement : String) : String
+        reset();
+        boolean result = find();
+        if (result) {
+            StringBuffer sb = new StringBuffer();
+            do {
+                appendReplacement(sb, replacement);
+                result = find();
+            } while (result);
+            appendTail(sb);
+            return sb.toString();
+        }
+        return text.toString();
+!!!8098203.java!!!	replaceFirst(in replacement : String) : String
+        if (replacement == null)
+            throw new NullPointerException("replacement");
+        StringBuffer sb = new StringBuffer();
+        reset();
+        if (find())
+            appendReplacement(sb, replacement);
+        appendTail(sb);
+        return sb.toString();
+!!!8098331.java!!!	region(in start : int, in end : int) : Matcher
+        if ((start < 0) || (start > getTextLength()))
+            throw new IndexOutOfBoundsException("start");
+        if ((end < 0) || (end > getTextLength()))
+            throw new IndexOutOfBoundsException("end");
+        if (start > end)
+            throw new IndexOutOfBoundsException("start > end");
+        reset();
+        from = start;
+        to = end;
+        return this;
+!!!8098459.java!!!	regionStart() : int
+        return from;
+!!!8098587.java!!!	regionEnd() : int
+        return to;
+!!!8098715.java!!!	hasTransparentBounds() : boolean
+        return transparentBounds;
+!!!8098843.java!!!	useTransparentBounds(inout b : boolean) : Matcher
+        transparentBounds = b;
+        return this;
+!!!8098971.java!!!	hasAnchoringBounds() : boolean
+        return anchoringBounds;
+!!!8099099.java!!!	useAnchoringBounds(inout b : boolean) : Matcher
+        anchoringBounds = b;
+        return this;
+!!!8099227.java!!!	toString() : String
+        StringBuffer sb = new StringBuffer();
+	sb.append("java.util.regex.Matcher");
+	sb.append("[pattern=" + pattern());
+	sb.append(" region=");
+	sb.append(regionStart() + "," + regionEnd());
+        sb.append(" lastmatch=");
+        if ((first >= 0) && (group() != null)) {
+            sb.append(group());
+        }
+	sb.append("]");
+	return sb.toString();
+!!!8099355.java!!!	hitEnd() : boolean
+        return hitEnd;
+!!!8099483.java!!!	requireEnd() : boolean
+        return requireEnd;
+!!!8099611.java!!!	search(in from : int) : boolean
+        this.hitEnd = false;
+        this.requireEnd = false;
+        from        = from < 0 ? 0 : from;
+        this.first  = from;
+        this.oldLast = oldLast < 0 ? from : oldLast;
+        for (int i = 0; i < groups.length; i++)
+            groups[i] = -1;
+        acceptMode = NOANCHOR;
+        boolean result = parentPattern.root.match(this, from, text);
+        if (!result)
+            this.first = -1;
+        this.oldLast = this.last;
+        return result;
+!!!8099739.java!!!	match(in from : int, in anchor : int) : boolean
+        this.hitEnd = false;
+        this.requireEnd = false;
+        from        = from < 0 ? 0 : from;
+        this.first  = from;
+        this.oldLast = oldLast < 0 ? from : oldLast;
+        for (int i = 0; i < groups.length; i++)
+            groups[i] = -1;
+        acceptMode = anchor;
+        boolean result = parentPattern.matchRoot.match(this, from, text);
+        if (!result)
+            this.first = -1;
+        this.oldLast = this.last;
+        return result;
+!!!8099867.java!!!	getTextLength() : int
+        return text.length();
+!!!8099995.java!!!	getSubSequence(in beginIndex : int, in endIndex : int) : CharSequence
+        return text.subSequence(beginIndex, endIndex);
+!!!8100123.java!!!	charAt(in i : int) : char
+        return text.charAt(i);

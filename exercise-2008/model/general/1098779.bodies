@@ -1,0 +1,143 @@
+class SQLOutputImpl
+!!!8819227.java!!!	SQLOutputImpl(inout attributes : Vector, inout map : Map)
+        if ((attributes == null) || (map == null)) {
+            throw new SQLException("Cannot instantiate a SQLOutputImpl " +
+            "instance with null parameters");
+        }        
+        this.attribs = attributes; 
+        this.map = map;
+!!!8819355.java!!!	writeString(in x : String) : void
+        //System.out.println("Adding :"+x);
+        attribs.add(x);
+!!!8819483.java!!!	writeBoolean(inout x : boolean) : void
+        attribs.add(new Boolean(x));
+!!!8819611.java!!!	writeByte(in x : byte) : void
+        attribs.add(new Byte(x));
+!!!8819739.java!!!	writeShort(in x : short) : void
+        attribs.add(new Short(x));
+!!!8819867.java!!!	writeInt(in x : int) : void
+        attribs.add(new Integer(x));
+!!!8819995.java!!!	writeLong(in x : long) : void
+        attribs.add(new Long(x));
+!!!8820123.java!!!	writeFloat(in x : float) : void
+        attribs.add(new Float(x));
+!!!8820251.java!!!	writeDouble(in x : double) : void
+        attribs.add(new Double(x));
+!!!8820379.java!!!	writeBigDecimal(inout x : BigDecimal) : void
+        attribs.add(x);
+!!!8820507.java!!!	writeBytes(in x : byte) : void
+        attribs.add(x);
+!!!8820635.java!!!	writeDate(inout x : Date) : void
+        attribs.add(x);
+!!!8820763.java!!!	writeTime(inout x : Time) : void
+        attribs.add(x);
+!!!8820891.java!!!	writeTimestamp(inout x : Timestamp) : void
+        attribs.add(x);
+!!!8821019.java!!!	writeCharacterStream(inout x : Reader) : void
+         BufferedReader bufReader = new BufferedReader(x);
+         try {
+             int i;
+             while( (i = bufReader.read()) != -1 ) {
+                char ch = (char)i;
+		StringBuffer strBuf = new StringBuffer();
+		strBuf.append(ch);
+		
+		String str = new String(strBuf);                
+                String strLine = bufReader.readLine();
+                
+                writeString(str.concat(strLine));
+             }   
+         } catch(IOException ioe) {
+         
+         }
+!!!8821147.java!!!	writeAsciiStream(inout x : InputStream) : void
+         BufferedReader bufReader = new BufferedReader(new InputStreamReader(x));
+         try {
+               int i;
+               while( (i=bufReader.read()) != -1 ) {
+                char ch = (char)i;
+               
+		StringBuffer strBuf = new StringBuffer();
+		strBuf.append(ch);
+		
+		String str = new String(strBuf);                
+                String strLine = bufReader.readLine();
+                
+                writeString(str.concat(strLine));
+            }
+          }catch(IOException ioe) {
+            throw new SQLException(ioe.getMessage());
+        }
+!!!8821275.java!!!	writeBinaryStream(inout x : InputStream) : void
+         BufferedReader bufReader = new BufferedReader(new InputStreamReader(x));
+         try {
+               int i;
+             while( (i=bufReader.read()) != -1 ) {
+                char ch = (char)i;
+               
+		StringBuffer strBuf = new StringBuffer();
+		strBuf.append(ch);
+		
+		String str = new String(strBuf);                
+                String strLine = bufReader.readLine();
+                
+                writeString(str.concat(strLine));
+             }
+        } catch(IOException ioe) {
+            throw new SQLException(ioe.getMessage());
+        }
+!!!8821403.java!!!	writeObject(inout x : SQLData) : void
+        
+        /*
+         * Except for the types that are passed as objects
+         * this seems to be the only way for an object to
+         * get a null value for a field in a structure.
+         *
+         * Note: this means that the class defining SQLData 
+         * will need to track if a field is SQL null for itself
+         */
+        if (x == null) {
+            attribs.add(x);
+            return;
+        }
+        
+        /* 
+         * We have to write out a SerialStruct that contains
+         * the name of this class otherwise we don't know
+         * what to re-instantiate during readSQL()
+         */
+        attribs.add(new SerialStruct((SQLData)x, map));
+!!!8821531.java!!!	writeRef(inout x : Ref) : void
+        if (x == null) {
+            attribs.add(x);
+            return;
+        }
+        attribs.add(new SerialRef(x));
+!!!8821659.java!!!	writeBlob(inout x : Blob) : void
+        if (x == null) {
+            attribs.add(x);
+            return;
+        }
+        attribs.add(new SerialBlob(x));
+!!!8821787.java!!!	writeClob(inout x : Clob) : void
+        if (x == null) {
+            attribs.add(x);
+            return;
+        }
+        attribs.add(new SerialClob(x));
+!!!8821915.java!!!	writeStruct(inout x : Struct) : void
+        SerialStruct s = new SerialStruct(x,map);;
+        attribs.add(s);        
+!!!8822043.java!!!	writeArray(inout x : Array) : void
+        if (x == null) {
+            attribs.add(x);
+            return;
+        }
+        attribs.add(new SerialArray(x, map));
+!!!8822171.java!!!	writeURL(inout url : URL) : void
+        if (url == null) {
+            attribs.add(url);
+            return;
+        }
+        attribs.add(new SerialDatalink(url));
+        

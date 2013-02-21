@@ -1,0 +1,55 @@
+class Operation
+!!!6068891.java!!!	fixupVariables(inout vars : Vector, in globalsSize : int) : void
+    m_left.fixupVariables(vars, globalsSize);
+    m_right.fixupVariables(vars, globalsSize);
+!!!6069019.java!!!	canTraverseOutsideSubtree() : boolean
+
+    if (null != m_left && m_left.canTraverseOutsideSubtree())
+      return true;
+
+    if (null != m_right && m_right.canTraverseOutsideSubtree())
+      return true;
+
+    return false;
+!!!6069147.java!!!	setLeftRight(inout l : Expression, inout r : Expression) : void
+    m_left = l;
+    m_right = r;
+    l.exprSetParent(this);
+    r.exprSetParent(this);
+!!!6069275.java!!!	execute(inout xctxt : XPathContext) : XObject
+
+    XObject left = m_left.execute(xctxt, true);
+    XObject right = m_right.execute(xctxt, true);
+
+    XObject result = operate(left, right);
+    left.detach();
+    right.detach();
+    return result;
+!!!6069403.java!!!	operate(inout left : XObject, inout right : XObject) : XObject
+    return null;  // no-op
+!!!6069531.java!!!	getLeftOperand() : Expression
+    return m_left;
+!!!6069659.java!!!	getRightOperand() : Expression
+    return m_right;
+!!!6070043.java!!!	callVisitors(inout owner : ExpressionOwner, inout visitor : XPathVisitor) : void
+  	if(visitor.visitBinaryOperation(owner, this))
+  	{
+  		m_left.callVisitors(new LeftExprOwner(), visitor);
+  		m_right.callVisitors(this, visitor);
+  	}
+!!!6070171.java!!!	getExpression() : Expression
+    return m_right;
+!!!6070299.java!!!	setExpression(inout exp : Expression) : void
+  	exp.exprSetParent(this);
+  	m_right = exp;
+!!!6070427.java!!!	deepEquals(inout expr : Expression) : boolean
+  	if(!isSameClass(expr))
+  		return false;
+  		
+  	if(!m_left.deepEquals(((Operation)expr).m_left))
+  		return false;
+  		
+  	if(!m_right.deepEquals(((Operation)expr).m_right))
+  		return false;
+  		
+  	return true;

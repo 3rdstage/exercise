@@ -1,0 +1,133 @@
+class Util
+!!!8643739.java!!!	mapSystemException(inout ex : SystemException) : RemoteException
+	
+	if (utilDelegate != null) {
+	    return utilDelegate.mapSystemException(ex);
+	}
+	return null;
+!!!8643867.java!!!	writeAny(inout out : OutputStream, inout obj : Object) : void
+
+	if (utilDelegate != null) {
+	    utilDelegate.writeAny(out, obj);
+	}
+!!!8643995.java!!!	readAny(inout in : InputStream) : Object
+
+	if (utilDelegate != null) {
+	    return utilDelegate.readAny(in);
+	}
+	return null;
+!!!8644123.java!!!	writeRemoteObject(inout out : OutputStream, inout obj : Object) : void
+                                                
+	if (utilDelegate != null) {
+	    utilDelegate.writeRemoteObject(out, obj);
+	}
+
+!!!8644251.java!!!	writeAbstractObject(inout out : OutputStream, inout obj : Object) : void
+                                                
+	if (utilDelegate != null) {
+	    utilDelegate.writeAbstractObject(out, obj);
+	}
+!!!8644379.java!!!	registerTarget(inout tie : Tie, inout target : Remote) : void
+        
+	if (utilDelegate != null) {
+	    utilDelegate.registerTarget(tie, target);
+	}
+
+!!!8644507.java!!!	unexportObject(inout target : Remote) : void
+
+	if (utilDelegate != null) {
+	    utilDelegate.unexportObject(target);
+	}
+
+!!!8644635.java!!!	getTie(inout target : Remote) : Tie
+
+	if (utilDelegate != null) {
+	    return utilDelegate.getTie(target);
+	}
+	return null;
+!!!8644763.java!!!	createValueHandler() : ValueHandler
+
+	if (utilDelegate != null) {
+	    return utilDelegate.createValueHandler();
+	}
+	return null;
+!!!8644891.java!!!	getCodebase(inout clz : Class) : String
+	if (utilDelegate != null) {
+	    return utilDelegate.getCodebase(clz);
+	}
+	return null;
+!!!8645019.java!!!	loadClass(in className : String, in remoteCodebase : String, inout loader : ClassLoader) : Class
+	if (utilDelegate != null) {
+	    return utilDelegate.loadClass(className,remoteCodebase,loader);
+	}  
+	return null ;
+!!!8645147.java!!!	isLocal(inout stub : Stub) : boolean
+
+	if (utilDelegate != null) {
+	    return utilDelegate.isLocal(stub);
+	}
+
+	return false;
+!!!8645275.java!!!	wrapException(inout orig : Throwable) : RemoteException
+
+	if (utilDelegate != null) {
+	    return utilDelegate.wrapException(orig);
+	}
+
+        return null;
+!!!8645403.java!!!	copyObjects(inout obj : Object, inout orb : ORB) : Object
+    
+	if (utilDelegate != null) {
+	    return utilDelegate.copyObjects(obj, orb);
+	}
+	
+        return null;
+!!!8645531.java!!!	copyObject(inout obj : Object, inout orb : ORB) : Object
+
+	if (utilDelegate != null) {
+	    return utilDelegate.copyObject(obj, orb);
+	}
+	return null;
+!!!8645659.java!!!	createDelegateIfSpecified(in classKey : String, in defaultClassName : String) : Object
+        String className = (String)
+            AccessController.doPrivileged(new GetPropertyAction(classKey));
+        if (className == null) {
+            Properties props = getORBPropertiesFile();
+            if (props != null) {
+                className = props.getProperty(classKey);
+            }
+        }
+
+	if (className == null) {
+	    className = defaultClassName;
+	}
+
+        try {
+            return loadDelegateClass(className).newInstance();
+        } catch (ClassNotFoundException ex) {
+	    INITIALIZE exc = new INITIALIZE( "Cannot instantiate " + className);
+	    exc.initCause( ex ) ;
+	    throw exc ;
+        } catch (Exception ex) {
+	    INITIALIZE exc = new INITIALIZE( "Error while instantiating" + className);
+	    exc.initCause( ex ) ;
+	    throw exc ;
+        }
+!!!8645787.java!!!	loadDelegateClass(in className : String) : Class
+	try {
+	    ClassLoader loader = Thread.currentThread().getContextClassLoader();
+	    return Class.forName(className, false, loader);
+	} catch (ClassNotFoundException e) {
+	    // ignore, then try RMIClassLoader
+	}
+
+	try {
+	    return RMIClassLoader.loadClass(className);
+	} catch (MalformedURLException e) {
+	    String msg = "Could not load " + className + ": " + e.toString();
+	    ClassNotFoundException exc = new ClassNotFoundException( msg ) ; 
+	    throw exc ;
+	}
+!!!8645915.java!!!	getORBPropertiesFile() : Properties
+        return (Properties) AccessController.doPrivileged(
+	    new GetORBPropertiesFileAction());

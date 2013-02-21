@@ -1,0 +1,67 @@
+class LazyActionMap
+!!!9448731.java!!!	installLazyActionMap(inout c : JComponent, inout loaderClass : Class, in defaultsKey : String) : void
+        ActionMap map = (ActionMap)UIManager.get(defaultsKey);
+        if (map == null) {
+            map = new LazyActionMap(loaderClass);
+            UIManager.getLookAndFeelDefaults().put(defaultsKey, map);
+        }
+        SwingUtilities.replaceUIActionMap(c, map);
+!!!9448859.java!!!	getActionMap(inout loaderClass : Class, in defaultsKey : String) : ActionMap
+        ActionMap map = (ActionMap)UIManager.get(defaultsKey);
+        if (map == null) {
+            map = new LazyActionMap(loaderClass);
+            UIManager.getLookAndFeelDefaults().put(defaultsKey, map);
+        }
+        return map;
+!!!9448987.java!!!	LazyActionMap(inout loader : Class)
+        _loader = loader;
+!!!9449115.java!!!	put(inout action : Action) : void
+        put(action.getValue(Action.NAME), action);
+!!!9449243.java!!!	put(inout key : Object, inout action : Action) : void
+        loadIfNecessary();
+        super.put(key, action);
+!!!9449371.java!!!	get(inout key : Object) : Action
+        loadIfNecessary();
+        return super.get(key);
+!!!9449499.java!!!	remove(inout key : Object) : void
+        loadIfNecessary();
+        super.remove(key);
+!!!9449627.java!!!	clear() : void
+        loadIfNecessary();
+        super.clear();
+!!!9449755.java!!!	keys() : Object
+        loadIfNecessary();
+        return super.keys();
+!!!9449883.java!!!	size() : int
+        loadIfNecessary();
+        return super.size();
+!!!9450011.java!!!	allKeys() : Object
+        loadIfNecessary();
+        return super.allKeys();
+!!!9450139.java!!!	setParent(inout map : ActionMap) : void
+        loadIfNecessary();
+        super.setParent(map);
+!!!9450267.java!!!	loadIfNecessary() : void
+        if (_loader != null) {
+            Object loader = _loader;
+
+            _loader = null;
+            Class klass = (Class)loader;
+            try {
+                Method method = klass.getDeclaredMethod("loadActionMap",
+                                      new Class[] { LazyActionMap.class });
+                method.invoke(klass, new Object[] { this });
+            } catch (NoSuchMethodException nsme) {
+                assert false : "LazyActionMap unable to load actions " +
+                        klass;
+            } catch (IllegalAccessException iae) {
+                assert false : "LazyActionMap unable to load actions " +
+                        iae;
+            } catch (InvocationTargetException ite) {
+                assert false : "LazyActionMap unable to load actions " +
+                        ite;
+            } catch (IllegalArgumentException iae) {
+                assert false : "LazyActionMap unable to load actions " +
+                        iae;
+            }
+        }

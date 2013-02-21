@@ -1,0 +1,26 @@
+class AbstractActionPropertyChangeListener
+!!!2435483.java!!!	AbstractActionPropertyChangeListener(inout c : JComponent, inout a : Action)
+	super();
+	setTarget(c);
+	this.action = a;
+!!!2435611.java!!!	setTarget(inout c : JComponent) : void
+        if (queue==null) {
+	    queue = new ReferenceQueue();
+	}
+	// Check to see whether any old buttons have
+	// been enqueued for GC.  If so, look up their
+	// PCL instance and remove it from its Action.
+	OwnedWeakReference r;
+	while ( (r = (OwnedWeakReference)queue.poll()) != null) {
+	    AbstractActionPropertyChangeListener oldPCL = 
+	        (AbstractActionPropertyChangeListener)r.getOwner();
+	    Action oldAction = oldPCL.getAction();
+	    if (oldAction!=null) {
+	        oldAction.removePropertyChangeListener(oldPCL);
+	    }
+	}
+	this.target = new OwnedWeakReference(c, queue, this);
+!!!2435739.java!!!	getTarget() : JComponent
+        return (JComponent)this.target.get();
+!!!2435867.java!!!	getAction() : Action
+	  return action;

@@ -1,0 +1,151 @@
+class MouseInputHandler
+!!!3024155.java!!!	canResize(inout column : TableColumn) : boolean
+ 
+	    return (column != null) && header.getResizingAllowed() && column.getResizable(); 
+!!!3024283.java!!!	getResizingColumn(inout p : Point) : TableColumn
+ 
+	    return getResizingColumn(p, header.columnAtPoint(p)); 
+!!!3024411.java!!!	getResizingColumn(inout p : Point, in column : int) : TableColumn
+ 
+            if (column == -1) { 
+                 return null; 
+            }
+	    Rectangle r = header.getHeaderRect(column); 
+	    r.grow(-3, 0); 
+	    if (r.contains(p)) { 
+		return null; 
+	    }
+	    int midPoint = r.x + r.width/2; 
+	    int columnIndex;
+            if( header.getComponentOrientation().isLeftToRight() ) {
+                columnIndex = (p.x < midPoint) ? column - 1 : column; 
+            } else {
+                columnIndex = (p.x < midPoint) ? column : column - 1; 
+            }
+	    if (columnIndex == -1) { 
+		return null; 
+	    }
+	    return header.getColumnModel().getColumn(columnIndex); 
+!!!3024539.java!!!	mousePressed(inout e : MouseEvent) : void
+            header.setDraggedColumn(null);
+            header.setResizingColumn(null);
+            header.setDraggedDistance(0);
+
+            Point p = e.getPoint();
+
+            // First find which header cell was hit
+            TableColumnModel columnModel = header.getColumnModel();
+            int index = header.columnAtPoint(p);
+
+            if (index != -1) {
+                // The last 3 pixels + 3 pixels of next column are for resizing
+                TableColumn resizingColumn = getResizingColumn(p, index); 
+                if (canResize(resizingColumn)) {
+                    header.setResizingColumn(resizingColumn); 
+                    if( header.getComponentOrientation().isLeftToRight() ) {
+                        mouseXOffset = p.x - resizingColumn.getWidth(); 
+                    } else {
+                        mouseXOffset = p.x + resizingColumn.getWidth(); 
+                    }
+                }
+                else if (header.getReorderingAllowed()) {
+                    TableColumn hitColumn = columnModel.getColumn(index);
+                    header.setDraggedColumn(hitColumn);
+		    mouseXOffset = p.x; 
+                }
+            }
+!!!3024667.java!!!	swapCursor() : void
+ 
+	    Cursor tmp = header.getCursor(); 
+	    header.setCursor(otherCursor); 
+	    otherCursor = tmp; 
+!!!3024795.java!!!	mouseMoved(inout e : MouseEvent) : void
+ 
+            if (canResize(getResizingColumn(e.getPoint())) != 
+		(header.getCursor() == resizeCursor)) {
+                swapCursor();
+            }
+!!!3024923.java!!!	mouseDragged(inout e : MouseEvent) : void
+            int mouseX = e.getX();
+
+            TableColumn resizingColumn  = header.getResizingColumn();
+            TableColumn draggedColumn  = header.getDraggedColumn();
+
+            boolean headerLeftToRight = header.getComponentOrientation().isLeftToRight();
+
+            if (resizingColumn != null) {
+		int oldWidth = resizingColumn.getWidth();
+		int newWidth;
+		if (headerLeftToRight) {
+                    newWidth = mouseX - mouseXOffset;
+                } else  {
+                    newWidth = mouseXOffset - mouseX;
+		}
+                resizingColumn.setWidth(newWidth);
+
+		Container container;
+		if ((header.getParent() == null) ||
+		    ((container = header.getParent().getParent()) == null) ||
+		    !(container instanceof JScrollPane)) {
+		    return;
+		}
+
+		if (!container.getComponentOrientation().isLeftToRight() &&
+		    !headerLeftToRight) {
+		    JTable table = header.getTable();
+		    if (table != null) {
+			JViewport viewport = ((JScrollPane)container).getViewport();
+			int viewportWidth = viewport.getWidth();
+			int diff = newWidth - oldWidth;
+			int newHeaderWidth = table.getWidth() + diff;
+
+			/* Resize a table */
+			Dimension tableSize = table.getSize();
+			tableSize.width += diff;
+			table.setSize(tableSize);
+
+			/* If this table is in AUTO_RESIZE_OFF mode and
+			 * has a horizontal scrollbar, we need to update
+			 * a view's position.
+			 */
+			if ((newHeaderWidth >= viewportWidth) &&
+			    (table.getAutoResizeMode() == JTable.AUTO_RESIZE_OFF)) {
+			    Point p = viewport.getViewPosition();
+			    p.x = Math.max(0, Math.min(newHeaderWidth - viewportWidth, p.x + diff));
+			    viewport.setViewPosition(p);
+
+			    /* Update the original X offset value. */
+			    mouseXOffset += diff;
+			}
+		    }
+		}
+            }
+            else if (draggedColumn != null) {
+		TableColumnModel cm = header.getColumnModel();
+		int draggedDistance = mouseX - mouseXOffset;
+		int direction = (draggedDistance < 0) ? -1 : 1;
+		int columnIndex = viewIndexForColumn(draggedColumn);
+		int newColumnIndex = columnIndex + (headerLeftToRight ? direction : -direction); 
+		if (0 <= newColumnIndex && newColumnIndex < cm.getColumnCount()) {
+		    int width = cm.getColumn(newColumnIndex).getWidth();
+		    if (Math.abs(draggedDistance) > (width / 2)) {
+			mouseXOffset = mouseXOffset + direction * width; 
+			header.setDraggedDistance(draggedDistance - direction * width);	
+			cm.moveColumn(columnIndex, newColumnIndex); 
+			return; 
+		    }
+		}
+		setDraggedDistance(draggedDistance, columnIndex); 
+	    }
+!!!3025051.java!!!	mouseReleased(inout e : MouseEvent) : void
+ 
+	    setDraggedDistance(0, viewIndexForColumn(header.getDraggedColumn())); 
+
+            header.setResizingColumn(null);
+            header.setDraggedColumn(null);
+!!!3025435.java!!!	setDraggedDistance(in draggedDistance : int, in column : int) : void
+ 
+            header.setDraggedDistance(draggedDistance);	
+	    if (column != -1) { 
+		header.getColumnModel().moveColumn(column, column); 
+	    }

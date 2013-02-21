@@ -1,0 +1,56 @@
+class XResourceBundle
+!!!5882139.java!!!	loadResourceBundle(in className : String, inout locale : Locale) : XResourceBundle
+
+    String suffix = getResourceSuffix(locale);
+
+    //System.out.println("resource " + className + suffix);
+    try
+    {
+      
+      // first try with the given locale
+      String resourceName = className + suffix;
+      return (XResourceBundle) ResourceBundle.getBundle(resourceName, locale);
+    }
+    catch (MissingResourceException e)
+    {
+      try  // try to fall back to en_US if we can't load
+      {
+
+        // Since we can't find the localized property file,
+        // fall back to en_US.
+        return (XResourceBundle) ResourceBundle.getBundle(
+          XSLT_RESOURCE, new Locale("en", "US"));
+      }
+      catch (MissingResourceException e2)
+      {
+
+        // Now we are really in trouble.
+        // very bad, definitely very bad...not going to get very far
+        throw new MissingResourceException(
+          "Could not load any resource bundles.", className, "");
+      }
+    }
+!!!5882267.java!!!	getResourceSuffix(inout locale : Locale) : String
+
+    String lang = locale.getLanguage();
+    String country = locale.getCountry();
+    String variant = locale.getVariant();
+    String suffix = "_" + locale.getLanguage();
+
+    if (lang.equals("zh"))
+      suffix += "_" + country;
+
+    if (country.equals("JP"))
+      suffix += "_" + country + "_" + variant;
+
+    return suffix;
+!!!5882395.java!!!	getContents() : Object
+      // return a copy of contents; in theory we want a deep clone
+      // of contents, but since it only contains (immutable) Strings,
+      // this shallow copy is sufficient
+      Object[][] msgCopy = new Object[contents.length][2];
+      for (int i = 0; i < contents.length; i++) {
+          msgCopy[i][0] = contents[i][0];
+          msgCopy[i][1] = contents[i][1];
+      }
+      return msgCopy;

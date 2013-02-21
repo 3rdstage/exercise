@@ -1,0 +1,214 @@
+class KerberosTicket
+!!!8666651.java!!!	KerberosTicket(in asn1Encoding : byte, inout client : KerberosPrincipal, inout server : KerberosPrincipal, in sessionKey : byte, in keyType : int, inout flags : boolean, inout authTime : Date, inout startTime : Date, inout endTime : Date, inout renewTill : Date, inout clientAddresses : InetAddress)
+       
+	init(asn1Encoding, client, server, sessionKey, keyType, flags,
+	    authTime, startTime, endTime, renewTill, clientAddresses);
+!!!8666779.java!!!	init(in asn1Encoding : byte, inout client : KerberosPrincipal, inout server : KerberosPrincipal, in sessionKey : byte, in keyType : int, inout flags : boolean, inout authTime : Date, inout startTime : Date, inout endTime : Date, inout renewTill : Date, inout clientAddresses : InetAddress) : void
+
+	if (asn1Encoding == null)
+	   throw new IllegalArgumentException("ASN.1 encoding of ticket"
+					      + " cannot be null");
+	this.asn1Encoding = asn1Encoding.clone();
+
+	if (client == null)
+	   throw new IllegalArgumentException("Client name in ticket"
+					      + " cannot be null");
+	this.client = client;
+
+	if (server == null)
+	   throw new IllegalArgumentException("Server name in ticket"
+					      + " cannot be null");
+	this.server = server;
+
+	if (sessionKey == null)
+	   throw new IllegalArgumentException("Session key for ticket"
+					      + " cannot be null");
+	this.sessionKey = new KeyImpl(sessionKey, keyType);
+
+	if (flags != null) {
+	   if (flags.length >= NUM_FLAGS)
+		this.flags = (boolean[]) flags.clone();
+	   else {
+		this.flags = new boolean[NUM_FLAGS];
+		// Fill in whatever we have
+		for (int i = 0; i < flags.length; i++)
+		    this.flags[i] = flags[i];
+	   }
+	} else
+	   this.flags = new boolean[NUM_FLAGS];
+
+	if (this.flags[RENEWABLE_TICKET_FLAG]) {
+	   if (renewTill == null)
+		throw new IllegalArgumentException("The renewable period "
+		       + "end time cannot be null for renewable tickets.");
+
+	   this.renewTill = renewTill;
+	}
+
+	this.authTime = authTime;
+
+	this.startTime = (startTime != null? startTime: authTime);
+
+	if (endTime == null)
+	   throw new IllegalArgumentException("End time for ticket validity"
+					      + " cannot be null");
+	this.endTime = endTime;
+
+	if (clientAddresses != null)
+	   this.clientAddresses = (InetAddress[]) clientAddresses.clone();
+!!!8666907.java!!!	getClient() : KerberosPrincipal
+	return client;
+!!!8667035.java!!!	getServer() : KerberosPrincipal
+	return server;
+!!!8667163.java!!!	getSessionKey() : SecretKey
+	if (destroyed)
+	    throw new IllegalStateException("This ticket is no longer valid");
+	return sessionKey;
+!!!8667291.java!!!	getSessionKeyType() : int
+	if (destroyed)
+	    throw new IllegalStateException("This ticket is no longer valid");
+	return sessionKey.getKeyType();
+!!!8667419.java!!!	isForwardable() : boolean
+	return flags[FORWARDABLE_TICKET_FLAG];
+!!!8667547.java!!!	isForwarded() : boolean
+	return flags[FORWARDED_TICKET_FLAG];
+!!!8667675.java!!!	isProxiable() : boolean
+	return flags[PROXIABLE_TICKET_FLAG];
+!!!8667803.java!!!	isProxy() : boolean
+	return flags[PROXY_TICKET_FLAG];
+!!!8667931.java!!!	isPostdated() : boolean
+	return flags[POSTDATED_TICKET_FLAG];
+!!!8668059.java!!!	isRenewable() : boolean
+	return flags[RENEWABLE_TICKET_FLAG];
+!!!8668187.java!!!	isInitial() : boolean
+	return flags[INITIAL_TICKET_FLAG];
+!!!8668315.java!!!	getFlags() : boolean
+	return (flags == null? null: (boolean[]) flags.clone());
+!!!8668443.java!!!	getAuthTime() : Date
+	return (authTime == null) ? null : new Date(authTime.getTime());
+!!!8668571.java!!!	getStartTime() : Date
+	return (startTime == null) ? null : new Date(startTime.getTime());
+!!!8668699.java!!!	getEndTime() : Date
+	return endTime;
+!!!8668827.java!!!	getRenewTill() : Date
+	return (renewTill == null) ? null: new Date(renewTill.getTime());
+!!!8668955.java!!!	getClientAddresses() : InetAddress
+	return (clientAddresses == null? 
+		null: (InetAddress[]) clientAddresses.clone());
+!!!8669083.java!!!	getEncoded() : byte
+	if (destroyed)
+	    throw new IllegalStateException("This ticket is no longer valid");
+	return (byte[]) asn1Encoding.clone();
+!!!8669211.java!!!	isCurrent() : boolean
+	return (System.currentTimeMillis() <= getEndTime().getTime());
+!!!8669339.java!!!	refresh() : void
+
+	if (destroyed)
+	    throw new RefreshFailedException("A destroyed ticket "
+					     + "cannot be renewd.");
+
+	if (!isRenewable())
+	    throw new RefreshFailedException("This ticket is not renewable");
+
+	if (System.currentTimeMillis() > getRenewTill().getTime())
+	    throw new RefreshFailedException("This ticket is past "
+					     + "its last renewal time.");
+	Throwable e = null;
+	sun.security.krb5.Credentials krb5Creds = null;
+
+	try {
+	    krb5Creds = new sun.security.krb5.Credentials(asn1Encoding,
+						    client.toString(),
+						    server.toString(),
+						    sessionKey.getEncoded(),
+						    sessionKey.getKeyType(),
+						    flags,
+						    authTime,
+						    startTime,
+						    endTime,
+						    renewTill,
+						    clientAddresses);
+	    krb5Creds = krb5Creds.renew();
+	} catch (sun.security.krb5.KrbException krbException) {
+	    e = krbException;
+	} catch (java.io.IOException ioException) {
+	    e = ioException;
+	}
+
+	if (e != null) {
+	    RefreshFailedException rfException
+		= new RefreshFailedException("Failed to renew Kerberos Ticket "
+					     + "for client " + client 
+					     + " and server " + server
+					     + " - " + e.getMessage());
+	    rfException.initCause(e);
+	    throw rfException;
+	}
+
+	/*
+	 * In case multiple threads try to refresh it at the same time.
+	 */
+	synchronized (this) {
+	    try {
+		this.destroy();
+	    } catch (DestroyFailedException dfException) {
+		// Squelch it since we don't care about the old ticket.
+	    }
+	    init(krb5Creds.getEncoded(),
+		 new KerberosPrincipal(krb5Creds.getClient().getName()),
+		 new KerberosPrincipal(krb5Creds.getServer().getName()),
+		 krb5Creds.getSessionKey().getBytes(), 
+		 krb5Creds.getSessionKey().getEType(), 
+		 krb5Creds.getFlags(), 
+		 krb5Creds.getAuthTime(), 
+		 krb5Creds.getStartTime(), 
+		 krb5Creds.getEndTime(), 
+		 krb5Creds.getRenewTill(), 
+		 krb5Creds.getClientAddresses());
+	    destroyed = false;
+	}
+!!!8669467.java!!!	destroy() : void
+	if (!destroyed) {
+	    Arrays.fill(asn1Encoding, (byte) 0);
+	    client = null;
+	    server = null;
+	    sessionKey.destroy();
+	    flags = null;
+	    authTime = null;
+	    startTime = null;
+	    endTime = null;
+	    renewTill = null;
+	    clientAddresses = null;
+	    destroyed = true;
+	}
+!!!8669595.java!!!	isDestroyed() : boolean
+	return destroyed;
+!!!8669723.java!!!	toString() : String
+	if (destroyed)
+	    throw new IllegalStateException("This ticket is no longer valid");
+	StringBuffer caddrBuf = new StringBuffer();
+	if (clientAddresses != null) {
+	    for (int i = 0; i < clientAddresses.length; i++) {
+		caddrBuf.append("clientAddresses[" + i + "] = " + 
+				 clientAddresses[i].toString());
+	    }
+	}
+	return ("Ticket (hex) = " + "\n" +
+		 (new HexDumpEncoder()).encode(asn1Encoding) + "\n" +
+		"Client Principal = " + client.toString() + "\n" +
+		"Server Principal = " + server.toString() + "\n" +
+		"Session Key = " + sessionKey.toString() + "\n" +
+		"Forwardable Ticket " + flags[FORWARDABLE_TICKET_FLAG] + "\n" +
+		"Forwarded Ticket " + flags[FORWARDED_TICKET_FLAG] + "\n" +
+	        "Proxiable Ticket " + flags[PROXIABLE_TICKET_FLAG] + "\n" +
+	        "Proxy Ticket " + flags[PROXY_TICKET_FLAG] + "\n" +
+	        "Postdated Ticket " + flags[POSTDATED_TICKET_FLAG] + "\n" +
+	        "Renewable Ticket " + flags[RENEWABLE_TICKET_FLAG] + "\n" +
+	        "Initial Ticket " + flags[RENEWABLE_TICKET_FLAG] + "\n" +
+		"Auth Time = " + String.valueOf(authTime) + "\n" +
+		"Start Time = " + String.valueOf(startTime) + "\n" +
+		"End Time = " + endTime.toString() + "\n" +
+		"Renew Till = " + String.valueOf(renewTill) + "\n" +
+		"Client Addresses " +
+		(clientAddresses == null ? " Null " : caddrBuf.toString() +
+		"\n"));

@@ -1,0 +1,45 @@
+class DragListener
+!!!2516891.java!!!	dragStarting(inout me : MouseEvent) : void
+            dragStarted = true;
+!!!2517019.java!!!	mousePressed(inout e : MouseEvent) : void
+            JTextComponent c = (JTextComponent)e.getSource();
+            if (c.getDragEnabled()) {
+                dragStarted = false;
+                if (isDragPossible(e) && DragRecognitionSupport.mousePressed(e)) {
+                    e.consume();
+                }
+            }
+!!!2517147.java!!!	mouseReleased(inout e : MouseEvent) : void
+            JTextComponent c = (JTextComponent)e.getSource();
+            if (c.getDragEnabled()) {
+                if (dragStarted) {
+                    e.consume();
+                }
+
+                DragRecognitionSupport.mouseReleased(e);
+            }
+!!!2517275.java!!!	mouseDragged(inout e : MouseEvent) : void
+            JTextComponent c = (JTextComponent)e.getSource();
+            if (c.getDragEnabled()) {
+                if (dragStarted || DragRecognitionSupport.mouseDragged(e, this)) {
+                    e.consume();
+                }
+            }
+!!!2517403.java!!!	isDragPossible(inout e : MouseEvent) : boolean
+            JTextComponent c = (JTextComponent)e.getSource();
+            if (c.isEnabled()) {
+                Caret caret = c.getCaret();
+                int dot = caret.getDot();
+                int mark = caret.getMark();
+                if (dot != mark) {
+                    Point p = new Point(e.getX(), e.getY());
+                    int pos = c.viewToModel(p);
+
+                    int p0 = Math.min(dot, mark);
+                    int p1 = Math.max(dot, mark);
+                    if ((pos >= p0) && (pos < p1)) {
+                        return true;
+                    }
+                }
+            }
+            return false;

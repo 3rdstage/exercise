@@ -1,0 +1,98 @@
+class Encoder
+!!!6751259.java!!!	writeObject(inout o : Object) : void
+ 
+    	if (o == this) { 
+    	    return; 
+        }
+        PersistenceDelegate info = getPersistenceDelegate(o == null ? null : o.getClass()); 
+        info.writeObject(o, this); 
+!!!6751387.java!!!	setExceptionListener(inout exceptionListener : ExceptionListener) : void
+ 
+        this.exceptionListener = exceptionListener; 
+!!!6751515.java!!!	getExceptionListener() : ExceptionListener
+ 
+        return (exceptionListener != null) ? exceptionListener : Statement.defaultExceptionListener;
+!!!6751643.java!!!	getValue(inout exp : Expression) : Object
+ 
+        try { 
+            return (exp == null) ? null : exp.getValue(); 
+        }
+        catch (Exception e) { 
+            getExceptionListener().exceptionThrown(e); 
+            throw new RuntimeException("failed to evaluate: " + exp.toString()); 
+        }
+!!!6751771.java!!!	getPersistenceDelegate(inout type : Class) : PersistenceDelegate
+ 
+        return MetaData.getPersistenceDelegate(type); 
+!!!6751899.java!!!	setPersistenceDelegate(inout type : Class, inout persistenceDelegate : PersistenceDelegate) : void
+        MetaData.setPersistenceDelegate(type, persistenceDelegate); 
+!!!6752027.java!!!	remove(inout oldInstance : Object) : Object
+ 
+        Expression exp = (Expression)bindings.remove(oldInstance); 
+        return getValue(exp); 
+!!!6752155.java!!!	get(inout oldInstance : Object) : Object
+ 
+        if (oldInstance == null || oldInstance == this || 
+	    oldInstance.getClass() == String.class) { 
+            return oldInstance; 
+        }
+        Expression exp = (Expression)bindings.get(oldInstance); 
+        return getValue(exp); 
+!!!6752283.java!!!	writeObject1(inout oldInstance : Object) : Object
+ 
+        Object o = get(oldInstance); 
+        if (o == null) {  
+            writeObject(oldInstance);   
+            o = get(oldInstance);
+        }        
+        return o; 
+!!!6752411.java!!!	cloneStatement(inout oldExp : Statement) : Statement
+ 
+        Object oldTarget = oldExp.getTarget(); 
+        Object newTarget = writeObject1(oldTarget); 
+                
+        Object[] oldArgs = oldExp.getArguments(); 
+        Object[] newArgs = new Object[oldArgs.length]; 
+        for (int i = 0; i < oldArgs.length; i++) { 
+            newArgs[i] = writeObject1(oldArgs[i]);
+        }
+        if (oldExp.getClass() == Statement.class) { 
+            return new Statement(newTarget, oldExp.getMethodName(), newArgs); 
+        }
+        else { 
+            return new Expression(newTarget, oldExp.getMethodName(), newArgs); 
+        }
+!!!6752539.java!!!	writeStatement(inout oldStm : Statement) : void
+ 
+        // System.out.println("writeStatement: " + oldExp); 
+        Statement newStm = cloneStatement(oldStm); 
+        if (oldStm.getTarget() != this && executeStatements) { 
+	    try { 
+		newStm.execute(); 
+	    } catch (Exception e) { 
+		getExceptionListener().exceptionThrown(new Exception("Encoder: discarding statement " 
+								     + newStm, e)); 
+	    }
+        }
+!!!6752667.java!!!	writeExpression(inout oldExp : Expression) : void
+ 
+        // System.out.println("Encoder::writeExpression: " + oldExp); 
+        Object oldValue = getValue(oldExp); 
+        if (get(oldValue) != null) {  
+            return; 
+        }
+        bindings.put(oldValue, (Expression)cloneStatement(oldExp)); 
+        writeObject(oldValue); 
+!!!6752795.java!!!	clear() : void
+ 
+        bindings.clear(); 
+!!!6752923.java!!!	setAttribute(inout key : Object, inout value : Object) : void
+	if (attributes == null) {
+	    attributes = new HashMap();
+	}
+	attributes.put(key, value);
+!!!6753051.java!!!	getAttribute(inout key : Object) : Object
+	if (attributes == null) {
+	    return null;
+	}
+	return attributes.get(key);

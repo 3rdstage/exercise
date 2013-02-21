@@ -1,0 +1,87 @@
+class SynthToolBarLayoutManager
+!!!9760411.java!!!	minimumLayoutSize(inout parent : Container) : Dimension
+            JToolBar tb = (JToolBar)parent;
+            Dimension dim = new Dimension();
+            SynthContext context = getContext(tb);
+
+            if (tb.getOrientation() == JToolBar.HORIZONTAL) {
+                dim.width = SynthIcon.getIconWidth(handleIcon, context);
+                Dimension compDim;
+                for (int i = 0; i < tb.getComponentCount(); i++) {
+                    compDim = tb.getComponent(i).getMinimumSize();
+                    dim.width += compDim.width;
+                    dim.height = Math.max(dim.height, compDim.height);
+                }
+            } else {
+                dim.height =
+                    SynthIcon.getIconHeight(handleIcon, context);
+                Dimension compDim;
+                for (int i = 0; i < tb.getComponentCount(); i++) {
+                    compDim = tb.getComponent(i).getMinimumSize();
+                    dim.width = Math.max(dim.width, compDim.width);
+                    dim.height += compDim.height;
+                }
+            }
+            context.dispose();
+            return dim;
+!!!9760539.java!!!	preferredLayoutSize(inout parent : Container) : Dimension
+            JToolBar tb = (JToolBar)parent;
+            Dimension dim = new Dimension();
+            SynthContext context = getContext(tb);
+
+            if (tb.getOrientation() == JToolBar.HORIZONTAL) {
+                dim.width = SynthIcon.getIconWidth(handleIcon, context);
+                Dimension compDim;
+                for (int i = 0; i < tb.getComponentCount(); i++) {
+                    compDim = tb.getComponent(i).getPreferredSize();
+                    dim.width += compDim.width;
+                    dim.height = Math.max(dim.height, compDim.height);
+                }
+            } else {
+                dim.height =
+                    SynthIcon.getIconHeight(handleIcon, context);
+                Dimension compDim;
+                for (int i = 0; i < tb.getComponentCount(); i++) {
+                    compDim = tb.getComponent(i).getPreferredSize();
+                    dim.width = Math.max(dim.width, compDim.width);
+                    dim.height += compDim.height;
+                }
+            }
+            context.dispose();
+            return dim;
+!!!9760667.java!!!	layoutContainer(inout parent : Container) : void
+            JToolBar tb = (JToolBar)parent;
+            boolean ltr = tb.getComponentOrientation().isLeftToRight();
+            SynthContext context = getContext(tb);
+            int handleWidth = SynthIcon.getIconWidth(handleIcon, context);
+
+            Component c;
+            Dimension d;
+            if (tb.getOrientation() == JToolBar.HORIZONTAL) {
+                int x = ltr ? handleWidth : tb.getWidth() - handleWidth;
+                for (int i = 0; i < tb.getComponentCount(); i++) {
+                    c = tb.getComponent(i);
+                    d = c.getPreferredSize();
+                    c.setBounds(ltr ? x : x - d.width, 0, d.width, d.height);
+                    x = ltr ? x + d.width : x - d.width;
+                }
+                contentRect.x = ltr ?
+                        SynthIcon.getIconWidth(handleIcon, context) : 0;
+                contentRect.y = 0;
+                contentRect.width = tb.getWidth() - contentRect.x;
+                contentRect.height = tb.getHeight();
+            } else {
+                int y = SynthIcon.getIconHeight(handleIcon, context);
+                for (int i = 0; i < tb.getComponentCount(); i++) {
+                    c = tb.getComponent(i);
+                    d = c.getPreferredSize();
+                    c.setBounds(0, y, d.width, d.height);
+                    y += d.height;
+                }
+                contentRect.x = 0;
+                contentRect.y =
+                    SynthIcon.getIconHeight(handleIcon, context);
+                contentRect.width = tb.getWidth();
+                contentRect.height = tb.getHeight() - contentRect.y;
+            }
+            context.dispose();

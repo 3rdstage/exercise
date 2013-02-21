@@ -1,0 +1,85 @@
+class CastExpr
+!!!4366235.java!!!	CastExpr(inout left : Expression, inout type : Type)
+	_left = left;
+	_type = type;		// use inherited field
+
+	if ((_left instanceof Step) && (_type == Type.Boolean)) {
+	    Step step = (Step)_left;
+	    if ((step.getAxis() == Axis.SELF) && (step.getNodeType() != -1)) 
+		_typeTest = true;
+	}
+	
+	// check if conversion is valid
+	setParser(left.getParser());
+	setParent(left.getParent());
+	left.setParent(this);
+	typeCheck(left.getParser().getSymbolTable());
+!!!4366363.java!!!	getExpr() : Expression
+	return _left;
+!!!4366491.java!!!	hasPositionCall() : boolean
+	return(_left.hasPositionCall());
+!!!4366619.java!!!	hasLastCall() : boolean
+	return(_left.hasLastCall());
+!!!4366747.java!!!	toString() : String
+	return "cast(" + _left + ", " + _type + ")";
+!!!4366875.java!!!	typeCheck(inout stable : SymbolTable) : Type
+	Type tleft = _left.getType();
+	if (tleft == null) {
+	    tleft = _left.typeCheck(stable);
+	}
+	if (tleft instanceof NodeType) {
+	    tleft = Type.Node;	// multiple instances
+	}
+	else if (tleft instanceof ResultTreeType) {
+	    tleft = Type.ResultTree; // multiple instances
+	}
+	if (InternalTypeMap.maps(tleft, _type) != null) {
+	    return _type;
+	}
+	// throw new TypeCheckError(this);	
+	throw new TypeCheckError(new ErrorMsg(
+	    ErrorMsg.DATA_CONVERSION_ERR, tleft.toString(), _type.toString()));
+!!!4367003.java!!!	translateDesynthesized(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	FlowList fl;
+	final Type ltype = _left.getType();
+
+	// This is a special case for the self:: axis. Instead of letting
+	// the Step object create and iterator that we cast back to a single
+	// node, we simply ask the DOM for the node type.
+	if (_typeTest) {
+	    final ConstantPoolGen cpg = classGen.getConstantPool();
+	    final InstructionList il = methodGen.getInstructionList();
+
+	    final int idx = cpg.addInterfaceMethodref(DOM_INTF,
+						      "getExpandedTypeID",
+                                                      "(I)I");
+	    il.append(new SIPUSH((short)((Step)_left).getNodeType()));
+	    il.append(methodGen.loadDOM());
+	    il.append(methodGen.loadContextNode());
+	    il.append(new INVOKEINTERFACE(idx, 2));
+	    _falseList.add(il.append(new IF_ICMPNE(null)));
+	}
+	else {
+
+	    _left.translate(classGen, methodGen);
+	    if (_type != ltype) {
+		_left.startIterator(classGen, methodGen);
+		if (_type instanceof BooleanType) {
+		    fl = ltype.translateToDesynthesized(classGen, methodGen,
+							_type);
+		    if (fl != null) {
+			_falseList.append(fl);
+		    }
+		}
+		else {
+		    ltype.translateTo(classGen, methodGen, _type);	
+		}
+	    }
+	}
+!!!4367131.java!!!	translate(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	final Type ltype = _left.getType();
+	_left.translate(classGen, methodGen);
+	if (_type.identicalTo(ltype) == false) {
+	    _left.startIterator(classGen, methodGen);
+	    ltype.translateTo(classGen, methodGen, _type);
+	}

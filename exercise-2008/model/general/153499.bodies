@@ -1,0 +1,70 @@
+class ResourceCacheKey
+!!!317595.java!!!	equals(inout other : Object) : boolean
+            if (this == other) {
+                return true;
+            }
+            try {
+                final ResourceCacheKey otherEntry = (ResourceCacheKey)other;
+                //quick check to see if they are not equal
+                if (hashCodeCache != otherEntry.hashCodeCache) {
+                    return false;
+                }
+                //are the names the same?
+                if (!searchName.equals(otherEntry.searchName)) {
+                    return false;
+                }
+                // are the default locales the same?
+                if (defaultLocale == null) {
+                    if (otherEntry.defaultLocale != null) {
+                        return false;
+                    }
+                } else {
+                    if (!defaultLocale.equals(otherEntry.defaultLocale)) {
+                        return false;
+                    }
+                }
+                //are refs (both non-null) or (both null)?
+                if (loaderRef == null) {
+                    return otherEntry.loaderRef == null;
+                } else {
+                    Object loaderRefValue = loaderRef.get();
+                    return (otherEntry.loaderRef != null)
+                            // with a null reference we can no longer find
+                            // out which class loader was referenced; so
+                            // treat it as unequal
+                            && (loaderRefValue != null)
+                            && (loaderRefValue == otherEntry.loaderRef.get());
+                }
+            } catch (NullPointerException e) {
+                return false;
+            } catch (ClassCastException e) {
+                return false;
+            }
+!!!317723.java!!!	hashCode() : int
+            return hashCodeCache;
+!!!317851.java!!!	clone() : Object
+            try {
+                ResourceCacheKey clone = (ResourceCacheKey) super.clone();
+                if (loaderRef != null) {
+                    clone.loaderRef = new LoaderReference(loaderRef.get(), referenceQueue, clone);
+                }
+                return clone;
+            } catch (CloneNotSupportedException e) {
+                //this should never happen
+                throw new InternalError();
+            }
+!!!317979.java!!!	setKeyValues(inout loader : ClassLoader, in searchName : String, inout defaultLocale : Locale) : void
+            this.searchName = searchName;
+            hashCodeCache = searchName.hashCode();
+            this.defaultLocale = defaultLocale;
+            if (defaultLocale != null) {
+                hashCodeCache ^= defaultLocale.hashCode();
+            }
+            if (loader == null) {
+                this.loaderRef = null;
+            } else {
+                loaderRef = new LoaderReference(loader, referenceQueue, this);
+                hashCodeCache ^= loader.hashCode();
+            }
+!!!318107.java!!!	clear() : void
+            setKeyValues(null, "", null);

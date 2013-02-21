@@ -1,0 +1,449 @@
+class ThreadPoolExecutor
+!!!7950747.java!!!	reject(inout command : Runnable) : void
+        handler.rejectedExecution(command, this);
+!!!7950875.java!!!	addThread(inout firstTask : Runnable) : Thread
+        Worker w = new Worker(firstTask);
+        Thread t = threadFactory.newThread(w);
+        if (t != null) {
+            w.thread = t;
+            workers.add(w);
+            int nt = ++poolSize;
+            if (nt > largestPoolSize)
+                largestPoolSize = nt;
+        }
+        return t;
+!!!7951003.java!!!	addIfUnderCorePoolSize(inout firstTask : Runnable) : boolean
+        Thread t = null;
+        final ReentrantLock mainLock = this.mainLock;
+        mainLock.lock();
+        try {
+            if (poolSize < corePoolSize)
+                t = addThread(firstTask);
+        } finally {
+            mainLock.unlock();
+        }
+        if (t == null)
+            return false;
+        t.start();
+        return true;
+!!!7951131.java!!!	addIfUnderMaximumPoolSize(inout firstTask : Runnable) : Runnable
+        Thread t = null;
+        Runnable next = null;
+        final ReentrantLock mainLock = this.mainLock;
+        mainLock.lock();
+        try {
+            if (poolSize < maximumPoolSize) {
+                next = workQueue.poll();
+                if (next == null)
+                    next = firstTask;
+                t = addThread(next);
+            }
+        } finally {
+            mainLock.unlock();
+        }
+        if (t == null)
+            return null;
+        t.start();
+        return next;
+!!!7951259.java!!!	getTask() : Runnable
+        for (;;) {
+            switch(runState) {
+            case RUNNING: {
+                if (poolSize <= corePoolSize)   // untimed wait if core
+                    return workQueue.take();
+                
+                long timeout = keepAliveTime;
+                if (timeout <= 0) // die immediately for 0 timeout
+                    return null;
+                Runnable r =  workQueue.poll(timeout, TimeUnit.NANOSECONDS);
+                if (r != null)
+                    return r;
+                if (poolSize > corePoolSize) // timed out
+                    return null;
+                // else, after timeout, pool shrank so shouldn't die, so retry
+                break;
+            }
+
+            case SHUTDOWN: {
+                // Help drain queue 
+                Runnable r = workQueue.poll();
+                if (r != null)
+                    return r;
+                    
+                // Check if can terminate
+                if (workQueue.isEmpty()) {
+                    interruptIdleWorkers();
+                    return null;
+                }
+
+                // There could still be delayed tasks in queue.
+                // Wait for one, re-checking state upon interruption
+                try {
+                    return workQueue.take();
+                } catch(InterruptedException ignore) {}
+                break;
+            }
+
+            case STOP:
+                return null;
+            default:
+                assert false; 
+            }
+        }
+!!!7951387.java!!!	interruptIdleWorkers() : void
+        final ReentrantLock mainLock = this.mainLock;
+        mainLock.lock();
+        try {
+            for (Worker w : workers)
+                w.interruptIfIdle();
+        } finally {
+            mainLock.unlock();
+        }
+!!!7951515.java!!!	workerDone(inout w : Worker) : void
+        final ReentrantLock mainLock = this.mainLock;
+        mainLock.lock();
+        try {
+            completedTaskCount += w.completedTasks;
+            workers.remove(w);
+            if (--poolSize > 0)
+                return;
+
+            // Else, this is the last thread. Deal with potential shutdown.
+
+            int state = runState;
+            assert state != TERMINATED;
+
+            if (state != STOP) {
+                // If there are queued tasks but no threads, create
+                // replacement thread. We must create it initially
+                // idle to avoid orphaned tasks in case addThread
+                // fails.  This also handles case of delayed tasks
+                // that will sometime later become runnable.
+                if (!workQueue.isEmpty()) { 
+                    Thread t = addThread(null);
+                    if (t != null)
+                        t.start();
+                    return;
+                }
+
+                // Otherwise, we can exit without replacement
+                if (state == RUNNING)
+                    return;
+            }
+
+            // Either state is STOP, or state is SHUTDOWN and there is
+            // no work to do. So we can terminate.
+            termination.signalAll();
+            runState = TERMINATED;
+            // fall through to call terminate() outside of lock.
+        } finally {
+            mainLock.unlock();
+        }
+
+        assert runState == TERMINATED;
+        terminated(); 
+!!!7952411.java!!!	ThreadPoolExecutor(in corePoolSize : int, in maximumPoolSize : int, in keepAliveTime : long, inout unit : TimeUnit, inout workQueue : BlockingQueue)
+        this(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue,
+             Executors.defaultThreadFactory(), defaultHandler);
+!!!7952539.java!!!	ThreadPoolExecutor(in corePoolSize : int, in maximumPoolSize : int, in keepAliveTime : long, inout unit : TimeUnit, inout workQueue : BlockingQueue, inout threadFactory : ThreadFactory)
+        this(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue,
+             threadFactory, defaultHandler);
+!!!7952667.java!!!	ThreadPoolExecutor(in corePoolSize : int, in maximumPoolSize : int, in keepAliveTime : long, inout unit : TimeUnit, inout workQueue : BlockingQueue, inout handler : RejectedExecutionHandler)
+        this(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue,
+             Executors.defaultThreadFactory(), handler);
+!!!7952795.java!!!	ThreadPoolExecutor(in corePoolSize : int, in maximumPoolSize : int, in keepAliveTime : long, inout unit : TimeUnit, inout workQueue : BlockingQueue, inout threadFactory : ThreadFactory, inout handler : RejectedExecutionHandler)
+        if (corePoolSize < 0 ||
+            maximumPoolSize <= 0 ||
+            maximumPoolSize < corePoolSize ||
+            keepAliveTime < 0)
+            throw new IllegalArgumentException();
+        if (workQueue == null || threadFactory == null || handler == null)
+            throw new NullPointerException();
+        this.corePoolSize = corePoolSize;
+        this.maximumPoolSize = maximumPoolSize;
+        this.workQueue = workQueue;
+        this.keepAliveTime = unit.toNanos(keepAliveTime);
+        this.threadFactory = threadFactory;
+        this.handler = handler;
+!!!7952923.java!!!	execute(inout command : Runnable) : void
+        if (command == null)
+            throw new NullPointerException();
+        for (;;) {
+            if (runState != RUNNING) {
+                reject(command);
+                return;
+            }
+            if (poolSize < corePoolSize && addIfUnderCorePoolSize(command))
+                return;
+            if (workQueue.offer(command))
+                return;
+            Runnable r = addIfUnderMaximumPoolSize(command);
+            if (r == command)
+                return;
+            if (r == null) {
+                reject(command);
+                return;
+            }
+            // else retry
+        }
+!!!7953051.java!!!	shutdown() : void
+        // Fail if caller doesn't have modifyThread permission. We
+        // explicitly check permissions directly because we can't trust
+        // implementations of SecurityManager to correctly override
+        // the "check access" methods such that our documented
+        // security policy is implemented.
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) 
+            java.security.AccessController.checkPermission(shutdownPerm);
+
+        boolean fullyTerminated = false;
+        final ReentrantLock mainLock = this.mainLock;
+        mainLock.lock();
+        try {
+            if (workers.size() > 0) {
+                // Check if caller can modify worker threads.  This
+                // might not be true even if passed above check, if
+                // the SecurityManager treats some threads specially.
+                if (security != null) {
+                    for (Worker w: workers)
+                        security.checkAccess(w.thread);
+                }
+
+                int state = runState;
+                if (state == RUNNING) // don't override shutdownNow
+                    runState = SHUTDOWN;
+
+                try {
+                    for (Worker w: workers)
+                        w.interruptIfIdle();
+                } catch(SecurityException se) {
+                    // If SecurityManager allows above checks, but
+                    // then unexpectedly throws exception when
+                    // interrupting threads (which it ought not do),
+                    // back out as cleanly as we can. Some threads may
+                    // have been killed but we remain in non-shutdown
+                    // state.
+                    runState = state; 
+                    throw se;
+                }
+            }
+            else { // If no workers, trigger full termination now
+                fullyTerminated = true;
+                runState = TERMINATED;
+                termination.signalAll();
+            }
+        } finally {
+            mainLock.unlock();
+        }
+        if (fullyTerminated)
+            terminated();
+!!!7953179.java!!!	shutdownNow() : List
+        // Almost the same code as shutdown()
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) 
+            java.security.AccessController.checkPermission(shutdownPerm);
+
+        boolean fullyTerminated = false;
+        final ReentrantLock mainLock = this.mainLock;
+        mainLock.lock();
+        try {
+            if (workers.size() > 0) {
+                if (security != null) {
+                    for (Worker w: workers)
+                        security.checkAccess(w.thread);
+                }
+
+                int state = runState;
+                if (state != TERMINATED)
+                    runState = STOP;
+                try {
+                    for (Worker w : workers)
+                        w.interruptNow();
+                } catch(SecurityException se) {
+                    runState = state; // back out;
+                    throw se;
+                }
+            }
+            else { // If no workers, trigger full termination now
+                fullyTerminated = true;
+                runState = TERMINATED;
+                termination.signalAll();
+            }
+        } finally {
+            mainLock.unlock();
+        }
+        if (fullyTerminated)
+            terminated();
+        return Arrays.asList(workQueue.toArray(EMPTY_RUNNABLE_ARRAY));
+!!!7953307.java!!!	isShutdown() : boolean
+        return runState != RUNNING;
+!!!7953435.java!!!	isTerminating() : boolean
+        return runState == STOP;
+!!!7953563.java!!!	isTerminated() : boolean
+        return runState == TERMINATED;
+!!!7953691.java!!!	awaitTermination(in timeout : long, inout unit : TimeUnit) : boolean
+        long nanos = unit.toNanos(timeout);
+        final ReentrantLock mainLock = this.mainLock;
+        mainLock.lock();
+        try {
+            for (;;) {
+                if (runState == TERMINATED) 
+                    return true;
+                if (nanos <= 0)
+                    return false;
+                nanos = termination.awaitNanos(nanos);
+            }
+        } finally {
+            mainLock.unlock();
+        }
+!!!7953819.java!!!	finalize() : void
+        shutdown();
+!!!7953947.java!!!	setThreadFactory(inout threadFactory : ThreadFactory) : void
+        if (threadFactory == null)
+            throw new NullPointerException();
+        this.threadFactory = threadFactory;
+!!!7954075.java!!!	getThreadFactory() : ThreadFactory
+        return threadFactory;
+!!!7954203.java!!!	setRejectedExecutionHandler(inout handler : RejectedExecutionHandler) : void
+        if (handler == null)
+            throw new NullPointerException();
+        this.handler = handler;
+!!!7954331.java!!!	getRejectedExecutionHandler() : RejectedExecutionHandler
+        return handler;
+!!!7954459.java!!!	getQueue() : BlockingQueue
+        return workQueue;
+!!!7954587.java!!!	remove(inout task : Runnable) : boolean
+        return getQueue().remove(task);
+!!!7954715.java!!!	purge() : void
+        // Fail if we encounter interference during traversal
+        try {
+            Iterator<Runnable> it = getQueue().iterator();
+            while (it.hasNext()) {
+                Runnable r = it.next();
+                if (r instanceof Future<?>) {
+                    Future<?> c = (Future<?>)r;
+                    if (c.isCancelled())
+                        it.remove();
+                }
+            }
+        }
+        catch(ConcurrentModificationException ex) {
+            return; 
+        }
+!!!7954843.java!!!	setCorePoolSize(in corePoolSize : int) : void
+        if (corePoolSize < 0)
+            throw new IllegalArgumentException();
+        final ReentrantLock mainLock = this.mainLock;
+        mainLock.lock();
+        try {
+            int extra = this.corePoolSize - corePoolSize;
+            this.corePoolSize = corePoolSize;
+            if (extra < 0) {
+                int n = workQueue.size();
+                // We have to create initially-idle threads here
+                // because we otherwise have no recourse about
+                // what to do with a dequeued task if addThread fails.
+                while (extra++ < 0 && n-- > 0 && poolSize < corePoolSize ) {
+                    Thread t = addThread(null);
+                    if (t != null) 
+                        t.start();
+                    else
+                        break;
+                }
+            }
+            else if (extra > 0 && poolSize > corePoolSize) {
+                Iterator<Worker> it = workers.iterator();
+                while (it.hasNext() &&
+                       extra-- > 0 &&
+                       poolSize > corePoolSize &&
+                       workQueue.remainingCapacity() == 0) 
+                    it.next().interruptIfIdle();
+            }
+        } finally {
+            mainLock.unlock();
+        }
+!!!7954971.java!!!	getCorePoolSize() : int
+        return corePoolSize;
+!!!7955099.java!!!	prestartCoreThread() : boolean
+        return addIfUnderCorePoolSize(null);
+!!!7955227.java!!!	prestartAllCoreThreads() : int
+        int n = 0;
+        while (addIfUnderCorePoolSize(null))
+            ++n;
+        return n;
+!!!7955355.java!!!	setMaximumPoolSize(in maximumPoolSize : int) : void
+        if (maximumPoolSize <= 0 || maximumPoolSize < corePoolSize)
+            throw new IllegalArgumentException();
+        final ReentrantLock mainLock = this.mainLock;
+        mainLock.lock();
+        try {
+            int extra = this.maximumPoolSize - maximumPoolSize;
+            this.maximumPoolSize = maximumPoolSize;
+            if (extra > 0 && poolSize > maximumPoolSize) {
+                Iterator<Worker> it = workers.iterator();
+                while (it.hasNext() &&
+                       extra > 0 &&
+                       poolSize > maximumPoolSize) {
+                    it.next().interruptIfIdle();
+                    --extra;
+                }
+            }
+        } finally {
+            mainLock.unlock();
+        }
+!!!7955483.java!!!	getMaximumPoolSize() : int
+        return maximumPoolSize;
+!!!7955611.java!!!	setKeepAliveTime(in time : long, inout unit : TimeUnit) : void
+        if (time < 0)
+            throw new IllegalArgumentException();
+        this.keepAliveTime = unit.toNanos(time);
+!!!7955739.java!!!	getKeepAliveTime(inout unit : TimeUnit) : long
+        return unit.convert(keepAliveTime, TimeUnit.NANOSECONDS);
+!!!7955867.java!!!	getPoolSize() : int
+        return poolSize;
+!!!7955995.java!!!	getActiveCount() : int
+        final ReentrantLock mainLock = this.mainLock;
+        mainLock.lock();
+        try {
+            int n = 0;
+            for (Worker w : workers) {
+                if (w.isActive())
+                    ++n;
+            }
+            return n;
+        } finally {
+            mainLock.unlock();
+        }
+!!!7956123.java!!!	getLargestPoolSize() : int
+        final ReentrantLock mainLock = this.mainLock;
+        mainLock.lock();
+        try {
+            return largestPoolSize;
+        } finally {
+            mainLock.unlock();
+        }
+!!!7956251.java!!!	getTaskCount() : long
+        final ReentrantLock mainLock = this.mainLock;
+        mainLock.lock();
+        try {
+            long n = completedTaskCount;
+            for (Worker w : workers) {
+                n += w.completedTasks;
+                if (w.isActive())
+                    ++n;
+            }
+            return n + workQueue.size();
+        } finally {
+            mainLock.unlock();
+        }
+!!!7956379.java!!!	getCompletedTaskCount() : long
+        final ReentrantLock mainLock = this.mainLock;
+        mainLock.lock();
+        try {
+            long n = completedTaskCount;
+            for (Worker w : workers)
+                n += w.completedTasks;
+            return n;
+        } finally {
+            mainLock.unlock();
+        }

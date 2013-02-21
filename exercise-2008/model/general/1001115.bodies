@@ -1,0 +1,38 @@
+class AtomicMarkableReference
+!!!7991323.java!!!	AtomicMarkableReference(inout initialRef : V, inout initialMark : boolean)
+        atomicRef = new AtomicReference<ReferenceBooleanPair<V>> (new ReferenceBooleanPair<V>(initialRef, initialMark));
+!!!7991451.java!!!	getReference() : V
+        return atomicRef.get().reference;
+!!!7991579.java!!!	isMarked() : boolean
+        return atomicRef.get().bit;
+!!!7991707.java!!!	get(inout markHolder : boolean) : V
+        ReferenceBooleanPair<V> p = atomicRef.get();
+        markHolder[0] = p.bit;
+        return p.reference;
+!!!7991835.java!!!	weakCompareAndSet(inout expectedReference : V, inout newReference : V, inout expectedMark : boolean, inout newMark : boolean) : boolean
+        ReferenceBooleanPair current = atomicRef.get();
+        return  expectedReference == current.reference &&
+            expectedMark == current.bit &&
+            ((newReference == current.reference && newMark == current.bit) ||
+             atomicRef.weakCompareAndSet(current,
+                                     new ReferenceBooleanPair<V>(newReference,
+                                                              newMark)));
+!!!7991963.java!!!	compareAndSet(inout expectedReference : V, inout newReference : V, inout expectedMark : boolean, inout newMark : boolean) : boolean
+        ReferenceBooleanPair current = atomicRef.get();
+        return  expectedReference == current.reference &&
+            expectedMark == current.bit &&
+            ((newReference == current.reference && newMark == current.bit) ||
+             atomicRef.compareAndSet(current,
+                                     new ReferenceBooleanPair<V>(newReference,
+                                                              newMark)));
+!!!7992091.java!!!	set(inout newReference : V, inout newMark : boolean) : void
+        ReferenceBooleanPair current = atomicRef.get();
+        if (newReference != current.reference || newMark != current.bit)
+            atomicRef.set(new ReferenceBooleanPair<V>(newReference, newMark));
+!!!7992219.java!!!	attemptMark(inout expectedReference : V, inout newMark : boolean) : boolean
+        ReferenceBooleanPair current = atomicRef.get();
+        return  expectedReference == current.reference &&
+            (newMark == current.bit ||
+             atomicRef.compareAndSet
+             (current, new ReferenceBooleanPair<V>(expectedReference,
+                                                newMark)));

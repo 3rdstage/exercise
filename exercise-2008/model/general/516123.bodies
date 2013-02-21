@@ -1,0 +1,135 @@
+class MBeanServerDelegateImpl
+!!!3201435.java!!!	MBeanServerDelegateImpl()
+	super();
+	delegateInfo = 
+	    new MBeanInfo("javax.management.MBeanServerDelegate",
+			  "Represents  the MBean server from the management "+
+			  "point of view.",
+			  MBeanServerDelegateImpl.attributeInfos, null,
+			  null,getNotificationInfo());
+!!!3201563.java!!!	preRegister(inout server : MBeanServer, inout name : ObjectName) : ObjectName
+	if (name == null) return new ObjectName(ServiceName.DELEGATE);
+	else return name;
+!!!3201819.java!!!	preDeregister() : void
+	throw new IllegalArgumentException(
+         	 "The MBeanServerDelegate MBean cannot be unregistered");
+!!!3202075.java!!!	getAttribute(in attribute : String) : Object
+	try {
+	    // attribute must not be null
+	    //
+	    if (attribute == null) 
+		throw new AttributeNotFoundException("null");
+
+	    // Extract the requested attribute from file
+	    //
+	    if (attribute.equals("MBeanServerId")) 
+		return getMBeanServerId();
+	    else if (attribute.equals("SpecificationName"))
+		return getSpecificationName();
+	    else if (attribute.equals("SpecificationVersion"))
+		return getSpecificationVersion();
+	    else if (attribute.equals("SpecificationVendor"))
+		return getSpecificationVendor();
+	    else if (attribute.equals("ImplementationName"))
+		return getImplementationName();
+	    else if (attribute.equals("ImplementationVersion"))
+		return getImplementationVersion();
+	    else if (attribute.equals("ImplementationVendor"))
+		return getImplementationVendor();
+
+	    // Unknown attribute
+	    //
+	    else 
+		throw new AttributeNotFoundException("null");
+
+	} catch (AttributeNotFoundException x) {
+	    throw x;
+	} catch (JMRuntimeException j) {
+	    throw j;
+	} catch (SecurityException s) {
+	    throw s;
+	} catch (Exception x) {
+	    throw new MBeanException(x,"Failed to get " + attribute);
+	}
+!!!3202203.java!!!	setAttribute(inout attribute : Attribute) : void
+	
+	// Now we will always fail:
+	// Either because the attribute is null or because it is not
+	// accessible (or does not exist).
+	//
+	final String attname = (attribute==null?null:attribute.getName());
+        if (attname == null) {
+	    final RuntimeException r = 
+		new IllegalArgumentException("Attribute name cannot be null");
+            throw new RuntimeOperationsException(r, 
+                "Exception occured trying to invoke the setter on the MBean");
+        }  
+	
+	// This is a hack: we call getAttribute in order to generate an
+	// AttributeNotFoundException if the attribute does not exist.
+	//
+	Object val = getAttribute(attname);
+
+	// If we reach this point, we know that the requested attribute
+	// exists. However, since all attributes are read-only, we throw
+	// an AttributeNotFoundException.
+	//
+	throw new AttributeNotFoundException(attname + " not accessible");
+!!!3202331.java!!!	getAttributes(in attributes : String) : AttributeList
+	// If attributes is null, the get all attributes.
+	//
+	final String[] attn = (attributes==null?attributeNames:attributes);
+
+	// Prepare the result list.
+	//
+	final int len = attn.length;
+	final AttributeList list = new AttributeList(len);
+
+	// Get each requested attribute.
+	//
+	for (int i=0;i<len;i++) {
+	    try {
+		final Attribute a = 
+		    new Attribute(attn[i],getAttribute(attn[i]));
+		list.add(a);
+	    } catch (Exception x) {
+		// Skip the attribute that couldn't be obtained.
+		//
+		debug("getAttributes","Attribute " + attn[i] +
+		      " not found.");
+	    }
+	}
+
+	// Finally return the result.
+	//
+	return list; 
+!!!3202459.java!!!	setAttributes(inout attributes : AttributeList) : AttributeList
+	return new AttributeList(0);
+!!!3202587.java!!!	invoke(in actionName : String, inout params : Object, in signature : String) : Object
+	// Check that operation name is not null.
+	//
+        if (actionName == null) {
+	    final RuntimeException r = 
+	      new IllegalArgumentException("Operation name  cannot be null");
+            throw new RuntimeOperationsException(r, 
+            "Exception occured trying to invoke the operation on the MBean");
+        } 
+
+	throw new ReflectionException(
+			  new NoSuchMethodException(actionName), 
+                          "The operation with name " + actionName + 
+			  " could not be found");
+!!!3202715.java!!!	getMBeanInfo() : MBeanInfo
+	return delegateInfo;
+!!!3202843.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_MBEANSERVER);
+!!!3202971.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_MBEANSERVER, clz, func, info);
+!!!3203099.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!3203227.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_MBEANSERVER);
+!!!3203355.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_MBEANSERVER, clz, func, info);
+!!!3203483.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);

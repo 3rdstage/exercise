@@ -1,0 +1,254 @@
+class StandardMBean
+!!!8268827.java!!!	StandardMBean(inout implementation : Object, inout mbeanInterface : Class, inout nullImplementationAllowed : boolean)
+	if (implementation == null) {
+	    if (nullImplementationAllowed) implementation = this;
+	    else throw new IllegalArgumentException("implementation is null");
+	}
+	this.meta = new StandardMBeanMetaDataImpl(this);
+	setImplementation(implementation,mbeanInterface);
+!!!8268955.java!!!	StandardMBean(inout implementation : Object, inout mbeanInterface : Class)
+	this(implementation,mbeanInterface,false);
+!!!8269083.java!!!	StandardMBean(inout mbeanInterface : Class)
+	this(null,mbeanInterface,true);
+!!!8269211.java!!!	setImplementation(inout implementation : Object) : void
+	setImplementation(implementation, getMBeanInterface());
+!!!8269339.java!!!	setImplementation(inout implementation : Object, inout mbeanInterface : Class) : void
+	if (implementation == null) 
+	    throw new IllegalArgumentException("implementation is null");
+
+	// test compliance
+	this.meta.testCompliance(implementation.getClass(),mbeanInterface);
+
+	// flush the cache...
+	cacheMBeanInfo(null);
+	this.implementation = implementation;	
+	this.mbeanInterface = mbeanInterface;
+	if (this.mbeanInterface == null)
+	    this.mbeanInterface =
+		meta.getStandardMBeanInterface(implementation.getClass());
+!!!8269467.java!!!	getImplementation() : Object
+	return implementation;
+!!!8269595.java!!!	getMBeanInterface() : Class
+	return mbeanInterface;
+!!!8269723.java!!!	getImplementationClass() : Class
+	if (implementation == null) return null;
+	return implementation.getClass();
+!!!8269851.java!!!	getAttribute(in attribute : String) : Object
+	return meta.getAttribute(getImplementation(),attribute);
+!!!8269979.java!!!	setAttribute(inout attribute : Attribute) : void
+	meta.setAttribute(getImplementation(),attribute);
+!!!8270107.java!!!	getAttributes(in attributes : String) : AttributeList
+	try {
+	    return meta.getAttributes(getImplementation(),attributes);	
+	} catch (ReflectionException x) {
+	    final RuntimeException r = 
+		new UndeclaredThrowableException(x,x.getMessage());
+	    throw new RuntimeOperationsException(r,x.getMessage());
+	}
+!!!8270235.java!!!	setAttributes(inout attributes : AttributeList) : AttributeList
+	try {
+	    return meta.setAttributes(getImplementation(),attributes);	
+	} catch (ReflectionException x) {
+	    final RuntimeException r = 
+		new UndeclaredThrowableException(x,x.getMessage());
+	    throw new RuntimeOperationsException(r,x.getMessage());
+	}
+!!!8270363.java!!!	invoke(in actionName : String, inout params : Object, in signature : String) : Object
+	return meta.invoke(getImplementation(),actionName,params,signature);
+!!!8270491.java!!!	getMBeanInfo() : MBeanInfo
+	try {
+	    final MBeanInfo cached = getCachedMBeanInfo();
+	    if (cached != null) return (MBeanInfo)cached;
+	} catch (RuntimeException x) {
+	    debug("getMBeanInfo","failed to get cached MBeanInfo: "+x);
+	    debugX("getMBeanInfo",x);
+	}
+
+	if (isTraceOn()) {
+	    trace("getMBeanInfo", "Building MBeanInfo for "+
+		  getImplementationClass().getName());
+	}
+
+	final MBeanInfo bi;
+	final Object    impl;
+	try {
+	    synchronized (this) {
+		impl = getImplementation();
+		bi   = buildStandardMBeanInfo();
+	    }
+	} catch (NotCompliantMBeanException x) {
+	    final RuntimeException r = 
+		new UndeclaredThrowableException(x,x.getMessage());
+	    throw new RuntimeOperationsException(r,x.getMessage());
+	}
+
+	final String                  cname = getClassName(bi);
+	final String                  text  = getDescription(bi);
+	final MBeanConstructorInfo[]  ctors = getConstructors(bi,impl);
+	final MBeanAttributeInfo[]    attrs = getAttributes(bi);
+	final MBeanOperationInfo[]    ops   = getOperations(bi);
+	final MBeanNotificationInfo[] ntfs  = getNotifications(bi);
+	final MBeanInfo nmbi = 
+	    new MBeanInfo(cname,text,attrs,ctors,ops,ntfs);
+
+	try { cacheMBeanInfo(nmbi); } catch (RuntimeException x) {
+	    debug("cacheMBeanInfo","failed to cache MBeanInfo: "+x);
+	    debugX("cacheMBeanInfo",x);
+	}
+
+	return nmbi; 
+!!!8270619.java!!!	getClassName(inout info : MBeanInfo) : String
+	if (info == null) return getImplementationClass().getName();
+	return info.getClassName();
+!!!8270747.java!!!	getDescription(inout info : MBeanInfo) : String
+	if (info == null) return null;
+	return info.getDescription();
+!!!8270875.java!!!	getDescription(inout info : MBeanFeatureInfo) : String
+	if (info == null) return null;
+	return info.getDescription();
+!!!8271003.java!!!	getDescription(inout info : MBeanAttributeInfo) : String
+	return getDescription((MBeanFeatureInfo)info);
+!!!8271131.java!!!	getDescription(inout info : MBeanConstructorInfo) : String
+	return getDescription((MBeanFeatureInfo)info);
+!!!8271259.java!!!	getDescription(inout ctor : MBeanConstructorInfo, inout param : MBeanParameterInfo, in sequence : int) : String
+	if (param == null) return null;
+	return param.getDescription();
+!!!8271387.java!!!	getParameterName(inout ctor : MBeanConstructorInfo, inout param : MBeanParameterInfo, in sequence : int) : String
+	if (param == null) return null;
+	return param.getName();
+!!!8271515.java!!!	getDescription(inout info : MBeanOperationInfo) : String
+	return getDescription((MBeanFeatureInfo)info);
+!!!8271643.java!!!	getImpact(inout info : MBeanOperationInfo) : int
+	if (info == null) return MBeanOperationInfo.UNKNOWN;
+	return info.getImpact();
+!!!8271771.java!!!	getParameterName(inout op : MBeanOperationInfo, inout param : MBeanParameterInfo, in sequence : int) : String
+	if (param == null) return null;
+	return param.getName();
+!!!8271899.java!!!	getDescription(inout op : MBeanOperationInfo, inout param : MBeanParameterInfo, in sequence : int) : String
+	if (param == null) return null;
+	return param.getDescription();
+!!!8272027.java!!!	getConstructors(inout ctors : MBeanConstructorInfo, inout impl : Object) : MBeanConstructorInfo
+	    if (ctors == null) return null;
+	    if (impl != null && impl != this) return null;
+	    return ctors;
+!!!8272155.java!!!	getNotifications(inout info : MBeanInfo) : MBeanNotificationInfo
+	if (info == null) return null;
+        return info.getNotifications();
+!!!8272283.java!!!	getCachedMBeanInfo() : MBeanInfo
+	return cachedMBeanInfo;
+!!!8272411.java!!!	cacheMBeanInfo(inout info : MBeanInfo) : void
+	cachedMBeanInfo = info;
+!!!8272539.java!!!	buildStandardMBeanInfo() : MBeanInfo
+	return meta.buildMBeanInfo(getImplementationClass(),
+				   getMBeanInterface());
+!!!8272667.java!!!	getConstructors(inout info : MBeanInfo, inout impl : Object) : MBeanConstructorInfo
+	final MBeanConstructorInfo[] ctors = 
+	    getConstructors(info.getConstructors(),impl);
+	final MBeanConstructorInfo[] nctors;
+	if (ctors != null) {
+	    final int ctorlen = ctors.length;
+	    nctors = new MBeanConstructorInfo[ctorlen];
+	    for (int i=0; i<ctorlen; i++) {
+		final MBeanConstructorInfo c = ctors[i];
+		final MBeanParameterInfo[] params = c.getSignature();
+		final MBeanParameterInfo[] nps;
+		if (params != null) {
+		    final int plen = params.length;
+		    nps = new MBeanParameterInfo[plen];
+		    for (int ii=0;ii<plen;ii++) {
+			MBeanParameterInfo p = params[ii];
+			final String name = getParameterName(c,p,ii);
+			final String text = getDescription(c,p,ii);
+			nps[ii] = new MBeanParameterInfo(name,
+							 p.getType(),
+							 text);
+		    }
+		} else {
+		    nps = null;
+		}
+		nctors[i] = new MBeanConstructorInfo(c.getName(),
+						     getDescription(c),
+						     nps);
+	    }
+	} else {
+	    nctors = null;
+	}
+	return nctors;
+!!!8272795.java!!!	getOperations(inout info : MBeanInfo) : MBeanOperationInfo
+	final MBeanOperationInfo[] ops = info.getOperations();
+	final MBeanOperationInfo[] nops;
+	if (ops != null) {
+	    final int oplen = ops.length;
+	    nops = new MBeanOperationInfo[oplen];
+	    for (int i=0; i<oplen; i++) {
+		final MBeanOperationInfo o = ops[i];
+		final MBeanParameterInfo[] params = o.getSignature();
+		final MBeanParameterInfo[] nps;
+		if (params != null) {
+		    final int plen = params.length;
+		    nps = new MBeanParameterInfo[plen];
+		    for (int ii=0;ii<plen;ii++) {
+			MBeanParameterInfo p = params[ii];
+			final String name = getParameterName(o,p,ii);
+			final String text = getDescription(o,p,ii);
+			nps[ii] = new MBeanParameterInfo(name,
+							 p.getType(),
+							 text);
+		    }
+		} else {
+		    nps = null;
+		}
+		nops[i] = new MBeanOperationInfo(o.getName(),
+						 getDescription(o),
+						 nps,
+						 o.getReturnType(),
+						 getImpact(o));
+	    }
+	} else {
+	    nops = null;
+	}
+	return nops;
+!!!8272923.java!!!	getAttributes(inout info : MBeanInfo) : MBeanAttributeInfo
+	final MBeanAttributeInfo[] atts = info.getAttributes();
+	final MBeanAttributeInfo[] natts;
+	if (atts != null) {
+	    final int attlen = atts.length;
+	    natts = new MBeanAttributeInfo[attlen];
+	    for (int i=0; i<attlen; i++) {
+		final MBeanAttributeInfo a = atts[i];
+		natts[i] = new MBeanAttributeInfo(a.getName(),
+						  a.getType(),
+						  getDescription(a),
+						  a.isReadable(),
+						  a.isWritable(),
+						  a.isIs());
+	    }
+	} else {
+	    natts = null;
+	}
+	return natts;
+!!!8273051.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_MISC);
+!!!8273179.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_MISC, clz, func, info);
+!!!8273307.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!8273435.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_MISC);
+!!!8273563.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_MISC, clz, func, info);
+!!!8273691.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);
+!!!8273819.java!!!	debugX(in func : String, inout e : Throwable) : void
+	if (isDebugOn()) {
+	    final StringWriter s = new StringWriter();
+	    e.printStackTrace(new PrintWriter(s));
+	    final String stack = s.toString();
+	    
+	    debug(dbgTag,func,"Exception caught in "+ func+"(): "+e);
+	    debug(dbgTag,func,stack);
+	
+	    // java.lang.System.err.println("**** Exception caught in "+
+	    // 			     func+"(): "+e);
+	    // java.lang.System.err.println(stack);
+	}

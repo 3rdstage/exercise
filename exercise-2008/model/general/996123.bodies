@@ -1,0 +1,32 @@
+class PrivilegedCallableUsingCurrentClassLoader
+!!!7938203.java!!!	PrivilegedCallableUsingCurrentClassLoader(inout task : Callable)
+            this.task = task;
+            this.ccl = Thread.currentThread().getContextClassLoader();
+            this.acc = AccessController.getContext();
+            acc.checkPermission(new RuntimePermission("getContextClassLoader"));
+            acc.checkPermission(new RuntimePermission("setContextClassLoader"));
+!!!7938331.java!!!	call() : T
+            AccessController.doPrivileged(new PrivilegedAction() {
+                    public Object run() {
+                        ClassLoader savedcl = null;
+                        Thread t = Thread.currentThread();
+                        try {
+                            ClassLoader cl = t.getContextClassLoader();
+                            if (ccl != cl) {
+                                t.setContextClassLoader(ccl);
+                                savedcl = cl;
+                            }
+                            result = task.call();
+                        } catch(Exception ex) {
+                            exception = ex;
+                        } finally {
+                            if (savedcl != null)
+                                t.setContextClassLoader(savedcl);
+                        }
+                        return null;
+                    }
+                }, acc);
+            if (exception != null)
+                throw exception;
+            else 
+                return result;

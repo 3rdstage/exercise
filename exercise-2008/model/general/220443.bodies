@@ -1,0 +1,194 @@
+class Field
+!!!7122715.java!!!	getGenericSignature() : String
+return signature;
+!!!7122843.java!!!	getFactory() : GenericsFactory
+	Class<?> c = getDeclaringClass();
+	// create scope and factory
+	return CoreReflectionFactory.make(c, ClassScope.make(c)); 
+!!!7122971.java!!!	getGenericInfo() : FieldRepository
+	// lazily initialize repository if necessary
+	if (genericInfo == null) {
+	    // create and cache generic info repository
+	    genericInfo = FieldRepository.make(getGenericSignature(), 
+					       getFactory());
+	}
+	return genericInfo; //return cached repository
+!!!7123099.java!!!	Field(inout declaringClass : Class, in name : String, inout type : Class, in modifiers : int, in slot : int, in signature : String, in annotations : byte)
+        this.clazz = declaringClass;
+        this.name = name;
+        this.type = type;
+        this.modifiers = modifiers;
+        this.slot = slot;
+        this.signature = signature;
+        this.annotations = annotations;
+!!!7123227.java!!!	copy() : Field
+        // This routine enables sharing of FieldAccessor objects
+        // among Field objects which refer to the same underlying
+        // method in the VM. (All of this contortion is only necessary
+        // because of the "accessibility" bit in AccessibleObject,
+        // which implicitly requires that new java.lang.reflect
+        // objects be fabricated for each reflective call on Class
+        // objects.)
+        Field res = new Field(clazz, name, type, modifiers, slot, signature, annotations);
+        res.root = this;
+        // Might as well eagerly propagate this if already present
+        res.fieldAccessor = fieldAccessor;
+        res.overrideFieldAccessor = overrideFieldAccessor;
+        return res;
+!!!7123355.java!!!	getDeclaringClass() : Class
+	return clazz;
+!!!7123483.java!!!	getName() : String
+	return name;
+!!!7123611.java!!!	getModifiers() : int
+	return modifiers;
+!!!7123739.java!!!	isEnumConstant() : boolean
+        return (getModifiers() & Modifier.ENUM) != 0;
+!!!7123867.java!!!	isSynthetic() : boolean
+        return Modifier.isSynthetic(getModifiers());
+!!!7123995.java!!!	getType() : Class
+	return type;
+!!!7124123.java!!!	getGenericType() : Type
+	if (getGenericSignature() != null)
+	    return getGenericInfo().getGenericType();
+	else
+	    return getType();
+!!!7124251.java!!!	equals(inout obj : Object) : boolean
+	if (obj != null && obj instanceof Field) {
+	    Field other = (Field)obj;
+	    return (getDeclaringClass() == other.getDeclaringClass())
+                && (getName() == other.getName())
+		&& (getType() == other.getType());
+	}
+	return false;
+!!!7124379.java!!!	hashCode() : int
+	return getDeclaringClass().getName().hashCode() ^ getName().hashCode();
+!!!7124507.java!!!	toString() : String
+	int mod = getModifiers();
+	return (((mod == 0) ? "" : (Modifier.toString(mod) + " "))
+	    + getTypeName(getType()) + " "
+	    + getTypeName(getDeclaringClass()) + "."
+	    + getName());
+!!!7124635.java!!!	toGenericString() : String
+	int mod = getModifiers();
+	Type fieldType = getGenericType();
+	return (((mod == 0) ? "" : (Modifier.toString(mod) + " "))
+	    +  ((fieldType instanceof Class) ?
+		getTypeName((Class)fieldType): fieldType.toString())+ " "
+	    + getTypeName(getDeclaringClass()) + "."
+	    + getName());
+!!!7124763.java!!!	get(inout obj : Object) : Object
+        return getFieldAccessor(obj).get(obj);
+!!!7124891.java!!!	getBoolean(inout obj : Object) : boolean
+        return getFieldAccessor(obj).getBoolean(obj);
+!!!7125019.java!!!	getByte(inout obj : Object) : byte
+        return getFieldAccessor(obj).getByte(obj);
+!!!7125147.java!!!	getChar(inout obj : Object) : char
+        return getFieldAccessor(obj).getChar(obj);
+!!!7125275.java!!!	getShort(inout obj : Object) : short
+        return getFieldAccessor(obj).getShort(obj);
+!!!7125403.java!!!	getInt(inout obj : Object) : int
+        return getFieldAccessor(obj).getInt(obj);
+!!!7125531.java!!!	getLong(inout obj : Object) : long
+        return getFieldAccessor(obj).getLong(obj);
+!!!7125659.java!!!	getFloat(inout obj : Object) : float
+        return getFieldAccessor(obj).getFloat(obj);
+!!!7125787.java!!!	getDouble(inout obj : Object) : double
+        return getFieldAccessor(obj).getDouble(obj);
+!!!7125915.java!!!	set(inout obj : Object, inout value : Object) : void
+        getFieldAccessor(obj).set(obj, value);
+!!!7126043.java!!!	setBoolean(inout obj : Object, inout z : boolean) : void
+        getFieldAccessor(obj).setBoolean(obj, z);
+!!!7126171.java!!!	setByte(inout obj : Object, in b : byte) : void
+        getFieldAccessor(obj).setByte(obj, b);
+!!!7126299.java!!!	setChar(inout obj : Object, in c : char) : void
+        getFieldAccessor(obj).setChar(obj, c);
+!!!7126427.java!!!	setShort(inout obj : Object, in s : short) : void
+        getFieldAccessor(obj).setShort(obj, s);
+!!!7126555.java!!!	setInt(inout obj : Object, in i : int) : void
+        getFieldAccessor(obj).setInt(obj, i);
+!!!7126683.java!!!	setLong(inout obj : Object, in l : long) : void
+        getFieldAccessor(obj).setLong(obj, l);
+!!!7126811.java!!!	setFloat(inout obj : Object, in f : float) : void
+        getFieldAccessor(obj).setFloat(obj, f);
+!!!7126939.java!!!	setDouble(inout obj : Object, in d : double) : void
+        getFieldAccessor(obj).setDouble(obj, d);
+!!!7127067.java!!!	getFieldAccessor(inout obj : Object) : FieldAccessor
+        doSecurityCheck(obj);
+        boolean ov = override;
+        FieldAccessor a = (ov)? overrideFieldAccessor : fieldAccessor;
+        return (a != null)? a : acquireFieldAccessor(ov);
+!!!7127195.java!!!	acquireFieldAccessor(inout overrideFinalCheck : boolean) : FieldAccessor
+        // First check to see if one has been created yet, and take it
+        // if so
+        FieldAccessor tmp = null;
+        if (root != null) tmp = root.getFieldAccessor(overrideFinalCheck);
+        if (tmp != null) {
+            if (overrideFinalCheck)
+                overrideFieldAccessor = tmp;
+            else
+                fieldAccessor = tmp;
+        } else {
+            // Otherwise fabricate one and propagate it up to the root
+            tmp = reflectionFactory.newFieldAccessor(this, overrideFinalCheck);
+            setFieldAccessor(tmp, overrideFinalCheck);
+        }
+        return tmp;
+!!!7127323.java!!!	getFieldAccessor(inout overrideFinalCheck : boolean) : FieldAccessor
+        return (overrideFinalCheck)? overrideFieldAccessor : fieldAccessor;
+!!!7127451.java!!!	setFieldAccessor(inout accessor : FieldAccessor, inout overrideFinalCheck : boolean) : void
+        if (overrideFinalCheck)
+            overrideFieldAccessor = accessor;
+        else
+            fieldAccessor = accessor;
+        // Propagate up
+        if (root != null) {
+            root.setFieldAccessor(accessor, overrideFinalCheck);
+        }
+!!!7127579.java!!!	doSecurityCheck(inout obj : Object) : void
+        if (!override) {
+            if (!Reflection.quickCheckMemberAccess(clazz, modifiers)) {
+                Class caller = Reflection.getCallerClass(4);
+                Class targetClass = ((obj == null || !Modifier.isProtected(modifiers))
+                                     ? clazz
+                                     : obj.getClass());
+                if (securityCheckCache != caller ||
+                    targetClass != securityCheckTargetClassCache) {
+                    Reflection.ensureMemberAccess(caller, clazz, obj, modifiers);
+                    securityCheckCache = caller;
+                    securityCheckTargetClassCache = targetClass;
+                }
+            }
+        }
+!!!7127707.java!!!	getTypeName(inout type : Class) : String
+	if (type.isArray()) {
+	    try {
+		Class cl = type;
+		int dimensions = 0;
+		while (cl.isArray()) {
+		    dimensions++;
+		    cl = cl.getComponentType();
+		}
+		StringBuffer sb = new StringBuffer();
+		sb.append(cl.getName());
+		for (int i = 0; i < dimensions; i++) {
+		    sb.append("[]");
+		}
+		return sb.toString();
+	    } catch (Throwable e) { /*FALLTHRU*/ }
+	}
+	return type.getName();
+!!!7127835.java!!!	getAnnotation(inout annotationClass : Class) : T
+        if (annotationClass == null)
+            throw new NullPointerException();
+
+        return (T) declaredAnnotations().get(annotationClass);
+!!!7127963.java!!!	getDeclaredAnnotations() : Annotation
+        return declaredAnnotations().values().toArray(EMPTY_ANNOTATION_ARRAY);
+!!!7128091.java!!!	declaredAnnotations() : Map
+        if (declaredAnnotations == null) {
+            declaredAnnotations = AnnotationParser.parseAnnotations(
+                annotations, sun.misc.SharedSecrets.getJavaLangAccess().
+                getConstantPool(getDeclaringClass()),
+                getDeclaringClass());
+        }
+        return declaredAnnotations;

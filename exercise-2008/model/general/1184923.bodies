@@ -1,0 +1,51 @@
+class SynthRootPaneUI
+!!!9717659.java!!!	createUI(inout c : JComponent) : ComponentUI
+        return new SynthRootPaneUI();
+!!!9717787.java!!!	installDefaults(inout c : JRootPane) : void
+        updateStyle(c);
+!!!9717915.java!!!	uninstallDefaults(inout root : JRootPane) : void
+        SynthContext context = getContext(root, ENABLED);
+
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+!!!9718043.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9718171.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c,
+                    SynthLookAndFeel.getRegion(c), style, state);
+!!!9718299.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9718427.java!!!	getComponentState(inout c : JComponent) : int
+        return SynthLookAndFeel.getComponentState(c);
+!!!9718555.java!!!	updateStyle(inout c : JComponent) : void
+        SynthContext context = getContext(c, ENABLED);
+        SynthStyle oldStyle = style;
+        style = SynthLookAndFeel.updateStyle(context, this);
+        if (style != oldStyle) {
+            if (oldStyle != null) {
+                uninstallKeyboardActions((JRootPane)c);
+                installKeyboardActions((JRootPane)c);
+            }
+        }
+        context.dispose();
+!!!9718683.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintRootPaneBackground(context,
+                          g, 0, 0, c.getWidth(), c.getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9718811.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9719067.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        context.getPainter().paintRootPaneBorder(context, g, x, y, w, h);
+!!!9719195.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+        if (SynthLookAndFeel.shouldUpdateStyle(e)) {
+            updateStyle((JRootPane)e.getSource());
+        }
+        super.propertyChange(e);

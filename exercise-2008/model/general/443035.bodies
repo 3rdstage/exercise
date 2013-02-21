@@ -1,0 +1,44 @@
+class Actions
+!!!2679579.java!!!	Actions(in key : String)
+            super(key);
+!!!2679707.java!!!	actionPerformed(inout e : ActionEvent) : void
+            JLabel label = (JLabel)e.getSource();
+            String key = getName();
+            if (key == PRESS) {
+                doPress(label);
+            }
+            else if (key == RELEASE) {
+                doRelease(label);
+            }
+!!!2679835.java!!!	doPress(inout label : JLabel) : void
+	   Component labelFor = label.getLabelFor();
+	   if(labelFor != null && labelFor.isEnabled()) {
+	      InputMap inputMap = SwingUtilities.getUIInputMap(label, JComponent.WHEN_FOCUSED);
+	      if (inputMap == null) {
+	         inputMap = new InputMapUIResource();
+		 SwingUtilities.replaceUIInputMap(label, JComponent.WHEN_FOCUSED, inputMap);
+	      }
+	      int dka = label.getDisplayedMnemonic();
+	      inputMap.put(KeyStroke.getKeyStroke(dka, ActionEvent.ALT_MASK, true), RELEASE);
+              // Need this if the accelerator is released before the ALT key
+	      inputMap.put(KeyStroke.getKeyStroke(0, ActionEvent.ALT_MASK, true), RELEASE);
+	      Component owner = label.getLabelFor();
+	      label.requestFocus();
+	   }
+!!!2679963.java!!!	doRelease(inout label : JLabel) : void
+	   Component labelFor = label.getLabelFor();
+	   if(labelFor != null && labelFor.isEnabled()) {
+	      InputMap inputMap = SwingUtilities.getUIInputMap(label, JComponent.WHEN_FOCUSED);
+	      if (inputMap != null) {
+	         // inputMap should never be null.
+	         inputMap.remove(KeyStroke.getKeyStroke (label.getDisplayedMnemonic(), ActionEvent.ALT_MASK, true));
+	         inputMap.remove(KeyStroke.getKeyStroke(0, ActionEvent.ALT_MASK, true));
+	      }
+	      if (labelFor instanceof Container &&
+		  ((Container)labelFor).isFocusCycleRoot()) {
+		  labelFor.requestFocus();
+	      }
+	      else {
+		  BasicLookAndFeel.compositeRequestFocus(labelFor);
+	      }
+	   }

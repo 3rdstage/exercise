@@ -1,0 +1,47 @@
+class RoundRectIterator
+!!!6574491.java!!!	RoundRectIterator(inout rr : RoundRectangle2D, inout at : AffineTransform)
+	this.x = rr.getX();
+	this.y = rr.getY();
+	this.w = rr.getWidth();
+	this.h = rr.getHeight();
+	this.aw = Math.min(w, Math.abs(rr.getArcWidth()));
+	this.ah = Math.min(h, Math.abs(rr.getArcHeight()));
+	this.affine = at;
+	if (aw < 0 || ah < 0) {
+	    // Don't draw anything...
+	    index = ctrlpts.length;
+	}
+!!!6574619.java!!!	getWindingRule() : int
+	return WIND_NON_ZERO;
+!!!6574747.java!!!	isDone() : boolean
+	return index >= ctrlpts.length;
+!!!6574875.java!!!	next() : void
+	index++;
+!!!6575003.java!!!	currentSegment(in coords : float) : int
+	if (isDone()) {
+	    throw new NoSuchElementException("roundrect iterator out of bounds");
+	}
+	double ctrls[] = ctrlpts[index];
+	int nc = 0;
+	for (int i = 0; i < ctrls.length; i += 4) {
+	    coords[nc++] = (float) (x + ctrls[i + 0] * w + ctrls[i + 1] * aw);
+	    coords[nc++] = (float) (y + ctrls[i + 2] * h + ctrls[i + 3] * ah);
+	}
+	if (affine != null) {
+	    affine.transform(coords, 0, coords, 0, nc / 2);
+	}
+	return types[index];
+!!!6575131.java!!!	currentSegment(in coords : double) : int
+	if (isDone()) {
+	    throw new NoSuchElementException("roundrect iterator out of bounds");
+	}
+	double ctrls[] = ctrlpts[index];
+	int nc = 0;
+	for (int i = 0; i < ctrls.length; i += 4) {
+	    coords[nc++] = (x + ctrls[i + 0] * w + ctrls[i + 1] * aw);
+	    coords[nc++] = (y + ctrls[i + 2] * h + ctrls[i + 3] * ah);
+	}
+	if (affine != null) {
+	    affine.transform(coords, 0, coords, 0, nc / 2);
+	}
+	return types[index];

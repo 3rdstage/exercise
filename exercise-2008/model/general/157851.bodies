@@ -1,0 +1,313 @@
+class TreeMap
+!!!375451.java!!!	incrementSize() : void
+ modCount++; size++;
+!!!375579.java!!!	decrementSize() : void
+ modCount++; size--;
+!!!375835.java!!!	TreeMap(inout c : Comparator)
+        this.comparator = c;
+!!!375963.java!!!	TreeMap(inout m : Map)
+        putAll(m);
+!!!376091.java!!!	TreeMap(inout m : SortedMap)
+        comparator = m.comparator();
+        try {
+            buildFromSorted(m.size(), m.entrySet().iterator(), null, null);
+        } catch (java.io.IOException cannotHappen) {
+        } catch (ClassNotFoundException cannotHappen) {
+        }
+!!!376219.java!!!	size() : int
+        return size;
+!!!376347.java!!!	containsKey(inout key : Object) : boolean
+        return getEntry(key) != null;
+!!!376475.java!!!	containsValue(inout value : Object) : boolean
+        return (root==null ? false :
+                (value==null ? valueSearchNull(root)
+                             : valueSearchNonNull(root, value)));
+!!!376603.java!!!	valueSearchNull(inout n : Entry) : boolean
+        if (n.value == null)
+            return true;
+
+        // Check left and right subtrees for value
+        return (n.left  != null && valueSearchNull(n.left)) ||
+               (n.right != null && valueSearchNull(n.right));
+!!!376731.java!!!	valueSearchNonNull(inout n : Entry, inout value : Object) : boolean
+        // Check this node for the value
+        if (value.equals(n.value))
+            return true;
+
+        // Check left and right subtrees for value
+        return (n.left  != null && valueSearchNonNull(n.left, value)) ||
+               (n.right != null && valueSearchNonNull(n.right, value));
+!!!376859.java!!!	get(inout key : Object) : V
+        Entry<K,V> p = getEntry(key);
+        return (p==null ? null : p.value);
+!!!376987.java!!!	comparator() : Comparator
+        return comparator;
+!!!377115.java!!!	firstKey() : K
+        return key(firstEntry());
+!!!377243.java!!!	lastKey() : K
+        return key(lastEntry());
+!!!377371.java!!!	putAll(inout map : Map) : void
+        int mapSize = map.size();
+        if (size==0 && mapSize!=0 && map instanceof SortedMap) {
+            Comparator c = ((SortedMap)map).comparator();
+            if (c == comparator || (c != null && c.equals(comparator))) {
+		++modCount;
+		try {
+		    buildFromSorted(mapSize, map.entrySet().iterator(),
+				    null, null);
+		} catch (java.io.IOException cannotHappen) {
+		} catch (ClassNotFoundException cannotHappen) {
+		}
+		return;
+            }
+        }
+        super.putAll(map);
+!!!377499.java!!!	getEntry(inout key : Object) : Entry
+        Entry<K,V> p = root;
+	K k = (K) key;
+        while (p != null) {
+            int cmp = compare(k, p.key);
+            if (cmp == 0)
+                return p;
+            else if (cmp < 0)
+                p = p.left;
+            else
+                p = p.right;
+        }
+        return null;
+!!!377627.java!!!	getCeilEntry(inout key : K) : Entry
+        Entry<K,V> p = root;
+        if (p==null)
+            return null;
+
+        while (true) {
+            int cmp = compare(key, p.key);
+            if (cmp == 0) {
+                return p;
+            } else if (cmp < 0) {
+                if (p.left != null)
+                    p = p.left;
+                else
+                    return p;
+            } else {
+                if (p.right != null) {
+                    p = p.right;
+                } else {
+                    Entry<K,V> parent = p.parent;
+                    Entry<K,V> ch = p;
+                    while (parent != null && ch == parent.right) {
+                        ch = parent;
+                        parent = parent.parent;
+                    }
+                    return parent;
+                }
+            }
+        }
+!!!377755.java!!!	getPrecedingEntry(inout key : K) : Entry
+        Entry<K,V> p = root;
+        if (p==null)
+            return null;
+
+        while (true) {
+            int cmp = compare(key, p.key);
+            if (cmp > 0) {
+                if (p.right != null)
+                    p = p.right;
+                else
+                    return p;
+            } else {
+                if (p.left != null) {
+                    p = p.left;
+                } else {
+                    Entry<K,V> parent = p.parent;
+                    Entry<K,V> ch = p;
+                    while (parent != null && ch == parent.left) {
+                        ch = parent;
+                        parent = parent.parent;
+                    }
+                    return parent;
+                }
+            }
+        }
+!!!377883.java!!!	key(inout e : Entry) : K
+        if (e==null)
+            throw new NoSuchElementException();
+        return e.key;
+!!!378011.java!!!	put(inout key : K, inout value : V) : V
+        Entry<K,V> t = root;
+
+        if (t == null) {
+            incrementSize();
+            root = new Entry<K,V>(key, value, null);
+            return null;
+       }
+
+        while (true) {
+            int cmp = compare(key, t.key);
+            if (cmp == 0) {
+                return t.setValue(value);
+            } else if (cmp < 0) {
+                if (t.left != null) {
+                    t = t.left;
+                } else {
+                    incrementSize();
+                    t.left = new Entry<K,V>(key, value, t);
+                    fixAfterInsertion(t.left);
+                    return null;
+                }
+            } else { // cmp > 0
+                if (t.right != null) {
+                    t = t.right;
+                } else {
+                    incrementSize();
+                    t.right = new Entry<K,V>(key, value, t);
+                    fixAfterInsertion(t.right);
+                    return null;
+                }
+            }
+        }
+!!!378139.java!!!	remove(inout key : Object) : V
+        Entry<K,V> p = getEntry(key);
+        if (p == null)
+            return null;
+
+        V oldValue = p.value;
+        deleteEntry(p);
+        return oldValue;
+!!!378267.java!!!	clear() : void
+        modCount++;
+        size = 0;
+        root = null;
+!!!378395.java!!!	clone() : Object
+        TreeMap<K,V> clone = null;
+        try {
+            clone = (TreeMap<K,V>) super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new InternalError();
+        }
+
+        // Put clone into "virgin" state (except for comparator)
+        clone.root = null;
+        clone.size = 0;
+        clone.modCount = 0;
+        clone.entrySet = null;
+
+        // Initialize clone with our mappings
+        try {
+            clone.buildFromSorted(size, entrySet().iterator(), null, null);
+        } catch (java.io.IOException cannotHappen) {
+        } catch (ClassNotFoundException cannotHappen) {
+        }
+
+        return clone;
+!!!378523.java!!!	keySet() : Set
+        if (keySet == null) {
+            keySet = new AbstractSet<K>() {
+                public Iterator<K> iterator() {
+                    return new KeyIterator();
+                }
+
+                public int size() {
+                    return TreeMap.this.size();
+                }
+
+                public boolean contains(Object o) {
+                    return containsKey(o);
+                }
+
+                public boolean remove(Object o) {
+                    int oldSize = size;
+                    TreeMap.this.remove(o);
+                    return size != oldSize;
+                }
+
+                public void clear() {
+                    TreeMap.this.clear();
+                }
+            };
+        }
+        return keySet;
+!!!378651.java!!!	values() : Collection
+        if (values == null) {
+            values = new AbstractCollection<V>() {
+                public Iterator<V> iterator() {
+                    return new ValueIterator();
+                }
+
+                public int size() {
+                    return TreeMap.this.size();
+                }
+
+                public boolean contains(Object o) {
+                    for (Entry<K,V> e = firstEntry(); e != null; e = successor(e))
+                        if (valEquals(e.getValue(), o))
+                            return true;
+                    return false;
+                }
+
+                public boolean remove(Object o) {
+                    for (Entry<K,V> e = firstEntry(); e != null; e = successor(e)) {
+                        if (valEquals(e.getValue(), o)) {
+                            deleteEntry(e);
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+
+                public void clear() {
+                    TreeMap.this.clear();
+                }
+            };
+        }
+        return values;
+!!!378779.java!!!	entrySet() : Set
+        if (entrySet == null) {
+            entrySet = new AbstractSet<Map.Entry<K,V>>() {
+		public Iterator<Map.Entry<K,V>> iterator() {
+                    return new EntryIterator();
+                }
+
+                public boolean contains(Object o) {
+                    if (!(o instanceof Map.Entry))
+                        return false;
+                    Map.Entry<K,V> entry = (Map.Entry<K,V>) o;
+		    V value = entry.getValue();
+                    Entry<K,V> p = getEntry(entry.getKey());
+                    return p != null && valEquals(p.getValue(), value);
+                }
+
+                public boolean remove(Object o) {
+                    if (!(o instanceof Map.Entry))
+                        return false;
+                    Map.Entry<K,V> entry = (Map.Entry<K,V>) o;
+		    V value = entry.getValue();
+                    Entry<K,V> p = getEntry(entry.getKey());
+                    if (p != null && valEquals(p.getValue(), value)) {
+                        deleteEntry(p);
+                        return true;
+                    }
+                    return false;
+                }
+
+                public int size() {
+                    return TreeMap.this.size();
+                }
+
+                public void clear() {
+                    TreeMap.this.clear();
+                }
+            };
+        }
+        return entrySet;
+!!!378907.java!!!	subMap(inout fromKey : K, inout toKey : K) : SortedMap
+        return new SubMap(fromKey, toKey);
+!!!379035.java!!!	headMap(inout toKey : K) : SortedMap
+        return new SubMap(toKey, true);
+!!!379163.java!!!	tailMap(inout fromKey : K) : SortedMap
+        return new SubMap(fromKey, false);
+!!!383387.java!!!	compare(inout k1 : K, inout k2 : K) : int
+        return (comparator==null ? ((Comparable</*-*/K>)k1).compareTo(k2)
+                                 : comparator.compare((K)k1, (K)k2));
+!!!383515.java!!!	valEquals(inout o1 : Object, inout o2 : Object) : boolean
+        return (o1==null ? o2==null : o1.equals(o2));

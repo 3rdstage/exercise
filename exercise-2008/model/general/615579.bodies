@@ -1,0 +1,283 @@
+class NamedNodeMapImpl
+!!!4801179.java!!!	NamedNodeMapImpl(inout ownerNode : NodeImpl)
+        this.ownerNode = ownerNode;
+!!!4801307.java!!!	getLength() : int
+    	return (nodes != null) ? nodes.size() : 0;
+!!!4801435.java!!!	item(in index : int) : Node
+    	return (nodes != null && index < nodes.size()) ?
+                    (Node)(nodes.elementAt(index)) : null;
+!!!4801563.java!!!	getNamedItem(in name : String) : Node
+
+    	int i = findNamePoint(name,0);
+        return (i < 0) ? null : (Node)(nodes.elementAt(i));
+
+!!!4801691.java!!!	getNamedItemNS(in namespaceURI : String, in localName : String) : Node
+
+    	int i = findNamePoint(namespaceURI, localName);
+        return (i < 0) ? null : (Node)(nodes.elementAt(i));
+
+!!!4801819.java!!!	setNamedItem(inout arg : Node) : Node
+
+    	if (isReadOnly()) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "NO_MODIFICATION_ALLOWED_ERR", null);
+            throw new DOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR, msg);
+        }
+    	if (arg.getOwnerDocument() != ownerNode.ownerDocument()) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "WRONG_DOCUMENT_ERR", null);
+            throw new DOMException(DOMException.WRONG_DOCUMENT_ERR, msg);
+        }
+
+   	int i = findNamePoint(arg.getNodeName(),0);
+    	NodeImpl previous = null;
+    	if (i >= 0) {
+            previous = (NodeImpl) nodes.elementAt(i);
+            nodes.setElementAt(arg,i);
+    	} else {
+            i = -1 - i; // Insert point (may be end of list)
+            if (null == nodes) {
+                nodes = new Vector(5, 10);
+            }
+            nodes.insertElementAt(arg, i);
+        }
+    	return previous;
+
+!!!4801947.java!!!	setNamedItemNS(inout arg : Node) : Node
+
+    	if (isReadOnly()) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "NO_MODIFICATION_ALLOWED_ERR", null);
+            throw new DOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR, msg);
+        }
+    
+    	if(arg.getOwnerDocument() != ownerNode.ownerDocument()) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "WRONG_DOCUMENT_ERR", null);
+            throw new DOMException(DOMException.WRONG_DOCUMENT_ERR, msg);
+        }
+
+    	int i = findNamePoint(arg.getNamespaceURI(), arg.getLocalName());
+    	NodeImpl previous = null;
+    	if (i >= 0) {
+            previous = (NodeImpl) nodes.elementAt(i);
+            nodes.setElementAt(arg,i);
+    	} else {
+    	    // If we can't find by namespaceURI, localName, then we find by
+    	    // nodeName so we know where to insert.
+    	    i = findNamePoint(arg.getNodeName(),0);
+            if (i >=0) {
+                previous = (NodeImpl) nodes.elementAt(i);
+                nodes.insertElementAt(arg,i);
+            } else {
+                i = -1 - i; // Insert point (may be end of list)
+                if (null == nodes) {
+                    nodes = new Vector(5, 10);
+                }
+                nodes.insertElementAt(arg, i);
+            }
+        }
+    	return previous;
+
+!!!4802075.java!!!	removeNamedItem(in name : String) : Node
+
+    	if (isReadOnly()) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "NO_MODIFICATION_ALLOWED_ERR", null);
+            throw
+                new DOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR,
+                msg);
+        }
+    	int i = findNamePoint(name,0);
+    	if (i < 0) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "NOT_FOUND_ERR", null);
+            throw new DOMException(DOMException.NOT_FOUND_ERR, msg);
+        }
+
+        NodeImpl n = (NodeImpl)nodes.elementAt(i);
+        nodes.removeElementAt(i);
+
+        return n;
+
+!!!4802203.java!!!	removeNamedItemNS(in namespaceURI : String, in name : String) : Node
+
+    	if (isReadOnly()) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "NO_MODIFICATION_ALLOWED_ERR", null);
+            throw
+                new DOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR,
+                msg);
+        }
+    	int i = findNamePoint(namespaceURI, name);
+    	if (i < 0) {
+            String msg = DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "NOT_FOUND_ERR", null);
+            throw new DOMException(DOMException.NOT_FOUND_ERR, msg);
+        }
+
+        NodeImpl n = (NodeImpl)nodes.elementAt(i);
+        nodes.removeElementAt(i);
+
+        return n;
+
+!!!4802331.java!!!	cloneMap(inout ownerNode : NodeImpl) : NamedNodeMapImpl
+    	NamedNodeMapImpl newmap = new NamedNodeMapImpl(ownerNode);
+        newmap.cloneContent(this);
+    	return newmap;
+!!!4802459.java!!!	cloneContent(inout srcmap : NamedNodeMapImpl) : void
+        Vector srcnodes = srcmap.nodes;
+        if (srcnodes != null) {
+            int size = srcnodes.size();
+            if (size != 0) {
+                if (nodes == null) {
+                    nodes = new Vector(size);
+                }
+                nodes.setSize(size);
+                for (int i = 0; i < size; ++i) {
+                    NodeImpl n = (NodeImpl) srcmap.nodes.elementAt(i);
+                    NodeImpl clone = (NodeImpl) n.cloneNode(true);
+                    clone.isSpecified(n.isSpecified());
+                    nodes.setElementAt(clone, i);
+                }
+            }
+        }
+!!!4802587.java!!!	setReadOnly(inout readOnly : boolean, inout deep : boolean) : void
+        isReadOnly(readOnly);
+    	if (deep && nodes != null) {
+            for (int i = nodes.size() - 1; i >= 0; i--) {
+                ((NodeImpl) nodes.elementAt(i)).setReadOnly(readOnly,deep);
+            }
+    	}
+!!!4802715.java!!!	getReadOnly() : boolean
+    	return isReadOnly();
+!!!4802843.java!!!	setOwnerDocument(inout doc : CoreDocumentImpl) : void
+        if (nodes != null) {
+            for (int i = 0; i < nodes.size(); i++) {
+                ((NodeImpl)item(i)).setOwnerDocument(doc);
+            }
+        }
+!!!4802971.java!!!	isReadOnly() : boolean
+        return (flags & READONLY) != 0;
+!!!4803099.java!!!	isReadOnly(inout value : boolean) : void
+        flags = (short) (value ? flags | READONLY : flags & ~READONLY);
+!!!4803227.java!!!	changed() : boolean
+        return (flags & CHANGED) != 0;
+!!!4803355.java!!!	changed(inout value : boolean) : void
+        flags = (short) (value ? flags | CHANGED : flags & ~CHANGED);
+!!!4803483.java!!!	hasDefaults() : boolean
+        return (flags & HASDEFAULTS) != 0;
+!!!4803611.java!!!	hasDefaults(inout value : boolean) : void
+        flags = (short) (value ? flags | HASDEFAULTS : flags & ~HASDEFAULTS);
+!!!4803739.java!!!	findNamePoint(in name : String, in start : int) : int
+
+    	// Binary search
+    	int i = 0;
+    	if (nodes != null) {
+            int first = start;
+            int last  = nodes.size() - 1;
+
+            while (first <= last) {
+                i = (first + last) / 2;
+                int test = name.compareTo(((Node)(nodes.elementAt(i))).getNodeName());
+                if (test == 0) {
+                    return i; // Name found
+                }
+                else if (test < 0) {
+                    last = i - 1;
+                }
+                else {
+                    first = i + 1;
+                }
+            }
+
+            if (first > i) {
+                i = first;
+            }
+    	}
+
+    	return -1 - i; // not-found has to be encoded.
+
+!!!4803867.java!!!	findNamePoint(in namespaceURI : String, in name : String) : int
+        
+        if (nodes == null) return -1;
+        if (name == null) return -1;
+        
+        // This is a linear search through the same nodes Vector.
+        // The Vector is sorted on the DOM Level 1 nodename.
+        // The DOM Level 2 NS keys are namespaceURI and Localname, 
+        // so we must linear search thru it.
+        // In addition, to get this to work with nodes without any namespace
+        // (namespaceURI and localNames are both null) we then use the nodeName
+        // as a seconday key.
+        for (int i = 0; i < nodes.size(); i++) {
+            NodeImpl a = (NodeImpl)nodes.elementAt(i);
+            String aNamespaceURI = a.getNamespaceURI();
+            String aLocalName = a.getLocalName();
+            if (namespaceURI == null) {
+              if (aNamespaceURI == null
+                  &&
+                  (name.equals(aLocalName)
+                   ||
+                   (aLocalName == null && name.equals(a.getNodeName()))))
+                return i;
+            } else {
+              if (namespaceURI.equals(aNamespaceURI)
+                  &&
+                  name.equals(aLocalName))
+                return i;
+            }
+        }
+        return -1;
+!!!4803995.java!!!	precedes(inout a : Node, inout b : Node) : boolean
+
+       if (nodes != null) {
+          for (int i = 0; i < nodes.size(); i++) {
+              Node n = (Node)nodes.elementAt(i);
+              if (n==a) return true;
+              if (n==b) return false;
+          }
+       }
+
+       return false;
+!!!4804123.java!!!	removeItem(in index : int) : void
+       if (nodes != null && index < nodes.size()){
+           nodes.removeElementAt(index);
+       }
+!!!4804251.java!!!	getItem(in index : int) : Object
+        if (nodes !=null) {
+            return nodes.elementAt(index);
+        }
+        return null;
+!!!4804379.java!!!	addItem(inout arg : Node) : int
+    	int i = findNamePoint(arg.getNamespaceURI(), arg.getLocalName());
+    	NodeImpl previous = null;
+    	if (i >= 0) {
+            previous = (NodeImpl) nodes.elementAt(i);
+            nodes.setElementAt(arg,i);
+    	} else {
+    	    // If we can't find by namespaceURI, localName, then we find by
+    	    // nodeName so we know where to insert.
+    	    i = findNamePoint(arg.getNodeName(),0);
+            if (i >=0) {
+                previous = (NodeImpl) nodes.elementAt(i);
+                nodes.insertElementAt(arg,i);
+            } else {
+                i = -1 - i; // Insert point (may be end of list)
+                if (null == nodes) {
+                    nodes = new Vector(5, 10);
+                }
+                nodes.insertElementAt(arg, i);
+            }
+        }
+        return i;        
+!!!4804507.java!!!	cloneMap(inout list : Vector) : Vector
+        if (list == null) {
+            list = new Vector(5, 10);
+        }
+        list.setSize(0);
+        if (nodes != null) {
+            for (int i=0; i<nodes.size(); i++) {
+                list.insertElementAt(nodes.elementAt(i), i);
+            }
+        }
+        
+        return list;
+!!!4804635.java!!!	getNamedItemIndex(in namespaceURI : String, in localName : String) : int
+        return findNamePoint(namespaceURI, localName);
+!!!4804763.java!!!	removeAll() : void
+        if (nodes != null) {
+            nodes.removeAllElements();
+        }

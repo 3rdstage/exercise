@@ -1,0 +1,266 @@
+class IndexedPropertyDescriptor
+!!!6764315.java!!!	IndexedPropertyDescriptor(in propertyName : String, inout beanClass : Class)
+	this(propertyName, beanClass,
+			 "get" + capitalize(propertyName),
+			 "set" + capitalize(propertyName),
+			 "get" + capitalize(propertyName),
+			 "set" + capitalize(propertyName));
+!!!6764443.java!!!	IndexedPropertyDescriptor(in propertyName : String, inout beanClass : Class, in readMethodName : String, in writeMethodName : String, in indexedReadMethodName : String, in indexedWriteMethodName : String)
+	super(propertyName, beanClass, readMethodName, writeMethodName);
+
+	this.indexedReadMethodName = indexedReadMethodName;
+	if (indexedReadMethodName != null && getIndexedReadMethod() == null) {
+	    throw new IntrospectionException("Method not found: " + indexedReadMethodName);
+	}
+
+	this.indexedWriteMethodName = indexedWriteMethodName;
+	if (indexedWriteMethodName != null && getIndexedWriteMethod() == null) {
+	    throw new IntrospectionException("Method not found: " + indexedWriteMethodName);
+	}
+	// Implemented only for type checking.
+	findIndexedPropertyType(getIndexedReadMethod(), getIndexedWriteMethod());
+!!!6764571.java!!!	IndexedPropertyDescriptor(in propertyName : String, inout readMethod : Method, inout writeMethod : Method, inout indexedReadMethod : Method, inout indexedWriteMethod : Method)
+	super(propertyName, readMethod, writeMethod);
+
+	setIndexedReadMethod0(indexedReadMethod);
+	setIndexedWriteMethod0(indexedWriteMethod);
+
+	// Type checking
+	setIndexedPropertyType(findIndexedPropertyType(indexedReadMethod, indexedWriteMethod));
+!!!6764699.java!!!	getIndexedReadMethod() : Method
+	Method indexedReadMethod = getIndexedReadMethod0();
+	if (indexedReadMethod == null) {
+	    Class cls = getClass0();
+	    if (cls == null || 
+		(indexedReadMethodName == null && indexedReadMethodRef == null)) {
+		// the Indexed readMethod was explicitly set to null.
+		return null;
+	    }
+	    if (indexedReadMethodName == null) {
+		Class type = getIndexedPropertyType0();
+		if (type == boolean.class || type == null) {
+		    indexedReadMethodName = "is" + getBaseName();
+		} else {
+		    indexedReadMethodName = "get" + getBaseName();
+		}
+	    }
+	    
+	    Class[] args = { int.class };
+	    
+	    indexedReadMethod = Introspector.findMethod(cls, indexedReadMethodName, 
+							1, args);
+	    if (indexedReadMethod == null) {
+		// no "is" method, so look for a "get" method.
+		indexedReadMethodName = "get" + getBaseName();
+		indexedReadMethod = Introspector.findMethod(cls, indexedReadMethodName, 
+							    1, args);
+	    }
+	    setIndexedReadMethod0(indexedReadMethod);
+	}
+	return indexedReadMethod;
+!!!6764827.java!!!	setIndexedReadMethod(inout readMethod : Method) : void
+
+	// the indexed property type is set by the reader.
+	setIndexedPropertyType(findIndexedPropertyType(readMethod, 
+						       getIndexedWriteMethod0()));
+	setIndexedReadMethod0(readMethod);
+!!!6764955.java!!!	setIndexedReadMethod0(inout readMethod : Method) : void
+	if (readMethod == null) {
+	    indexedReadMethodName = null;
+	    indexedReadMethodRef = null;
+	    return;
+	}
+	setClass0(readMethod.getDeclaringClass());
+
+	indexedReadMethodName = readMethod.getName();
+	indexedReadMethodRef = createReference(readMethod);
+!!!6765083.java!!!	getIndexedWriteMethod() : Method
+	Method indexedWriteMethod = getIndexedWriteMethod0();
+	if (indexedWriteMethod == null) {
+	    Class cls = getClass0();
+	    if (cls == null || 
+		(indexedWriteMethodName == null && indexedWriteMethodRef == null)) {
+		// the Indexed writeMethod was explicitly set to null.
+		return null;
+	    }
+
+	    // We need the indexed type to ensure that we get the correct method.
+	    // Cannot use the getIndexedPropertyType method since that could 
+	    // result in an infinite loop.
+	    Class type = getIndexedPropertyType0();
+	    if (type == null) {
+		try {
+		    type = findIndexedPropertyType(getIndexedReadMethod(), null);
+		    setIndexedPropertyType(type);
+		} catch (IntrospectionException ex) {
+		    // Set iprop type to be the classic type
+		    Class propType = getPropertyType();
+		    if (propType.isArray()) {
+			type = propType.getComponentType();
+		    }
+		}
+	    }
+		
+	    if (indexedWriteMethodName == null) {
+		indexedWriteMethodName = "set" + getBaseName();
+	    }
+	    indexedWriteMethod = Introspector.findMethod(cls, indexedWriteMethodName, 
+			 2, (type == null) ? null : new Class[] { int.class, type });
+	    setIndexedWriteMethod0(indexedWriteMethod);
+	}
+	return indexedWriteMethod;
+!!!6765211.java!!!	setIndexedWriteMethod(inout writeMethod : Method) : void
+
+	// If the indexed property type has not been set, then set it.
+	Class type = findIndexedPropertyType(getIndexedReadMethod(), 
+					     writeMethod);
+	setIndexedPropertyType(type);
+	setIndexedWriteMethod0(writeMethod);
+!!!6765339.java!!!	setIndexedWriteMethod0(inout writeMethod : Method) : void
+	if (writeMethod == null) {
+	    indexedWriteMethodName = null;
+	    indexedWriteMethodRef = null;
+	    return;
+	}
+	setClass0(writeMethod.getDeclaringClass());
+
+	indexedWriteMethodName = writeMethod.getName();
+	indexedWriteMethodRef = createReference(writeMethod);
+!!!6765467.java!!!	getIndexedPropertyType() : Class
+	Class type = getIndexedPropertyType0();
+	if (type == null) {
+	    try {
+		type = findIndexedPropertyType(getIndexedReadMethod(), 
+					       getIndexedWriteMethod());
+		setIndexedPropertyType(type);
+	    } catch (IntrospectionException ex) {
+		// fall
+	    }
+	}
+	return type;
+!!!6765595.java!!!	setIndexedPropertyType(inout type : Class) : void
+	indexedPropertyTypeRef = createReference(type);
+!!!6765723.java!!!	getIndexedPropertyType0() : Class
+	return (Class)getObject(indexedPropertyTypeRef);
+!!!6765851.java!!!	getIndexedReadMethod0() : Method
+	return (Method)getObject(indexedReadMethodRef);
+!!!6765979.java!!!	getIndexedWriteMethod0() : Method
+	return (Method)getObject(indexedWriteMethodRef);
+!!!6766107.java!!!	findIndexedPropertyType(inout indexedReadMethod : Method, inout indexedWriteMethod : Method) : Class
+	Class indexedPropertyType = null;
+
+	if (indexedReadMethod != null) {
+	    Class params[] = indexedReadMethod.getParameterTypes();
+	    if (params.length != 1) {
+		throw new IntrospectionException("bad indexed read method arg count");
+	    }
+	    if (params[0] != Integer.TYPE) {
+		throw new IntrospectionException("non int index to indexed read method");
+	    }
+	    indexedPropertyType = indexedReadMethod.getReturnType();
+	    if (indexedPropertyType == Void.TYPE) {
+		throw new IntrospectionException("indexed read method returns void");
+	    }
+	}
+	if (indexedWriteMethod != null) {
+	    Class params[] = indexedWriteMethod.getParameterTypes();
+	    if (params.length != 2) {
+		throw new IntrospectionException("bad indexed write method arg count");
+	    }
+	    if (params[0] != Integer.TYPE) {
+		throw new IntrospectionException("non int index to indexed write method");
+	    }
+	    if (indexedPropertyType != null && indexedPropertyType != params[1]) {
+		throw new IntrospectionException(
+						 "type mismatch between indexed read and indexed write methods: " 
+						 + getName());
+	    }
+	    indexedPropertyType = params[1];
+	}
+	Class propertyType = getPropertyType();
+	if (propertyType != null && (!propertyType.isArray() ||
+				     propertyType.getComponentType() != indexedPropertyType)) {
+	    throw new IntrospectionException("type mismatch between indexed and non-indexed methods: " 
+					     + getName());
+	}
+	return indexedPropertyType;
+!!!6766235.java!!!	equals(inout obj : Object) : boolean
+	// Note: This would be identical to PropertyDescriptor but they don't
+	// share the same fields.
+	if (this == obj) {
+	    return true;
+	}
+
+	if (obj != null && obj instanceof IndexedPropertyDescriptor) {
+	    IndexedPropertyDescriptor other = (IndexedPropertyDescriptor)obj;
+	    Method otherIndexedReadMethod = other.getIndexedReadMethod();
+	    Method otherIndexedWriteMethod = other.getIndexedWriteMethod();
+
+	    if (!compareMethods(getIndexedReadMethod(), otherIndexedReadMethod)) {
+		return false;
+	    }
+
+	    if (!compareMethods(getIndexedWriteMethod(), otherIndexedWriteMethod)) {
+		return false;
+	    }
+
+	    if (getIndexedPropertyType() != other.getIndexedPropertyType()) {
+		return false;
+	    }
+	    return super.equals(obj);
+	}
+	return false;
+!!!6766363.java!!!	IndexedPropertyDescriptor(inout x : PropertyDescriptor, inout y : PropertyDescriptor)
+	super(x,y);
+	if (x instanceof IndexedPropertyDescriptor) {
+	    IndexedPropertyDescriptor ix = (IndexedPropertyDescriptor)x;
+	    try {
+		Method xr = ix.getIndexedReadMethod();
+		if (xr != null) {
+		    setIndexedReadMethod(xr);
+		}
+		
+		Method xw = ix.getIndexedWriteMethod();
+		if (xw != null) {
+		    setIndexedWriteMethod(xw);
+		}
+	    } catch (IntrospectionException ex) {
+		// Should not happen
+		throw new AssertionError(ex);
+	    }
+	}
+	if (y instanceof IndexedPropertyDescriptor) {
+	    IndexedPropertyDescriptor iy = (IndexedPropertyDescriptor)y;
+	    try {
+		Method yr = iy.getIndexedReadMethod();
+		if (yr != null && yr.getDeclaringClass() == getClass0()) {
+		    setIndexedReadMethod(yr);
+		}
+		
+		Method yw = iy.getIndexedWriteMethod();
+		if (yw != null && yw.getDeclaringClass() == getClass0()) {
+		    setIndexedWriteMethod(yw);
+		}
+	    } catch (IntrospectionException ex) {
+		// Should not happen
+		throw new AssertionError(ex);
+	    }
+	}
+!!!6766491.java!!!	IndexedPropertyDescriptor(inout old : IndexedPropertyDescriptor)
+	super(old);
+	indexedReadMethodRef = old.indexedReadMethodRef;
+	indexedWriteMethodRef = old.indexedWriteMethodRef;
+	indexedPropertyTypeRef = old.indexedPropertyTypeRef;
+	indexedWriteMethodName = old.indexedWriteMethodName;
+	indexedReadMethodName = old.indexedReadMethodName;
+!!!6766619.java!!!	hashCode() : int
+	int result = super.hashCode();
+
+	result = 37 * result + ((indexedWriteMethodName == null) ? 0 : 
+				indexedWriteMethodName.hashCode());
+	result = 37 * result + ((indexedReadMethodName == null) ? 0 : 
+				indexedReadMethodName.hashCode());
+	result = 37 * result + ((getIndexedPropertyType() == null) ? 0 : 
+				getIndexedPropertyType().hashCode());
+	
+	return result;

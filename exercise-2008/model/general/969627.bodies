@@ -1,0 +1,91 @@
+class UnresolvedPermissionCollection
+!!!7628827.java!!!	UnresolvedPermissionCollection()
+	perms = new HashMap(11);
+!!!7628955.java!!!	add(inout permission : Permission) : void
+	if (! (permission instanceof UnresolvedPermission))
+	    throw new IllegalArgumentException("invalid permission: "+
+					       permission);
+	UnresolvedPermission up = (UnresolvedPermission) permission;
+
+	List v;
+	synchronized (this) {
+	    v = (List) perms.get(up.getName());
+	    if (v == null) {
+		v = new ArrayList();
+		perms.put(up.getName(), v);
+	    }
+	}
+	synchronized (v) {
+	    v.add(up);
+	}
+!!!7629083.java!!!	getUnresolvedPermissions(inout p : Permission) : List
+	synchronized (this) {
+	    return (List) perms.get(p.getClass().getName());
+	}
+!!!7629211.java!!!	implies(inout permission : Permission) : boolean
+	return false;
+!!!7629339.java!!!	elements() : Enumeration
+	List results = new ArrayList(); // where results are stored
+
+	// Get iterator of Map values (which are lists of permissions)
+	synchronized (this) {
+	    for (Iterator iter = perms.values().iterator(); iter.hasNext();) {
+		List l = (List) iter.next();
+		synchronized (l) {
+		    results.addAll(l);
+		}
+	    }
+	}
+
+	return Collections.enumeration(results);
+!!!7629467.java!!!	writeObject(inout out : ObjectOutputStream) : void
+	// Don't call out.defaultWriteObject()
+
+	// Copy perms into a Hashtable
+	Hashtable permissions = new Hashtable(perms.size()*2);
+
+	// Convert each entry (List) into a Vector
+	synchronized (this) {
+	    Set set = perms.entrySet();
+	    for (Iterator iter = set.iterator(); iter.hasNext(); ) {
+		Map.Entry e = (Map.Entry)iter.next();
+
+		// Convert list into Vector
+		List list = (List) e.getValue();
+		Vector vec = new Vector(list.size());
+		synchronized (list) {
+		    vec.addAll(list);
+		}
+
+		// Add to Hashtable being serialized
+		permissions.put(e.getKey(), vec);
+	    }
+	}
+
+	// Write out serializable fields
+        ObjectOutputStream.PutField pfields = out.putFields();
+        pfields.put("permissions", permissions);
+        out.writeFields();
+!!!7629595.java!!!	readObject(inout in : ObjectInputStream) : void
+	// Don't call defaultReadObject()
+
+	// Read in serialized fields
+	ObjectInputStream.GetField gfields = in.readFields();
+
+	// Get permissions
+	Hashtable permissions = (Hashtable)gfields.get("permissions", null);
+	perms = new HashMap(permissions.size()*2);
+
+	// Convert each entry (Vector) into a List
+	Set set = permissions.entrySet();
+	for (Iterator iter = set.iterator(); iter.hasNext(); ) {
+	    Map.Entry e = (Map.Entry)iter.next();
+
+	    // Convert Vector into ArrayList
+	    Vector vec = (Vector) e.getValue();
+	    List list = new ArrayList(vec.size());
+	    list.addAll(vec);
+
+	    // Add to Hashtable being serialized
+	    perms.put(e.getKey(), list);
+	}

@@ -1,0 +1,274 @@
+class ToTextStream
+!!!5752731.java!!!	ToTextStream()
+    super();
+!!!5752859.java!!!	startDocumentInternal() : void
+    super.startDocumentInternal();
+
+    m_needToCallStartDocument = false;
+
+    // No action for the moment.
+!!!5752987.java!!!	endDocument() : void
+    flushPending();
+    flushWriter();
+    if (m_tracer != null)
+        super.fireEndDoc();
+!!!5753115.java!!!	startElement(in namespaceURI : String, in localName : String, in name : String, inout atts : Attributes) : void
+    // time to fire off startElement event
+    if (m_tracer != null) {
+        super.fireStartElem(name);
+        this.firePseudoAttributes();
+    }
+    return;
+!!!5753243.java!!!	endElement(in namespaceURI : String, in localName : String, in name : String) : void
+        if (m_tracer != null)
+            super.fireEndElem(name);           
+!!!5753371.java!!!	characters(in ch : char, in start : int, in length : int) : void
+
+    // this.accum(ch, start, length);
+    flushPending();    
+    
+    try
+    {
+        writeNormalizedChars(ch, start, length, false, m_lineSepUse);
+        if (m_tracer != null)
+            super.fireCharEvent(ch, start, length);      
+    }
+    catch(IOException ioe)
+    {
+      throw new SAXException(ioe);
+    }
+!!!5753499.java!!!	charactersRaw(in ch : char, in start : int, in length : int) : void
+
+    try
+    {
+      writeNormalizedChars(ch, start, length, false, m_lineSepUse);
+    }
+    catch(IOException ioe)
+    {
+      throw new SAXException(ioe);
+    }
+!!!5753627.java!!!	writeNormalizedChars(in ch : char, in start : int, in length : int, in isCData : boolean, in useLineSep : boolean) : void
+    final java.io.Writer writer = m_writer;
+    final int end = start + length;
+
+    /* copy a few "constants" before the loop for performance */
+    final char S_LINEFEED = CharInfo.S_LINEFEED;
+    final int M_MAXCHARACTER = this.m_maxCharacter;
+
+    if (isCData)
+    {
+        // This for() loop always increments i by one at the end
+        // of the loop.  Additional increments of i adjust for when
+        // two input characters are processed.
+        for (int i = start; i < end; i++)
+        {
+            final char c = ch[i];
+
+            if (S_LINEFEED == c && useLineSep)
+            {
+                writer.write(m_lineSep, 0, m_lineSepLen);
+            }
+            else if (c > M_MAXCHARACTER)
+            {
+                if (i != 0)
+                    closeCDATA();
+
+                // This needs to go into a function...
+                if (isUTF16Surrogate(c))
+                {
+                    writeUTF16Surrogate(c, ch, i, end);
+                    i++; // two input characters processed
+                }
+                else
+                {
+                    writer.write(c);
+                }
+
+                if ((i != 0) && (i < (end - 1)))
+                {
+                    writer.write(CDATA_DELIMITER_OPEN);
+                    m_cdataTagOpen = true;
+                }
+            }
+            else if (
+                ((i < (end - 2))
+                    && (']' == c)
+                    && (']' == ch[i + 1])
+                    && ('>' == ch[i + 2])))
+            {
+                writer.write(CDATA_CONTINUE);
+                i += 2;
+            }
+            else
+            {
+                if (c <= M_MAXCHARACTER)
+                {
+                    writer.write(c);
+                }
+
+                else if (isUTF16Surrogate(c))
+                {
+                    writeUTF16Surrogate(c, ch, i, end);
+                    i++; // two input characters processed
+                }
+                else
+                {
+                    /* The character is greater than the allowed 
+                     * maximum value and it is not part of a UTF-16
+                     * pair that would be put out as a character reference.
+                     */
+                    String encoding = getEncoding();
+                    if (encoding != null)
+                    {
+                        /* The output encoding is known, 
+                         * so somthing is wrong.
+                         */ 
+                        String integralValue = Integer.toString(c);
+                        throw new SAXException(XMLMessages.createXMLMessage(
+                            XMLErrorResources.ER_ILLEGAL_CHARACTER,
+                            new Object[]{ integralValue, encoding}));
+                    }
+                    else 
+                    {
+                        /* The output encoding is not known,
+                         * so just write it out as-is.
+                         */                        
+                        writer.write(c);
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        // not in CDATA section
+        for (int i = start; i < end; i++)
+        {
+            final char c = ch[i];
+
+            if (S_LINEFEED == c && useLineSep)
+            {
+                writer.write(m_lineSep, 0, m_lineSepLen);
+            }
+            else if (c <= M_MAXCHARACTER)
+            {
+                writer.write(c);
+            }
+            else if (isUTF16Surrogate(c))
+            {
+                writeUTF16Surrogate(c, ch, i, end);
+                i++; // two input characters processed
+            }
+            else
+            {
+                /* The character is greater than the allowed 
+                 * maximum value and it is not part of a UTF-16
+                 * pair that would be put out as a character reference.
+                 */
+                String encoding = getEncoding();
+                if (encoding != null) 
+                {
+                    /* The output encoding is known, 
+                     * so somthing is wrong.
+                     */ 
+                    String integralValue = Integer.toString(c);
+                    throw new SAXException(XMLMessages.createXMLMessage(
+                        XMLErrorResources.ER_ILLEGAL_CHARACTER,
+                        new Object[]{ integralValue, encoding}));
+                }
+                else 
+                {
+                    /* The output encoding is not known,
+                     * so just write it out as-is.
+                     */                        
+                    writer.write(c);
+                }                
+            }
+        }
+    }
+!!!5753755.java!!!	cdata(in ch : char, in start : int, in length : int) : void
+    try
+    {
+        writeNormalizedChars(ch, start, length, false, m_lineSepUse);
+        if (m_tracer != null)
+            super.fireCDATAEvent(ch, start, length);              
+    }
+    catch(IOException ioe)
+    {
+      throw new SAXException(ioe);
+    }
+!!!5753883.java!!!	ignorableWhitespace(in ch : char, in start : int, in length : int) : void
+
+    try
+    {
+      writeNormalizedChars(ch, start, length, false, m_lineSepUse);
+    }
+    catch(IOException ioe)
+    {
+      throw new SAXException(ioe);
+    }
+!!!5754011.java!!!	processingInstruction(in target : String, in data : String) : void
+    // flush anything pending first
+    flushPending();  
+    
+    if (m_tracer != null)
+        super.fireEscapingEvent(target, data);  
+!!!5754139.java!!!	comment(in data : String) : void
+      final int length = data.length();
+      if (length > m_charsBuff.length)
+      {
+          m_charsBuff = new char[length*2 + 1];
+      }
+      data.getChars(0, length, m_charsBuff, 0);
+      comment(m_charsBuff, 0, length);
+!!!5754267.java!!!	comment(in ch : char, in start : int, in length : int) : void
+
+    flushPending();
+    if (m_tracer != null)
+        super.fireCommentEvent(ch, start, length);
+!!!5754395.java!!!	entityReference(in name : String) : void
+        if (m_tracer != null)
+            super.fireEntityReference(name);    
+!!!5754523.java!!!	addAttribute(in uri : String, in localName : String, in rawName : String, in type : String, in value : String) : void
+        // do nothing, just forget all about the attribute
+!!!5754651.java!!!	endCDATA() : void
+        // do nothing
+!!!5754779.java!!!	endElement(in elemName : String) : void
+        if (m_tracer != null)
+            super.fireEndElem(elemName);                       
+!!!5754907.java!!!	startElement(in elementNamespaceURI : String, in elementLocalName : String, in elementName : String) : void
+        if (m_needToCallStartDocument)
+            startDocumentInternal();        
+        // time to fire off startlement event.
+        if (m_tracer != null) {
+            super.fireStartElem(elementName);
+            this.firePseudoAttributes();
+        }
+        
+        return;
+!!!5755035.java!!!	characters(in characters : String) : void
+ 
+        final int length = characters.length();
+        if (length > m_charsBuff.length)
+        {
+            m_charsBuff = new char[length*2 + 1];
+        }
+        characters.getChars(0, length, m_charsBuff, 0);
+        characters(m_charsBuff, 0, length); 
+!!!5755163.java!!!	addAttribute(in name : String, in value : String) : void
+        // do nothing, forget about the attribute
+!!!5755291.java!!!	addUniqueAttribute(in qName : String, in value : String, in flags : int) : void
+        // do nothing, forget about the attribute 
+!!!5755419.java!!!	startPrefixMapping(in prefix : String, in uri : String, inout shouldFlush : boolean) : boolean
+        // no namespace support for HTML
+        return false;
+!!!5755547.java!!!	startPrefixMapping(in prefix : String, in uri : String) : void
+        // no namespace support for HTML
+!!!5755675.java!!!	namespaceAfterStartElement(in prefix : String, in uri : String) : void
+        // no namespace support for HTML
+!!!5755803.java!!!	flushPending() : void
+            if (m_needToCallStartDocument)
+            {
+                startDocumentInternal();
+                m_needToCallStartDocument = false;
+            }

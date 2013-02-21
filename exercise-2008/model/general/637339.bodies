@@ -1,0 +1,88 @@
+class StreamCharacterIterator
+!!!4217883.java!!!	StreamCharacterIterator(inout is : InputStream)
+        this.is = is;
+        this.buff = new StringBuffer(512);
+        this.closed = false;
+!!!4218011.java!!!	substring(in offset : int, in length : int) : String
+        try
+        {
+            ensure(offset + length);
+            return buff.toString().substring(offset, length);
+        }
+        catch (IOException e)
+        {
+            throw new StringIndexOutOfBoundsException(e.getMessage());
+        }
+!!!4218139.java!!!	substring(in offset : int) : String
+        try
+        {
+            readAll();
+            return buff.toString().substring(offset);
+        }
+        catch (IOException e)
+        {
+            throw new StringIndexOutOfBoundsException(e.getMessage());
+        }
+!!!4218267.java!!!	charAt(in pos : int) : char
+        try
+        {
+            ensure(pos);
+            return buff.charAt(pos);
+        }
+        catch (IOException e)
+        {
+            throw new StringIndexOutOfBoundsException(e.getMessage());
+        }
+!!!4218395.java!!!	isEnd(in pos : int) : boolean
+        if (buff.length() > pos)
+        {
+            return false;
+        }
+        else
+        {
+            try
+            {
+                ensure(pos);
+                return (buff.length() <= pos);
+            }
+            catch (IOException e)
+            {
+                throw new StringIndexOutOfBoundsException(e.getMessage());
+            }
+        }
+!!!4218523.java!!!	read(in n : int) : int
+        if (closed)
+        {
+            return 0;
+        }
+
+        int c;
+        int i = n;
+        while (--i >= 0)
+        {
+            c = is.read();
+            if (c < 0) // EOF
+            {
+                closed = true;
+                break;
+            }
+            buff.append((char) c);
+        }
+        return n - i;
+!!!4218651.java!!!	readAll() : void
+        while(! closed)
+        {
+            read(1000);
+        }
+!!!4218779.java!!!	ensure(in idx : int) : void
+        if (closed)
+        {
+            return;
+        }
+
+        if (idx < buff.length())
+        {
+            return;
+        }
+
+        read(idx + 1 - buff.length());

@@ -1,0 +1,34 @@
+class SentEvent
+!!!6224411.java!!!	SentEvent()
+	this(null);
+!!!6224539.java!!!	SentEvent(inout nested : AWTEvent)
+	this(nested, null);
+!!!6224667.java!!!	SentEvent(inout nested : AWTEvent, inout toNotify : AppContext)
+	super((nested != null)
+	          ? nested.getSource()
+	          : Toolkit.getDefaultToolkit(),
+	      ID);
+	this.nested = nested;
+	this.toNotify = toNotify;
+!!!6224795.java!!!	dispatch() : void
+        try {
+            if (nested != null) {
+                Toolkit.getEventQueue().dispatchEvent(nested);
+            }
+        } finally {
+            dispatched = true;
+            if (toNotify != null) {
+                SunToolkit.postEvent(toNotify, new SentEvent());
+            }
+            synchronized (this) {
+                notifyAll();
+            }
+        }
+!!!6224923.java!!!	dispose() : void
+        dispatched = true;
+        if (toNotify != null) {
+            SunToolkit.postEvent(toNotify, new SentEvent());
+        }
+        synchronized (this) {
+            notifyAll();
+        }        

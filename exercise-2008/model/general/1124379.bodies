@@ -1,0 +1,24 @@
+class CellEditorRemover
+!!!9137563.java!!!	CellEditorRemover(inout fm : KeyboardFocusManager)
+            this.focusManager = fm;
+!!!9137691.java!!!	propertyChange(inout ev : PropertyChangeEvent) : void
+            if (!isEditing() || getClientProperty("terminateEditOnFocusLost") != Boolean.TRUE) {
+                return;
+            }
+
+            Component c = focusManager.getPermanentFocusOwner();
+            while (c != null) {
+                if (c == JTable.this) {
+                    // focus remains inside the table
+                    return;
+                } else if ((c instanceof Window) ||
+                           (c instanceof Applet && c.getParent() == null)) {
+                    if (c == SwingUtilities.getRoot(JTable.this)) {
+                        if (!getCellEditor().stopCellEditing()) {
+                            getCellEditor().cancelCellEditing();
+                        }
+                    }
+                    break;
+                }
+                c = c.getParent();
+            }

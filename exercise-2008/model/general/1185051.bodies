@@ -1,0 +1,181 @@
+class SynthScrollBarUI
+!!!9719323.java!!!	createUI(inout c : JComponent) : ComponentUI
+        return new SynthScrollBarUI();
+!!!9719451.java!!!	installDefaults() : void
+	trackHighlight = NO_HIGHLIGHT;
+        if (scrollbar.getLayout() == null ||
+                     (scrollbar.getLayout() instanceof UIResource)) {
+            scrollbar.setLayout(this);
+        }
+        updateStyle(scrollbar);
+!!!9719707.java!!!	updateStyle(inout c : JScrollBar) : void
+        SynthStyle oldStyle = style;
+        SynthContext context = getContext(c, ENABLED);
+        style = SynthLookAndFeel.updateStyle(context, this);
+        if (style != oldStyle) {
+            Insets insets = c.getInsets();
+            scrollBarWidth = style.getInt(context,"ScrollBar.thumbHeight", 14);
+            minimumThumbSize = new Dimension();
+            if (c.getOrientation() == JScrollBar.VERTICAL) {
+                    minimumThumbSize.width = scrollBarWidth;
+                    minimumThumbSize.height = 7;
+                    scrollBarWidth += insets.left + insets.right;
+            } else {
+                    minimumThumbSize.width = 7;
+                    minimumThumbSize.height = scrollBarWidth;
+                    scrollBarWidth += insets.top + insets.bottom;
+            }
+            maximumThumbSize = (Dimension)style.get(context,
+                        "ScrollBar.maximumThumbSize");
+            if (maximumThumbSize == null) {
+                maximumThumbSize = new Dimension(4096, 4097);
+            }
+            if (oldStyle != null) {
+                uninstallKeyboardActions();
+                installKeyboardActions();
+            }
+        }
+        context.dispose();
+
+        context = getContext(c, Region.SCROLL_BAR_TRACK, ENABLED);
+        trackStyle = SynthLookAndFeel.updateStyle(context, this);
+        context.dispose();
+
+        context = getContext(c, Region.SCROLL_BAR_THUMB, ENABLED);
+        thumbStyle = SynthLookAndFeel.updateStyle(context, this);
+        context.dispose();
+!!!9719835.java!!!	installListeners() : void
+        super.installListeners();
+        scrollbar.addPropertyChangeListener(this);
+!!!9719963.java!!!	uninstallListeners() : void
+        super.uninstallListeners();
+        scrollbar.removePropertyChangeListener(this);
+!!!9720091.java!!!	uninstallDefaults() : void
+        SynthContext context = getContext(scrollbar, ENABLED);
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+
+        context = getContext(scrollbar, Region.SCROLL_BAR_TRACK, ENABLED);
+        trackStyle.uninstallDefaults(context);
+        context.dispose();
+        trackStyle = null;
+
+        context = getContext(scrollbar, Region.SCROLL_BAR_THUMB, ENABLED);
+        thumbStyle.uninstallDefaults(context);
+        context.dispose();
+        thumbStyle = null;
+
+        super.uninstallDefaults();
+!!!9720219.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9720347.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c,
+                    SynthLookAndFeel.getRegion(c), style, state);
+!!!9720475.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9720603.java!!!	getComponentState(inout c : JComponent) : int
+        return SynthLookAndFeel.getComponentState(c);
+!!!9720731.java!!!	getContext(inout c : JComponent, inout region : Region) : SynthContext
+        return getContext(c, region, getComponentState(c, region));
+!!!9720859.java!!!	getContext(inout c : JComponent, inout region : Region, in state : int) : SynthContext
+        SynthStyle style = trackStyle;
+
+        if (region == Region.SCROLL_BAR_THUMB) {
+            style = thumbStyle;
+        }
+        return SynthContext.getContext(SynthContext.class, c, region, style,
+                                       state);
+!!!9720987.java!!!	getComponentState(inout c : JComponent, inout region : Region) : int
+        if (region == Region.SCROLL_BAR_THUMB && isThumbRollover() &&
+                                                 c.isEnabled()) {
+            return MOUSE_OVER;
+        }
+        return SynthLookAndFeel.getComponentState(c);
+!!!9721115.java!!!	getSupportsAbsolutePositioning() : boolean
+        SynthContext context = getContext(scrollbar);
+        boolean value = style.getBoolean(context, 
+                      "ScrollBar.allowsAbsolutePositioning", false);
+        context.dispose();
+	return value;
+!!!9721243.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintScrollBarBackground(context,
+                          g, 0, 0, c.getWidth(), c.getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9721371.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9721499.java!!!	paint(inout context : SynthContext, inout g : Graphics) : void
+        SynthContext subcontext = getContext(scrollbar,
+                                             Region.SCROLL_BAR_TRACK);
+	paintTrack(subcontext, g, getTrackBounds());
+        subcontext.dispose();
+
+        subcontext = getContext(scrollbar, Region.SCROLL_BAR_THUMB);
+	paintThumb(subcontext, g, getThumbBounds());
+        subcontext.dispose();
+!!!9721627.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        context.getPainter().paintScrollBarBorder(context, g, x, y, w, h);
+!!!9721755.java!!!	paintTrack(inout ss : SynthContext, inout g : Graphics, inout trackBounds : Rectangle) : void
+        SynthLookAndFeel.updateSubregion(ss, g, trackBounds);
+        ss.getPainter().paintScrollBarTrackBackground(ss, g, trackBounds.x,
+                        trackBounds.y, trackBounds.width, trackBounds.height);
+        ss.getPainter().paintScrollBarTrackBorder(ss, g, trackBounds.x,
+                        trackBounds.y, trackBounds.width, trackBounds.height);
+!!!9721883.java!!!	paintThumb(inout ss : SynthContext, inout g : Graphics, inout thumbBounds : Rectangle) : void
+        int orientation = scrollbar.getOrientation();
+        ss.getPainter().paintScrollBarThumbBackground(ss, g, thumbBounds.x,
+                        thumbBounds.y, thumbBounds.width, thumbBounds.height,
+                        orientation);
+        ss.getPainter().paintScrollBarThumbBorder(ss, g, thumbBounds.x,
+                        thumbBounds.y, thumbBounds.width, thumbBounds.height,
+                        orientation);
+!!!9722011.java!!!	getPreferredSize(inout c : JComponent) : Dimension
+	return (scrollbar.getOrientation() == JScrollBar.VERTICAL)
+	    ? new Dimension(scrollBarWidth, 48)
+	    : new Dimension(48, scrollBarWidth);
+!!!9722139.java!!!	createDecreaseButton(in orientation : int) : JButton
+        SynthArrowButton synthArrowButton = new SynthArrowButton(orientation);
+        synthArrowButton.setName("ScrollBar.button");
+        return synthArrowButton;
+!!!9722267.java!!!	createIncreaseButton(in orientation : int) : JButton
+        SynthArrowButton synthArrowButton = new SynthArrowButton(orientation);
+        synthArrowButton.setName("ScrollBar.button");
+        return synthArrowButton;
+!!!9722395.java!!!	setThumbRollover(inout active : boolean) : void
+        if (isThumbRollover() != active) {
+            scrollbar.repaint(getThumbBounds());
+            super.setThumbRollover(active);
+        }
+!!!9722523.java!!!	updateButtonDirections() : void
+        int orient = scrollbar.getOrientation();
+        if (scrollbar.getComponentOrientation().isLeftToRight()) { 
+            ((SynthArrowButton)incrButton).setDirection(
+                        orient == HORIZONTAL? EAST : SOUTH);
+            ((SynthArrowButton)decrButton).setDirection(
+                        orient == HORIZONTAL? WEST : NORTH);
+        }
+        else {
+            ((SynthArrowButton)incrButton).setDirection(
+                        orient == HORIZONTAL? WEST : SOUTH);
+            ((SynthArrowButton)decrButton).setDirection(
+                        orient == HORIZONTAL ? EAST : NORTH);
+        }
+!!!9722651.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+        String propertyName = e.getPropertyName();
+
+        if (SynthLookAndFeel.shouldUpdateStyle(e)) {
+            updateStyle((JScrollBar)e.getSource());
+        }
+        else if ("orientation" == propertyName) {
+            updateButtonDirections();
+        }
+        else if ("componentOrientation" == propertyName) {
+            updateButtonDirections();
+	}

@@ -1,0 +1,179 @@
+class CharacterDataLatin1
+!!!6950811.java!!!	getProperties(in ch : int) : int
+
+		char offset = (char)ch;
+        int props = A[offset];
+        return props;
+!!!6950939.java!!!	getType(in ch : int) : int
+
+        int props = getProperties(ch);
+        return (props & 0x1F);
+!!!6951067.java!!!	isLowerCase(in ch : int) : boolean
+
+        int type = getType(ch);
+        return (type == Character.LOWERCASE_LETTER);
+!!!6951195.java!!!	isUpperCase(in ch : int) : boolean
+
+        int type = getType(ch);
+        return (type == Character.UPPERCASE_LETTER);
+!!!6951323.java!!!	isTitleCase(in ch : int) : boolean
+
+        return false;
+!!!6951451.java!!!	isDigit(in ch : int) : boolean
+
+        int type = getType(ch);
+        return (type == Character.DECIMAL_DIGIT_NUMBER);
+!!!6951579.java!!!	isDefined(in ch : int) : boolean
+
+        int type = getType(ch);
+        return (type != Character.UNASSIGNED);
+!!!6951707.java!!!	isLetter(in ch : int) : boolean
+
+        int type = getType(ch);
+        return (((((1 << Character.UPPERCASE_LETTER) |
+            (1 << Character.LOWERCASE_LETTER) |
+            (1 << Character.TITLECASE_LETTER) |
+            (1 << Character.MODIFIER_LETTER) |
+            (1 << Character.OTHER_LETTER)) >> type) & 1) != 0);
+!!!6951835.java!!!	isLetterOrDigit(in ch : int) : boolean
+
+        int type = getType(ch);
+        return (((((1 << Character.UPPERCASE_LETTER) |
+            (1 << Character.LOWERCASE_LETTER) |
+            (1 << Character.TITLECASE_LETTER) |
+            (1 << Character.MODIFIER_LETTER) |
+            (1 << Character.OTHER_LETTER) |
+            (1 << Character.DECIMAL_DIGIT_NUMBER)) >> type) & 1) != 0);
+!!!6951963.java!!!	isSpaceChar(in ch : int) : boolean
+
+        int type = getType(ch);
+        return (((((1 << Character.SPACE_SEPARATOR) |
+            (1 << Character.LINE_SEPARATOR) |
+            (1 << Character.PARAGRAPH_SEPARATOR)) >> type) & 1) != 0);
+!!!6952091.java!!!	isJavaIdentifierStart(in ch : int) : boolean
+
+        int props = getProperties(ch);
+        return ((props & 0x00007000) >= 0x00005000);
+!!!6952219.java!!!	isJavaIdentifierPart(in ch : int) : boolean
+
+        int props = getProperties(ch);
+        return ((props & 0x00003000) != 0);
+!!!6952347.java!!!	isUnicodeIdentifierStart(in ch : int) : boolean
+
+        int props = getProperties(ch);
+        return ((props & 0x00007000) == 0x00007000);
+!!!6952475.java!!!	isUnicodeIdentifierPart(in ch : int) : boolean
+
+        int props = getProperties(ch);
+        return ((props & 0x00001000) != 0);
+!!!6952603.java!!!	isIdentifierIgnorable(in ch : int) : boolean
+
+        int props = getProperties(ch);
+        return ((props & 0x00007000) == 0x00001000);
+!!!6952731.java!!!	toLowerCase(in ch : int) : int
+
+        int mapChar = ch;
+        int val = getProperties(ch);
+
+        if (((val & 0x00020000) != 0) && 
+                ((val & 0x07FC0000) != 0x07FC0000)) { 
+            int offset = val << 5 >> (5+18);
+            mapChar = ch + offset;
+        }
+        return mapChar;
+!!!6952859.java!!!	toUpperCase(in ch : int) : int
+
+        int mapChar = ch;
+        int val = getProperties(ch);
+
+        if ((val & 0x00010000) != 0) {
+            if ((val & 0x07FC0000) != 0x07FC0000) {
+                int offset = val  << 5 >> (5+18);
+                mapChar =  ch - offset;
+            } else if (ch == 0x00B5) {
+                mapChar = 0x039C;
+            }
+        }
+        return mapChar;
+!!!6952987.java!!!	toTitleCase(in ch : int) : int
+
+        return toUpperCase(ch);
+!!!6953115.java!!!	digit(in ch : int, in radix : int) : int
+
+        int value = -1;
+        if (radix >= Character.MIN_RADIX && radix <= Character.MAX_RADIX) {
+            int val = getProperties(ch);
+            int kind = val & 0x1F;
+            if (kind == Character.DECIMAL_DIGIT_NUMBER) {
+                value = ch + ((val & 0x3E0) >> 5) & 0x1F;
+            }
+            else if ((val & 0xC00) == 0x00000C00) {
+                // Java supradecimal digit
+                value = (ch + ((val & 0x3E0) >> 5) & 0x1F) + 10;
+            }
+        }
+        return (value < radix) ? value : -1;
+!!!6953243.java!!!	getNumericValue(in ch : int) : int
+
+        int val = getProperties(ch);
+        int retval = -1;
+
+        switch (val & 0xC00) {
+            default: // cannot occur
+            case (0x00000000):         // not numeric
+                retval = -1;
+                break;
+            case (0x00000400):              // simple numeric
+                retval = ch + ((val & 0x3E0) >> 5) & 0x1F;
+                break;
+            case (0x00000800)      :       // "strange" numeric
+                 retval = -2; 
+                 break;
+            case (0x00000C00):           // Java supradecimal
+                retval = (ch + ((val & 0x3E0) >> 5) & 0x1F) + 10;
+                break;
+        }
+        return retval;
+!!!6953371.java!!!	isWhitespace(in ch : int) : boolean
+
+        int props = getProperties(ch);
+        return ((props & 0x00007000) == 0x00004000);
+!!!6953499.java!!!	getDirectionality(in ch : int) : byte
+
+        int val = getProperties(ch);
+        byte directionality = (byte)((val & 0x78000000) >> 27);
+
+        if (directionality == 0xF ) {
+            directionality = -1;
+        }
+        return directionality;
+!!!6953627.java!!!	isMirrored(in ch : int) : boolean
+
+        int props = getProperties(ch);
+        return ((props & 0x80000000) != 0);
+!!!6953755.java!!!	toUpperCaseEx(in ch : int) : int
+
+        int mapChar = ch;
+        int val = getProperties(ch);
+
+        if ((val & 0x00010000) != 0) {
+            if ((val & 0x07FC0000) != 0x07FC0000) {
+                int offset = val  << 5 >> (5+18);
+                mapChar =  ch - offset;
+            }
+            else {
+                switch(ch) {
+                    // map overflow characters
+                    case 0x00B5 : mapChar = 0x039C; break;
+                    default       : mapChar = Character.ERROR; break;
+                }
+            }
+        }
+        return mapChar;
+!!!6953883.java!!!	toUpperCaseCharArray(in ch : int) : char
+
+        char[] upperMap = {(char)ch};
+        if (ch == 0x00DF) {
+            upperMap = sharpsMap;
+        }
+        return upperMap;

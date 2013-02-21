@@ -1,0 +1,118 @@
+class UnionIterator
+!!!4699931.java!!!	UnionIterator(inout dom : DOM)
+	_dom = dom;
+!!!4700059.java!!!	cloneIterator() : DTMAxisIterator
+	_isRestartable = false;
+	final LookAheadIterator[] heapCopy = 
+	    new LookAheadIterator[_heap.length];
+	try {
+	    final UnionIterator clone = (UnionIterator)super.clone();
+            for (int i = 0; i < _free; i++) {
+                heapCopy[i] = _heap[i].cloneIterator();
+            }
+	    clone.setRestartable(false);
+	    clone._heap = heapCopy;
+	    return clone.reset();
+	} 
+	catch (CloneNotSupportedException e) {
+	    BasisLibrary.runTimeError(BasisLibrary.ITERATOR_CLONE_ERR,
+				      e.toString());
+	    return null;
+	}
+!!!4700187.java!!!	addIterator(inout iterator : DTMAxisIterator) : UnionIterator
+	if (_free == _size) {
+	    LookAheadIterator[] newArray = new LookAheadIterator[_size *= 2];
+	    System.arraycopy(_heap, 0, newArray, 0, _free);
+	    _heap = newArray;
+	}
+	_heapSize++;
+	_heap[_free++] = new LookAheadIterator(iterator);
+	return this;
+!!!4700315.java!!!	next() : int
+	while (_heapSize > 0) {
+	    final int smallest = _heap[0].node;
+	    if (smallest == END) { // iterator _heap[0] is done
+		if (_heapSize > 1) {
+		    // Swap first and last (iterator must be restartable)
+		    final LookAheadIterator temp = _heap[0];
+		    _heap[0] = _heap[--_heapSize];
+		    _heap[_heapSize] = temp;
+		}
+		else {
+		    return END;
+		}
+	    }
+	    else if (smallest == _returnedLast) {	// duplicate
+		_heap[0].step(); // value consumed
+	    }
+	    else {
+		_heap[0].step(); // value consumed
+		heapify(0);
+		return returnNode(_returnedLast = smallest);
+	    }
+	    // fallthrough if not returned above
+	    heapify(0);
+	}
+	return END;
+!!!4700443.java!!!	setStartNode(in node : int) : DTMAxisIterator
+	if (_isRestartable) {
+	    _startNode = node;
+	    for (int i = 0; i < _free; i++) {
+         	if(!_heap[i].isStartSet){
+        	   _heap[i].iterator.setStartNode(node);
+        	   _heap[i].step();	// to get the first node
+        	   _heap[i].isStartSet = true;
+        	}
+	    }
+	    // build heap
+	    for (int i = (_heapSize = _free)/2; i >= 0; i--) {
+		heapify(i);
+	    }
+	    _returnedLast = END;
+	    return resetPosition();
+	}
+	return this;
+!!!4700571.java!!!	heapify(in i : int) : void
+	for (int r, l, smallest;;) {
+	    r = (i + 1) << 1; l = r - 1;
+	    smallest = l < _heapSize 
+		&& _dom.lessThan(_heap[l].node, _heap[i].node) ? l : i;
+	    if (r < _heapSize && _dom.lessThan(_heap[r].node,
+					       _heap[smallest].node)) {
+		smallest = r;
+	    }
+	    if (smallest != i) {
+		final LookAheadIterator temp = _heap[smallest];
+		_heap[smallest] = _heap[i];
+		_heap[i] = temp;
+		i = smallest;
+	    }
+	    else
+		break;
+	}
+!!!4700699.java!!!	setMark() : void
+	for (int i = 0; i < _free; i++) {
+	    _heap[i].setMark();
+	}
+	_cachedReturnedLast = _returnedLast;    
+	_cachedHeapSize = _heapSize;
+!!!4700827.java!!!	gotoMark() : void
+	for (int i = 0; i < _free; i++) {
+	    _heap[i].gotoMark();
+	}
+	// rebuild heap after call last() function. fix for bug 20913
+	for (int i = (_heapSize = _cachedHeapSize)/2; i >= 0; i--) {
+	    heapify(i);
+	}
+    _returnedLast = _cachedReturnedLast;    
+!!!4700955.java!!!	reset() : DTMAxisIterator
+	for (int i = 0; i < _free; i++) {
+	    _heap[i].iterator.reset();
+	    _heap[i].step();
+	}
+	// build heap
+	for (int i = (_heapSize = _free)/2; i >= 0; i--) {
+	    heapify(i);
+	}
+	_returnedLast = END;
+	return resetPosition();

@@ -1,0 +1,55 @@
+class ExpiringCache
+!!!6840091.java!!!	ExpiringCache()
+        this(30000);
+!!!6840219.java!!!	ExpiringCache(in millisUntilExpiration : long)
+        this.millisUntilExpiration = millisUntilExpiration;
+        map = new LinkedHashMap() {
+            protected boolean removeEldestEntry(Map.Entry eldest) {
+              return size() > MAX_ENTRIES;
+            }
+          };
+!!!6840347.java!!!	get(in key : String) : String
+        if (++queryCount >= queryOverflow) {
+            cleanup();
+        }
+        Entry entry = entryFor(key);
+        if (entry != null) {
+            return entry.val();
+        }
+        return null;
+!!!6840475.java!!!	put(in key : String, in val : String) : void
+        if (++queryCount >= queryOverflow) {
+            cleanup();
+        }
+        Entry entry = entryFor(key);
+        if (entry != null) {
+            entry.setTimestamp(System.currentTimeMillis());
+            entry.setVal(val);
+        } else {
+            map.put(key, new Entry(System.currentTimeMillis(), val));
+        }
+!!!6840603.java!!!	clear() : void
+        map.clear();
+!!!6840731.java!!!	entryFor(in key : String) : Entry
+        Entry entry = (Entry) map.get(key);
+        if (entry != null) {
+            long delta = System.currentTimeMillis() - entry.timestamp();
+            if (delta < 0 || delta >= millisUntilExpiration) {
+                map.remove(key);
+                entry = null;
+            }
+        }
+        return entry;
+!!!6840859.java!!!	cleanup() : void
+        Set keySet = map.keySet();
+        // Avoid ConcurrentModificationExceptions
+        String[] keys = new String[keySet.size()];
+        int i = 0;
+        for (Iterator iter = keySet.iterator(); iter.hasNext(); ) {
+            String key = (String) iter.next();
+            keys[i++] = key;
+        }
+        for (int j = 0; j < keys.length; j++) {
+            entryFor(keys[j]);
+        }
+        queryCount = 0;

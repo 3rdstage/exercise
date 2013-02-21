@@ -1,0 +1,147 @@
+class SynthGraphicsUtils
+!!!2105499.java!!!	drawLine(inout context : SynthContext, inout paintKey : Object, inout g : Graphics, in x1 : int, in y1 : int, in x2 : int, in y2 : int) : void
+        g.drawLine(x1, y1, x2, y2);
+!!!2105627.java!!!	layoutText(inout ss : SynthContext, inout fm : FontMetrics, in text : String, inout icon : Icon, in hAlign : int, in vAlign : int, in hTextPosition : int, in vTextPosition : int, inout viewR : Rectangle, inout iconR : Rectangle, inout textR : Rectangle, in iconTextGap : int) : String
+        if (icon instanceof SynthIcon) {
+            SynthIconWrapper wrapper = SynthIconWrapper.get((SynthIcon)icon,
+                                                            ss);
+            String formattedText = SwingUtilities.layoutCompoundLabel(
+                      ss.getComponent(), fm, text, wrapper, vAlign, hAlign,
+                      vTextPosition, hTextPosition, viewR, iconR, textR,
+                      iconTextGap);
+            SynthIconWrapper.release(wrapper);
+            return formattedText;
+        }
+        return SwingUtilities.layoutCompoundLabel(
+                      ss.getComponent(), fm, text, icon, vAlign, hAlign,
+                      vTextPosition, hTextPosition, viewR, iconR, textR,
+                      iconTextGap);
+!!!2105755.java!!!	computeStringWidth(inout ss : SynthContext, inout font : Font, inout metrics : FontMetrics, in text : String) : int
+        return SwingUtilities2.stringWidth(ss.getComponent(), metrics,
+                                          text);
+!!!2105883.java!!!	getMinimumSize(inout ss : SynthContext, inout font : Font, in text : String, inout icon : Icon, in hAlign : int, in vAlign : int, in hTextPosition : int, in vTextPosition : int, in iconTextGap : int, in mnemonicIndex : int) : Dimension
+        JComponent c = ss.getComponent();
+        Dimension size = getPreferredSize(ss, font, text, icon, hAlign,
+                                          vAlign, hTextPosition, vTextPosition,
+                                          iconTextGap, mnemonicIndex);
+	View v = (View) c.getClientProperty(BasicHTML.propertyKey);
+
+	if (v != null) {
+	    size.width -= v.getPreferredSpan(View.X_AXIS) -
+                          v.getMinimumSpan(View.X_AXIS);
+	}
+        return size;
+!!!2106011.java!!!	getMaximumSize(inout ss : SynthContext, inout font : Font, in text : String, inout icon : Icon, in hAlign : int, in vAlign : int, in hTextPosition : int, in vTextPosition : int, in iconTextGap : int, in mnemonicIndex : int) : Dimension
+        JComponent c = ss.getComponent();
+        Dimension size = getPreferredSize(ss, font, text, icon, hAlign,
+                                          vAlign, hTextPosition, vTextPosition,
+                                          iconTextGap, mnemonicIndex);
+	View v = (View) c.getClientProperty(BasicHTML.propertyKey);
+
+	if (v != null) {
+	    size.width += v.getMaximumSpan(View.X_AXIS) -
+                          v.getPreferredSpan(View.X_AXIS);
+	}
+        return size;
+!!!2106139.java!!!	getMaximumCharHeight(inout context : SynthContext) : int
+        FontMetrics fm = context.getComponent().getFontMetrics(
+            context.getStyle().getFont(context));
+        return (fm.getAscent() + fm.getDescent());
+!!!2106267.java!!!	getPreferredSize(inout ss : SynthContext, inout font : Font, in text : String, inout icon : Icon, in hAlign : int, in vAlign : int, in hTextPosition : int, in vTextPosition : int, in iconTextGap : int, in mnemonicIndex : int) : Dimension
+        JComponent c = ss.getComponent();
+        Insets insets = c.getInsets(viewSizingInsets);
+        int dx = insets.left + insets.right;
+        int dy = insets.top + insets.bottom;
+
+        if (icon == null && (text == null || font == null)) {
+            return new Dimension(dx, dy);
+        }
+        else if ((text == null) || ((icon != null) && (font == null))) {
+            return new Dimension(SynthIcon.getIconWidth(icon, ss) + dx, 
+                                 SynthIcon.getIconHeight(icon, ss) + dy);
+        }
+        else {
+            FontMetrics fm = c.getFontMetrics(font);
+
+            iconR.x = iconR.y = iconR.width = iconR.height = 0;
+            textR.x = textR.y = textR.width = textR.height = 0;
+            viewR.x = dx;
+            viewR.y = dy;
+            viewR.width = viewR.height = Short.MAX_VALUE;
+
+            layoutText(ss, fm, text, icon, hAlign, vAlign,
+                   hTextPosition, vTextPosition, viewR, iconR, textR,
+                   iconTextGap);
+            int x1 = Math.min(iconR.x, textR.x);
+            int x2 = Math.max(iconR.x + iconR.width, textR.x + textR.width);
+            int y1 = Math.min(iconR.y, textR.y);
+            int y2 = Math.max(iconR.y + iconR.height, textR.y + textR.height);
+            Dimension rv = new Dimension(x2 - x1, y2 - y1);
+
+            rv.width += dx;
+            rv.height += dy;
+            return rv;
+        }
+!!!2106395.java!!!	paintText(inout ss : SynthContext, inout g : Graphics, in text : String, inout bounds : Rectangle, in mnemonicIndex : int) : void
+        paintText(ss, g, text, bounds.x, bounds.y, mnemonicIndex);
+!!!2106523.java!!!	paintText(inout ss : SynthContext, inout g : Graphics, in text : String, in x : int, in y : int, in mnemonicIndex : int) : void
+        if (text != null) {
+            JComponent c = ss.getComponent();
+            SynthStyle style = ss.getStyle();
+            FontMetrics fm = SwingUtilities2.getFontMetrics(c, g);
+
+            y += fm.getAscent();
+            SwingUtilities2.drawString(c, g, text, x, y);
+            if (mnemonicIndex >= 0 && mnemonicIndex < text.length()) {
+                int underlineX = x + SwingUtilities2.stringWidth(
+                             c, fm, text.substring(0, mnemonicIndex));
+                int underlineY = y;
+                int underlineWidth = fm.charWidth(text.charAt(mnemonicIndex));
+                int underlineHeight = 1;
+
+                g.fillRect(underlineX, underlineY + fm.getDescent() - 1,
+                           underlineWidth, underlineHeight);
+            }
+        }
+!!!2106651.java!!!	paintText(inout ss : SynthContext, inout g : Graphics, in text : String, inout icon : Icon, in hAlign : int, in vAlign : int, in hTextPosition : int, in vTextPosition : int, in iconTextGap : int, in mnemonicIndex : int, in textOffset : int) : void
+        if ((icon == null) && (text == null)) {
+            return;
+        }
+        JComponent c = ss.getComponent();
+        FontMetrics fm = SwingUtilities2.getFontMetrics(c, g);
+        Insets insets = SynthLookAndFeel.getPaintingInsets(ss, paintInsets);
+
+        paintViewR.x = insets.left;
+        paintViewR.y = insets.top;
+        paintViewR.width = c.getWidth() - (insets.left + insets.right);
+        paintViewR.height = c.getHeight() - (insets.top + insets.bottom);
+
+        paintIconR.x = paintIconR.y = paintIconR.width = paintIconR.height = 0;
+        paintTextR.x = paintTextR.y = paintTextR.width = paintTextR.height = 0;
+
+        String clippedText = 
+            layoutText(ss, fm, text, icon, hAlign, vAlign,
+                   hTextPosition, vTextPosition, paintViewR, paintIconR,
+                   paintTextR, iconTextGap);
+
+        if (icon != null) {
+            Color color = g.getColor();
+            paintIconR.x += textOffset;
+            paintIconR.y += textOffset;
+            SynthIcon.paintIcon(icon, ss, g, paintIconR.x, paintIconR.y,
+                                paintIconR.width, paintIconR.height);
+            g.setColor(color);
+        }
+
+        if (text != null) {
+	    View v = (View) c.getClientProperty(BasicHTML.propertyKey);
+
+	    if (v != null) {
+		v.paint(g, paintTextR);
+	    } else {
+                paintTextR.x += textOffset;
+                paintTextR.y += textOffset;
+
+                paintText(ss, g, clippedText, paintTextR, mnemonicIndex);
+	    }
+        }

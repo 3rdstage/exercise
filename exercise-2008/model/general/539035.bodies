@@ -1,0 +1,57 @@
+class SnmpErrorHandlerAgent
+!!!3357851.java!!!	preRegister(inout server : MBeanServer, inout name : ObjectName) : ObjectName
+        return name;
+!!!3357979.java!!!	getRootOid() : long
+    return null;
+!!!3358107.java!!!	get(inout inRequest : SnmpMibRequest) : void
+    
+    if(isDebugOn()) trace("get","Get in Exception");
+    
+    if(inRequest.getVersion() == SnmpDefinitions.snmpVersionOne)
+      throw new SnmpStatusException(SnmpStatusException.noSuchName);
+    
+    Enumeration l = inRequest.getElements();
+    while(l.hasMoreElements()) {
+      SnmpVarBind varbind = (SnmpVarBind) l.nextElement(); 
+      varbind.setNoSuchObject();
+    }
+!!!3358235.java!!!	check(inout inRequest : SnmpMibRequest) : void
+
+    if(isDebugOn()) trace("check","Check in Exception");
+
+    throw new SnmpStatusException(SnmpDefinitions.snmpRspNotWritable);
+!!!3358363.java!!!	set(inout inRequest : SnmpMibRequest) : void
+
+      if(isDebugOn()) trace("set","Set in Exception, CAN't be called");
+      
+    throw new SnmpStatusException(SnmpDefinitions.snmpRspNotWritable);
+!!!3358491.java!!!	getNext(inout inRequest : SnmpMibRequest) : void
+    
+      if(isDebugOn()) trace("getNext","GetNext in Exception");
+
+    if(inRequest.getVersion() == SnmpDefinitions.snmpVersionOne)
+      throw new SnmpStatusException(SnmpStatusException.noSuchName);
+    
+    Enumeration l = inRequest.getElements();
+    while(l.hasMoreElements()) {
+      SnmpVarBind varbind = (SnmpVarBind) l.nextElement(); 
+      varbind.setEndOfMibView();
+    }
+!!!3358619.java!!!	getBulk(inout inRequest : SnmpMibRequest, in nonRepeat : int, in maxRepeat : int) : void
+      
+      if(isDebugOn()) trace("getBulk","GetBulk in Exception");
+ 
+      if(inRequest.getVersion() == SnmpDefinitions.snmpVersionOne) 
+	throw new SnmpStatusException(SnmpDefinitions.snmpRspGenErr, 0);
+      
+      Enumeration l = inRequest.getElements();
+      while(l.hasMoreElements()) {
+	SnmpVarBind varbind = (SnmpVarBind) l.nextElement(); 
+	varbind.setEndOfMibView();
+      }
+!!!3358747.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_ADAPTOR_SNMP);
+!!!3358875.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_ADAPTOR_SNMP, clz, func, info);
+!!!3359003.java!!!	trace(in func : String, in info : String) : void
+        debug(dbgTag, func, info);

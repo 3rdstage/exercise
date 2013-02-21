@@ -1,0 +1,200 @@
+class DirectLongBufferU
+!!!7425051.java!!!	viewedBuffer() : Object
+
+        return viewedBuffer;
+!!!7425179.java!!!	cleaner() : Cleaner
+ return null;
+!!!7425307.java!!!	DirectLongBufferU(inout db : DirectBuffer, in mark : int, in pos : int, in lim : int, in cap : int, in off : int)
+
+
+	super(mark, pos, lim, cap);
+	address = db.address() + off;
+	viewedBuffer = db;
+
+
+
+
+
+
+!!!7425435.java!!!	slice() : LongBuffer
+
+	int pos = this.position();
+	int lim = this.limit();
+	assert (pos <= lim);
+	int rem = (pos <= lim ? lim - pos : 0);
+	int off = (pos << 3);
+        assert (off >= 0);
+	return new DirectLongBufferU(this, -1, 0, rem, rem, off);
+!!!7425563.java!!!	duplicate() : LongBuffer
+
+	return new DirectLongBufferU(this,
+					      this.markValue(),
+					      this.position(),
+					      this.limit(),
+					      this.capacity(),
+					      0);
+!!!7425691.java!!!	asReadOnlyBuffer() : LongBuffer
+
+
+	return new DirectLongBufferRU(this,
+					   this.markValue(),
+					   this.position(),
+					   this.limit(),
+					   this.capacity(),
+					   0);
+
+
+
+!!!7425819.java!!!	address() : long
+
+	return address;
+!!!7425947.java!!!	ix(in i : int) : long
+
+        return address + (i << 3);
+!!!7426075.java!!!	get() : long
+
+	return ((unsafe.getLong(ix(nextGetIndex()))));
+!!!7426203.java!!!	get(in i : int) : long
+
+	return ((unsafe.getLong(ix(checkIndex(i)))));
+!!!7426331.java!!!	get(in dst : long, in offset : int, in length : int) : LongBuffer
+
+
+	if ((length << 3) > Bits.JNI_COPY_TO_ARRAY_THRESHOLD) {
+	    checkBounds(offset, length, dst.length);
+	    int pos = position();
+	    int lim = limit();
+	    assert (pos <= lim);
+	    int rem = (pos <= lim ? lim - pos : 0);
+	    if (length > rem)
+		throw new BufferUnderflowException();
+
+	    if (order() != ByteOrder.nativeOrder())
+		Bits.copyToLongArray(ix(pos), dst,
+					  offset << 3,
+					  length << 3);
+	    else
+		Bits.copyToByteArray(ix(pos), dst,
+				     offset << 3,
+				     length << 3);
+	    position(pos + length);
+	} else {
+	    super.get(dst, offset, length);
+	}
+	return this;
+
+
+
+!!!7426459.java!!!	put(in x : long) : LongBuffer
+
+
+	unsafe.putLong(ix(nextPutIndex()), ((x)));
+	return this;
+
+
+
+!!!7426587.java!!!	put(in i : int, in x : long) : LongBuffer
+
+
+	unsafe.putLong(ix(checkIndex(i)), ((x)));
+	return this;
+
+
+
+!!!7426715.java!!!	put(inout src : LongBuffer) : LongBuffer
+
+
+	if (src instanceof DirectLongBufferU) {
+	    if (src == this)
+		throw new IllegalArgumentException();
+	    DirectLongBufferU sb = (DirectLongBufferU)src;
+
+	    int spos = sb.position();
+	    int slim = sb.limit();
+	    assert (spos <= slim);
+	    int srem = (spos <= slim ? slim - spos : 0);
+
+	    int pos = position();
+	    int lim = limit();
+	    assert (pos <= lim);
+	    int rem = (pos <= lim ? lim - pos : 0);
+
+	    if (srem > rem)
+		throw new BufferOverflowException();
+ 	    unsafe.copyMemory(sb.ix(spos), ix(pos), srem << 3);
+ 	    sb.position(spos + srem);
+ 	    position(pos + srem);
+	} else if (!src.isDirect()) {
+
+	    int spos = src.position();
+	    int slim = src.limit();
+	    assert (spos <= slim);
+	    int srem = (spos <= slim ? slim - spos : 0);
+
+	    put(src.hb, src.offset + spos, srem);
+	    src.position(spos + srem);
+
+	} else {
+	    super.put(src);
+	}
+	return this;
+
+
+
+!!!7426843.java!!!	put(in src : long, in offset : int, in length : int) : LongBuffer
+
+
+	if ((length << 3) > Bits.JNI_COPY_FROM_ARRAY_THRESHOLD) {
+	    checkBounds(offset, length, src.length);
+	    int pos = position();
+	    int lim = limit();
+	    assert (pos <= lim);
+	    int rem = (pos <= lim ? lim - pos : 0);
+	    if (length > rem)
+		throw new BufferOverflowException();
+
+	    if (order() != ByteOrder.nativeOrder()) 
+		Bits.copyFromLongArray(src, offset << 3,
+					    ix(pos), length << 3);
+	    else
+		Bits.copyFromByteArray(src, offset << 3,
+				       ix(pos), length << 3);
+	    position(pos + length);
+	} else {
+	    super.put(src, offset, length);
+	}
+	return this;
+
+
+
+!!!7426971.java!!!	compact() : LongBuffer
+
+
+	int pos = position();
+	int lim = limit();
+	assert (pos <= lim);
+	int rem = (pos <= lim ? lim - pos : 0);
+
+ 	unsafe.copyMemory(ix(pos), ix(0), rem << 3);
+ 	position(rem);
+	limit(capacity());
+	return this;
+
+
+
+!!!7427099.java!!!	isDirect() : boolean
+
+	return true;
+!!!7427227.java!!!	isReadOnly() : boolean
+
+	return false;
+!!!7427355.java!!!	order() : ByteOrder
+
+
+
+
+
+
+	return ((ByteOrder.nativeOrder() != ByteOrder.BIG_ENDIAN)
+		? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN);
+

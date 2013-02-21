@@ -1,0 +1,40 @@
+class SysexMessage
+!!!8715675.java!!!	SysexMessage()
+	this(new byte[2]);
+	// Default sysex message data: SOX followed by EOX
+	data[0] = (byte) (SYSTEM_EXCLUSIVE & 0xFF);
+	data[1] = (byte) (ShortMessage.END_OF_EXCLUSIVE & 0xFF);
+!!!8715803.java!!!	SysexMessage(in data : byte)
+	super(data);
+!!!8715931.java!!!	setMessage(in data : byte, in length : int) : void
+	int status = (data[0] & 0xFF);
+	if ((status != 0xF0) && (status != 0xF7)) {
+	    throw new InvalidMidiDataException("Invalid status byte for sysex message: 0x" + Integer.toHexString(status));
+	}
+	super.setMessage(data, length);
+!!!8716059.java!!!	setMessage(in status : int, in data : byte, in length : int) : void
+	if ( (status != 0xF0) && (status != 0xF7) ) {
+	    throw new InvalidMidiDataException("Invalid status byte for sysex message: 0x" + Integer.toHexString(status));
+	}
+	if (length < 0 || length > data.length) {
+	    throw new IndexOutOfBoundsException("length out of bounds: "+length);
+	}
+	this.length = length + 1;
+
+	if (this.data==null || this.data.length < this.length) {
+	    this.data = new byte[this.length];
+	}
+
+	this.data[0] = (byte) (status & 0xFF);
+	if (length > 0) {
+	    System.arraycopy(data, 0, this.data, 1, length);
+	}
+!!!8716187.java!!!	getData() : byte
+	byte[] returnedArray = new byte[length - 1];
+	System.arraycopy(data, 1, returnedArray, 0, (length - 1));
+	return returnedArray;
+!!!8716315.java!!!	clone() : Object
+	byte[] newData = new byte[length];
+	System.arraycopy(data, 0, newData, 0, newData.length);
+	SysexMessage event = new SysexMessage(newData);
+	return event;

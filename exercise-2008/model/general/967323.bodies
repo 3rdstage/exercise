@@ -1,0 +1,40 @@
+class MessageDigestSpi
+!!!7595803.java!!!	engineGetDigestLength() : int
+	return 0;
+!!!7596187.java!!!	engineUpdate(inout input : ByteBuffer) : void
+	if (input.hasRemaining() == false) {
+	    return;
+	}
+	if (input.hasArray()) {
+	    byte[] b = input.array();
+	    int ofs = input.arrayOffset();
+	    int pos = input.position();
+	    int lim = input.limit();
+	    engineUpdate(b, ofs + pos, lim - pos);
+	    input.position(lim);
+	} else {
+	    int len = input.remaining();
+	    byte[] b = new byte[JCAUtil.getTempArraySize(len)];
+	    while (len > 0) {
+		int chunk = Math.min(len, b.length);
+		input.get(b, 0, chunk);
+		engineUpdate(b, 0, chunk);
+		len -= chunk;
+	    }
+	}
+!!!7596443.java!!!	engineDigest(in buf : byte, in offset : int, in len : int) : int
+
+	byte[] digest = engineDigest();
+	if (len < digest.length)
+		throw new DigestException("partial digests not returned");
+	if (buf.length - offset < digest.length)
+		throw new DigestException("insufficient space in the output "
+					  + "buffer to store the digest");
+	System.arraycopy(digest, 0, buf, offset, digest.length);
+	return digest.length;
+!!!7596699.java!!!	clone() : Object
+	if (this instanceof Cloneable) {
+	    return super.clone();
+	} else {
+	    throw new CloneNotSupportedException();
+	}

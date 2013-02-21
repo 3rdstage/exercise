@@ -1,0 +1,198 @@
+class ValueStoreBase
+!!!5201563.java!!!	ValueStoreBase(inout identityConstraint : IdentityConstraint)
+                fIdentityConstraint = identityConstraint;
+                fFieldCount = fIdentityConstraint.getFieldCount();
+                fFields = new Field[fFieldCount];
+                fLocalValues = new Object[fFieldCount];
+                fLocalValueTypes = new Object[fFieldCount];
+                for (int i = 0; i < fFieldCount; i++) {
+                    fFields[i] = fIdentityConstraint.getFieldAt(i);
+                }
+!!!5201691.java!!!	clear() : void
+                fValuesCount = 0;
+                fValues.setSize(0);
+                fValueTypes.setSize(0);
+!!!5201819.java!!!	append(inout newVal : ValueStoreBase) : void
+                for (int i = 0; i < newVal.fValues.size(); i++) {
+                    fValues.addElement(newVal.fValues.elementAt(i));
+                    fValueTypes.addElement(newVal.fValueTypes.elementAt(i));
+                }
+!!!5201947.java!!!	startValueScope() : void
+                fValuesCount = 0;
+                for (int i = 0; i < fFieldCount; i++) {
+                    fLocalValues[i] = null;
+                    fLocalValueTypes[i] = null;
+                }
+!!!5202075.java!!!	endValueScope() : void
+                
+                if (fValuesCount == 0) {
+                    if (fIdentityConstraint.getCategory() == IdentityConstraint.IC_KEY) {
+                        String code = "AbsentKeyValue";
+                        String eName = fIdentityConstraint.getElementName();
+                        reportSchemaError(code, new Object[] { eName });
+                    }
+                    return;
+                }
+                
+                // do we have enough values?
+                if (fValuesCount != fFieldCount) {
+                    switch (fIdentityConstraint.getCategory()) {
+                        case IdentityConstraint.IC_UNIQUE : {
+                            String code = "UniqueNotEnoughValues";
+                            String ename = fIdentityConstraint.getElementName();
+                            reportSchemaError(code, new Object[] { ename });
+                            break;
+                        }
+                        case IdentityConstraint.IC_KEY : {
+                            String code = "KeyNotEnoughValues";
+                            UniqueOrKey key = (UniqueOrKey) fIdentityConstraint;
+                            String ename = fIdentityConstraint.getElementName();
+                            String kname = key.getIdentityConstraintName();
+                            reportSchemaError(code, new Object[] { ename, kname });
+                            break;
+                        }
+                        case IdentityConstraint.IC_KEYREF : {
+                            String code = "KeyRefNotEnoughValues";
+                            KeyRef keyref = (KeyRef) fIdentityConstraint;
+                            String ename = fIdentityConstraint.getElementName();
+                            String kname = (keyref.getKey()).getIdentityConstraintName();
+                            reportSchemaError(code, new Object[] { ename, kname });
+                            break;
+                        }
+                    }
+                    return;
+                }
+                
+!!!5202459.java!!!	reportError(in key : String, inout args : Object) : void
+                reportSchemaError(key, args);
+!!!5202587.java!!!	addValue(inout field : Field, inout actualValue : Object) : void
+                addValue(field,actualValue,null);
+!!!5202715.java!!!	addValue(inout field : Field, inout actualValue : Object, inout type : Object) : void
+                int i;
+                for (i = fFieldCount - 1; i > -1; i--) {
+                    if (fFields[i] == field) {
+                        break;
+                    }
+                }
+                // do we even know this field?
+                if (i == -1) {
+                    String code = "UnknownField";
+                    reportSchemaError(code, new Object[] { field.toString()});
+                    return;
+                }
+                if (Boolean.TRUE != mayMatch(field)) {
+                    String code = "FieldMultipleMatch";
+                    reportSchemaError(code, new Object[] { field.toString()});
+                } else {
+                    fValuesCount++;
+                }
+                fLocalValues[i] = actualValue;
+                fLocalValueTypes[i] = type;
+                if (fValuesCount == fFieldCount) {
+                    checkDuplicateValues();
+                    // store values
+                    for (i = 0; i < fFieldCount; i++) {
+                        fValues.addElement(fLocalValues[i]);
+                        if(fLocalValueTypes[i] != null)
+                            fValueTypes.addElement(fLocalValueTypes[i]);
+                    }
+                }
+!!!5202843.java!!!	contains() : boolean
+                // REVISIT: we can improve performance by using hash codes, instead of
+                // traversing global vector that could be quite large.
+                int next = 0;
+                LOOP : for (int i = 0; i < fValues.size(); i = next) {
+                    next = i + fFieldCount;
+                    for (int j = 0; j < fFieldCount; j++) {
+                        Object value1 = fLocalValues[j];
+                        Object value2 = fValues.elementAt(i++);
+                        if (value1 == null || value2 == null || !(value1.equals(value2))) {
+                            continue LOOP;
+                        }
+                    }
+                    // found it
+                    return true;
+                }
+                // didn't find it
+                return false;
+!!!5202971.java!!!	contains(inout values : Vector) : Object
+                for (int i = 0; i < values.size(); i++) {
+                    if (!fValues.contains(values.elementAt(i)))
+                        return values.elementAt(i);
+                    
+                }
+                return null;
+!!!5203099.java!!!	isDerivedFromSamePrimitiveType(inout typeOne : XSTypeDefinition, inout typeTwo : XSTypeDefinition) : boolean
+                if(typeOne == null || typeTwo == null)
+                    return false;
+                
+                if(typeOne.getTypeCategory() == XSTypeDefinition.COMPLEX_TYPE &&
+                ((XSComplexTypeDefinition) typeOne).getContentType() == XSComplexTypeDefinition.CONTENTTYPE_SIMPLE) {
+                    typeOne = ((XSComplexTypeDefinition)typeOne).getSimpleType();
+                    
+                }
+                if(typeTwo.getTypeCategory() == XSTypeDefinition.COMPLEX_TYPE && ((XSComplexTypeDefinition) typeTwo).getContentType() == XSComplexTypeDefinition.CONTENTTYPE_SIMPLE) {
+                    typeTwo = ((XSComplexTypeDefinition)typeTwo).getSimpleType();
+                }
+                
+                if(typeOne == null || typeTwo == null)
+                    return false;
+                
+                if((typeOne.getTypeCategory() == XSTypeDefinition.SIMPLE_TYPE) && (typeTwo.getTypeCategory() == XSTypeDefinition.SIMPLE_TYPE)){
+                    try{
+                        short s1 = ((XSSimpleTypeDecl)typeOne).getPrimitiveKind();
+                        short s2 = ((XSSimpleTypeDecl)typeTwo).getPrimitiveKind();
+                        if(s1 == s2)
+                            return true;
+                    }catch(Exception ex){
+                        if(DEBUG)ex.printStackTrace();
+                    }
+                    
+                }
+                return false;
+!!!5203227.java!!!	contains(inout values : Vector, inout types : Vector) : Object
+                for (int i = 0; i < values.size(); i++) {
+                    if (fValues.contains(values.elementAt(i))){
+                        int j = fValues.indexOf(values.elementAt(i));
+                        try{
+                            if(!isDerivedFromSamePrimitiveType((XSTypeDefinition)fValueTypes.elementAt(j),(XSTypeDefinition)types.elementAt(i)))
+                                return values.elementAt(i);
+                        }catch(Exception ex){
+                            return values.elementAt(i);
+                        }
+                    }else
+                        return values.elementAt(i);
+                }
+                return null;
+!!!5203355.java!!!	checkDuplicateValues() : void
+                // no-op
+!!!5203483.java!!!	toString(inout values : Object) : String
+                
+                // no values
+                int size = values.length;
+                if (size == 0) {
+                    return "";
+                }
+                
+                fTempBuffer.setLength(0);
+                
+                // construct value string
+                for (int i = 0; i < size; i++) {
+                    if (i > 0) {
+                        fTempBuffer.append(',');
+                    }
+                    fTempBuffer.append(values[i]);
+                }
+                return fTempBuffer.toString();
+                
+!!!5203611.java!!!	toString() : String
+                String s = super.toString();
+                int index1 = s.lastIndexOf('$');
+                if (index1 != -1) {
+                    s = s.substring(index1 + 1);
+                }
+                int index2 = s.lastIndexOf('.');
+                if (index2 != -1) {
+                    s = s.substring(index2 + 1);
+                }
+                return s + '[' + fIdentityConstraint + ']';

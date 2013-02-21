@@ -1,0 +1,151 @@
+class FieldGen
+!!!3776411.java!!!	FieldGen(in access_flags : int, inout type : Type, in name : String, inout cp : ConstantPoolGen)
+    setAccessFlags(access_flags);
+    setType(type);
+    setName(name);
+    setConstantPool(cp);
+!!!3776539.java!!!	FieldGen(inout field : Field, inout cp : ConstantPoolGen)
+    this(field.getAccessFlags(), Type.getType(field.getSignature()), field.getName(), cp);
+
+    Attribute[] attrs = field.getAttributes();
+
+    for(int i=0; i < attrs.length; i++) {
+      if(attrs[i] instanceof ConstantValue)
+	setValue(((ConstantValue)attrs[i]).getConstantValueIndex());
+      else
+	addAttribute(attrs[i]);
+    }
+!!!3776667.java!!!	setValue(in index : int) : void
+    ConstantPool cp  = this.cp.getConstantPool();
+    Constant     c   = cp.getConstant(index);
+    value = ((ConstantObject)c).getConstantValue(cp);
+!!!3776795.java!!!	setInitValue(in str : String) : void
+    checkType(new ObjectType("java.lang.String"));
+
+    if(str != null)
+      value = str;
+!!!3776923.java!!!	setInitValue(in l : long) : void
+    checkType(Type.LONG);
+
+    if(l != 0L)
+      value = new Long(l);
+!!!3777051.java!!!	setInitValue(in i : int) : void
+    checkType(Type.INT);
+
+    if(i != 0)
+      value = new Integer(i);
+!!!3777179.java!!!	setInitValue(in s : short) : void
+    checkType(Type.SHORT);
+
+    if(s != 0)
+      value = new Integer(s);
+!!!3777307.java!!!	setInitValue(in c : char) : void
+    checkType(Type.CHAR);
+
+    if(c != 0)
+      value = new Integer(c);
+!!!3777435.java!!!	setInitValue(in b : byte) : void
+    checkType(Type.BYTE);
+
+    if(b != 0)
+      value = new Integer(b);
+!!!3777563.java!!!	setInitValue(inout b : boolean) : void
+    checkType(Type.BOOLEAN);
+
+    if(b)
+      value = new Integer(1);
+!!!3777691.java!!!	setInitValue(in f : float) : void
+    checkType(Type.FLOAT);
+
+    if(f != 0.0)
+      value = new Float(f);
+!!!3777819.java!!!	setInitValue(in d : double) : void
+    checkType(Type.DOUBLE);
+
+    if(d != 0.0)
+      value = new Double(d);
+!!!3777947.java!!!	cancelInitValue() : void
+    value = null;
+!!!3778075.java!!!	checkType(inout atype : Type) : void
+    if(type == null)
+      throw new ClassGenException("You haven't defined the type of the field yet");
+    
+    if(!isFinal())
+      throw new ClassGenException("Only final fields may have an initial value!");
+
+    if(!type.equals(atype))
+      throw new ClassGenException("Types are not compatible: " + type + " vs. " + atype);
+!!!3778203.java!!!	getField() : Field
+    String      signature       = getSignature();
+    int         name_index      = cp.addUtf8(name);
+    int         signature_index = cp.addUtf8(signature);
+
+    if(value != null) {
+      checkType(type);
+      int index = addConstant();
+      addAttribute(new ConstantValue(cp.addUtf8("ConstantValue"),
+				     2, index, cp.getConstantPool()));
+    }
+
+    return new Field(access_flags, name_index, signature_index, getAttributes(),
+		     cp.getConstantPool());
+!!!3778331.java!!!	addConstant() : int
+    switch(type.getType()) {
+    case Constants.T_INT: case Constants.T_CHAR: case Constants.T_BYTE:
+    case Constants.T_BOOLEAN: case Constants.T_SHORT:
+      return cp.addInteger(((Integer)value).intValue());
+      
+    case Constants.T_FLOAT:
+      return cp.addFloat(((Float)value).floatValue());
+
+    case Constants.T_DOUBLE:
+      return cp.addDouble(((Double)value).doubleValue());
+
+    case Constants.T_LONG:
+      return cp.addLong(((Long)value).longValue());
+
+    case Constants.T_REFERENCE:
+      return cp.addString(((String)value));
+
+    default:
+      throw new RuntimeException("Oops: Unhandled : " + type.getType());
+    }
+!!!3778459.java!!!	getSignature() : String
+ return type.getSignature();
+!!!3778587.java!!!	addObserver(inout o : FieldObserver) : void
+    if(observers == null)
+      observers = new ArrayList();
+
+    observers.add(o);
+!!!3778715.java!!!	removeObserver(inout o : FieldObserver) : void
+    if(observers != null)
+      observers.remove(o);
+!!!3778843.java!!!	update() : void
+    if(observers != null)
+      for(Iterator e = observers.iterator(); e.hasNext(); )
+	((FieldObserver)e.next()).notify(this);
+!!!3778971.java!!!	getInitValue() : String
+    if(value != null) {
+      return value.toString();
+    } else
+      return null;
+!!!3779099.java!!!	toString() : String
+    String name, signature, access; // Short cuts to constant pool
+
+    access    = Utility.accessToString(access_flags);
+    access    = access.equals("")? "" : (access + " ");
+    signature = type.toString();
+    name      = getName();
+
+    StringBuffer buf = new StringBuffer(access + signature + " " + name);
+    String value = getInitValue();
+
+    if(value != null)
+      buf.append(" = " + value);
+
+    return buf.toString();
+!!!3779227.java!!!	copy(inout cp : ConstantPoolGen) : FieldGen
+    FieldGen fg = (FieldGen)clone();
+
+    fg.setConstantPool(cp);
+    return fg;

@@ -1,0 +1,323 @@
+class Actions
+!!!2459675.java!!!	Actions()
+            super(null);
+!!!2459803.java!!!	Actions(in name : String)
+            super(name);
+!!!2459931.java!!!	actionPerformed(inout e : ActionEvent) : void
+            JDesktopPane dp = (JDesktopPane)e.getSource();
+            String key = getName();
+
+            if (CLOSE == key || MAXIMIZE == key || MINIMIZE == key ||
+                    RESTORE == key) {
+                setState(dp, key);
+            }
+            else if (ESCAPE == key) {
+                if (sourceFrame == dp.getSelectedFrame() &&
+                        focusOwner != null) {
+                    focusOwner.requestFocus();
+                }
+                moving = false;
+                resizing = false;
+                sourceFrame = null;
+                focusOwner = null;
+            }
+            else if (MOVE == key || RESIZE == key) {
+                sourceFrame = dp.getSelectedFrame();
+                if (sourceFrame == null) {
+                    return;
+                }
+                moving = (key == MOVE) ? true : false;
+                resizing = (key == RESIZE) ? true : false;
+
+                focusOwner = KeyboardFocusManager.
+                    getCurrentKeyboardFocusManager().getFocusOwner();
+                if (!SwingUtilities.isDescendingFrom(focusOwner, sourceFrame)) {
+                    focusOwner = null;
+                }
+                sourceFrame.requestFocus();
+            }
+            else if (LEFT == key ||
+                     RIGHT == key ||
+                     UP == key ||
+                     DOWN == key ||
+                     SHRINK_RIGHT == key ||
+                     SHRINK_LEFT == key ||
+                     SHRINK_UP == key ||
+                     SHRINK_DOWN == key) {
+                JInternalFrame c = dp.getSelectedFrame();
+                if (sourceFrame == null || c != sourceFrame ||
+                        KeyboardFocusManager.
+                            getCurrentKeyboardFocusManager().getFocusOwner() !=
+                                sourceFrame) {
+                    return;
+                }
+                Dimension size = c.getSize();
+                Dimension minSize = c.getMinimumSize();
+                Point loc = c.getLocation();
+                if (LEFT == key) {
+                    if (moving) {
+                        c.setLocation(loc.x - MOVE_RESIZE_INCREMENT, loc.y);
+                    } else if (resizing) {
+                        c.setLocation(loc.x - MOVE_RESIZE_INCREMENT, loc.y);
+                        c.setSize(size.width + MOVE_RESIZE_INCREMENT,
+                                size.height);
+                    }
+                } else if (RIGHT == key) {
+                    if (moving) {
+                        c.setLocation(loc.x + MOVE_RESIZE_INCREMENT, loc.y);
+                    } else if (resizing) {
+                        c.setLocation(loc.x, loc.y);
+                        c.setSize(size.width + MOVE_RESIZE_INCREMENT,
+                                size.height);
+                    }
+                } else if (UP == key) {
+                    if (moving) {
+                        c.setLocation(loc.x, loc.y - MOVE_RESIZE_INCREMENT);
+                    } else if (resizing) {
+                        c.setLocation(loc.x, loc.y - MOVE_RESIZE_INCREMENT);
+                        c.setSize(size.width,
+                                size.height + MOVE_RESIZE_INCREMENT);
+                    }
+                } else if (DOWN == key) {
+                    if (moving) {
+                        c.setLocation(loc.x, loc.y + MOVE_RESIZE_INCREMENT);
+                    } else if (resizing) {
+                        c.setLocation(loc.x, loc.y);
+                        c.setSize(size.width,
+                                size.height + MOVE_RESIZE_INCREMENT);
+                    }
+                } else if (SHRINK_LEFT == key && resizing) {
+                    if (minSize.width < (size.width - MOVE_RESIZE_INCREMENT)) {
+                        c.setLocation(loc.x, loc.y);
+                        c.setSize(size.width - MOVE_RESIZE_INCREMENT,
+                                size.height);
+                    } else {
+                        c.setSize(minSize.width, size.height);
+                    }
+                } else if (SHRINK_RIGHT == key && resizing) {
+                    if (minSize.width < (size.width - MOVE_RESIZE_INCREMENT)) {
+                        c.setLocation(loc.x + MOVE_RESIZE_INCREMENT, loc.y);
+                        c.setSize(size.width - MOVE_RESIZE_INCREMENT,
+                                size.height);
+                    } else {
+                        c.setLocation(loc.x - minSize.width + size.width,
+                                loc.y);
+                        c.setSize(minSize.width, size.height);
+                    }
+                } else if (SHRINK_UP == key && resizing) {
+                    if (minSize.height <
+                            (size.height - MOVE_RESIZE_INCREMENT)) {
+                        c.setLocation(loc.x, loc.y);
+                        c.setSize(size.width,
+                                size.height - MOVE_RESIZE_INCREMENT);
+                    } else {
+                        c.setSize(size.width, minSize.height);
+                    }
+                } else if (SHRINK_DOWN == key  && resizing) {
+                    if (minSize.height <
+                            (size.height - MOVE_RESIZE_INCREMENT)) {
+                        c.setLocation(loc.x, loc.y + MOVE_RESIZE_INCREMENT);
+                        c.setSize(size.width,
+                                size.height - MOVE_RESIZE_INCREMENT);
+                    } else {
+                        c.setLocation(loc.x,
+                                loc.y - minSize.height + size.height);
+                        c.setSize(size.width, minSize.height);
+                    }
+                }
+            }
+            else if (NEXT_FRAME == key || PREVIOUS_FRAME == key) {
+                selectFrame(dp, (key == NEXT_FRAME) ? true : false);
+            }
+            else if (NAVIGATE_NEXT == key ||
+                     NAVIGATE_PREVIOUS == key) {
+                boolean moveForward = true;
+                if (NAVIGATE_PREVIOUS == key) {
+                    moveForward = false;
+                }
+                Container cycleRoot = dp.getFocusCycleRootAncestor();
+
+                if (cycleRoot != null) {
+                    FocusTraversalPolicy policy =
+                        cycleRoot.getFocusTraversalPolicy();
+                    if (policy != null && policy instanceof
+                            SortingFocusTraversalPolicy) {
+                        SortingFocusTraversalPolicy sPolicy =
+                            (SortingFocusTraversalPolicy)policy;
+                        boolean idc = sPolicy.getImplicitDownCycleTraversal();
+                        try {
+                            sPolicy.setImplicitDownCycleTraversal(false);
+                            if (moveForward) {
+                                KeyboardFocusManager.
+                                    getCurrentKeyboardFocusManager().
+                                        focusNextComponent(dp);
+                            } else {
+                                KeyboardFocusManager.
+                                    getCurrentKeyboardFocusManager().
+                                    focusPreviousComponent(dp);
+                            }
+                        } finally {
+                            sPolicy.setImplicitDownCycleTraversal(idc);
+                        }
+                    }
+                }
+            }
+!!!2460059.java!!!	selectFrame(inout dp : JDesktopPane, inout forward : boolean) : void
+            Vector framesCache = getCurrentFramesCache();
+            if (forward) {
+                // navigate to the next frame
+                int i = 0;
+                verifyFramesCache(dp);
+                if (framesCache.size() == 0) {
+                    return;
+                }
+
+                JInternalFrame f = dp.getSelectedFrame();
+
+                if (f != null) {
+                    i = framesCache.indexOf(f);
+                }
+                if (i == -1) {
+                    /* if the frame is not there, its icon may be */
+                    i = framesCache.indexOf(f.getDesktopIcon());
+                    if (i == -1) {
+                        /* error */
+                        return;
+                    }
+                }
+                if (++i == framesCache.size()) {
+                    /* wrap */
+                    i = 0;
+                }
+                JComponent c = (JComponent) framesCache.elementAt(i);
+                if (c instanceof JInternalFrame) {
+                    try {
+                        ((JInternalFrame)c).setSelected(true);
+                        dp.getDesktopManager().activateFrame((JInternalFrame)c);
+                    } catch (PropertyVetoException pve) {}
+                } else {
+                    /* it had better be an icon! */
+                    if (!(c instanceof JInternalFrame.JDesktopIcon)){
+                        /* error */
+                        return;
+                    }
+                    try {
+                        ((JInternalFrame)((JInternalFrame.JDesktopIcon)c).
+                                getInternalFrame()).setSelected(true);
+                        dp.getDesktopManager().activateFrame(
+                                ((JInternalFrame.JDesktopIcon)c).
+                                        getInternalFrame());
+                    } catch (PropertyVetoException pve) {}
+                }
+            } else {
+                // navigate to the previous internal frame
+                int i = 0;
+                verifyFramesCache(dp);
+                if (framesCache.size() == 0) {
+                    return;
+                }
+                JInternalFrame f = dp.getSelectedFrame();
+                if (f != null) {
+                    i = framesCache.indexOf(f);
+                }
+                if (i == -1) {
+                    /* if the frame is not there, its icon may be */
+                    i = framesCache.indexOf(f.getDesktopIcon());
+                    if (i == -1) {
+                        /* error */
+                        return;
+                    }
+                }
+                if (--i == -1) {
+                    /* wrap */
+                    i = framesCache.size() - 1;
+                }
+                JComponent c = (JComponent) framesCache.elementAt(i);
+                if (c instanceof JInternalFrame) {
+                    try {
+                        ((JInternalFrame)c).setSelected(true);
+                    } catch (PropertyVetoException pve) {}
+                } else {
+                    /* it had better be an icon! */
+                    if (!(c instanceof JInternalFrame.JDesktopIcon)) {
+                        /* error */
+                        return;
+                    }
+                    try {
+                        ((JInternalFrame)((JInternalFrame.JDesktopIcon)c).
+                                getInternalFrame()).setSelected(true);
+                    } catch (PropertyVetoException pve) {}
+                }
+            }
+!!!2460187.java!!!	setState(inout dp : JDesktopPane, in state : String) : void
+            if (state == CLOSE) {
+                JInternalFrame f = dp.getSelectedFrame();
+                if (f == null) {
+                    return;
+                }
+                f.doDefaultCloseAction();
+            } else if (state == MAXIMIZE) {
+                // maximize the selected frame
+                JInternalFrame f = dp.getSelectedFrame();
+                if (f == null) {
+                    return;
+                }
+                if (!f.isMaximum()) {
+                    if (f.isIcon()) {
+                        try {
+                            f.setIcon(false);
+                            f.setMaximum(true);
+                        } catch (PropertyVetoException pve) {}
+                    } else {
+                        try {
+                            f.setMaximum(true);
+                        } catch (PropertyVetoException pve) {
+                        }
+                    }
+                }
+            } else if (state == MINIMIZE) {
+                // minimize the selected frame
+                JInternalFrame f = dp.getSelectedFrame();
+                if (f == null) {
+                    return;
+                }
+                if (!f.isIcon()) {
+                    try {
+                        f.setIcon(true);
+                    } catch (PropertyVetoException pve) {
+                    }
+                }
+            } else if (state == RESTORE) {
+                // restore the selected minimized or maximized frame
+                JInternalFrame f = dp.getSelectedFrame();
+                if (f == null) {
+                    return;
+                }
+                try {
+                    if (f.isIcon()) {
+                        f.setIcon(false);
+                    } else if (f.isMaximum()) {
+                        f.setMaximum(false);
+                    }
+                    f.setSelected(true);
+                } catch (PropertyVetoException pve) {
+                }
+            }
+!!!2460315.java!!!	isEnabled(inout sender : Object) : boolean
+            if (sender instanceof JDesktopPane) {
+                JDesktopPane dp = (JDesktopPane)sender;
+                JInternalFrame iFrame = dp.getSelectedFrame();
+                if (iFrame == null) {
+                    return false;
+                }
+                String action = getName();
+                if (action == Actions.CLOSE) {
+                    return iFrame.isClosable();
+                } else if (action == Actions.MINIMIZE) {
+                    return iFrame.isIconifiable();
+                } else if (action == Actions.MAXIMIZE) {
+                    return iFrame.isMaximizable();
+                }
+                return true;
+            }
+            return false;

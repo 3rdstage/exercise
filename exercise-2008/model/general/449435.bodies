@@ -1,0 +1,57 @@
+class BasicTextFieldUI
+!!!2739483.java!!!	createUI(inout c : JComponent) : ComponentUI
+        return new BasicTextFieldUI();
+!!!2739611.java!!!	BasicTextFieldUI()
+	super();
+!!!2739739.java!!!	installUI(inout c : JComponent) : void
+        super.installUI(c);
+	updateBackground((JTextComponent)c);
+!!!2739867.java!!!	propertyChange(inout evt : PropertyChangeEvent) : void
+	if (evt.getPropertyName().equals("editable") ||
+	    evt.getPropertyName().equals("enabled")) {
+
+	    updateBackground((JTextComponent)evt.getSource());
+	}
+!!!2739995.java!!!	updateBackground(inout c : JTextComponent) : void
+	Color background = c.getBackground();
+	if (background instanceof UIResource) {
+	    Color newColor = null;
+	    String prefix = getPropertyPrefix();
+	    if (!c.isEnabled()) {
+		newColor = DefaultLookup.getColor(c, this,
+						  prefix + ".disabledBackground",
+						  null);
+	    }
+	    if (newColor == null && !c.isEditable()) {
+		newColor = DefaultLookup.getColor(c, this,
+						  prefix + ".inactiveBackground",
+						  null);
+	    }
+	    if (newColor == null) {
+		newColor = DefaultLookup.getColor(c, this,
+						  prefix + ".background",
+						  null);
+	    }
+	    if (newColor != null && newColor != background) {
+		c.setBackground(newColor);
+	    }
+	}
+!!!2740123.java!!!	getPropertyPrefix() : String
+	return "TextField";
+!!!2740251.java!!!	create(inout elem : Element) : View
+	Document doc = elem.getDocument();
+	Object i18nFlag = doc.getProperty("i18n"/*AbstractDocument.I18NProperty*/);
+	if ((i18nFlag != null) && i18nFlag.equals(Boolean.TRUE)) {
+	    // To support bidirectional text, we build a more heavyweight
+	    // representation of the field.
+	    String kind = elem.getName();
+	    if (kind != null) {
+		if (kind.equals(AbstractDocument.ContentElementName)) {
+		    return new GlyphView(elem);
+		} else if (kind.equals(AbstractDocument.ParagraphElementName)) {
+		    return new I18nFieldView(elem);
+		}
+	    }
+	    // this shouldn't happen, should probably throw in this case.
+	}
+	return new FieldView(elem);

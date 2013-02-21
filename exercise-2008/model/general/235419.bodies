@@ -1,0 +1,468 @@
+class Socket
+!!!7244315.java!!!	Socket()
+	setImpl();
+!!!7244443.java!!!	Socket(inout proxy : Proxy)
+	if (proxy != null && proxy.type() == Proxy.Type.SOCKS) {
+	    SecurityManager security = System.getSecurityManager();
+	    InetSocketAddress epoint = (InetSocketAddress) proxy.address();
+	    if (security != null) {
+		if (epoint.isUnresolved())
+		    epoint = new InetSocketAddress(epoint.getHostName(), epoint.getPort());
+                if (epoint.isUnresolved())
+                    security.checkConnect(epoint.getHostName(), epoint.getPort());
+                else
+		    security.checkConnect(epoint.getAddress().getHostAddress(),
+				          epoint.getPort());
+	    }
+	    impl = new SocksSocketImpl(proxy);
+	    impl.setSocket(this);
+	} else {
+	    if (proxy == Proxy.NO_PROXY) {
+		if (factory == null) {
+		    impl = new PlainSocketImpl();
+		    impl.setSocket(this);
+		} else
+		    setImpl();
+	    } else
+		throw new IllegalArgumentException("Invalid Proxy");
+	}
+!!!7244571.java!!!	Socket(inout impl : SocketImpl)
+	this.impl = impl;
+	if (impl != null) {
+	    checkOldImpl();
+	    this.impl.setSocket(this);
+	}
+!!!7244699.java!!!	Socket(in host : String, in port : int)
+	this(host != null ? new InetSocketAddress(host, port) :
+	     new InetSocketAddress(InetAddress.getByName(null), port),
+	     new InetSocketAddress(0), true);
+!!!7244827.java!!!	Socket(inout address : InetAddress, in port : int)
+	this(address != null ? new InetSocketAddress(address, port) : null, 
+	     new InetSocketAddress(0), true);
+!!!7244955.java!!!	Socket(in host : String, in port : int, inout localAddr : InetAddress, in localPort : int)
+	this(host != null ? new InetSocketAddress(host, port) :
+	       new InetSocketAddress(InetAddress.getByName(null), port),
+	     new InetSocketAddress(localAddr, localPort), true);
+!!!7245083.java!!!	Socket(inout address : InetAddress, in port : int, inout localAddr : InetAddress, in localPort : int)
+	this(address != null ? new InetSocketAddress(address, port) : null,
+	     new InetSocketAddress(localAddr, localPort), true);
+!!!7245211.java!!!	Socket(in host : String, in port : int, inout stream : boolean)
+	this(host != null ? new InetSocketAddress(host, port) :
+	       new InetSocketAddress(InetAddress.getByName(null), port),
+	     new InetSocketAddress(0), stream);
+!!!7245339.java!!!	Socket(inout host : InetAddress, in port : int, inout stream : boolean)
+	this(host != null ? new InetSocketAddress(host, port) : null, 
+	     new InetSocketAddress(0), stream);
+!!!7245467.java!!!	Socket(inout address : SocketAddress, inout localAddr : SocketAddress, inout stream : boolean)
+	setImpl();
+
+	// backward compatibility
+	if (address == null)
+	    throw new NullPointerException();
+
+	try {
+	    createImpl(stream);
+	    if (localAddr == null)
+		localAddr = new InetSocketAddress(0);
+	    bind(localAddr);
+	    if (address != null)
+		connect(address);
+	} catch (IOException e) {
+	    close();
+	    throw e;
+	}
+!!!7245595.java!!!	createImpl(inout stream : boolean) : void
+	if (impl == null) 
+	    setImpl();
+	try {
+	    impl.create(stream);
+	    created = true;
+	} catch (IOException e) {
+	    throw new SocketException(e.getMessage());
+	}
+!!!7245723.java!!!	checkOldImpl() : void
+        if (impl == null)
+            return;
+        // SocketImpl.connect() is a protected method, therefore we need to use
+        // getDeclaredMethod, therefore we need permission to access the member
+
+        Boolean tmpBool = (Boolean) AccessController.doPrivileged (new PrivilegedAction() {
+            public Boolean run() {
+                Class[] cl = new Class[2];
+                cl[0] = SocketAddress.class;
+                cl[1] = Integer.TYPE;
+                Class clazz = impl.getClass();
+                while (true) {
+                    try {
+                        clazz.getDeclaredMethod("connect", cl);
+                        return Boolean.FALSE;
+                    } catch (NoSuchMethodException e) {
+                        clazz = clazz.getSuperclass();
+			// java.net.SocketImpl class will always have this abstract method. 
+			// If we have not found it by now in the hierarchy then it does not 
+			// exist, we are an old style impl. 
+			if (clazz.equals(java.net.SocketImpl.class)) { 
+                            return Boolean.TRUE;
+                        }
+                    }
+                }
+            }
+        });
+        oldImpl = tmpBool.booleanValue();
+!!!7245851.java!!!	setImpl() : void
+	if (factory != null) {
+	    impl = factory.createSocketImpl();
+	    checkOldImpl();
+	} else {
+	    // No need to do a checkOldImpl() here, we know it's an up to date
+	    // SocketImpl!
+	    impl = new SocksSocketImpl();
+	}
+	if (impl != null)
+	    impl.setSocket(this);
+!!!7245979.java!!!	getImpl() : SocketImpl
+	if (!created)
+	    createImpl(true);
+	return impl;
+!!!7246107.java!!!	connect(inout endpoint : SocketAddress) : void
+	connect(endpoint, 0);
+!!!7246235.java!!!	connect(inout endpoint : SocketAddress, in timeout : int) : void
+	if (endpoint == null)
+	    throw new IllegalArgumentException("connect: The address can't be null");
+
+	if (timeout < 0)
+	  throw new IllegalArgumentException("connect: timeout can't be negative");
+
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+
+	if (!oldImpl && isConnected())
+	    throw new SocketException("already connected");
+
+	if (!(endpoint instanceof InetSocketAddress))
+	    throw new IllegalArgumentException("Unsupported address type");
+
+	InetSocketAddress epoint = (InetSocketAddress) endpoint;
+
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    if (epoint.isUnresolved())
+		security.checkConnect(epoint.getHostName(),
+				      epoint.getPort());
+	    else
+		security.checkConnect(epoint.getAddress().getHostAddress(),
+				      epoint.getPort());
+	}
+	if (!created)
+	    createImpl(true);
+	if (!oldImpl)
+	    impl.connect(epoint, timeout);
+	else if (timeout == 0) {
+	    if (epoint.isUnresolved())
+		impl.connect(epoint.getAddress().getHostName(),
+			     epoint.getPort());
+	    else
+		impl.connect(epoint.getAddress(), epoint.getPort());
+	} else
+	    throw new UnsupportedOperationException("SocketImpl.connect(addr, timeout)");
+	connected = true;
+	/*
+	 * If the socket was not bound before the connect, it is now because
+	 * the kernel will have picked an ephemeral port & a local address
+	 */
+	bound = true;
+!!!7246363.java!!!	bind(inout bindpoint : SocketAddress) : void
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	if (!oldImpl && isBound())
+	    throw new SocketException("Already bound");
+
+	if (bindpoint != null && (!(bindpoint instanceof InetSocketAddress)))
+	    throw new IllegalArgumentException("Unsupported address type");
+	InetSocketAddress epoint = (InetSocketAddress) bindpoint;
+	if (epoint != null && epoint.isUnresolved())
+	    throw new SocketException("Unresolved address");
+	if (bindpoint == null)
+	    getImpl().bind(InetAddress.anyLocalAddress(), 0);
+	else
+	    getImpl().bind(epoint.getAddress(),
+			   epoint.getPort());
+	bound = true;
+!!!7246491.java!!!	postAccept() : void
+ 
+	connected = true;
+	created = true;
+	bound = true;
+!!!7246619.java!!!	setCreated() : void
+	created = true;
+!!!7246747.java!!!	setBound() : void
+	bound = true;
+!!!7246875.java!!!	setConnected() : void
+	connected = true;
+!!!7247003.java!!!	getInetAddress() : InetAddress
+	if (!isConnected())
+	    return null;
+	try {
+	    return getImpl().getInetAddress();
+	} catch (SocketException e) {
+	}
+	return null;
+!!!7247131.java!!!	getLocalAddress() : InetAddress
+	// This is for backward compatibility
+	if (!isBound())
+	    return InetAddress.anyLocalAddress();
+	InetAddress in = null;
+	try {
+	    in = (InetAddress) getImpl().getOption(SocketOptions.SO_BINDADDR);
+	    if (in.isAnyLocalAddress()) {
+		in = InetAddress.anyLocalAddress();
+	    }
+	} catch (Exception e) {
+	    in = InetAddress.anyLocalAddress(); // "0.0.0.0"
+	}
+	return in;
+!!!7247259.java!!!	getPort() : int
+	if (!isConnected())
+	    return 0;
+	try {
+	    return getImpl().getPort();
+	} catch (SocketException e) {
+	    // Shouldn't happen as we're connected
+	}
+	return -1;
+!!!7247387.java!!!	getLocalPort() : int
+	if (!isBound())
+	    return -1;
+	try {
+	    return getImpl().getLocalPort();
+	} catch(SocketException e) {
+	    // shouldn't happen as we're bound
+	}
+	return -1;
+!!!7247515.java!!!	getRemoteSocketAddress() : SocketAddress
+	if (!isConnected())
+	    return null;
+	return new InetSocketAddress(getInetAddress(), getPort());
+!!!7247643.java!!!	getLocalSocketAddress() : SocketAddress
+	if (!isBound())
+	    return null;
+	return new InetSocketAddress(getLocalAddress(), getLocalPort());
+!!!7247771.java!!!	getChannel() : SocketChannel
+	return null;
+!!!7247899.java!!!	getInputStream() : InputStream
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	if (!isConnected())
+	    throw new SocketException("Socket is not connected");
+	if (isInputShutdown())
+	    throw new SocketException("Socket input is shutdown");
+	final Socket s = this;
+	InputStream is = null;
+	try {
+	    is = (InputStream)
+		AccessController.doPrivileged(new PrivilegedExceptionAction() {
+		    public Object run() throws IOException {
+			return impl.getInputStream();
+		    }
+		});
+	} catch (java.security.PrivilegedActionException e) {
+	    throw (IOException) e.getException();
+	}
+	return is;
+!!!7248027.java!!!	getOutputStream() : OutputStream
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	if (!isConnected())
+	    throw new SocketException("Socket is not connected");
+	if (isOutputShutdown())
+	    throw new SocketException("Socket output is shutdown");
+	final Socket s = this;
+	OutputStream os = null;
+	try {
+	    os = (OutputStream)
+		AccessController.doPrivileged(new PrivilegedExceptionAction() {
+		    public Object run() throws IOException {
+			return impl.getOutputStream();
+		    }
+		});
+	} catch (java.security.PrivilegedActionException e) {
+	    throw (IOException) e.getException();
+	}
+	return os;
+!!!7248155.java!!!	setTcpNoDelay(inout on : boolean) : void
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	getImpl().setOption(SocketOptions.TCP_NODELAY, Boolean.valueOf(on));
+!!!7248283.java!!!	getTcpNoDelay() : boolean
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	return ((Boolean) getImpl().getOption(SocketOptions.TCP_NODELAY)).booleanValue();
+!!!7248411.java!!!	setSoLinger(inout on : boolean, in linger : int) : void
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	if (!on) {
+	    getImpl().setOption(SocketOptions.SO_LINGER, new Boolean(on));
+	} else {
+	    if (linger < 0) {
+		throw new IllegalArgumentException("invalid value for SO_LINGER");
+	    }
+            if (linger > 65535)
+                linger = 65535;
+	    getImpl().setOption(SocketOptions.SO_LINGER, new Integer(linger));
+	}
+!!!7248539.java!!!	getSoLinger() : int
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	Object o = getImpl().getOption(SocketOptions.SO_LINGER);
+	if (o instanceof Integer) {
+	    return ((Integer) o).intValue();
+	} else {
+	    return -1;
+	}
+!!!7248667.java!!!	sendUrgentData(in data : int) : void
+        if (!getImpl().supportsUrgentData ()) {
+            throw new SocketException ("Urgent data not supported");
+        }
+        getImpl().sendUrgentData (data);
+!!!7248795.java!!!	setOOBInline(inout on : boolean) : void
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	getImpl().setOption(SocketOptions.SO_OOBINLINE, Boolean.valueOf(on));
+!!!7248923.java!!!	getOOBInline() : boolean
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	return ((Boolean) getImpl().getOption(SocketOptions.SO_OOBINLINE)).booleanValue();
+!!!7249051.java!!!	setSoTimeout(in timeout : int) : void
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	if (timeout < 0)
+	  throw new IllegalArgumentException("timeout can't be negative");
+
+	getImpl().setOption(SocketOptions.SO_TIMEOUT, new Integer(timeout));
+!!!7249179.java!!!	getSoTimeout() : int
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	Object o = getImpl().getOption(SocketOptions.SO_TIMEOUT);
+	/* extra type safety */
+	if (o instanceof Integer) {
+	    return ((Integer) o).intValue();
+	} else {
+	    return 0;
+	}
+!!!7249307.java!!!	setSendBufferSize(in size : int) : void
+	if (!(size > 0)) {
+	    throw new IllegalArgumentException("negative send size");
+	}
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	getImpl().setOption(SocketOptions.SO_SNDBUF, new Integer(size));
+!!!7249435.java!!!	getSendBufferSize() : int
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	int result = 0;
+	Object o = getImpl().getOption(SocketOptions.SO_SNDBUF);
+	if (o instanceof Integer) {
+	    result = ((Integer)o).intValue();
+	}
+	return result;
+!!!7249563.java!!!	setReceiveBufferSize(in size : int) : void
+	if (size <= 0) {
+	    throw new IllegalArgumentException("invalid receive size");
+	}
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	getImpl().setOption(SocketOptions.SO_RCVBUF, new Integer(size));
+!!!7249691.java!!!	getReceiveBufferSize() : int
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	int result = 0;
+	Object o = getImpl().getOption(SocketOptions.SO_RCVBUF);
+	if (o instanceof Integer) {
+	    result = ((Integer)o).intValue();
+	}
+	return result;
+!!!7249819.java!!!	setKeepAlive(inout on : boolean) : void
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+        getImpl().setOption(SocketOptions.SO_KEEPALIVE, Boolean.valueOf(on));
+!!!7249947.java!!!	getKeepAlive() : boolean
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	return ((Boolean) getImpl().getOption(SocketOptions.SO_KEEPALIVE)).booleanValue();
+!!!7250075.java!!!	setTrafficClass(in tc : int) : void
+	if (tc < 0 || tc > 255)
+	    throw new IllegalArgumentException("tc is not in range 0 -- 255");
+
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+        getImpl().setOption(SocketOptions.IP_TOS, new Integer(tc));
+!!!7250203.java!!!	getTrafficClass() : int
+        return ((Integer) (getImpl().getOption(SocketOptions.IP_TOS))).intValue();
+!!!7250331.java!!!	setReuseAddress(inout on : boolean) : void
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+        getImpl().setOption(SocketOptions.SO_REUSEADDR, Boolean.valueOf(on));
+!!!7250459.java!!!	getReuseAddress() : boolean
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	return ((Boolean) (getImpl().getOption(SocketOptions.SO_REUSEADDR))).booleanValue();
+!!!7250587.java!!!	close() : void
+	synchronized(closeLock) {
+	    if (isClosed())
+		return;
+	    if (created)
+		impl.close();
+	    closed = true;
+	}
+!!!7250715.java!!!	shutdownInput() : void
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	if (!isConnected())
+	    throw new SocketException("Socket is not connected");
+	if (isInputShutdown())
+	    throw new SocketException("Socket input is already shutdown");
+	getImpl().shutdownInput();
+	shutIn = true;
+!!!7250843.java!!!	shutdownOutput() : void
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	if (!isConnected())
+	    throw new SocketException("Socket is not connected");
+	if (isOutputShutdown())
+	    throw new SocketException("Socket output is already shutdown");
+	getImpl().shutdownOutput();
+	shutOut = true;
+!!!7250971.java!!!	toString() : String
+	try {
+	    if (isConnected())
+		return "Socket[addr=" + getImpl().getInetAddress() +
+		    ",port=" + getImpl().getPort() +
+		    ",localport=" + getImpl().getLocalPort() + "]";
+	} catch (SocketException e) {
+	}
+	return "Socket[unconnected]";
+!!!7251099.java!!!	isConnected() : boolean
+	// Before 1.3 Sockets were always connected during creation
+	return connected || oldImpl;
+!!!7251227.java!!!	isBound() : boolean
+	// Before 1.3 Sockets were always bound during creation
+	return bound || oldImpl;
+!!!7251355.java!!!	isClosed() : boolean
+	synchronized(closeLock) {
+	    return closed;
+	}
+!!!7251483.java!!!	isInputShutdown() : boolean
+	return shutIn;
+!!!7251611.java!!!	isOutputShutdown() : boolean
+	return shutOut;
+!!!7251739.java!!!	setSocketImplFactory(inout fac : SocketImplFactory) : void
+	if (factory != null) {
+	    throw new SocketException("factory already defined");
+	}
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkSetFactory();
+	}
+	factory = fac;
+!!!7251867.java!!!	setPerformancePreferences(in connectionTime : int, in latency : int, in bandwidth : int) : void
+	/* Not implemented yet */

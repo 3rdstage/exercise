@@ -1,0 +1,128 @@
+class BasicMenuUI
+!!!2685851.java!!!	createUI(inout x : JComponent) : ComponentUI
+	return new BasicMenuUI();
+!!!2685979.java!!!	loadActionMap(inout map : LazyActionMap) : void
+        BasicMenuItemUI.loadActionMap(map);
+        map.put(new Actions(Actions.SELECT, null, true));
+!!!2686107.java!!!	installDefaults() : void
+	super.installDefaults();
+	updateDefaultBackgroundColor();
+	((JMenu)menuItem).setDelay(200);
+        crossMenuMnemonic = UIManager.getBoolean("Menu.crossMenuMnemonic");
+!!!2686235.java!!!	getPropertyPrefix() : String
+	return "Menu";
+!!!2686363.java!!!	installListeners() : void
+	super.installListeners();
+
+	if (changeListener == null)
+	    changeListener = createChangeListener(menuItem);
+
+	if (changeListener != null)
+	    menuItem.addChangeListener(changeListener);
+
+	if (propertyChangeListener == null)
+	    propertyChangeListener = createPropertyChangeListener(menuItem);
+
+	if (propertyChangeListener != null)
+	    menuItem.addPropertyChangeListener(propertyChangeListener);
+	    
+	if (menuListener == null)
+	    menuListener = createMenuListener(menuItem);
+
+	if (menuListener != null)
+	    ((JMenu)menuItem).addMenuListener(menuListener);
+!!!2686491.java!!!	installKeyboardActions() : void
+	super.installKeyboardActions();
+	updateMnemonicBinding();
+!!!2686619.java!!!	installLazyActionMap() : void
+        LazyActionMap.installLazyActionMap(menuItem, BasicMenuUI.class,
+                                           getPropertyPrefix() + ".actionMap");
+!!!2686747.java!!!	updateMnemonicBinding() : void
+	int mnemonic = menuItem.getModel().getMnemonic();
+        int[] shortcutKeys = (int[])DefaultLookup.get(menuItem, this,
+                                                   "Menu.shortcutKeys");
+        if (shortcutKeys == null) {
+            shortcutKeys = new int[] {KeyEvent.ALT_MASK};
+        }
+	if (mnemonic == lastMnemonic) {
+	    return;
+	}
+        InputMap windowInputMap = SwingUtilities.getUIInputMap(
+                       menuItem, JComponent.WHEN_IN_FOCUSED_WINDOW);
+	if (lastMnemonic != 0 && windowInputMap != null) {
+            for (int i=0; i<shortcutKeys.length; i++) {
+                windowInputMap.remove(KeyStroke.getKeyStroke
+                                      (lastMnemonic, shortcutKeys[i], false));
+            }
+	}
+	if (mnemonic != 0) {
+	    if (windowInputMap == null) {
+		windowInputMap = createInputMap(JComponent.
+					      WHEN_IN_FOCUSED_WINDOW);
+		SwingUtilities.replaceUIInputMap(menuItem, JComponent.
+				       WHEN_IN_FOCUSED_WINDOW, windowInputMap);
+	    }
+            for (int i=0; i<shortcutKeys.length; i++) {
+                windowInputMap.put(KeyStroke.getKeyStroke(mnemonic,
+                                         shortcutKeys[i], false),
+                                   "selectMenu");
+            }
+        }
+	lastMnemonic = mnemonic;
+!!!2686875.java!!!	uninstallKeyboardActions() : void
+	super.uninstallKeyboardActions();
+        lastMnemonic = 0;
+!!!2687003.java!!!	createMouseInputListener(inout c : JComponent) : MouseInputListener
+	return getHandler();
+!!!2687131.java!!!	createMenuListener(inout c : JComponent) : MenuListener
+	return null;
+!!!2687259.java!!!	createChangeListener(inout c : JComponent) : ChangeListener
+	return null;
+!!!2687387.java!!!	createPropertyChangeListener(inout c : JComponent) : PropertyChangeListener
+        return getHandler();
+!!!2687515.java!!!	getHandler() : Handler
+        if (handler == null) {
+            handler = new Handler();
+        }
+        return handler;
+!!!2687643.java!!!	uninstallDefaults() : void
+	menuItem.setArmed(false);
+	menuItem.setSelected(false);
+	menuItem.resetKeyboardActions();
+	super.uninstallDefaults();
+!!!2687771.java!!!	uninstallListeners() : void
+	super.uninstallListeners();
+
+	if (changeListener != null)
+	    menuItem.removeChangeListener(changeListener);
+
+	if (propertyChangeListener != null)
+	    menuItem.removePropertyChangeListener(propertyChangeListener);
+
+	if (menuListener != null)
+	    ((JMenu)menuItem).removeMenuListener(menuListener);
+
+	changeListener = null;
+	propertyChangeListener = null;
+	menuListener = null;
+        handler = null;
+!!!2687899.java!!!	createMenuDragMouseListener(inout c : JComponent) : MenuDragMouseListener
+	return getHandler();
+!!!2688027.java!!!	createMenuKeyListener(inout c : JComponent) : MenuKeyListener
+	return (MenuKeyListener)getHandler();
+!!!2688155.java!!!	getMaximumSize(inout c : JComponent) : Dimension
+	if (((JMenu)menuItem).isTopLevelMenu() == true) {
+	    Dimension d = c.getPreferredSize();
+	    return new Dimension(d.width, Short.MAX_VALUE);
+	}
+        return null;
+!!!2688283.java!!!	setupPostTimer(inout menu : JMenu) : void
+        Timer timer = new Timer(menu.getDelay(), new Actions(
+                                    Actions.SELECT, menu,false));
+        timer.setRepeats(false);
+        timer.start();
+!!!2688411.java!!!	appendPath(inout path : MenuElement, inout elem : MenuElement) : void
+        MenuElement newPath[] = new MenuElement[path.length+1];
+        System.arraycopy(path, 0, newPath, 0, path.length);
+        newPath[path.length] = elem;
+        MenuSelectionManager.defaultManager().setSelectedPath(newPath);

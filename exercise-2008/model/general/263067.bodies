@@ -1,0 +1,61 @@
+class POAPolicyMediatorBase
+!!!1339547.java!!!	getPolicies() : Policies
+	return policies ;
+!!!1339675.java!!!	getScid() : int
+	return scid ;
+!!!1339803.java!!!	getServerId() : int
+	return serverid ;
+!!!1339931.java!!!	POAPolicyMediatorBase(inout policies : Policies, inout poa : POAImpl)
+	if (policies.isSingleThreaded())
+	    throw poa.invocationWrapper().singleThreadNotSupported() ;
+
+	POAManagerImpl poam = (POAManagerImpl)(poa.the_POAManager()) ;
+	POAFactory poaf = poam.getFactory() ;
+	delegateImpl = (DelegateImpl)(poaf.getDelegateImpl()) ;
+	this.policies = policies ;
+	this.poa = poa ;
+	orb = (ORB)poa.getORB() ;
+
+	switch (policies.servantCachingLevel()) {
+	    case ServantCachingPolicy.NO_SERVANT_CACHING :
+		scid = ORBConstants.TRANSIENT_SCID ;
+		break ;
+	    case ServantCachingPolicy.FULL_SEMANTICS :
+		scid = ORBConstants.SC_TRANSIENT_SCID ;
+		break ;
+	    case ServantCachingPolicy.INFO_ONLY_SEMANTICS :
+		scid = ORBConstants.IISC_TRANSIENT_SCID ;
+		break ;
+	    case ServantCachingPolicy.MINIMAL_SEMANTICS :
+		scid = ORBConstants.MINSC_TRANSIENT_SCID ;
+		break ;
+	}
+
+	if ( policies.isTransient() ) {
+	    serverid = orb.getTransientServerId();
+	} else {
+	    serverid = orb.getORBData().getPersistentServerId();
+	    scid = ORBConstants.makePersistent( scid ) ;
+	}
+
+	isImplicit = policies.isImplicitlyActivated() ;
+	isUnique = policies.isUniqueIds() ;
+	isSystemId = policies.isSystemAssignedIds() ;
+
+	sysIdCounter = 0 ; 
+!!!1340059.java!!!	getInvocationServant(in id : byte, in operation : String) : Object
+	java.lang.Object result = internalGetServant( id, operation ) ;
+
+	return result ;
+!!!1340187.java!!!	setDelegate(inout servant : Servant, in id : byte) : void
+        //This new servant delegate no longer needs the id for 
+	// its initialization.
+        servant._set_delegate(delegateImpl);
+!!!1340315.java!!!	newSystemId() : byte
+	if (!isSystemId)
+	    throw new WrongPolicy() ;
+
+	byte[] array = new byte[8];
+	ORBUtility.intToBytes(++sysIdCounter, array, 0);
+	ORBUtility.intToBytes( poa.getPOAId(), array, 4);
+	return array;

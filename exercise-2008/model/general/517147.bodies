@@ -1,0 +1,111 @@
+class MetaDataImpl
+!!!3210395.java!!!	MetaDataImpl(inout instantiator : MBeanInstantiator)
+	if (instantiator == null) throw new 
+	    IllegalArgumentException("instantiator must not be null.");
+	this.instantiator = instantiator;
+	this.dynamic  = new PrivateDynamicMeta();
+	this.standard = new PrivateStandardMeta();
+	// ------------------------------ 
+	// ------------------------------ 
+!!!3210523.java!!!	getMetaData(inout c : Class) : MetaData
+	if (DynamicMBean.class.isAssignableFrom(c)) 
+	    return dynamic;
+	else
+	    return standard;
+!!!3210651.java!!!	getMetaData(inout moi : Object) : MetaData
+	if (moi instanceof DynamicMBean) 
+	    return dynamic;
+	else
+	    return standard;
+!!!3210779.java!!!	testCompliance(inout c : Class) : void
+	final  MetaData meta = getMetaData(c);
+	meta.testCompliance(c);
+!!!3210907.java!!!	getMBeanInterfaceFromClass(inout c : Class) : Class
+	return standard.getMBeanInterfaceFromClass(c);
+!!!3211035.java!!!	getMBeanInfoFromClass(inout beanClass : Class) : MBeanInfo
+	return standard.getMBeanInfoFromClass(beanClass);
+!!!3211163.java!!!	getMBeanClassName(inout moi : Object) : String
+	final  MetaData meta = getMetaData(moi);
+	return meta.getMBeanClassName(moi);
+!!!3211291.java!!!	getMBeanInfo(inout moi : Object) : MBeanInfo
+	final  MetaData meta = getMetaData(moi);
+	return meta.getMBeanInfo(moi);
+!!!3211419.java!!!	getAttribute(inout instance : Object, in attribute : String) : Object
+	
+	final  MetaData meta = getMetaData(instance);
+	return meta.getAttribute(instance,attribute);
+!!!3211547.java!!!	getAttributes(inout instance : Object, in attributes : String) : AttributeList
+
+	final  MetaData meta = getMetaData(instance);
+	return meta.getAttributes(instance, attributes);
+!!!3211675.java!!!	setAttributes(inout instance : Object, inout attributes : AttributeList) : AttributeList
+	
+	final  MetaData meta = getMetaData(instance);
+	return meta.setAttributes(instance,attributes);
+!!!3211803.java!!!	setAttribute(inout instance : Object, inout attribute : Attribute) : Object
+
+	final  MetaData meta = getMetaData(instance);
+	return meta.setAttribute(instance,attribute);
+!!!3211931.java!!!	invoke(inout instance : Object, in operationName : String, inout params : Object, in signature : String) : Object
+
+        if (operationName == null) {
+	    final RuntimeException r = 
+	      new IllegalArgumentException("Operation name cannot be null");
+            throw new RuntimeOperationsException(r, 
+              "Exception occured trying to invoke the operation on the MBean");
+        } 
+	final  MetaData meta = getMetaData(instance);
+	return meta.invoke(instance,operationName,params,signature);
+!!!3212059.java!!!	isInstanceOf(inout instance : Object, in className : String) : boolean
+
+	// XXX revisit here: ModelMBean ???
+	final MetaData meta  = getMetaData(instance);
+	return meta.isInstanceOf(instance,className);
+!!!3212187.java!!!	preRegisterInvoker(inout moi : Object, inout name : ObjectName, inout mbs : MBeanServer) : ObjectName
+   
+	if (!(moi instanceof MBeanRegistration)) return name;
+	final MetaData meta  = getMetaData(moi);
+	return meta.preRegisterInvoker(moi,name,mbs);
+!!!3212315.java!!!	postRegisterInvoker(inout moi : Object, inout registrationDone : boolean) : void
+	if (!(moi instanceof MBeanRegistration)) return;
+
+	final MetaData meta  = getMetaData(moi);
+	meta.postRegisterInvoker(moi,registrationDone);
+!!!3212443.java!!!	preDeregisterInvoker(inout moi : Object) : void
+	if (!(moi instanceof MBeanRegistration)) return;
+	final MetaData meta  = getMetaData(moi);
+	meta.preDeregisterInvoker(moi);
+!!!3212571.java!!!	postDeregisterInvoker(inout moi : Object) : void
+	if (!(moi instanceof MBeanRegistration)) return;
+	final MetaData meta  = getMetaData(moi);
+	meta.postDeregisterInvoker(moi);
+!!!3212699.java!!!	findClass(in className : String, inout loader : ClassLoader) : Class
+	return instantiator.findClass(className, loader);
+!!!3212827.java!!!	findSignatureClasses(in signature : String, inout loader : ClassLoader) : Class
+	return ((signature == null)?null:
+		instantiator.findSignatureClasses(signature,loader));
+!!!3212955.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_MBEANSERVER);
+!!!3213083.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_MBEANSERVER, clz, func, info);
+!!!3213211.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!3213339.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_MBEANSERVER);
+!!!3213467.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_MBEANSERVER, clz, func, info);
+!!!3213595.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);
+!!!3213723.java!!!	debugX(in func : String, inout e : Throwable) : void
+	if (isDebugOn()) {
+	    final StringWriter s = new StringWriter();
+	    e.printStackTrace(new PrintWriter(s));
+	    final String stack = s.toString();
+	    
+	    debug(dbgTag,func,"Exception caught in "+ func+"(): "+e);
+	    debug(dbgTag,func,stack);
+	
+	    // java.lang.System.err.println("**** Exception caught in "+
+	    // 			     func+"(): "+e);
+	    // java.lang.System.err.println(stack);
+	}

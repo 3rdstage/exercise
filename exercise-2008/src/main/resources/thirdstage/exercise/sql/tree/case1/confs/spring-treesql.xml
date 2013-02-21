@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jms="http://www.springframework.org/schema/jms"
+	xmlns:lang="http://www.springframework.org/schema/lang"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/jms http://www.springframework.org/schema/jms/spring-jms.xsd
+		http://www.springframework.org/schema/lang http://www.springframework.org/schema/lang/spring-lang.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd"
+		>
+
+	<bean id="requiedAnnotationEnabler" class="org.springframework.beans.factory.annotation.RequiredAnnotationBeanPostProcessor">
+		<description>Make @Required annotation enabled</description>
+	</bean>
+	
+
+	<bean id="dataSource4MsSql" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+		<property name="driverClassName" value="com.microsoft.sqlserver.jdbc.SQLServerDriver"/>
+		<property name="url" value="jdbc:sqlserver://127.0.0.1:1433;databaseName=exercise1;responseBuffering=adaptive"/>
+		<property name="username" value="dev"/>
+		<property name="password" value="dev"/>
+		<property name="defaultAutoCommit" value="true"/>
+		<property name="initialSize" value="3"/>
+		<property name="maxActive" value="3"/>
+		<property name="maxIdle" value="3"/>
+		<property name="minIdle" value="0"/>
+	</bean>
+
+	<bean id="sqlMapClient4MsSql" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean">
+		<description>SqlMap setup for iBATIS database layer</description>
+		<property name="configLocation" value="classpath:thirdstage/exercise/sql/tree/case1/confs/sqlmap-treesql.mssql.xml"/>
+		<property name="dataSource" ref="dataSource4MsSql"/>
+		<property name="useTransactionAwareDataSource" value="true"/>
+		<property name="transactionConfigClass">
+			<value type="java.lang.Class">com.ibatis.sqlmap.engine.transaction.external.ExternalTransactionConfig</value>
+		</property>		
+	</bean>
+
+	<bean id="txManager4MsSql" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource4MsSql"/>
+		<property name="defaultTimeout" value="120"/>
+	</bean>
+
+	<tx:annotation-driven 
+		transaction-manager="txManager4MsSql"
+		mode="proxy"
+	/>
+
+
+</beans>

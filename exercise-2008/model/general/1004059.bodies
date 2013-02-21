@@ -1,0 +1,73 @@
+class MappedZipFileInputStream
+!!!8018203.java!!!	MappedZipFileInputStream(in jzentry : long, in name : String)
+	    super(jzentry);
+	    this.name = name;
+	    int offset = (int)getEntryOffset(jzentry);
+	    MappedByteBuffer bb = ZipFile.this.mappedBuffer;
+	    synchronized (bb) {
+		bb.position(offset);
+		bb.limit((int)(offset + rem)); // won't use this code if file > 2GB
+
+		this.directBuffer = bb.slice();
+		
+		bb.position(0); // reset, but doesn't matter
+		bb.limit(bb.capacity()); // reset limit
+	    }
+!!!8018331.java!!!	getByteBuffer() : ByteBuffer
+	   synchronized (ZipFile.this) {
+	       ensureOpenOrZipException();
+	       // have to defer ZipFile.close() until all the buffers are garbage
+	       ZipFile.this.mbUsed = true;
+	       return directBuffer;
+	   }
+!!!8018459.java!!!	read(in b : byte, in off : int, in len : int) : int
+	    int rem = directBuffer.remaining();
+	    if (rem == 0) {
+		return -1;
+	    }
+	    if (len <= 0) {
+		return 0;
+	    }
+	    if (len > rem) {
+		len = rem;
+	    }
+            synchronized (ZipFile.this) {
+                ensureOpenOrZipException();
+
+		directBuffer.get(b, off, len);
+            }
+	   
+	    if (len == rem) {
+		close();
+	    }
+	    return len;
+!!!8018587.java!!!	read() : int
+	    synchronized (ZipFile.this) {
+               ensureOpenOrZipException();
+
+		if (directBuffer.remaining() == 0) {
+		    return -1;
+		} else {
+		    return directBuffer.get() & 0xff;
+		}
+	    }
+!!!8018715.java!!!	skip(in n : long) : long
+	    int rem = directBuffer.remaining();
+	    int len = n > rem ? rem : (int)n;
+	    directBuffer.position(directBuffer.position() + len);
+	    if (len == rem) {
+		close();
+	    }
+	    return len;
+!!!8018843.java!!!	available() : int
+            return directBuffer.remaining();
+!!!8018971.java!!!	size() : long
+            return size;
+!!!8019099.java!!!	close() : void
+	    directBuffer.position(directBuffer.limit());
+            synchronized (ZipFile.this) {
+                if (jzentry != 0 && ZipFile.this.jzfile != 0) {
+                    freeEntry(ZipFile.this.jzfile, jzentry);
+                    jzentry = 0;
+                }
+            }

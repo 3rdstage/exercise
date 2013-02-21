@@ -1,0 +1,253 @@
+class ZipFile
+!!!8013595.java!!!	ZipFile(in name : String)
+	this(new File(name), OPEN_READ);
+!!!8014107.java!!!	initDBBConstructor() : void
+	AccessController.doPrivileged(new PrivilegedAction() {
+		public Object run() {
+		    try {
+			Class th = Class.forName("java.nio.DirectByteBuffer");
+			directByteBufferConstructor
+			    = th.getDeclaredConstructor(
+					new Class[] { int.class,
+                                                      long.class,
+						      Runnable.class });
+			directByteBufferConstructor.setAccessible(true);
+		    } catch (ClassNotFoundException x) {
+			throw new InternalError();
+		    } catch (NoSuchMethodException x) {
+			throw new InternalError();
+		    } catch (IllegalArgumentException x) {
+			throw new InternalError();
+		    } catch (ClassCastException x) {
+			throw new InternalError();
+		    }
+                    return null;
+		}});
+!!!8014235.java!!!	newMappedByteBuffer(in size : int, in addr : long, inout unmapper : Runnable) : MappedByteBuffer
+        MappedByteBuffer dbb;
+        if (directByteBufferConstructor == null)
+            initDBBConstructor();
+        try {
+            dbb = (MappedByteBuffer)directByteBufferConstructor.newInstance(
+              new Object[] { new Integer(size),
+                             new Long(addr),
+			     unmapper });
+        } catch (InstantiationException e) {
+            throw new InternalError();
+        } catch (IllegalAccessException e) {
+            throw new InternalError();
+        } catch (InvocationTargetException e) {
+            throw new InternalError();
+        }
+        return dbb;
+!!!8014363.java!!!	ZipFile(inout file : File, in mode : int)
+        if (((mode & OPEN_READ) == 0) || 
+            ((mode & ~(OPEN_READ | OPEN_DELETE)) != 0)) {
+            throw new IllegalArgumentException("Illegal mode: 0x"+ 
+                                               Integer.toHexString(mode));
+        }
+        String name = file.getPath();
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {
+	    sm.checkRead(name);
+	    if ((mode & OPEN_DELETE) != 0) {
+		sm.checkDelete(name);
+	    }
+	}
+	long jzfileCopy = open(name, mode, file.lastModified());
+	this.name = name;
+	this.total = getTotal(jzfileCopy);
+	this.mbUsed = false;
+	long mappedAddr = getMappedAddr(jzfileCopy);
+	long len = getMappedLen(jzfileCopy);
+
+	if (mappedAddr != 0 && len < Integer.MAX_VALUE) {
+	    // Zip's native code may be able to handle files up to 4GB, but
+	    // ByteBuffers can only handle 2GB. So fallback on Zip files >= 2GB.
+	    this.closer = new ZipCloser(jzfileCopy); 
+	    this.mappedBuffer = newMappedByteBuffer((int)len, mappedAddr, 
+						    this.closer);
+	}
+
+        jzfile = jzfileCopy;
+!!!8015003.java!!!	ZipFile(inout file : File)
+	this(file, OPEN_READ);
+!!!8015131.java!!!	getEntry(in name : String) : ZipEntry
+        if (name == null) {
+            throw new NullPointerException("name");
+        }
+        long jzentry = 0;
+        synchronized (this) {
+            ensureOpen();
+            jzentry = getEntry(jzfile, name, true);
+            if (jzentry != 0) {
+                ZipEntry ze = new ZipEntry(name, jzentry);
+                freeEntry(jzfile, jzentry);
+                return ze;
+            }
+        }
+        return null;
+!!!8015515.java!!!	getInputStream(inout entry : ZipEntry) : InputStream
+	return getInputStream(entry.name);
+!!!8015643.java!!!	getInputStream(in name : String) : InputStream
+	if (name == null) {
+	    throw new NullPointerException("name");
+	}
+        long jzentry = 0;
+        ZipFileInputStream in = null;
+        synchronized (this) {
+            ensureOpen();
+            jzentry = getEntry(jzfile, name, false);
+            if (jzentry == 0) {
+                return null;
+            }
+	    if (mappedBuffer != null) {
+		in = new MappedZipFileInputStream(jzentry, name);
+	    } else {
+		in = new ZipFileInputStream(jzentry);
+	    }
+        }
+        final ZipFileInputStream zfin = in;
+	switch (getMethod(jzentry)) {
+	case STORED:
+	    return zfin;
+	case DEFLATED:
+	    // MORE: Compute good size for inflater stream:
+            long size = getSize(jzentry) + 2; // Inflater likes a bit of slack
+            if (size > 65536) size = 8192;
+            if (size <= 0) size = 4096;
+            return new InflaterInputStream(zfin, getInflater(), (int)size) {
+                private boolean isClosed = false;
+                
+		public void close() throws IOException {
+                    if (!isClosed) {
+                         releaseInflater(inf);
+                        this.in.close();
+                        isClosed = true;
+                    }
+		}
+		// Override fill() method to provide an extra "dummy" byte
+		// at the end of the input stream. This is required when
+		// using the "nowrap" Inflater option.
+		protected void fill() throws IOException {
+		    if (eof) {
+			throw new EOFException(
+			    "Unexpected end of ZLIB input stream");
+		    }
+		    len = this.in.read(buf, 0, buf.length);
+		    if (len == -1) {
+			buf[0] = 0;
+			len = 1;
+			eof = true;
+		    }
+		    inf.setInput(buf, 0, len);
+		}
+		private boolean eof;
+
+                public int available() throws IOException {
+                    if (isClosed)
+                        return 0;
+		    long avail = zfin.size() - inf.getBytesWritten();
+		    return avail > (long) Integer.MAX_VALUE ?
+			Integer.MAX_VALUE : (int) avail;
+                }
+	    };
+	default:
+	    throw new ZipException("invalid compression method");
+	}
+!!!8015899.java!!!	getInflater() : Inflater
+	synchronized (inflaters) {
+	    int size = inflaters.size();
+	    if (size > 0) {
+		Inflater inf = (Inflater)inflaters.remove(size - 1);
+		inf.reset();
+		return inf;
+	    } else {
+		return new Inflater(true);
+	    }
+	}
+!!!8016027.java!!!	releaseInflater(inout inf : Inflater) : void
+	synchronized (inflaters) {
+	    inflaters.add(inf);
+	}
+!!!8016155.java!!!	getName() : String
+        return name;
+!!!8016283.java!!!	entries() : Enumeration
+        ensureOpen();
+        return new Enumeration<ZipEntry>() {
+                private int i = 0;
+                public boolean hasMoreElements() {
+                    synchronized (ZipFile.this) {
+                        ensureOpen();
+                        return i < total;
+                    }
+                }
+                public ZipEntry nextElement() throws NoSuchElementException {
+                    synchronized (ZipFile.this) {
+                        ensureOpen();
+                        if (i >= total) {
+                            throw new NoSuchElementException();
+                        }
+                        long jzentry = getNextEntry(jzfile, i++);
+                        if (jzentry == 0) {
+                            String message;
+                            if (closeRequested) {
+                                message = "ZipFile concurrently closed";
+                            } else {
+                                message = getZipMessage(ZipFile.this.jzfile);
+                            }
+                            throw new InternalError("jzentry == 0" +
+                                                    ",\n jzfile = " + ZipFile.this.jzfile +
+                                                    ",\n total = " + ZipFile.this.total +
+                                                    ",\n name = " + ZipFile.this.name +
+                                                    ",\n i = " + i +
+                                                    ",\n message = " + message
+                                );
+                        }
+                        ZipEntry ze = new ZipEntry(jzentry);
+                        freeEntry(jzfile, jzentry);
+                        return ze;
+                    }
+                }
+            };
+!!!8016539.java!!!	size() : int
+        ensureOpen();
+	return total;
+!!!8016667.java!!!	close() : void
+        synchronized (this) {
+	    closeRequested = true;
+	    
+	    if (jzfile != 0) {
+		// Close the zip file
+		long zf = this.jzfile;
+		jzfile = 0;
+		if (closer != null) {
+		    if (!mbUsed) { // no one is looking; we can close early
+			closer.setClosed(); // tell closer not to bother
+			close(zf);
+		    }
+		    // Some caller may have ref to MappedByteBuffer,
+		    // so let phantom processing (ZipCloser) close the ZipFile.
+		} else {
+		    close(zf);
+		}
+		// Release inflaters
+		synchronized (inflaters) {
+		    int size = inflaters.size();
+		    for (int i = 0; i < size; i++) {
+			Inflater inf = (Inflater)inflaters.get(i);
+			inf.end();
+		    }
+		}
+	    }
+        }
+!!!8016795.java!!!	finalize() : void
+        close();
+!!!8017051.java!!!	ensureOpen() : void
+	if (closeRequested) {
+	    throw new IllegalStateException("zip file closed");
+	}
+!!!8017179.java!!!	ensureOpenOrZipException() : void
+	if (closeRequested) {
+	    throw new ZipException("ZipFile closed");
+	}

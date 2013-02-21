@@ -1,0 +1,49 @@
+class SelectorMapping
+!!!2610331.java!!!	SelectorMapping(in specificity : int)
+            this.specificity = specificity;
+!!!2610459.java!!!	getSpecificity() : int
+            return specificity;
+!!!2610587.java!!!	setStyle(inout style : Style) : void
+            this.style = style;
+!!!2610715.java!!!	getStyle() : Style
+            return style;
+!!!2610843.java!!!	getChildSelectorMapping(in selector : String, inout create : boolean) : SelectorMapping
+            SelectorMapping retValue = null;
+
+            if (children != null) {
+                retValue = (SelectorMapping)children.get(selector);
+            }
+            else if (create) {
+                children = new HashMap(7);
+            }
+            if (retValue == null && create) {
+                int specificity = getChildSpecificity(selector);
+
+                retValue = createChildSelectorMapping(specificity);
+                children.put(selector, retValue);
+            }
+            return retValue;
+!!!2610971.java!!!	createChildSelectorMapping(in specificity : int) : SelectorMapping
+            return new SelectorMapping(specificity);
+!!!2611099.java!!!	getChildSpecificity(in selector : String) : int
+	    // class (.) 100
+	    // id (#)    10000
+	    char    firstChar = selector.charAt(0);
+            int     specificity = getSpecificity();
+
+	    if (firstChar == '.') {
+		specificity += 100;
+	    }
+	    else if (firstChar == '#') {
+		specificity += 10000;
+	    }
+	    else {
+		specificity += 1;
+		if (selector.indexOf('.') != -1) {
+		    specificity += 100;
+		}
+		if (selector.indexOf('#') != -1) {
+		    specificity += 10000;
+		}
+	    }
+            return specificity;

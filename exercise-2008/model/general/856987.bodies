@@ -1,0 +1,163 @@
+class FlowLayout
+!!!6241691.java!!!	FlowLayout()
+	this(CENTER, 5, 5);
+!!!6241819.java!!!	FlowLayout(in align : int)
+	this(align, 5, 5);
+!!!6241947.java!!!	FlowLayout(in align : int, in hgap : int, in vgap : int)
+	this.hgap = hgap;
+	this.vgap = vgap;
+        setAlignment(align);
+!!!6242075.java!!!	getAlignment() : int
+	return newAlign;
+!!!6242203.java!!!	setAlignment(in align : int) : void
+	this.newAlign = align;
+
+        // this.align is used only for serialization compatibility,
+        // so set it to a value compatible with the 1.1 version
+        // of the class
+
+        switch (align) {
+	case LEADING:
+            this.align = LEFT;
+	    break;
+	case TRAILING:
+            this.align = RIGHT;
+	    break;
+        default:
+            this.align = align;
+	    break;
+        }
+!!!6242331.java!!!	getHgap() : int
+	return hgap;
+!!!6242459.java!!!	setHgap(in hgap : int) : void
+	this.hgap = hgap;
+!!!6242587.java!!!	getVgap() : int
+	return vgap;
+!!!6242715.java!!!	setVgap(in vgap : int) : void
+	this.vgap = vgap;
+!!!6243099.java!!!	preferredLayoutSize(inout target : Container) : Dimension
+      synchronized (target.getTreeLock()) {
+	Dimension dim = new Dimension(0, 0);
+	int nmembers = target.getComponentCount();
+        boolean firstVisibleComponent = true;
+
+	for (int i = 0 ; i < nmembers ; i++) {
+	    Component m = target.getComponent(i);
+	    if (m.visible) {
+		Dimension d = m.getPreferredSize();
+		dim.height = Math.max(dim.height, d.height);
+                if (firstVisibleComponent) {
+                    firstVisibleComponent = false;
+                } else {
+                    dim.width += hgap;
+                }
+		dim.width += d.width;
+	    }
+	}
+	Insets insets = target.getInsets();
+	dim.width += insets.left + insets.right + hgap*2;
+	dim.height += insets.top + insets.bottom + vgap*2;
+	return dim;
+      }
+!!!6243227.java!!!	minimumLayoutSize(inout target : Container) : Dimension
+      synchronized (target.getTreeLock()) {
+	Dimension dim = new Dimension(0, 0);
+	int nmembers = target.getComponentCount();
+
+	for (int i = 0 ; i < nmembers ; i++) {
+	    Component m = target.getComponent(i);
+	    if (m.visible) {
+		Dimension d = m.getMinimumSize();
+		dim.height = Math.max(dim.height, d.height);
+		if (i > 0) {
+		    dim.width += hgap;
+		}
+		dim.width += d.width;
+	    }
+	}
+	Insets insets = target.getInsets();
+	dim.width += insets.left + insets.right + hgap*2;
+	dim.height += insets.top + insets.bottom + vgap*2;
+	return dim;
+      }
+!!!6243355.java!!!	moveComponents(inout target : Container, in x : int, in y : int, in width : int, in height : int, in rowStart : int, in rowEnd : int, inout ltr : boolean) : void
+      synchronized (target.getTreeLock()) {
+	switch (newAlign) {
+	case LEFT:
+	    x += ltr ? 0 : width;
+	    break;
+	case CENTER:
+	    x += width / 2;
+	    break;
+	case RIGHT:
+	    x += ltr ? width : 0;
+	    break;
+	case LEADING:
+	    break;
+	case TRAILING:
+	    x += width;
+	    break;
+	}
+	for (int i = rowStart ; i < rowEnd ; i++) {
+	    Component m = target.getComponent(i);
+	    if (m.visible) {
+	        if (ltr) {
+        	    m.setLocation(x, y + (height - m.height) / 2);
+	        } else {
+	            m.setLocation(target.width - x - m.width, y + (height - m.height) / 2);
+                }
+                x += m.width + hgap;
+	    }
+	}
+      }
+!!!6243483.java!!!	layoutContainer(inout target : Container) : void
+      synchronized (target.getTreeLock()) {
+	Insets insets = target.getInsets();
+	int maxwidth = target.width - (insets.left + insets.right + hgap*2);
+	int nmembers = target.getComponentCount();
+	int x = 0, y = insets.top + vgap;
+	int rowh = 0, start = 0;
+
+        boolean ltr = target.getComponentOrientation().isLeftToRight();
+
+	for (int i = 0 ; i < nmembers ; i++) {
+	    Component m = target.getComponent(i);
+	    if (m.visible) {
+		Dimension d = m.getPreferredSize();
+		m.setSize(d.width, d.height);
+
+		if ((x == 0) || ((x + d.width) <= maxwidth)) {
+		    if (x > 0) {
+			x += hgap;
+		    }
+		    x += d.width;
+		    rowh = Math.max(rowh, d.height);
+		} else {
+		    moveComponents(target, insets.left + hgap, y, maxwidth - x, rowh, start, i, ltr);
+		    x = d.width;
+		    y += vgap + rowh;
+		    rowh = d.height;
+		    start = i;
+		}
+	    }
+	}
+	moveComponents(target, insets.left + hgap, y, maxwidth - x, rowh, start, nmembers, ltr);
+      }
+!!!6243611.java!!!	readObject(inout stream : ObjectInputStream) : void
+        stream.defaultReadObject();
+
+        if (serialVersionOnStream < 1) {
+            // "newAlign" field wasn't present, so use the old "align" field.
+            setAlignment(this.align);
+        }
+        serialVersionOnStream = currentSerialVersion;
+!!!6243739.java!!!	toString() : String
+	String str = "";
+	switch (align) {
+	  case LEFT:        str = ",align=left"; break;
+	  case CENTER:      str = ",align=center"; break;
+	  case RIGHT:       str = ",align=right"; break;
+	  case LEADING:     str = ",align=leading"; break;
+	  case TRAILING:    str = ",align=trailing"; break;
+	}
+	return getClass().getName() + "[hgap=" + hgap + ",vgap=" + vgap + str + "]";

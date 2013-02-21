@@ -1,0 +1,200 @@
+class EventSetDescriptor
+!!!6754587.java!!!	EventSetDescriptor(inout sourceClass : Class, in eventSetName : String, inout listenerType : Class, in listenerMethodName : String)
+	this(sourceClass, eventSetName, listenerType, 
+	     new String[] { listenerMethodName },
+	     "add" + getListenerClassName(listenerType),
+	     "remove" + getListenerClassName(listenerType),
+	     "get" + getListenerClassName(listenerType) + "s");
+
+	String eventName = capitalize(eventSetName) + "Event";
+	Method[] listenerMethods = getListenerMethods();
+	if (listenerMethods.length > 0) {
+	    Class[] args = listenerMethods[0].getParameterTypes();
+	    // Check for EventSet compliance. Special case for vetoableChange. See 4529996
+	    if (!"vetoableChange".equals(eventSetName) && !args[0].getName().endsWith(eventName)) {
+                throw new IntrospectionException("Method \"" + listenerMethodName +
+						 "\" should have argument \"" + 
+						 eventName + "\"");
+	    }
+	}
+!!!6754715.java!!!	getListenerClassName(inout cls : Class) : String
+	String className = cls.getName(); 
+	return className.substring(className.lastIndexOf('.') + 1); 
+!!!6754843.java!!!	EventSetDescriptor(inout sourceClass : Class, in eventSetName : String, inout listenerType : Class, in listenerMethodNames : String, in addListenerMethodName : String, in removeListenerMethodName : String)
+	this(sourceClass, eventSetName, listenerType,
+	     listenerMethodNames, addListenerMethodName, 
+	     removeListenerMethodName, null);
+!!!6754971.java!!!	EventSetDescriptor(inout sourceClass : Class, in eventSetName : String, inout listenerType : Class, in listenerMethodNames : String, in addListenerMethodName : String, in removeListenerMethodName : String, in getListenerMethodName : String)
+	if (sourceClass == null || eventSetName == null || listenerType == null) {
+	    throw new NullPointerException();
+	}
+	setName(eventSetName);
+	setClass0(sourceClass);
+	setListenerType(listenerType);
+	
+	Method[] listenerMethods = new Method[listenerMethodNames.length];
+	for (int i = 0; i < listenerMethodNames.length; i++) {
+	    // Check for null names
+	    if (listenerMethodNames[i] == null) {
+		throw new NullPointerException();
+	    }
+	    listenerMethods[i] = getMethod(listenerType, listenerMethodNames[i], 1);
+	}
+	setListenerMethods(listenerMethods);
+
+	setAddListenerMethod(getMethod(sourceClass, addListenerMethodName, 1));
+	setRemoveListenerMethod(getMethod(sourceClass, removeListenerMethodName, 1));
+
+	// Be more forgiving of not finding the getListener method.
+	Method method = Introspector.findMethod(sourceClass, 
+						getListenerMethodName, 0);
+	if (method != null) {
+	    setGetListenerMethod(method);
+	}
+!!!6755099.java!!!	getMethod(inout cls : Class, in name : String, in args : int) : Method
+	if (name == null) {
+	    return null;
+	}
+	Method method = Introspector.findMethod(cls, name, args);
+	if (method == null) {
+	    throw new IntrospectionException("Method not found: " + name + 
+					     " on class " + cls.getName());
+	}
+	return method;
+!!!6755227.java!!!	EventSetDescriptor(in eventSetName : String, inout listenerType : Class, inout listenerMethods : Method, inout addListenerMethod : Method, inout removeListenerMethod : Method)
+	this(eventSetName, listenerType, listenerMethods,
+	     addListenerMethod, removeListenerMethod, null);
+!!!6755355.java!!!	EventSetDescriptor(in eventSetName : String, inout listenerType : Class, inout listenerMethods : Method, inout addListenerMethod : Method, inout removeListenerMethod : Method, inout getListenerMethod : Method)
+	setName(eventSetName);
+	setListenerMethods(listenerMethods);
+	setAddListenerMethod(addListenerMethod);
+	setRemoveListenerMethod( removeListenerMethod);
+	setGetListenerMethod(getListenerMethod);
+	setListenerType(listenerType);
+!!!6755483.java!!!	EventSetDescriptor(in eventSetName : String, inout listenerType : Class, inout listenerMethodDescriptors : MethodDescriptor, inout addListenerMethod : Method, inout removeListenerMethod : Method)
+	setName(eventSetName);
+	this.listenerMethodDescriptors = listenerMethodDescriptors;
+	setAddListenerMethod(addListenerMethod);
+	setRemoveListenerMethod(removeListenerMethod);
+	setListenerType(listenerType);
+!!!6755611.java!!!	getListenerType() : Class
+	return (Class)getObject(listenerTypeRef);
+!!!6755739.java!!!	setListenerType(inout cls : Class) : void
+	listenerTypeRef = createReference(cls);
+!!!6755867.java!!!	getListenerMethods() : Method
+	Method[] methods = getListenerMethods0();
+	if (methods == null) {
+            if (listenerMethodDescriptors != null) {
+                methods = new Method[listenerMethodDescriptors.length];
+		for (int i = 0; i < methods.length; i++) {
+                    methods[i] = listenerMethodDescriptors[i].getMethod();
+		}
+	    }
+	    setListenerMethods(methods);
+	}
+	return methods;
+!!!6755995.java!!!	setListenerMethods(inout methods : Method) : void
+	if (methods == null) {
+	    return;
+	}
+        if (listenerMethodDescriptors == null) {
+            listenerMethodDescriptors = new MethodDescriptor[methods.length];
+	    for (int i = 0; i < methods.length; i++) {
+                listenerMethodDescriptors[i] = new MethodDescriptor(methods[i]);
+	    }
+	}
+	listenerMethodsRef = createReference(methods, true);
+!!!6756123.java!!!	getListenerMethods0() : Method
+	return (Method[])getObject(listenerMethodsRef);
+!!!6756251.java!!!	getListenerMethodDescriptors() : MethodDescriptor
+	return listenerMethodDescriptors;
+!!!6756379.java!!!	getAddListenerMethod() : Method
+        return (addMethodDescriptor != null ?
+                    addMethodDescriptor.getMethod() : null);
+!!!6756507.java!!!	setAddListenerMethod(inout method : Method) : void
+	if (method == null) {
+	    return;
+	}
+	if (getClass0() == null) {
+	    setClass0(method.getDeclaringClass());
+	}
+        addMethodDescriptor = new MethodDescriptor(method);
+!!!6756635.java!!!	getRemoveListenerMethod() : Method
+        return (removeMethodDescriptor != null ?
+                    removeMethodDescriptor.getMethod() : null);
+!!!6756763.java!!!	setRemoveListenerMethod(inout method : Method) : void
+	if (method == null) {
+	    return;
+	}
+	if (getClass0() == null) {
+	    setClass0(method.getDeclaringClass());
+	}
+        removeMethodDescriptor = new MethodDescriptor(method);
+!!!6756891.java!!!	getGetListenerMethod() : Method
+        return (getMethodDescriptor != null ?
+                    getMethodDescriptor.getMethod() : null);
+!!!6757019.java!!!	setGetListenerMethod(inout method : Method) : void
+	if (method == null) {
+	    return;
+	}
+	if (getClass0() == null) {
+	    setClass0(method.getDeclaringClass());
+	}
+        getMethodDescriptor = new MethodDescriptor(method);
+!!!6757147.java!!!	setUnicast(inout unicast : boolean) : void
+	this.unicast = unicast;
+!!!6757275.java!!!	isUnicast() : boolean
+	return unicast;
+!!!6757403.java!!!	setInDefaultEventSet(inout inDefaultEventSet : boolean) : void
+	this.inDefaultEventSet = inDefaultEventSet;
+!!!6757531.java!!!	isInDefaultEventSet() : boolean
+	return inDefaultEventSet;
+!!!6757659.java!!!	EventSetDescriptor(inout x : EventSetDescriptor, inout y : EventSetDescriptor)
+	super(x,y);
+	listenerMethodDescriptors = x.listenerMethodDescriptors;
+	if (y.listenerMethodDescriptors != null) {
+	    listenerMethodDescriptors = y.listenerMethodDescriptors;
+	}
+
+        listenerTypeRef = x.listenerTypeRef;
+	if (y.listenerTypeRef != null) {
+	    listenerTypeRef = y.listenerTypeRef;
+	}
+
+        addMethodDescriptor = x.addMethodDescriptor;
+        if (y.addMethodDescriptor != null) {
+            addMethodDescriptor = y.addMethodDescriptor;
+        }
+
+        removeMethodDescriptor = x.removeMethodDescriptor;
+        if (y.removeMethodDescriptor != null) {
+            removeMethodDescriptor = y.removeMethodDescriptor;
+        }
+
+        getMethodDescriptor = x.getMethodDescriptor;
+        if (y.getMethodDescriptor != null) {
+            getMethodDescriptor = y.getMethodDescriptor;
+        }
+
+	unicast = y.unicast;
+	if (!x.inDefaultEventSet || !y.inDefaultEventSet) {
+	    inDefaultEventSet = false;
+	}
+!!!6757787.java!!!	EventSetDescriptor(inout old : EventSetDescriptor)
+	super(old);
+	if (old.listenerMethodDescriptors != null) {
+	    int len = old.listenerMethodDescriptors.length;
+	    listenerMethodDescriptors = new MethodDescriptor[len];
+	    for (int i = 0; i < len; i++) {
+		listenerMethodDescriptors[i] = new MethodDescriptor(
+					old.listenerMethodDescriptors[i]);
+	    }
+	}
+	listenerTypeRef = old.listenerTypeRef;
+
+        addMethodDescriptor = old.addMethodDescriptor;
+        removeMethodDescriptor = old.removeMethodDescriptor;
+        getMethodDescriptor = old.getMethodDescriptor;
+
+	unicast = old.unicast;
+	inDefaultEventSet = old.inDefaultEventSet;

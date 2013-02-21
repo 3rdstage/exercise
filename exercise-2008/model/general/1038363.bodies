@@ -1,0 +1,180 @@
+class CompositeType
+!!!8340891.java!!!	CompositeType(in typeName : String, in description : String, in itemNames : String, in itemDescriptions : String, inout itemTypes : OpenType)
+
+	// Check and construct state defined by parent
+	//
+	super(CompositeData.class.getName(), typeName, description);
+
+	// Check the 3 arrays are not null or empty (ie length==0) and that there is no null element or empty string in them
+	//
+	checkForNullElement(itemNames, "itemNames");
+	checkForNullElement(itemDescriptions, "itemDescriptions");
+	checkForNullElement(itemTypes, "itemTypes");
+	checkForEmptyString(itemNames, "itemNames");
+	checkForEmptyString(itemDescriptions, "itemDescriptions");
+
+	// Check the sizes of the 3 arrays are the same
+	//
+	if ( (itemNames.length != itemDescriptions.length) || (itemNames.length != itemTypes.length) ) {
+	    throw new IllegalArgumentException("Array arguments itemNames[], itemDescriptions[] and itemTypes[] "+
+					       "should be of same length (got "+ itemNames.length +", "+ 
+					       itemDescriptions.length +" and "+ itemTypes.length +").");
+	}
+	
+	// Initialize internal "names to descriptions" and "names to types" sorted maps,
+	// and, by doing so, check there are no duplicate item names
+	//
+	nameToDescription = new TreeMap();
+	nameToType        = new TreeMap();
+	String key;
+	for (int i=0; i<itemNames.length; i++) {
+	    key = itemNames[i].trim();
+	    if (nameToDescription.containsKey(key)) {
+		throw new OpenDataException("Argument's element itemNames["+ i +"]=\""+ itemNames[i] +
+					    "\" duplicates a previous item names.");
+	    }	
+	    nameToDescription.put(key, itemDescriptions[i].trim());
+	    nameToType.put(key, itemTypes[i]);
+	}
+!!!8341019.java!!!	checkForNullElement(inout arg : Object, in argName : String) : void
+	if ( (arg == null) || (arg.length == 0) ) {
+	    throw new IllegalArgumentException("Argument "+ argName +"[] cannot be null or empty.");
+	}
+	for (int i=0; i<arg.length; i++) {
+	    if (arg[i] == null) {
+		throw new IllegalArgumentException("Argument's element "+ argName +"["+ i +"] cannot be null.");
+	    }
+	}
+!!!8341147.java!!!	checkForEmptyString(in arg : String, in argName : String) : void
+	for (int i=0; i<arg.length; i++) {
+	    if (arg[i].trim().equals("")) {
+		throw new IllegalArgumentException("Argument's element "+ argName +"["+ i +"] cannot be an empty string.");
+	    }
+	}
+!!!8341275.java!!!	containsKey(in itemName : String) : boolean
+
+	if (itemName == null) {
+	    return false;
+	}
+	return nameToDescription.containsKey(itemName);
+!!!8341403.java!!!	getDescription(in itemName : String) : String
+
+	if (itemName == null) {
+	    return null;
+	}
+	return (String) nameToDescription.get(itemName);
+!!!8341531.java!!!	getType(in itemName : String) : OpenType
+
+	if (itemName == null) {
+	    return null;
+	}
+	return (OpenType) nameToType.get(itemName);
+!!!8341659.java!!!	keySet() : Set
+
+	// Initializes myNamesSet on first call
+	if (myNamesSet == null) {
+	    myNamesSet = Collections.unmodifiableSet(nameToDescription.keySet());
+	}
+
+	return myNamesSet; // always return the same value
+!!!8341787.java!!!	isValue(inout obj : Object) : boolean
+
+	// if obj is null, return false
+	//
+	if (obj == null) {
+	    return false;
+	}
+
+	// if obj is not a CompositeData, return false
+	//
+	CompositeData value;
+	try {
+	    value = (CompositeData) obj;
+	} catch (ClassCastException e) {
+	    return false;
+	}
+
+	// test value's CompositeType for equality with this CompositeType instance
+	//
+	return this.equals(value.getCompositeType());
+!!!8341915.java!!!	equals(inout obj : Object) : boolean
+
+	// if obj is null, return false
+	//
+	if (obj == null) {
+	    return false;
+	}
+
+	// if obj is not a CompositeType, return false
+	//
+	CompositeType other;
+	try {
+	    other = (CompositeType) obj;
+	} catch (ClassCastException e) {
+	    return false;
+	}
+
+	// Now, really test for equality between this CompositeType instance and the other
+	//
+	
+	// their names should be equal
+	if ( ! this.getTypeName().equals(other.getTypeName()) ) {
+	    return false;
+	}
+
+	// their items names and types should be equal
+	if ( ! this.nameToType.equals(other.nameToType) ) {
+	    return false;
+	}
+
+	// All tests for equality were successfull
+	//
+	return true;
+!!!8342043.java!!!	hashCode() : int
+
+	// Calculate the hash code value if it has not yet been done (ie 1st call to hashCode())
+	//
+	if (myHashCode == null) {
+	    int value = 0;
+	    value += this.getTypeName().hashCode();
+	    String key;
+	    for (Iterator k = nameToDescription.keySet().iterator(); k.hasNext();  ) {
+		key = (String) k.next();
+		value += key.hashCode();
+		value += this.nameToType.get(key).hashCode();
+	    }
+	    myHashCode = new Integer(value);
+	}
+	
+	// return always the same hash code for this instance (immutable)
+	//
+	return myHashCode.intValue();
+!!!8342171.java!!!	toString() : String
+
+	// Calculate the string representation if it has not yet been done (ie 1st call to toString())
+	//
+	if (myToString == null) {
+	    StringBuffer result = new StringBuffer();
+	    result.append(this.getClass().getName());
+	    result.append("(name=");
+	    result.append(getTypeName());
+	    result.append(",items=(");
+	    int i=0; 
+	    Iterator k=nameToType.keySet().iterator();
+	    String key;
+	    while (k.hasNext()) {
+		key = (String) k.next();
+		if (i > 0) result.append(",");
+		result.append("(itemName=");
+		result.append(key);
+		result.append(",itemType=");
+		result.append(nameToType.get(key).toString() +")");
+		i++;
+	    }
+	    result.append("))");
+	    myToString = result.toString();
+	}
+
+	// return always the same string representation for this instance (immutable)
+	//
+	return myToString;

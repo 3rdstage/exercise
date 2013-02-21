@@ -1,0 +1,97 @@
+class GZIPInputStream
+!!!8147611.java!!!	ensureOpen() : void
+	if (closed) {
+	    throw new IOException("Stream closed");
+        }
+!!!8147739.java!!!	GZIPInputStream(inout in : InputStream, in size : int)
+	super(in, new Inflater(true), size);
+        usesDefaultInflater = true;
+	readHeader();
+	crc.reset();
+!!!8147867.java!!!	GZIPInputStream(inout in : InputStream)
+	this(in, 512);
+!!!8147995.java!!!	read(in buf : byte, in off : int, in len : int) : int
+        ensureOpen();
+	if (eos) {
+	    return -1;
+	}
+	len = super.read(buf, off, len);
+	if (len == -1) {
+	    readTrailer();
+	    eos = true;
+	} else {
+	    crc.update(buf, off, len);
+	}
+	return len;
+!!!8148123.java!!!	close() : void
+        if (!closed) {
+            super.close();	
+            eos = true;
+            closed = true;
+        }
+!!!8148251.java!!!	readHeader() : void
+	CheckedInputStream in = new CheckedInputStream(this.in, crc);
+	crc.reset();
+	// Check header magic
+	if (readUShort(in) != GZIP_MAGIC) {
+	    throw new IOException("Not in GZIP format");
+	}
+	// Check compression method
+	if (readUByte(in) != 8) {
+	    throw new IOException("Unsupported compression method");
+	}
+	// Read flags
+	int flg = readUByte(in);
+	// Skip MTIME, XFL, and OS fields
+	skipBytes(in, 6);
+	// Skip optional extra field
+	if ((flg & FEXTRA) == FEXTRA) {
+	    skipBytes(in, readUShort(in));
+	}
+	// Skip optional file name
+	if ((flg & FNAME) == FNAME) {
+	    while (readUByte(in) != 0) ;
+	}
+	// Skip optional file comment
+	if ((flg & FCOMMENT) == FCOMMENT) {
+	    while (readUByte(in) != 0) ;
+	}
+	// Check optional header CRC
+	if ((flg & FHCRC) == FHCRC) {
+	    int v = (int)crc.getValue() & 0xffff;
+	    if (readUShort(in) != v) {
+		throw new IOException("Corrupt GZIP header");
+	    }
+	}
+!!!8148379.java!!!	readTrailer() : void
+	InputStream in = this.in;
+	int n = inf.getRemaining();
+	if (n > 0) {
+	    in = new SequenceInputStream(
+			new ByteArrayInputStream(buf, len - n, n), in);
+	}
+        // Uses left-to-right evaluation order
+        if ((readUInt(in) != crc.getValue()) ||
+            // rfc1952; ISIZE is the input size modulo 2^32
+            (readUInt(in) != (inf.getBytesWritten() & 0xffffffffL)))
+            throw new IOException("Corrupt GZIP trailer");
+!!!8148507.java!!!	readUInt(inout in : InputStream) : long
+	long s = readUShort(in);
+	return ((long)readUShort(in) << 16) | s;
+!!!8148635.java!!!	readUShort(inout in : InputStream) : int
+	int b = readUByte(in);
+	return ((int)readUByte(in) << 8) | b;
+!!!8148763.java!!!	readUByte(inout in : InputStream) : int
+	int b = in.read();
+	if (b == -1) {
+	    throw new EOFException();
+	}
+	return b;
+!!!8148891.java!!!	skipBytes(inout in : InputStream, in n : int) : void
+	while (n > 0) {
+	    int len = in.read(tmpbuf, 0, n < tmpbuf.length ? n : tmpbuf.length);
+	    if (len == -1) {
+		throw new EOFException();
+	    }
+	    n -= len;
+	}

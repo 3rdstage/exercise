@@ -1,0 +1,76 @@
+class DragGestureRecognizer
+!!!2531611.java!!!	DragGestureRecognizer(inout ds : DragSource, inout c : Component, in sa : int, inout dgl : DragGestureListener)
+	super();
+
+	if (ds == null) throw new IllegalArgumentException("null DragSource");
+
+	dragSource    = ds;
+	component     = c;
+	sourceActions = sa & (DnDConstants.ACTION_COPY_OR_MOVE | DnDConstants.ACTION_LINK);
+
+	try {
+	    if (dgl != null) addDragGestureListener(dgl);
+	} catch (TooManyListenersException tmle) {
+	    // cant happen ...
+	}
+!!!2531739.java!!!	DragGestureRecognizer(inout ds : DragSource, inout c : Component, in sa : int)
+	this(ds, c, sa, null);
+!!!2531867.java!!!	DragGestureRecognizer(inout ds : DragSource, inout c : Component)
+	this(ds, c, DnDConstants.ACTION_NONE);
+!!!2531995.java!!!	DragGestureRecognizer(inout ds : DragSource)
+	this(ds, null);
+!!!2532379.java!!!	getDragSource() : DragSource
+ return dragSource;
+!!!2532507.java!!!	getComponent() : Component
+ return component;
+!!!2532635.java!!!	setComponent(inout c : Component) : void
+	if (component != null && dragGestureListener != null)
+	    unregisterListeners();
+
+	component = c;
+
+	if (component != null && dragGestureListener != null)
+	    registerListeners();
+!!!2532763.java!!!	getSourceActions() : int
+ return sourceActions;
+!!!2532891.java!!!	setSourceActions(in actions : int) : void
+	sourceActions = actions & (DnDConstants.ACTION_COPY_OR_MOVE | DnDConstants.ACTION_LINK);
+!!!2533019.java!!!	getTriggerEvent() : InputEvent
+ return events.isEmpty() ? null : (InputEvent)events.get(0);
+!!!2533147.java!!!	resetRecognizer() : void
+ events.clear();
+!!!2533275.java!!!	addDragGestureListener(inout dgl : DragGestureListener) : void
+	if (dragGestureListener != null)
+	    throw new TooManyListenersException();
+	else {
+	    dragGestureListener = dgl;
+
+	    if (component != null) registerListeners();
+	}
+!!!2533403.java!!!	removeDragGestureListener(inout dgl : DragGestureListener) : void
+	if (dragGestureListener == null || !dragGestureListener.equals(dgl))
+	    throw new IllegalArgumentException();
+	else {
+	    dragGestureListener = null;
+
+	    if (component != null) unregisterListeners();
+	}
+!!!2533531.java!!!	fireDragGestureRecognized(in dragAction : int, inout p : Point) : void
+        try {
+            if (dragGestureListener != null) {
+                dragGestureListener.dragGestureRecognized(new DragGestureEvent(this, dragAction, p, events));
+            }
+        } finally {
+            events.clear();
+        }
+!!!2533659.java!!!	appendEvent(inout awtie : InputEvent) : void
+	events.add(awtie);
+!!!2533787.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+
+        s.writeObject(SerializationTester.test(dragGestureListener)
+                      ? dragGestureListener : null);
+!!!2533915.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+
+        dragGestureListener = (DragGestureListener)s.readObject();

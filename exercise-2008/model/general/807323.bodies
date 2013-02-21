@@ -1,0 +1,88 @@
+class NamespaceSupport
+!!!5803163.java!!!	NamespaceSupport()
+	reset();
+!!!5803291.java!!!	reset() : void
+	contexts = new Context[32];
+	namespaceDeclUris = false;
+	contextPos = 0;
+	contexts[contextPos] = currentContext = new Context();
+	currentContext.declarePrefix("xml", XMLNS);
+!!!5803419.java!!!	pushContext() : void
+	int max = contexts.length;
+
+	contextPos++;
+
+				// Extend the array if necessary
+	if (contextPos >= max) {
+	    Context newContexts[] = new Context[max*2];
+	    System.arraycopy(contexts, 0, newContexts, 0, max);
+	    max *= 2;
+	    contexts = newContexts;
+	}
+
+				// Allocate the context if necessary.
+	currentContext = contexts[contextPos];
+	if (currentContext == null) {
+	    contexts[contextPos] = currentContext = new Context();
+	}
+
+				// Set the parent, if any.
+	if (contextPos > 0) {
+	    currentContext.setParent(contexts[contextPos - 1]);
+	}
+!!!5803547.java!!!	popContext() : void
+	contexts[contextPos].clear();
+	contextPos--;
+	if (contextPos < 0) {
+	    throw new EmptyStackException();
+	}
+	currentContext = contexts[contextPos];
+!!!5803675.java!!!	declarePrefix(in prefix : String, in uri : String) : boolean
+	if (prefix.equals("xml") || prefix.equals("xmlns")) {
+	    return false;
+	} else {
+	    currentContext.declarePrefix(prefix, uri);
+	    return true;
+	}
+!!!5803803.java!!!	processName(in qName : String, in parts : String, inout isAttribute : boolean) : String
+	String myParts[] = currentContext.processName(qName, isAttribute);
+	if (myParts == null) {
+	    return null;
+	} else {
+	    parts[0] = myParts[0];
+	    parts[1] = myParts[1];
+	    parts[2] = myParts[2];
+	    return parts;
+	}
+!!!5803931.java!!!	getURI(in prefix : String) : String
+	return currentContext.getURI(prefix);
+!!!5804059.java!!!	getPrefixes() : Enumeration
+	return currentContext.getPrefixes();
+!!!5804187.java!!!	getPrefix(in uri : String) : String
+	return currentContext.getPrefix(uri);
+!!!5804315.java!!!	getPrefixes(in uri : String) : Enumeration
+	Vector prefixes = new Vector();
+	Enumeration allPrefixes = getPrefixes();
+	while (allPrefixes.hasMoreElements()) {
+	    String prefix = (String)allPrefixes.nextElement();
+	    if (uri.equals(getURI(prefix))) {
+		prefixes.addElement(prefix);
+	    }
+	}
+	return prefixes.elements();
+!!!5804443.java!!!	getDeclaredPrefixes() : Enumeration
+	return currentContext.getDeclaredPrefixes();
+!!!5804571.java!!!	setNamespaceDeclUris(inout value : boolean) : void
+	if (contextPos != 0)
+	    throw new IllegalStateException ();
+	if (value == namespaceDeclUris)
+	    return;
+	namespaceDeclUris = value;
+	if (value)
+	    currentContext.declarePrefix ("xmlns", NSDECL);
+	else {
+	    contexts[contextPos] = currentContext = new Context();
+	    currentContext.declarePrefix("xml", XMLNS);
+	}
+!!!5804699.java!!!	isNamespaceDeclUris() : boolean
+ return namespaceDeclUris;

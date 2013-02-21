@@ -1,0 +1,146 @@
+class SynthInternalFrameTitlePane
+!!!9684635.java!!!	SynthInternalFrameTitlePane(inout f : JInternalFrame)
+        super(f);
+!!!9684763.java!!!	getUIClassID() : String
+        return "InternalFrameTitlePaneUI";
+!!!9684891.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9685019.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c,
+                    SynthLookAndFeel.getRegion(c), style, state);
+!!!9685147.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9685275.java!!!	getComponentState(inout c : JComponent) : int
+        if (frame != null) {
+            if (frame.isSelected()) {
+                return SELECTED;
+            }
+        }
+        return SynthLookAndFeel.getComponentState(c);
+!!!9685403.java!!!	addSubComponents() : void
+	menuButton.setName("InternalFrameTitlePane.menuButton");
+        iconButton.setName("InternalFrameTitlePane.iconifyButton");
+        maxButton.setName("InternalFrameTitlePane.maximizeButton");
+        closeButton.setName("InternalFrameTitlePane.closeButton");
+
+	add(menuButton);
+	add(iconButton);
+	add(maxButton);
+	add(closeButton);
+!!!9685531.java!!!	installListeners() : void
+        super.installListeners();
+        frame.addPropertyChangeListener(this);
+!!!9685659.java!!!	uninstallListeners() : void
+        frame.removePropertyChangeListener(this);
+        super.uninstallListeners();
+!!!9685787.java!!!	updateStyle(inout c : JComponent) : void
+        SynthContext context = getContext(this, ENABLED);
+        SynthStyle oldStyle = style;
+        style = SynthLookAndFeel.updateStyle(context, this);
+        if (style != oldStyle) {
+            maxIcon =
+                style.getIcon(context,"InternalFrameTitlePane.maximizeIcon");
+            minIcon =
+                style.getIcon(context,"InternalFrameTitlePane.minimizeIcon");
+            iconIcon =
+                style.getIcon(context,"InternalFrameTitlePane.iconifyIcon");
+            closeIcon =
+                style.getIcon(context,"InternalFrameTitlePane.closeIcon");
+        }
+        context.dispose();
+!!!9685915.java!!!	installDefaults() : void
+        super.installDefaults();
+        updateStyle(this);
+!!!9686043.java!!!	uninstallDefaults() : void
+        SynthContext context = getContext(this, ENABLED);
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+        JInternalFrame.JDesktopIcon di = frame.getDesktopIcon();
+        if(di != null && di.getComponentPopupMenu() == systemPopupMenu) {
+            // Release link to systemMenu from the JInternalFrame
+            di.setComponentPopupMenu(null);
+        }
+        super.uninstallDefaults();
+!!!9686171.java!!!	assembleSystemMenu() : void
+        systemPopupMenu = new JPopupMenuUIResource();
+        addSystemMenuItems(systemPopupMenu);
+	enableActions();
+        menuButton = createNoFocusButton();
+	menuButton.setIcon(frame.getFrameIcon());
+        menuButton.addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent e) {
+                showSystemMenu();
+            }
+        });
+	JPopupMenu p = frame.getComponentPopupMenu();
+	if (p == null || p instanceof UIResource) {
+	    frame.setComponentPopupMenu(systemPopupMenu);
+	}
+	if (frame.getDesktopIcon() != null) {
+	    p = frame.getDesktopIcon().getComponentPopupMenu();
+	    if (p == null || p instanceof UIResource) {
+		frame.getDesktopIcon().setComponentPopupMenu(systemPopupMenu);
+	    }
+	}
+	setInheritsPopupMenu(true);
+!!!9686299.java!!!	addSystemMenuItems(inout menu : JPopupMenu) : void
+        // PENDING: this should all be localizable!
+        JMenuItem mi = (JMenuItem)menu.add(restoreAction);
+	mi.setMnemonic('R');
+	mi = (JMenuItem)menu.add(moveAction);
+	mi.setMnemonic('M');
+	mi = (JMenuItem)menu.add(sizeAction);
+	mi.setMnemonic('S');
+	mi = (JMenuItem)menu.add(iconifyAction);
+	mi.setMnemonic('n');
+	mi = (JMenuItem)menu.add(maximizeAction);
+	mi.setMnemonic('x');
+	menu.add(new JSeparator());
+	mi = (JMenuItem)menu.add(closeAction);
+	mi.setMnemonic('C');
+!!!9686427.java!!!	showSystemMenu() : void
+        Dimension dim = new Dimension();
+        Insets insets = frame.getInsets();
+        dim.width += insets.left + insets.right;
+        dim.height += insets.bottom + insets.top;
+        if (!frame.isIcon()) {
+            systemPopupMenu.show(menuButton,
+                getX() - dim.width,
+                getY() + getHeight() - dim.height);
+        } else {
+            systemPopupMenu.show(menuButton,
+                getX() - dim.width,
+                getY() - systemPopupMenu.getPreferredSize().height -
+                    dim.height);
+        }
+!!!9686555.java!!!	paintComponent(inout g : Graphics) : void
+        SynthContext context = getContext(this);
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintInternalFrameTitlePaneBackground(context,
+                          g, 0, 0, getWidth(), getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9686683.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9686939.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        context.getPainter().paintInternalFrameTitlePaneBorder(context,
+                                                            g, x, y, w, h);
+!!!9687067.java!!!	createLayout() : LayoutManager
+        SynthContext context = getContext(this);
+	LayoutManager lm =
+	    (LayoutManager)style.get(context, "InternalFrameTitlePane.titlePaneLayout");
+	context.dispose();
+        return (lm != null) ? lm : new SynthTitlePaneLayout();
+!!!9687195.java!!!	propertyChange(inout evt : PropertyChangeEvent) : void
+        if (SynthLookAndFeel.shouldUpdateStyle(evt)) {
+            updateStyle(SynthInternalFrameTitlePane.this);
+        }
+!!!9687963.java!!!	createNoFocusButton() : JButton
+        JButton button = new JButton();
+        button.setFocusable(false);
+        button.setMargin(new Insets(0,0,0,0));
+        return button;

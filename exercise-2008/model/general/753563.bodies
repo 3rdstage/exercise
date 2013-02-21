@@ -1,0 +1,196 @@
+class XSComplexTypeDecl
+!!!5166363.java!!!	XSComplexTypeDecl()
+        // do-nothing constructor for now.
+!!!5166491.java!!!	setValues(in name : String, in targetNamespace : String, inout baseType : XSTypeDefinition, in derivedBy : short, in schemaFinal : short, in block : short, in contentType : short, inout isAbstract : boolean, inout attrGrp : XSAttributeGroupDecl, inout simpleType : XSSimpleType, inout particle : XSParticleDecl, inout annotations : XSObjectListImpl) : void
+        fTargetNamespace = targetNamespace;
+        fBaseType = baseType;
+        fDerivedBy = derivedBy;
+        fFinal = schemaFinal;
+        fBlock = block;
+        fContentType = contentType;
+        if(isAbstract)
+            fMiscFlags |= CT_IS_ABSTRACT;
+        fAttrGrp = attrGrp;
+        fXSSimpleType = simpleType;
+        fParticle = particle;
+        fAnnotations = annotations;
+!!!5166619.java!!!	setName(in name : String) : void
+        fName = name;
+!!!5166747.java!!!	getTypeCategory() : short
+        return COMPLEX_TYPE;
+!!!5166875.java!!!	getTypeName() : String
+        return fName;
+!!!5167003.java!!!	getFinalSet() : short
+        return fFinal;
+!!!5167131.java!!!	getTargetNamespace() : String
+        return fTargetNamespace;
+!!!5167259.java!!!	containsTypeID() : boolean
+        return((fMiscFlags & CT_HAS_TYPE_ID) != 0);
+!!!5167387.java!!!	setIsAbstractType() : void
+        fMiscFlags |= CT_IS_ABSTRACT;
+!!!5167515.java!!!	setContainsTypeID() : void
+        fMiscFlags |= CT_HAS_TYPE_ID;
+!!!5167643.java!!!	setIsAnonymous() : void
+        fMiscFlags |= CT_IS_ANONYMOUS;
+!!!5167771.java!!!	getContentModel(inout cmBuilder : CMBuilder) : XSCMValidator
+        if (fCMValidator == null)
+            fCMValidator = cmBuilder.getContentModel(this);
+
+        return fCMValidator;
+!!!5167899.java!!!	getAttrGrp() : XSAttributeGroupDecl
+        return fAttrGrp;
+!!!5168027.java!!!	toString() : String
+        StringBuffer str = new StringBuffer();
+        appendTypeInfo(str);
+        return str.toString();
+!!!5168155.java!!!	appendTypeInfo(inout str : StringBuffer) : void
+        String contentType[] = {"EMPTY", "SIMPLE", "ELEMENT", "MIXED"};
+        String derivedBy[] = {"EMPTY", "EXTENSION", "RESTRICTION"};
+
+        str.append("Complex type name='" + fTargetNamespace + "," + getTypeName() + "', ");
+        if (fBaseType != null)
+            str.append(" base type name='" + fBaseType.getName() + "', ");
+
+        str.append(" content type='" + contentType[fContentType] + "', ");
+        str.append(" isAbstract='" + getAbstract() + "', ");
+        str.append(" hasTypeId='" + containsTypeID() + "', ");
+        str.append(" final='" + fFinal + "', ");
+        str.append(" block='" + fBlock + "', ");
+        if (fParticle != null)
+            str.append(" particle='" + fParticle.toString() + "', ");
+        str.append(" derivedBy='" + derivedBy[fDerivedBy] + "'. ");
+
+!!!5168283.java!!!	derivedFromType(inout ancestor : XSTypeDefinition, in derivationMethod : short) : boolean
+        // ancestor is null, retur false
+        if (ancestor == null)
+            return false;
+        // ancestor is anyType, return true
+        if (ancestor == SchemaGrammar.fAnyType)
+            return true;
+        // recursively get base, and compare it with ancestor
+        XSTypeDefinition type = this;
+        while (type != ancestor &&                     // compare with ancestor
+               type != SchemaGrammar.fAnySimpleType &&  // reached anySimpleType
+               type != SchemaGrammar.fAnyType) {        // reached anyType
+            type = type.getBaseType();
+        }
+
+        return type == ancestor;
+!!!5168411.java!!!	derivedFrom(in ancestorNS : String, in ancestorName : String, in derivationMethod : short) : boolean
+        // ancestor is null, retur false
+        if (ancestorName == null)
+            return false;
+        // ancestor is anyType, return true
+        if (ancestorNS != null &&
+            ancestorNS.equals(SchemaSymbols.URI_SCHEMAFORSCHEMA) &&
+            ancestorName.equals(SchemaSymbols.ATTVAL_ANYTYPE)) {
+            return true;
+        }
+
+        // recursively get base, and compare it with ancestor
+        XSTypeDefinition type = this;
+        while (!(ancestorName.equals(type.getName()) &&
+                 ((ancestorNS == null && type.getNamespace() == null) ||
+                  (ancestorNS != null && ancestorNS.equals(type.getNamespace())))) &&   // compare with ancestor
+               type != SchemaGrammar.fAnySimpleType &&  // reached anySimpleType
+               type != SchemaGrammar.fAnyType) {        // reached anyType
+            if( derivationMethod!=0 ) {
+                if( type instanceof XSComplexTypeDefinition ) {
+                    switch( ((XSComplexTypeDefinition)type).getDerivationMethod() ) {
+                    case XSConstants.DERIVATION_EXTENSION:
+                        if( (derivationMethod&TypeInfo.DERIVATION_EXTENSION) == 0 )
+                            return false;
+                        break;
+                    case XSConstants.DERIVATION_RESTRICTION:
+                        if( (derivationMethod&TypeInfo.DERIVATION_RESTRICTION) == 0 )
+                            return false;
+                        break;
+                    }
+                } else 
+                if( type instanceof XSSimpleTypeDefinition ) {
+                    // broken (but then the spec is broken, so what do you expect!) FIXME.
+                    switch( ((XSSimpleTypeDefinition)type).getVariety()) {
+                    case XSSimpleTypeDefinition.VARIETY_ATOMIC:
+                        if( (derivationMethod&TypeInfo.DERIVATION_RESTRICTION) == 0 )
+                            return false;
+                        break;
+                   case XSSimpleTypeDefinition.VARIETY_LIST:
+                       if( (derivationMethod&TypeInfo.DERIVATION_LIST) == 0 )
+                           return false;
+                       break;
+                   case XSSimpleTypeDefinition.VARIETY_UNION:
+                       if( (derivationMethod&TypeInfo.DERIVATION_UNION) == 0 )
+                           return false;
+                       break;
+                  }
+                }
+            }
+            type = (XSTypeDefinition)type.getBaseType();
+        }
+
+        return type != SchemaGrammar.fAnySimpleType &&
+        type != SchemaGrammar.fAnyType;
+!!!5168539.java!!!	reset() : void
+        fName = null;
+        fTargetNamespace = null;
+        fBaseType = null;
+        fDerivedBy = XSConstants.DERIVATION_RESTRICTION;
+        fFinal = XSConstants.DERIVATION_NONE;
+        fBlock = XSConstants.DERIVATION_NONE;
+
+        fMiscFlags = 0;
+
+        // reset attribute group
+        fAttrGrp.reset();
+        fContentType = CONTENTTYPE_EMPTY;
+        fXSSimpleType = null;
+        fParticle = null;
+        fCMValidator = null;
+        if(fAnnotations != null) {
+            // help out the garbage collector
+            fAnnotations.clear();
+        }
+        fAnnotations = null;
+!!!5168667.java!!!	getType() : short
+        return XSConstants.TYPE_DEFINITION;
+!!!5168795.java!!!	getName() : String
+        return getAnonymous() ? null : fName;
+!!!5168923.java!!!	getAnonymous() : boolean
+        return((fMiscFlags & CT_IS_ANONYMOUS) != 0);
+!!!5169051.java!!!	getNamespace() : String
+        return fTargetNamespace;
+!!!5169179.java!!!	getBaseType() : XSTypeDefinition
+        return fBaseType;
+!!!5169307.java!!!	getDerivationMethod() : short
+        return fDerivedBy;
+!!!5169435.java!!!	isFinal(in derivation : short) : boolean
+        return (fFinal & derivation) != 0;
+!!!5169563.java!!!	getFinal() : short
+        return fFinal;
+!!!5169691.java!!!	getAbstract() : boolean
+        return((fMiscFlags & CT_IS_ABSTRACT) != 0);
+!!!5169819.java!!!	getAttributeUses() : XSObjectList
+        return fAttrGrp.getAttributeUses();
+!!!5169947.java!!!	getAttributeWildcard() : XSWildcard
+        return fAttrGrp.getAttributeWildcard();
+!!!5170075.java!!!	getContentType() : short
+        return fContentType;
+!!!5170203.java!!!	getSimpleType() : XSSimpleTypeDefinition
+        return fXSSimpleType;
+!!!5170331.java!!!	getParticle() : XSParticle
+        return fParticle;
+!!!5170459.java!!!	isProhibitedSubstitution(in prohibited : short) : boolean
+        return (fBlock & prohibited) != 0;
+!!!5170587.java!!!	getProhibitedSubstitutions() : short
+        return fBlock;
+!!!5170715.java!!!	getAnnotations() : XSObjectList
+        return fAnnotations;
+!!!5170843.java!!!	getAttributeUse(in namespace : String, in name : String) : XSAttributeUse
+         return fAttrGrp.getAttributeUse(namespace, name);
+!!!5170971.java!!!	getNamespaceItem() : XSNamespaceItem
+        // REVISIT: implement
+    	return null;
+!!!5171099.java!!!	getTypeNamespace() : String
+        return getNamespace();
+!!!5171227.java!!!	isDerivedFrom(in typeNamespace : String, in typeName : String, in derivationMethod : int) : boolean
+        return derivedFrom(typeNamespace,typeName,(short)derivationMethod);

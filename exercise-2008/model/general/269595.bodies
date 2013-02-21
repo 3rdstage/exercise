@@ -1,0 +1,845 @@
+class ORBImpl
+!!!1401243.java!!!	dprint(in msg : String) : void
+        ORBUtility.dprint( this, msg ) ;
+!!!1401371.java!!!	getORBData() : ORBData
+	return configData ;
+!!!1401499.java!!!	getPIHandler() : PIHandler
+	return pihandler ;
+!!!1401627.java!!!	ORBImpl()
+	// All initialization is done through set_parameters().
+!!!1401755.java!!!	getORBVersion() : ORBVersion
+        return (ORBVersion)(orbVersionThreadLocal.get()) ;
+!!!1401883.java!!!	setORBVersion(inout verObj : ORBVersion) : void
+        orbVersionThreadLocal.set(verObj);
+!!!1402011.java!!!	preInit(in params : String, inout props : Properties) : void
+        // Before ORBConfiguration we need to set a PINoOpHandlerImpl,
+        // because PersisentServer Initialization inside configurator will
+        // invoke orb.resolve_initial_references( ) which will result in a 
+        // check on piHandler to invoke Interceptors. We do not want any
+        // Interceptors to be invoked before the complete ORB initialization.
+        // piHandler will be replaced by a real PIHandler implementation at the
+        // end of this method.
+	pihandler = new PINoOpHandlerImpl( );
+
+	// See bugs 4916766 and 4936203
+	// We intend to create new threads in a reliable thread group.
+	// This avoids problems if the application/applet
+	// creates a thread group, makes JavaIDL calls which create a new
+	// connection and ReaderThread, and then destroys the thread
+	// group. If our ReaderThreads were to be part of such destroyed thread
+	// group then it might get killed and cause other invoking threads
+	// sharing the same connection to get a non-restartable
+	// CommunicationFailure. We'd like to avoid that.
+	//
+	// Our solution is to create all of our threads in the highest thread
+	// group that we have access to, given our own security clearance.
+	//
+        try { 
+	    // try to get a thread group that's as high in the threadgroup  
+	    // parent-child hierarchy, as we can get to.
+	    // this will prevent an ORB thread created during applet-init from 
+	    // being killed when an applet dies.
+	    threadGroup = (ThreadGroup) AccessController.doPrivileged( 
+		new PrivilegedAction() { 
+		    public Object run() { 
+			ThreadGroup tg = Thread.currentThread().getThreadGroup() ;  
+			ThreadGroup ptg = tg ; 
+			try { 
+			    while (ptg != null) { 
+				tg = ptg;  
+				ptg = tg.getParent(); 
+			    } 
+			} catch (SecurityException se) { 
+			    // Discontinue going higher on a security exception.
+			}
+			return new ThreadGroup(tg, "ORB ThreadGroup"); 
+		    } 
+		}
+	    );
+	} catch (SecurityException e) { 
+	    // something wrong, we go back to the original code 
+	    threadGroup = Thread.currentThread().getThreadGroup(); 
+	}
+ 
+	// This is the unique id of this server (JVM). Multiple incarnations
+	// of this server will get different ids.
+	// Compute transientServerId = milliseconds since Jan 1, 1970
+	// Note: transientServerId will wrap in about 2^32 / 86400000 = 49.7 days.
+	// If two ORBS are started at the same time then there is a possibility
+	// of having the same transientServerId. This may result in collision 
+	// and may be a problem in ior.isLocal() check to see if the object 
+	// belongs to the current ORB. This problem is taken care of by checking
+	// to see if the IOR port matches ORB server port in legacyIsLocalServerPort()
+	// method.
+	//
+	// XXX need to move server ID to a string for CORBA 3.0.  At that point,
+	// make this more unique (possibly use java.rmi.server.UID).
+	transientServerId = (int)System.currentTimeMillis();
+
+	orbVersionThreadLocal  = new ThreadLocal () {
+	    protected java.lang.Object initialValue() {
+		// set default to version of the ORB with correct Rep-ids
+		return ORBVersionFactory.getORBVersion() ;
+	    }
+	};
+
+	resolverLock = new java.lang.Object() ;
+
+	requestDispatcherRegistry = new RequestDispatcherRegistryImpl( 
+	    this, ORBConstants.DEFAULT_SCID);
+	copierManager = new CopierManagerImpl( this ) ;
+
+	taggedComponentFactoryFinder = 
+	    new TaggedComponentFactoryFinderImpl(this) ;
+	taggedProfileFactoryFinder = 
+	    new TaggedProfileFactoryFinderImpl(this) ;
+	taggedProfileTemplateFactoryFinder = 
+	    new TaggedProfileTemplateFactoryFinderImpl(this) ;
+
+	dynamicRequests = new Vector();
+	svResponseReceived = new SynchVariable();
+
+	OAInvocationInfoStack = 
+	    new ThreadLocal () {
+		protected java.lang.Object initialValue() 
+		{
+		    return new StackImpl();
+		} 
+	    };
+
+	clientInvocationInfoStack = 
+	    new ThreadLocal() {
+		protected java.lang.Object initialValue() {
+		    return new StackImpl();
+		}
+	    };
+
+	serviceContextRegistry = new ServiceContextRegistry( this ) ;
+!!!1402139.java!!!	setDebugFlags(in args : String) : void
+	for (int ctr=0; ctr<args.length; ctr++ ) {
+            String token = args[ctr] ;
+
+            // If there is a public boolean data member in this class
+            // named token + "DebugFlag", set it to true.
+            try {
+                Field fld = this.getClass().getField( token + "DebugFlag" ) ;
+                int mod = fld.getModifiers() ;
+                if (Modifier.isPublic( mod ) && !Modifier.isStatic( mod ))
+                    if (fld.getType() == boolean.class)
+                        fld.setBoolean( this, true ) ;
+            } catch (Exception exc) {
+                // ignore it XXX log this as info
+            }
+        }
+!!!1402395.java!!!	postInit(in params : String, inout dataCollector : DataCollector) : void
+	// First, create the standard ORB config data.
+	// This must be initialized before the ORBConfigurator
+	// is executed.
+	configData = new ORBDataParserImpl( this, dataCollector) ;
+
+	// Set the debug flags early so they can be used by other
+	// parts of the initialization.
+	setDebugFlags( configData.getORBDebugFlags() ) ;
+
+	// REVISIT: this should go away after more transport init cleanup
+	// and going to ORT based ORBD.  
+	getTransportManager();
+	getLegacyServerSocketManager();
+
+	// Create a parser to get the configured ORBConfigurator.
+	ConfigParser parser = new ConfigParser() ;
+	parser.init( dataCollector ) ;
+
+	ORBConfigurator configurator =  null ;
+	try {
+	    configurator = 
+		(ORBConfigurator)(parser.configurator.newInstance()) ;
+	} catch (Exception iexc) {
+	    throw wrapper.badOrbConfigurator( iexc, parser.configurator.getName() ) ;
+	}
+
+	// Finally, run the configurator.  Note that the default implementation allows
+	// other configurators with their own parsers to run,
+	// using the same DataCollector.
+	try {
+	    configurator.configure( dataCollector, this ) ;
+	} catch (Exception exc) {
+	    throw wrapper.orbConfiguratorError( exc ) ;
+	}
+
+	// Last of all, create the PIHandler and run the ORB initializers.
+	pihandler = new PIHandlerImpl( this, params) ;
+	pihandler.initialize() ;
+
+        // Initialize the thread manager pool and byte buffer pool
+        // so they may be initialized & accessed without synchronization
+        getThreadPoolManager();
+
+        super.getByteBufferPool();
+!!!1402523.java!!!	getPOAFactory() : POAFactory
+	if (poaFactory == null) {
+	    poaFactory = (POAFactory)requestDispatcherRegistry.getObjectAdapterFactory( 
+		ORBConstants.TRANSIENT_SCID ) ;
+	}
+
+	return poaFactory ;
+!!!1402651.java!!!	getTOAFactory() : TOAFactory
+	if (toaFactory == null) {
+	    toaFactory = (TOAFactory)requestDispatcherRegistry.getObjectAdapterFactory( 
+		ORBConstants.TOA_SCID ) ;
+	}
+
+	return toaFactory ;
+!!!1402779.java!!!	set_parameters(inout props : Properties) : void
+	preInit( null, props ) ;
+	DataCollector dataCollector = 
+	    DataCollectorFactory.create( props, getLocalHostName() ) ;
+	postInit( null, dataCollector ) ;
+!!!1402907.java!!!	set_parameters(inout app : Applet, inout props : Properties) : void
+	preInit( null, props ) ;
+	DataCollector dataCollector = 
+	    DataCollectorFactory.create( app, props, getLocalHostName() ) ;
+	postInit( null, dataCollector ) ;
+!!!1403035.java!!!	set_parameters(in params : String, inout props : Properties) : void
+	preInit( params, props ) ;
+	DataCollector dataCollector = 
+	    DataCollectorFactory.create( params, props, getLocalHostName() ) ;
+	postInit( params, dataCollector ) ;
+!!!1403163.java!!!	create_output_stream() : OutputStream
+        checkShutdownState();
+        return new EncapsOutputStream(this);
+!!!1403291.java!!!	get_current() : Current
+        checkShutdownState();
+
+        /* _REVISIT_
+           The implementation of get_current is not clear. How would
+           ORB know whether the caller wants a Current for transactions
+           or security ?? Or is it assumed that there is just one
+           implementation for both ? If Current is thread-specific,
+           then it should not be instantiated; so where does the
+           ORB get a Current ? 
+	   
+	   This should probably be deprecated. */
+
+	throw wrapper.genericNoImpl() ;
+!!!1403419.java!!!	create_list(in count : int) : NVList
+        checkShutdownState();
+        return new NVListImpl(this, count);
+!!!1403547.java!!!	create_operation_list(inout oper : Object) : NVList
+        checkShutdownState();
+	throw wrapper.genericNoImpl() ;
+!!!1403675.java!!!	create_named_value(in s : String, inout any : Any, in flags : int) : NamedValue
+        checkShutdownState();
+        return new NamedValueImpl(this, s, any, flags);
+!!!1403803.java!!!	create_exception_list() : ExceptionList
+        checkShutdownState();
+        return new ExceptionListImpl();
+!!!1403931.java!!!	create_context_list() : ContextList
+        checkShutdownState();
+        return new ContextListImpl(this);
+!!!1404059.java!!!	get_default_context() : Context
+        checkShutdownState();
+	throw wrapper.genericNoImpl() ;
+!!!1404187.java!!!	create_environment() : Environment
+        checkShutdownState();
+        return new EnvironmentImpl();
+!!!1404315.java!!!	send_multiple_requests_oneway(inout req : Request) : void
+        checkShutdownState();
+
+        // Invoke the send_oneway on each new Request
+        for (int i = 0; i < req.length; i++) {
+            req[i].send_oneway();
+        }
+!!!1404443.java!!!	send_multiple_requests_deferred(inout req : Request) : void
+        checkShutdownState();
+
+        // add the new Requests to pending dynamic Requests
+        for (int i = 0; i < req.length; i++) {
+            dynamicRequests.addElement(req[i]);
+        }
+
+        // Invoke the send_deferred on each new Request
+        for (int i = 0; i < req.length; i++) {
+            AsynchInvoke invokeObject = new AsynchInvoke( this, 
+		(com.sun.corba.se.impl.corba.RequestImpl)req[i], true);
+            new Thread(invokeObject).start();
+        }
+!!!1404571.java!!!	poll_next_response() : boolean
+        checkShutdownState();
+
+        Request currRequest;
+
+        // poll on each pending request
+        Enumeration ve = dynamicRequests.elements();
+        while (ve.hasMoreElements() == true) {
+            currRequest = (Request)ve.nextElement();
+            if (currRequest.poll_response() == true) {
+                return true;
+            }
+        }
+        return false;
+!!!1404699.java!!!	get_next_response() : Request
+	synchronized( this ) {
+	    checkShutdownState();
+	}
+
+        while (true) {
+            // check if there already is a response
+            synchronized ( dynamicRequests ) {
+                Enumeration elems = dynamicRequests.elements();
+                while ( elems.hasMoreElements() ) {
+                    Request currRequest = (Request)elems.nextElement();
+                    if ( currRequest.poll_response() ) {
+                        // get the response for this successfully polled Request
+                        currRequest.get_response();
+                        dynamicRequests.removeElement(currRequest);
+                        return currRequest;
+                    }
+                }
+            }
+
+            // wait for a response
+            synchronized(this.svResponseReceived) {
+                while (!this.svResponseReceived.value()) {
+                    try {
+                        this.svResponseReceived.wait();
+                    } catch(java.lang.InterruptedException ex) {
+			// NO-OP
+		    }
+                }
+                // reinitialize the response flag
+                this.svResponseReceived.reset();
+            }
+        }
+!!!1404827.java!!!	notifyORB() : void
+	synchronized (this.svResponseReceived) {
+	    this.svResponseReceived.set();
+	    this.svResponseReceived.notify();
+	}
+!!!1404955.java!!!	object_to_string(inout obj : Object) : String
+        checkShutdownState();
+
+        // Handle the null objref case
+        if (obj == null) {
+	    IOR nullIOR = IORFactories.makeIOR( this ) ;
+            return nullIOR.stringify();
+	}
+
+	IOR ior = null ;
+
+	try {
+	    ior = ORBUtility.connectAndGetIOR( this, obj ) ;
+	} catch (BAD_PARAM bp) {
+	    // Throw MARSHAL instead if this is a LOCAL_OBJECT_NOT_ALLOWED error.
+	    if (bp.minor == ORBUtilSystemException.LOCAL_OBJECT_NOT_ALLOWED) {
+		throw omgWrapper.notAnObjectImpl( bp ) ;
+	    } else
+		// Not a local object problem: just rethrow the exception.
+		// Do not wrap and log this, since it was already logged at its
+		// point of origin.
+		throw bp ;
+	}
+
+	return ior.stringify() ;
+!!!1405083.java!!!	string_to_object(in str : String) : Object
+	Operation op ;
+
+	synchronized (this) {
+	    checkShutdownState();
+	    op = urlOperation ;
+	}
+
+	if (str == null)
+	    throw wrapper.nullParam() ;
+
+	synchronized (resolverLock) {
+	    org.omg.CORBA.Object obj = (org.omg.CORBA.Object)op.operate( str ) ;
+	    return obj ;
+	}
+!!!1405211.java!!!	getFVDCodeBaseIOR() : IOR
+        if (codeBaseIOR != null) // i.e. We are already connected to it
+            return codeBaseIOR;
+
+        // backward compatability 4365188
+        CodeBase cb;
+
+        ValueHandler vh = ORBUtility.createValueHandler(this);
+
+        cb = (CodeBase)vh.getRunTimeCodeBase();
+	return ORBUtility.connectAndGetIOR( this, cb ) ;
+!!!1405339.java!!!	get_primitive_tc(inout tcKind : TCKind) : TypeCode
+        checkShutdownState();
+	return get_primitive_tc( tcKind.value() ) ; 
+!!!1405467.java!!!	create_struct_tc(in id : String, in name : String, inout members : StructMember) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, TCKind._tk_struct, id, name, members);
+!!!1405595.java!!!	create_union_tc(in id : String, in name : String, inout discriminator_type : TypeCode, inout members : UnionMember) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this,
+                                TCKind._tk_union,
+                                id,
+                                name,
+                                discriminator_type,
+                                members);
+!!!1405723.java!!!	create_enum_tc(in id : String, in name : String, in members : String) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, TCKind._tk_enum, id, name, members);
+!!!1405851.java!!!	create_alias_tc(in id : String, in name : String, inout original_type : TypeCode) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, TCKind._tk_alias, id, name, original_type);
+!!!1405979.java!!!	create_exception_tc(in id : String, in name : String, inout members : StructMember) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, TCKind._tk_except, id, name, members);
+!!!1406107.java!!!	create_interface_tc(in id : String, in name : String) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, TCKind._tk_objref, id, name);
+!!!1406235.java!!!	create_string_tc(in bound : int) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, TCKind._tk_string, bound);
+!!!1406363.java!!!	create_wstring_tc(in bound : int) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, TCKind._tk_wstring, bound);
+!!!1406491.java!!!	create_sequence_tc(in bound : int, inout element_type : TypeCode) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, TCKind._tk_sequence, bound, element_type);
+!!!1406619.java!!!	create_recursive_sequence_tc(in bound : int, in offset : int) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, TCKind._tk_sequence, bound, offset);
+!!!1406747.java!!!	create_array_tc(in length : int, inout element_type : TypeCode) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, TCKind._tk_array, length, element_type);
+!!!1406875.java!!!	create_native_tc(in id : String, in name : String) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, TCKind._tk_native, id, name);
+!!!1407003.java!!!	create_abstract_interface_tc(in id : String, in name : String) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, TCKind._tk_abstract_interface, id, name);
+!!!1407131.java!!!	create_fixed_tc(in digits : short, in scale : short) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, TCKind._tk_fixed, digits, scale);
+!!!1407259.java!!!	create_value_tc(in id : String, in name : String, in type_modifier : short, inout concrete_base : TypeCode, inout members : ValueMember) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, TCKind._tk_value, id, name,
+                                type_modifier, concrete_base, members);
+!!!1407387.java!!!	create_recursive_tc(in id : String) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, id);
+!!!1407515.java!!!	create_value_box_tc(in id : String, in name : String, inout boxed_type : TypeCode) : TypeCode
+        checkShutdownState();
+        return new TypeCodeImpl(this, TCKind._tk_value_box, id, name, 
+	    boxed_type);
+!!!1407643.java!!!	create_any() : Any
+        checkShutdownState();
+        return new AnyImpl(this);
+!!!1407771.java!!!	setTypeCodeForClass(inout c : Class, inout tci : TypeCodeImpl) : void
+        if (typeCodeForClassMap == null)
+            typeCodeForClassMap = Collections.synchronizedMap(
+		new WeakHashMap(64));
+        // Store only one TypeCode per class.
+        if ( ! typeCodeForClassMap.containsKey(c))
+            typeCodeForClassMap.put(c, tci);
+!!!1407899.java!!!	getTypeCodeForClass(inout c : Class) : TypeCodeImpl
+        if (typeCodeForClassMap == null)
+            return null;
+        return (TypeCodeImpl)typeCodeForClassMap.get(c);
+!!!1408027.java!!!	list_initial_services() : String
+	Resolver res ;
+
+	synchronized( this ) {
+	    checkShutdownState();
+	    res = resolver ;
+	}
+
+	synchronized (resolverLock) {
+	    java.util.Set keys = res.list() ;
+	    return (String[])keys.toArray( new String[keys.size()] ) ;
+	}
+!!!1408155.java!!!	resolve_initial_references(in identifier : String) : Object
+	Resolver res ;
+
+	synchronized( this ) {
+	    checkShutdownState();
+	    res = resolver ;
+	}
+
+	synchronized (resolverLock) {
+	    org.omg.CORBA.Object result = res.resolve( identifier ) ;
+
+	    if (result == null)
+		throw new InvalidName() ;
+	    else
+		return result ;
+	}
+!!!1408283.java!!!	register_initial_reference(in id : String, inout obj : Object) : void
+	CorbaServerRequestDispatcher insnd ;
+
+        if ((id == null) || (id.length() == 0))
+            throw new InvalidName() ;
+
+	synchronized (this) {
+	    checkShutdownState();
+	}
+
+	synchronized (resolverLock) {
+	    insnd = insNamingDelegate ;
+
+	    java.lang.Object obj2 = localResolver.resolve( id ) ;
+	    if (obj2 != null)
+		throw new InvalidName(id + " already registered") ;
+
+	    localResolver.register( id, ClosureFactory.makeConstant( obj )) ;
+	}
+      
+	synchronized (this) {
+	    if (StubAdapter.isStub(obj))
+		// Make all remote object references available for INS.
+		requestDispatcherRegistry.registerServerRequestDispatcher( 
+		    insnd, id ) ;
+	}
+!!!1408411.java!!!	run() : void
+	synchronized (this) {
+	    checkShutdownState();
+	}
+
+        synchronized (runObj) {
+            try {
+                runObj.wait();
+            } catch ( InterruptedException ex ) {}
+        }
+!!!1408539.java!!!	shutdown(inout wait_for_completion : boolean) : void
+	synchronized (this) {
+	    checkShutdownState();
+	} 
+
+        // Avoid more than one thread performing shutdown at a time.
+        synchronized (shutdownObj) {
+            checkShutdownState();
+            // This is to avoid deadlock
+            if (wait_for_completion && 
+		isProcessingInvocation.get() == Boolean.TRUE) {
+		throw omgWrapper.shutdownWaitForCompletionDeadlock() ;
+            }
+
+            status = STATUS_SHUTTING_DOWN;
+	    // XXX access to requestDispatcherRegistry should be protected
+	    // by the ORBImpl instance monitor, but is not here in the
+	    // shutdownServants call.
+            shutdownServants(wait_for_completion);
+            if (wait_for_completion) {
+                synchronized ( waitForCompletionObj ) {
+                    while (numInvocations > 0) {
+                        try {
+                            waitForCompletionObj.wait();
+                        } catch (InterruptedException ex) {}
+                    }
+                }
+            }
+            synchronized ( runObj ) {
+                runObj.notifyAll();
+            }
+            status = STATUS_SHUTDOWN;
+        }
+!!!1408667.java!!!	shutdownServants(inout wait_for_completion : boolean) : void
+	Iterator iter = requestDispatcherRegistry.getObjectAdapterFactories().iterator() ;
+	while (iter.hasNext()) {
+	    ObjectAdapterFactory oaf = (ObjectAdapterFactory)iter.next() ;
+	    oaf.shutdown( wait_for_completion ) ;
+	}
+!!!1408795.java!!!	checkShutdownState() : void
+        if (status == STATUS_DESTROYED) {
+	    throw wrapper.orbDestroyed() ;
+        }
+
+        if (status == STATUS_SHUTDOWN) {
+	    throw omgWrapper.badOperationAfterShutdown() ;
+        }
+!!!1408923.java!!!	isDuringDispatch() : boolean
+	Boolean value = (Boolean)(isProcessingInvocation.get()) ;
+	return value.booleanValue() ;
+!!!1409051.java!!!	startingDispatch() : void
+        synchronized (invocationObj) {
+            isProcessingInvocation.set(Boolean.TRUE);
+            numInvocations++;
+        }
+!!!1409179.java!!!	finishedDispatch() : void
+        synchronized (invocationObj) {
+            numInvocations--;
+            isProcessingInvocation.set(Boolean.FALSE);
+            if (numInvocations == 0) {
+                synchronized (waitForCompletionObj) {
+                    waitForCompletionObj.notifyAll();
+                }
+            } else if (numInvocations < 0) {
+		throw wrapper.numInvocationsAlreadyZero(
+		    CompletionStatus.COMPLETED_YES ) ;
+            }
+        }
+!!!1409307.java!!!	destroy() : void
+        if (status == STATUS_OPERATING) {
+            shutdown(true);
+        }
+        getCorbaTransportManager().close();
+	getPIHandler().destroyInterceptors() ;
+        status = STATUS_DESTROYED;
+!!!1409435.java!!!	register_value_factory(in repositoryID : String, inout factory : ValueFactory) : ValueFactory
+        checkShutdownState();
+
+        if ((repositoryID == null) || (factory == null))
+	    throw omgWrapper.unableRegisterValueFactory() ;
+
+        return (ValueFactory)valueFactoryCache.put(repositoryID, factory);
+!!!1409563.java!!!	unregister_value_factory(in repositoryID : String) : void
+        checkShutdownState();
+
+        if (valueFactoryCache.remove(repositoryID) == null)
+	    throw wrapper.nullParam() ;
+!!!1409691.java!!!	lookup_value_factory(in repositoryID : String) : ValueFactory
+        checkShutdownState();
+
+        ValueFactory factory = 
+	    (ValueFactory)valueFactoryCache.get(repositoryID);
+
+        if (factory == null) {
+            try {
+                factory = Utility.getFactory(null, null, null, repositoryID);
+            } catch(org.omg.CORBA.MARSHAL ex) {
+		throw wrapper.unableFindValueFactory( ex ) ;
+            }
+        }
+
+	return factory ;
+!!!1409819.java!!!	peekInvocationInfo() : OAInvocationInfo
+	StackImpl stack = (StackImpl)(OAInvocationInfoStack.get()) ;
+	return (OAInvocationInfo)(stack.peek()) ;
+!!!1409947.java!!!	pushInvocationInfo(inout info : OAInvocationInfo) : void
+	StackImpl stack = (StackImpl)(OAInvocationInfoStack.get()) ;
+	stack.push( info ) ;
+!!!1410075.java!!!	popInvocationInfo() : OAInvocationInfo
+	StackImpl stack = (StackImpl)(OAInvocationInfoStack.get()) ;
+	return (OAInvocationInfo)(stack.pop()) ;
+!!!1410203.java!!!	initBadServerIdHandler() : void
+	synchronized (badServerIdHandlerAccessLock) {
+	    Class cls = configData.getBadServerIdHandler() ;
+	    if (cls != null) {
+		try {
+		    Class[] params = new Class[] { org.omg.CORBA.ORB.class };
+		    java.lang.Object[] args = new java.lang.Object[]{this};
+		    Constructor cons = cls.getConstructor(params);
+		    badServerIdHandler = 
+			(BadServerIdHandler) cons.newInstance(args);
+		} catch (Exception e) {
+		    throw wrapper.errorInitBadserveridhandler( e ) ;
+		}
+	    }
+	}
+!!!1410331.java!!!	setBadServerIdHandler(inout handler : BadServerIdHandler) : void
+	synchronized (badServerIdHandlerAccessLock) {
+	    badServerIdHandler = handler;
+	}
+!!!1410459.java!!!	handleBadServerId(inout okey : ObjectKey) : void
+	synchronized (badServerIdHandlerAccessLock) {
+	    if (badServerIdHandler == null)
+		throw wrapper.badServerId() ;
+	    else 
+		badServerIdHandler.handle( okey ) ;
+	}
+!!!1410587.java!!!	create_policy(in type : int, inout val : Any) : Policy
+	checkShutdownState() ;
+
+	return pihandler.create_policy( type, val ) ;
+!!!1410715.java!!!	connect(inout servant : Object) : void
+        checkShutdownState();
+	if (getTOAFactory() == null)
+	    throw wrapper.noToa() ;
+
+        try {
+	    String codebase = javax.rmi.CORBA.Util.getCodebase( servant.getClass() ) ;
+	    getTOAFactory().getTOA( codebase ).connect( servant ) ;
+        } catch ( Exception ex ) {
+	    throw wrapper.orbConnectError( ex ) ;
+        }
+!!!1410843.java!!!	disconnect(inout obj : Object) : void
+        checkShutdownState();
+	if (getTOAFactory() == null)
+	    throw wrapper.noToa() ;
+
+        try {
+	    getTOAFactory().getTOA().disconnect( obj ) ;
+        } catch ( Exception ex ) {
+	    throw wrapper.orbConnectError( ex ) ;
+        }
+!!!1410971.java!!!	getTransientServerId() : int
+        if( configData.getORBServerIdPropertySpecified( ) ) {
+            // ORBServerId is specified then use that value
+            return configData.getPersistentServerId( );
+        }
+        return transientServerId;
+!!!1411099.java!!!	getRequestDispatcherRegistry() : RequestDispatcherRegistry
+        return requestDispatcherRegistry;
+!!!1411227.java!!!	getServiceContextRegistry() : ServiceContextRegistry
+	return serviceContextRegistry ;
+!!!1411355.java!!!	isLocalHost(in hostName : String) : boolean
+	return hostName.equals( configData.getORBServerHost() ) ||
+	    hostName.equals( getLocalHostName() ) ;
+!!!1411483.java!!!	isLocalServerId(in subcontractId : int, in serverId : int) : boolean
+	if ((subcontractId < ORBConstants.FIRST_POA_SCID) || 
+	    (subcontractId > ORBConstants.MAX_POA_SCID))
+	    return serverId == getTransientServerId( ) ;
+		
+	// XXX isTransient info should be stored in subcontract registry
+	if (ORBConstants.isTransient( subcontractId ))
+	    return (serverId == getTransientServerId()) ;
+	else if (configData.getPersistentServerIdInitialized())
+	    return (serverId == configData.getPersistentServerId()) ;
+	else
+	    return false ;
+!!!1411611.java!!!	getHostName(in host : String) : String
+        return InetAddress.getByName( host ).getHostAddress();
+!!!1411739.java!!!	getLocalHostName() : String
+        if (localHostString == null) {
+            try {
+		localHostString = InetAddress.getLocalHost().getHostAddress();
+            } catch (Exception ex) {
+		throw wrapper.getLocalHostFailed( ex ) ;
+            }
+	}
+	return localHostString ;
+!!!1411867.java!!!	work_pending() : boolean
+        checkShutdownState();
+	throw wrapper.genericNoImpl() ;
+!!!1411995.java!!!	perform_work() : void
+        checkShutdownState();
+	throw wrapper.genericNoImpl() ;
+!!!1412123.java!!!	set_delegate(inout servant : Object) : void
+        checkShutdownState();
+
+	POAFactory poaFactory = getPOAFactory() ;
+	if (poaFactory != null)
+	    ((org.omg.PortableServer.Servant)servant)
+		._set_delegate( poaFactory.getDelegateImpl() ) ;
+	else
+	    throw wrapper.noPoa() ;
+!!!1412251.java!!!	createOrIncrementInvocationInfo() : ClientInvocationInfo
+	StackImpl invocationInfoStack =
+	    (StackImpl) clientInvocationInfoStack.get();
+	ClientInvocationInfo clientInvocationInfo = null;
+	if (!invocationInfoStack.empty()) {
+	    clientInvocationInfo =
+		(ClientInvocationInfo) invocationInfoStack.peek();
+	}
+	if ((clientInvocationInfo == null) || 
+	    (!clientInvocationInfo.isRetryInvocation()))
+	{
+	    // This is a new call - not a retry.
+	    clientInvocationInfo = new CorbaInvocationInfo(this);
+	    startingDispatch();
+	    invocationInfoStack.push(clientInvocationInfo);
+	}
+	// Reset retry so recursive calls will get a new info object.
+	clientInvocationInfo.setIsRetryInvocation(false);
+	clientInvocationInfo.incrementEntryCount();
+	return clientInvocationInfo;
+!!!1412379.java!!!	releaseOrDecrementInvocationInfo() : void
+	StackImpl invocationInfoStack =
+	    (StackImpl)clientInvocationInfoStack.get();
+	ClientInvocationInfo clientInvocationInfo = null;
+	if (!invocationInfoStack.empty()) {
+	    clientInvocationInfo =
+		(ClientInvocationInfo)invocationInfoStack.peek();
+	} else {
+	    throw wrapper.invocationInfoStackEmpty() ;
+	}
+	clientInvocationInfo.decrementEntryCount();
+	if (clientInvocationInfo.getEntryCount() == 0) {
+	    invocationInfoStack.pop();
+	    finishedDispatch();
+	}
+!!!1412507.java!!!	getInvocationInfo() : ClientInvocationInfo
+	StackImpl invocationInfoStack =
+	    (StackImpl) clientInvocationInfoStack.get();
+	return (ClientInvocationInfo) invocationInfoStack.peek();
+!!!1412635.java!!!	setClientDelegateFactory(inout factory : ClientDelegateFactory) : void
+	synchronized (clientDelegateFactoryAccessorLock) {
+	    clientDelegateFactory = factory ;
+	}
+!!!1412763.java!!!	getClientDelegateFactory() : ClientDelegateFactory
+	synchronized (clientDelegateFactoryAccessorLock) {
+	    return clientDelegateFactory ;
+	}
+!!!1412891.java!!!	setCorbaContactInfoListFactory(inout factory : CorbaContactInfoListFactory) : void
+	synchronized (corbaContactInfoListFactoryAccessLock) {
+	    corbaContactInfoListFactory = factory ;
+	}
+!!!1413019.java!!!	getCorbaContactInfoListFactory() : CorbaContactInfoListFactory
+	return corbaContactInfoListFactory ;
+!!!1413147.java!!!	setResolver(inout resolver : Resolver) : void
+	synchronized (resolverLock) {
+	    this.resolver = resolver ;
+	}
+!!!1413275.java!!!	getResolver() : Resolver
+	synchronized (resolverLock) {
+	    return resolver ;
+	}
+!!!1413403.java!!!	setLocalResolver(inout resolver : LocalResolver) : void
+	synchronized (resolverLock) {
+	    this.localResolver = resolver ;
+	}
+!!!1413531.java!!!	getLocalResolver() : LocalResolver
+	synchronized (resolverLock) {
+	    return localResolver ;
+	}
+!!!1413659.java!!!	setURLOperation(inout stringToObject : Operation) : void
+	synchronized (resolverLock) {
+	    urlOperation = stringToObject ;
+	}
+!!!1413787.java!!!	getURLOperation() : Operation
+	synchronized (resolverLock) {
+	    return urlOperation ;
+	}
+!!!1413915.java!!!	setINSDelegate(inout sdel : CorbaServerRequestDispatcher) : void
+	synchronized (resolverLock) {
+	    insNamingDelegate = sdel ;
+	}
+!!!1414043.java!!!	getTaggedComponentFactoryFinder() : TaggedComponentFactoryFinder
+	return taggedComponentFactoryFinder ;
+!!!1414171.java!!!	getTaggedProfileFactoryFinder() : IdentifiableFactoryFinder
+	return taggedProfileFactoryFinder ;
+!!!1414299.java!!!	getTaggedProfileTemplateFactoryFinder() : IdentifiableFactoryFinder
+	return taggedProfileTemplateFactoryFinder ;
+!!!1414427.java!!!	getObjectKeyFactory() : ObjectKeyFactory
+	synchronized (objectKeyFactoryAccessLock) {
+	    return objectKeyFactory ;
+	}
+!!!1414555.java!!!	setObjectKeyFactory(inout factory : ObjectKeyFactory) : void
+	synchronized (objectKeyFactoryAccessLock) {
+	    objectKeyFactory = factory ;
+	}
+!!!1414683.java!!!	getTransportManager() : TransportManager
+	synchronized (transportManagerAccessorLock) {
+	    if (transportManager == null) {
+		transportManager = new CorbaTransportManagerImpl(this);
+	    }
+	    return transportManager;
+	}
+!!!1414811.java!!!	getCorbaTransportManager() : CorbaTransportManager
+	return (CorbaTransportManager) getTransportManager();
+!!!1414939.java!!!	getLegacyServerSocketManager() : LegacyServerSocketManager
+	synchronized (legacyServerSocketManagerAccessLock) {
+	    if (legacyServerSocketManager == null) {
+		legacyServerSocketManager = new LegacyServerSocketManagerImpl(this);
+	    }
+	    return legacyServerSocketManager;
+	}
+!!!1415067.java!!!	setThreadPoolManager(inout mgr : ThreadPoolManager) : void
+	synchronized (threadPoolManagerAccessLock) {
+	    threadpoolMgr = mgr;
+	}
+!!!1415195.java!!!	getThreadPoolManager() : ThreadPoolManager
+	synchronized (threadPoolManagerAccessLock) {
+	    if (threadpoolMgr == null) {
+		threadpoolMgr = new ThreadPoolManagerImpl( threadGroup );
+	    }
+	    return threadpoolMgr;
+	}
+!!!1415323.java!!!	getCopierManager() : CopierManager
+	return copierManager ;

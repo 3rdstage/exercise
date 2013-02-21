@@ -1,0 +1,30 @@
+class EntryFuture
+!!!6868251.java!!!	set(inout entry : Object) : boolean
+	    if (this.entry != unset) {
+		return false;
+	    }
+	    this.entry = entry;
+	    notifyAll();
+	    return true;
+!!!6868379.java!!!	get() : Object
+	    boolean interrupted = false;
+	    while (entry == unset) {
+		try { 
+		    wait(); 
+		} catch (InterruptedException ex) {
+		    interrupted = true;
+		}
+	    }
+	    if (interrupted) {
+		AccessController.doPrivileged(
+		    new PrivilegedAction() {
+			public Object run() {
+			    Thread.currentThread().interrupt();
+			    return null;
+			}
+		    }
+		);
+	    }
+	    return entry;
+!!!6868507.java!!!	getOwner() : Thread
+	    return owner;

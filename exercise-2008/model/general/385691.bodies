@@ -1,0 +1,560 @@
+class JFileChooser
+!!!8952603.java!!!	JFileChooser()
+	this((File) null, (FileSystemView) null);
+!!!8952731.java!!!	JFileChooser(in currentDirectoryPath : String)
+	this(currentDirectoryPath, (FileSystemView) null);
+!!!8952859.java!!!	JFileChooser(inout currentDirectory : File)
+	this(currentDirectory, (FileSystemView) null);
+!!!8952987.java!!!	JFileChooser(inout fsv : FileSystemView)
+	this((File) null, fsv);
+!!!8953115.java!!!	JFileChooser(inout currentDirectory : File, inout fsv : FileSystemView)
+	setup(fsv);
+	setCurrentDirectory(currentDirectory);
+!!!8953243.java!!!	JFileChooser(in currentDirectoryPath : String, inout fsv : FileSystemView)
+	setup(fsv);
+	if(currentDirectoryPath == null) {
+	    setCurrentDirectory(null);
+        } else {
+	    setCurrentDirectory(fileSystemView.createFileObject(currentDirectoryPath));
+	}
+!!!8953371.java!!!	setup(inout view : FileSystemView) : void
+        // Track native setting for showing hidden files
+        Toolkit tk = Toolkit.getDefaultToolkit();
+        Object showHiddenProperty = tk.getDesktopProperty(SHOW_HIDDEN_PROP);
+        if (showHiddenProperty instanceof Boolean) {
+            useFileHiding = !((Boolean)showHiddenProperty).booleanValue();
+            showFilesListener = new WeakPCL(this);
+            tk.addPropertyChangeListener(SHOW_HIDDEN_PROP, showFilesListener);
+        }
+
+        if(view == null) {
+            view = FileSystemView.getFileSystemView();
+        }
+        setFileSystemView(view);
+        updateUI(); 
+        if(isAcceptAllFileFilterUsed()) {
+            setFileFilter(getAcceptAllFileFilter());
+        }
+!!!8953499.java!!!	setDragEnabled(inout b : boolean) : void
+        if (b && GraphicsEnvironment.isHeadless()) {
+            throw new HeadlessException();
+        }
+	dragEnabled = b;
+!!!8953627.java!!!	getDragEnabled() : boolean
+	return dragEnabled;
+!!!8953755.java!!!	getSelectedFile() : File
+	return selectedFile;
+!!!8953883.java!!!	setSelectedFile(inout file : File) : void
+	File oldValue = selectedFile;
+	selectedFile = file;
+	if(selectedFile != null) {
+	    if (file.isAbsolute() && !getFileSystemView().isParent(getCurrentDirectory(), selectedFile)) {
+		setCurrentDirectory(selectedFile.getParentFile());
+	    }
+	    if (!isMultiSelectionEnabled() || selectedFiles == null || selectedFiles.length == 1) {
+		ensureFileIsVisible(selectedFile);
+	    }
+	}
+	firePropertyChange(SELECTED_FILE_CHANGED_PROPERTY, oldValue, selectedFile);
+!!!8954011.java!!!	getSelectedFiles() : File
+	if(selectedFiles == null) {
+	    return new File[0];
+	} else {
+	    return (File[]) selectedFiles.clone();
+	}
+!!!8954139.java!!!	setSelectedFiles(inout selectedFiles : File) : void
+	File[] oldValue = this.selectedFiles;
+	if (selectedFiles != null && selectedFiles.length == 0) {
+	    selectedFiles = null;
+	}
+	this.selectedFiles = selectedFiles;
+	setSelectedFile((selectedFiles != null) ? selectedFiles[0] : null);
+	firePropertyChange(SELECTED_FILES_CHANGED_PROPERTY, oldValue, this.selectedFiles);
+!!!8954267.java!!!	getCurrentDirectory() : File
+	return currentDirectory;
+!!!8954395.java!!!	setCurrentDirectory(inout dir : File) : void
+	File oldValue = currentDirectory;
+	
+	if (dir != null && !dir.exists()) {
+	    dir = currentDirectory;
+	}
+	if (dir == null) {
+	    dir = getFileSystemView().getDefaultDirectory();
+	}
+	if (currentDirectory != null) {
+	    /* Verify the toString of object */
+	    if (this.currentDirectory.equals(dir)) {
+		return;
+	    }
+	}
+	
+	File prev = null;
+	while (!isTraversable(dir) && prev != dir) {
+	    prev = dir;
+	    dir = getFileSystemView().getParentDirectory(dir);
+	}
+	currentDirectory = dir;
+
+	firePropertyChange(DIRECTORY_CHANGED_PROPERTY, oldValue, currentDirectory);
+!!!8954523.java!!!	changeToParentDirectory() : void
+	selectedFile = null;
+	File oldValue = getCurrentDirectory();
+	setCurrentDirectory(getFileSystemView().getParentDirectory(oldValue));
+!!!8954651.java!!!	rescanCurrentDirectory() : void
+        getUI().rescanCurrentDirectory(this);
+!!!8954779.java!!!	ensureFileIsVisible(inout f : File) : void
+        getUI().ensureFileIsVisible(this, f);
+!!!8954907.java!!!	showOpenDialog(inout parent : Component) : int
+	setDialogType(OPEN_DIALOG);
+	return showDialog(parent, null);
+!!!8955035.java!!!	showSaveDialog(inout parent : Component) : int
+	setDialogType(SAVE_DIALOG);
+	return showDialog(parent, null);
+!!!8955163.java!!!	showDialog(inout parent : Component, in approveButtonText : String) : int
+	if(approveButtonText != null) {
+	    setApproveButtonText(approveButtonText);
+	    setDialogType(CUSTOM_DIALOG);
+	}
+	dialog = createDialog(parent);
+	dialog.addWindowListener(new WindowAdapter() {
+	    public void windowClosing(WindowEvent e) {
+		returnValue = CANCEL_OPTION;
+	    }
+	});
+	returnValue = ERROR_OPTION;
+	rescanCurrentDirectory();
+
+	dialog.show();
+	firePropertyChange("JFileChooserDialogIsClosingProperty", dialog, null);
+	dialog.removeAll();
+	dialog.dispose();
+	dialog = null;
+	return returnValue;
+!!!8955291.java!!!	createDialog(inout parent : Component) : JDialog
+	String title = getUI().getDialogTitle(this);
+        getAccessibleContext().setAccessibleDescription(title);
+
+        JDialog dialog;
+        Window window = JOptionPane.getWindowForComponent(parent);
+        if (window instanceof Frame) {
+            dialog = new JDialog((Frame)window, title, true);	
+        } else {
+            dialog = new JDialog((Dialog)window, title, true);
+        }
+        dialog.setComponentOrientation(this.getComponentOrientation());
+
+        Container contentPane = dialog.getContentPane();
+        contentPane.setLayout(new BorderLayout());
+        contentPane.add(this, BorderLayout.CENTER);
+ 
+        if (JDialog.isDefaultLookAndFeelDecorated()) {
+            boolean supportsWindowDecorations = 
+            UIManager.getLookAndFeel().getSupportsWindowDecorations();
+            if (supportsWindowDecorations) {
+                dialog.getRootPane().setWindowDecorationStyle(JRootPane.FILE_CHOOSER_DIALOG);
+            }
+        }
+        dialog.pack();
+        dialog.setLocationRelativeTo(parent);
+
+	return dialog;
+!!!8955419.java!!!	getControlButtonsAreShown() : boolean
+	return controlsShown;
+!!!8955547.java!!!	setControlButtonsAreShown(inout b : boolean) : void
+	if(controlsShown == b) {
+	    return;
+	}
+	boolean oldValue = controlsShown;
+	controlsShown = b;
+	firePropertyChange(CONTROL_BUTTONS_ARE_SHOWN_CHANGED_PROPERTY, oldValue, controlsShown);
+!!!8955675.java!!!	getDialogType() : int
+	return dialogType;
+!!!8955803.java!!!	setDialogType(in dialogType : int) : void
+	if(this.dialogType == dialogType) {
+	    return;
+	}
+	if(!(dialogType == OPEN_DIALOG || dialogType == SAVE_DIALOG || dialogType == CUSTOM_DIALOG)) {
+	    throw new IllegalArgumentException("Incorrect Dialog Type: " + dialogType);
+	}
+	int oldValue = this.dialogType;
+	this.dialogType = dialogType;
+	if(dialogType == OPEN_DIALOG || dialogType == SAVE_DIALOG) {
+	    setApproveButtonText(null);
+	}
+	firePropertyChange(DIALOG_TYPE_CHANGED_PROPERTY, oldValue, dialogType);
+!!!8955931.java!!!	setDialogTitle(in dialogTitle : String) : void
+	String oldValue = this.dialogTitle;
+	this.dialogTitle = dialogTitle;
+	if(dialog != null) {
+	    dialog.setTitle(dialogTitle);
+	}
+	firePropertyChange(DIALOG_TITLE_CHANGED_PROPERTY, oldValue, dialogTitle);
+!!!8956059.java!!!	getDialogTitle() : String
+	return dialogTitle;
+!!!8956187.java!!!	setApproveButtonToolTipText(in toolTipText : String) : void
+	if(approveButtonToolTipText == toolTipText) {
+	    return;
+	}
+	String oldValue = approveButtonToolTipText;
+	approveButtonToolTipText = toolTipText;
+	firePropertyChange(APPROVE_BUTTON_TOOL_TIP_TEXT_CHANGED_PROPERTY, oldValue, approveButtonToolTipText);
+!!!8956315.java!!!	getApproveButtonToolTipText() : String
+	return approveButtonToolTipText;
+!!!8956443.java!!!	getApproveButtonMnemonic() : int
+	return approveButtonMnemonic;
+!!!8956571.java!!!	setApproveButtonMnemonic(in mnemonic : int) : void
+	if(approveButtonMnemonic == mnemonic) {
+	   return;
+	}
+	int oldValue = approveButtonMnemonic;
+	approveButtonMnemonic = mnemonic;
+	firePropertyChange(APPROVE_BUTTON_MNEMONIC_CHANGED_PROPERTY, oldValue, approveButtonMnemonic);
+!!!8956699.java!!!	setApproveButtonMnemonic(in mnemonic : char) : void
+        int vk = (int) mnemonic;
+        if(vk >= 'a' && vk <='z') {
+	    vk -= ('a' - 'A');
+	}
+        setApproveButtonMnemonic(vk);
+!!!8956827.java!!!	setApproveButtonText(in approveButtonText : String) : void
+	if(this.approveButtonText == approveButtonText) {
+	    return;
+	}
+	String oldValue = this.approveButtonText;
+	this.approveButtonText = approveButtonText;
+	firePropertyChange(APPROVE_BUTTON_TEXT_CHANGED_PROPERTY, oldValue, approveButtonText);
+!!!8956955.java!!!	getApproveButtonText() : String
+	return approveButtonText;
+!!!8957083.java!!!	getChoosableFileFilters() : FileFilter
+	FileFilter[] filterArray = new FileFilter[filters.size()];
+	filters.copyInto(filterArray);
+	return filterArray;
+!!!8957211.java!!!	addChoosableFileFilter(inout filter : FileFilter) : void
+	if(filter != null && !filters.contains(filter)) {
+	    FileFilter[] oldValue = getChoosableFileFilters();
+	    filters.addElement(filter);
+	    firePropertyChange(CHOOSABLE_FILE_FILTER_CHANGED_PROPERTY, oldValue, getChoosableFileFilters());
+	} 
+	setFileFilter(filter);
+!!!8957339.java!!!	removeChoosableFileFilter(inout f : FileFilter) : boolean
+	if(filters.contains(f)) {
+            if(getFileFilter() == f) {
+		setFileFilter(null);
+            }
+	    FileFilter[] oldValue = getChoosableFileFilters();
+	    filters.removeElement(f);
+	    firePropertyChange(CHOOSABLE_FILE_FILTER_CHANGED_PROPERTY, oldValue, getChoosableFileFilters());
+	    return true;
+	} else {
+	    return false;
+	}
+!!!8957467.java!!!	resetChoosableFileFilters() : void
+	FileFilter[] oldValue = getChoosableFileFilters();
+	setFileFilter(null);
+	filters.removeAllElements();
+	if(isAcceptAllFileFilterUsed()) {
+	   addChoosableFileFilter(getAcceptAllFileFilter());
+	}
+	firePropertyChange(CHOOSABLE_FILE_FILTER_CHANGED_PROPERTY, oldValue, getChoosableFileFilters());
+!!!8957595.java!!!	getAcceptAllFileFilter() : FileFilter
+	FileFilter filter = null;
+	if(getUI() != null) {
+	    filter = getUI().getAcceptAllFileFilter(this);
+	}
+	return filter;
+!!!8957723.java!!!	isAcceptAllFileFilterUsed() : boolean
+	return useAcceptAllFileFilter;
+!!!8957851.java!!!	setAcceptAllFileFilterUsed(inout b : boolean) : void
+	boolean oldValue = useAcceptAllFileFilter;
+	useAcceptAllFileFilter = b;
+	if(!b) {
+	    removeChoosableFileFilter(getAcceptAllFileFilter());
+	} else {
+	    removeChoosableFileFilter(getAcceptAllFileFilter());
+	    addChoosableFileFilter(getAcceptAllFileFilter());
+	}
+	firePropertyChange(ACCEPT_ALL_FILE_FILTER_USED_CHANGED_PROPERTY, oldValue, useAcceptAllFileFilter);
+!!!8957979.java!!!	getAccessory() : JComponent
+        return accessory;
+!!!8958107.java!!!	setAccessory(inout newAccessory : JComponent) : void
+        JComponent oldValue = accessory;
+        accessory = newAccessory;
+	firePropertyChange(ACCESSORY_CHANGED_PROPERTY, oldValue, accessory);
+!!!8958235.java!!!	setFileSelectionMode(in mode : int) : void
+	if(fileSelectionMode == mode) {
+	    return;
+	}
+
+        if ((mode == FILES_ONLY) || (mode == DIRECTORIES_ONLY) || (mode == FILES_AND_DIRECTORIES)) {
+	   int oldValue = fileSelectionMode;
+	   fileSelectionMode = mode;
+	   firePropertyChange(FILE_SELECTION_MODE_CHANGED_PROPERTY, oldValue, fileSelectionMode);
+        } else {
+	   throw new IllegalArgumentException("Incorrect Mode for file selection: " + mode);
+        }
+!!!8958363.java!!!	getFileSelectionMode() : int
+	return fileSelectionMode;
+!!!8958491.java!!!	isFileSelectionEnabled() : boolean
+	return ((fileSelectionMode == FILES_ONLY) || (fileSelectionMode == FILES_AND_DIRECTORIES));
+!!!8958619.java!!!	isDirectorySelectionEnabled() : boolean
+	return ((fileSelectionMode == DIRECTORIES_ONLY) || (fileSelectionMode == FILES_AND_DIRECTORIES));
+!!!8958747.java!!!	setMultiSelectionEnabled(inout b : boolean) : void
+	if(multiSelectionEnabled == b) {
+	    return;
+	}
+	boolean oldValue = multiSelectionEnabled;
+	multiSelectionEnabled = b;
+	firePropertyChange(MULTI_SELECTION_ENABLED_CHANGED_PROPERTY, oldValue, multiSelectionEnabled);
+!!!8958875.java!!!	isMultiSelectionEnabled() : boolean
+	return multiSelectionEnabled;
+!!!8959003.java!!!	isFileHidingEnabled() : boolean
+	return useFileHiding;
+!!!8959131.java!!!	setFileHidingEnabled(inout b : boolean) : void
+        // Dump showFilesListener since we'll ignore it from now on
+        if (showFilesListener != null) {
+            Toolkit.getDefaultToolkit().removePropertyChangeListener(SHOW_HIDDEN_PROP, showFilesListener);
+            showFilesListener = null;
+        } 
+        boolean oldValue = useFileHiding;
+        useFileHiding = b;
+        firePropertyChange(FILE_HIDING_CHANGED_PROPERTY, oldValue, useFileHiding);
+!!!8959259.java!!!	setFileFilter(inout filter : FileFilter) : void
+	FileFilter oldValue = fileFilter;
+	fileFilter = filter;
+	if (filter != null) {
+	    if (isMultiSelectionEnabled() && selectedFiles != null && selectedFiles.length > 0) {
+		Vector fList = new Vector();
+		boolean failed = false;
+		for (int i = 0; i < selectedFiles.length; i++) {
+		    if (filter.accept(selectedFiles[i])) {
+			fList.add(selectedFiles[i]);
+		    } else {
+			failed = true;
+		    }
+		}
+		if (failed) {
+		    setSelectedFiles((fList.size() == 0) ? null : (File[])fList.toArray(new File[fList.size()]));
+		}
+	    } else if (selectedFile != null && !filter.accept(selectedFile)) {
+		setSelectedFile(null);
+	    }
+	}
+	firePropertyChange(FILE_FILTER_CHANGED_PROPERTY, oldValue, fileFilter);
+!!!8959387.java!!!	getFileFilter() : FileFilter
+	return fileFilter;
+!!!8959515.java!!!	setFileView(inout fileView : FileView) : void
+	FileView oldValue = this.fileView;
+	this.fileView = fileView;
+	firePropertyChange(FILE_VIEW_CHANGED_PROPERTY, oldValue, fileView);
+!!!8959643.java!!!	getFileView() : FileView
+	return fileView;
+!!!8959771.java!!!	getName(inout f : File) : String
+	String filename = null;
+	if(f != null) {
+	    if(getFileView() != null) {
+		filename = getFileView().getName(f);
+	    }
+	    if(filename == null && uiFileView != null) {
+		filename = uiFileView.getName(f);
+	    }
+        }
+	return filename;
+!!!8959899.java!!!	getDescription(inout f : File) : String
+	String description = null;
+	if(f != null) {
+	    if(getFileView() != null) {
+		description = getFileView().getDescription(f);
+	    }
+	    if(description == null && uiFileView != null) {
+		description = uiFileView.getDescription(f);
+	    }
+        }
+	return description;
+!!!8960027.java!!!	getTypeDescription(inout f : File) : String
+	String typeDescription = null;
+	if(f != null) {
+	    if(getFileView() != null) {
+		typeDescription = getFileView().getTypeDescription(f);
+	    }
+	    if(typeDescription == null && uiFileView != null) {
+		typeDescription = uiFileView.getTypeDescription(f);
+	    }
+        }
+	return typeDescription;
+!!!8960155.java!!!	getIcon(inout f : File) : Icon
+	Icon icon = null;
+	if (f != null) {
+	    if(getFileView() != null) {
+		icon = getFileView().getIcon(f);
+	    }
+	    if(icon == null && uiFileView != null) {
+		icon = uiFileView.getIcon(f);
+	    }
+	}
+	return icon;
+!!!8960283.java!!!	isTraversable(inout f : File) : boolean
+	Boolean traversable = null;
+	if (f != null) {
+	    if (getFileView() != null) {
+		traversable = getFileView().isTraversable(f);
+	    }
+	    if (traversable == null && uiFileView != null) {
+		traversable = uiFileView.isTraversable(f);
+	    }
+	    if (traversable == null) {
+		traversable = getFileSystemView().isTraversable(f);
+	    }
+	}
+	return (traversable != null && traversable.booleanValue());
+!!!8960411.java!!!	accept(inout f : File) : boolean
+	boolean shown = true;
+	if(f != null && fileFilter != null) {
+	    shown = fileFilter.accept(f);
+	}
+	return shown;
+!!!8960539.java!!!	setFileSystemView(inout fsv : FileSystemView) : void
+	FileSystemView oldValue = fileSystemView;
+	fileSystemView = fsv;
+	firePropertyChange(FILE_SYSTEM_VIEW_CHANGED_PROPERTY, oldValue, fileSystemView);
+!!!8960667.java!!!	getFileSystemView() : FileSystemView
+	return fileSystemView;
+!!!8960795.java!!!	approveSelection() : void
+	returnValue = APPROVE_OPTION;
+	if(dialog != null) {
+	    dialog.setVisible(false);
+	}
+	fireActionPerformed(APPROVE_SELECTION);
+!!!8960923.java!!!	cancelSelection() : void
+	returnValue = CANCEL_OPTION;
+	if(dialog != null) {
+	    dialog.setVisible(false);
+	}
+	fireActionPerformed(CANCEL_SELECTION);
+!!!8961051.java!!!	addActionListener(inout l : ActionListener) : void
+        listenerList.add(ActionListener.class, l);
+!!!8961179.java!!!	removeActionListener(inout l : ActionListener) : void
+        listenerList.remove(ActionListener.class, l);
+!!!8961307.java!!!	getActionListeners() : ActionListener
+        return (ActionListener[])listenerList.getListeners(
+                ActionListener.class);
+!!!8961435.java!!!	fireActionPerformed(in command : String) : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        long mostRecentEventTime = EventQueue.getMostRecentEventTime();
+        int modifiers = 0;
+        AWTEvent currentEvent = EventQueue.getCurrentEvent();
+        if (currentEvent instanceof InputEvent) {
+            modifiers = ((InputEvent)currentEvent).getModifiers();
+        } else if (currentEvent instanceof ActionEvent) {
+            modifiers = ((ActionEvent)currentEvent).getModifiers();
+        }
+        ActionEvent e = null;
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==ActionListener.class) {
+                // Lazily create the event:
+                if (e == null) {
+                    e = new ActionEvent(this, ActionEvent.ACTION_PERFORMED,
+                                        command, mostRecentEventTime,
+                                        modifiers);
+                }
+                ((ActionListener)listeners[i+1]).actionPerformed(e);
+            }
+        }
+!!!8961819.java!!!	updateUI() : void
+	if (isAcceptAllFileFilterUsed()) {
+	    removeChoosableFileFilter(getAcceptAllFileFilter());
+	}
+	FileChooserUI ui = ((FileChooserUI)UIManager.getUI(this));
+	if (fileSystemView == null) {
+	    // We were probably deserialized
+	    setFileSystemView(FileSystemView.getFileSystemView());
+	}
+	setUI(ui);
+
+	uiFileView = getUI().getFileView(this);
+	if(isAcceptAllFileFilterUsed()) {
+	    addChoosableFileFilter(getAcceptAllFileFilter());
+	}
+!!!8961947.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!8962075.java!!!	getUI() : FileChooserUI
+        return (FileChooserUI) ui;
+!!!8962203.java!!!	writeObject(inout s : ObjectOutputStream) : void
+	FileSystemView fsv = null;
+
+	if (isAcceptAllFileFilterUsed()) {
+	    //The AcceptAllFileFilter is UI specific, it will be reset by
+	    //updateUI() after deserialization
+	    removeChoosableFileFilter(getAcceptAllFileFilter());
+	}
+	if (fileSystemView.equals(FileSystemView.getFileSystemView())) {
+	    //The default FileSystemView is platform specific, it will be
+	    //reset by updateUI() after deserialization
+	    fsv = fileSystemView;
+	    fileSystemView = null;
+	}
+        s.defaultWriteObject();
+	if (fsv != null) {
+	    fileSystemView = fsv;
+	}
+	if (isAcceptAllFileFilterUsed()) {
+	    addChoosableFileFilter(getAcceptAllFileFilter());
+	}
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!8962331.java!!!	paramString() : String
+        String approveButtonTextString = (approveButtonText != null ?
+					  approveButtonText: "");
+        String dialogTitleString = (dialogTitle != null ?
+				    dialogTitle: "");
+        String dialogTypeString;
+        if (dialogType == OPEN_DIALOG) {
+            dialogTypeString = "OPEN_DIALOG";
+        } else if (dialogType == SAVE_DIALOG) {
+            dialogTypeString = "SAVE_DIALOG";
+        } else if (dialogType == CUSTOM_DIALOG) {
+            dialogTypeString = "CUSTOM_DIALOG";
+        } else dialogTypeString = "";
+        String returnValueString;
+        if (returnValue == CANCEL_OPTION) {
+            returnValueString = "CANCEL_OPTION";
+        } else if (returnValue == APPROVE_OPTION) {
+            returnValueString = "APPROVE_OPTION";
+        } else if (returnValue == ERROR_OPTION) {
+            returnValueString = "ERROR_OPTION";
+        } else returnValueString = "";
+        String useFileHidingString = (useFileHiding ?
+                                    "true" : "false");
+        String fileSelectionModeString;
+        if (fileSelectionMode == FILES_ONLY) {
+            fileSelectionModeString = "FILES_ONLY";
+        } else if (fileSelectionMode == DIRECTORIES_ONLY) {
+            fileSelectionModeString = "DIRECTORIES_ONLY";
+        } else if (fileSelectionMode == FILES_AND_DIRECTORIES) {
+            fileSelectionModeString = "FILES_AND_DIRECTORIES";
+        } else fileSelectionModeString = "";
+        String currentDirectoryString = (currentDirectory != null ?
+					 currentDirectory.toString() : "");
+        String selectedFileString = (selectedFile != null ?
+				     selectedFile.toString() : "");
+
+        return super.paramString() +
+        ",approveButtonText=" + approveButtonTextString +
+        ",currentDirectory=" + currentDirectoryString +
+        ",dialogTitle=" + dialogTitleString +
+        ",dialogType=" + dialogTypeString +
+        ",fileSelectionMode=" + fileSelectionModeString +
+        ",returnValue=" + returnValueString +
+        ",selectedFile=" + selectedFileString +
+        ",useFileHiding=" + useFileHidingString;
+!!!8962459.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJFileChooser();
+        }
+        return accessibleContext;

@@ -1,0 +1,27 @@
+class BehindS
+!!!8134939.java!!!	BehindS(inout cond : Node, in rmax : int, in rmin : int)
+            super(cond, rmax, rmin);
+!!!8135067.java!!!	match(inout matcher : Matcher, in i : int, inout seq : CharSequence) : boolean
+	    int rmaxChars = countChars(seq, i, -rmax);
+	    int rminChars = countChars(seq, i, -rmin);
+            int savedFrom = matcher.from;
+            int startIndex = (!matcher.transparentBounds) ?
+                             matcher.from : 0;
+            boolean conditionMatched = false;
+            int from = Math.max(i - rmaxChars, startIndex);
+            for (int j = i - rminChars; 
+                 j >= from; 
+                 j -= j>from ? countChars(seq, j, -1) : 1) {
+                // Relax transparent region boundaries for lookbehind
+                if (matcher.transparentBounds)
+                    matcher.from = 0;
+                try {
+                    conditionMatched = 
+                        (cond.match(matcher, j, seq) && matcher.last == i);
+                } finally { // Reinstate region boundaries
+                    matcher.from = savedFrom;
+                }
+                if (conditionMatched)
+                    return next.match(matcher, i, seq);
+            }
+            return false;

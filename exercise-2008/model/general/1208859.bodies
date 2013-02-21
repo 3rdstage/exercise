@@ -1,0 +1,200 @@
+class DTD
+!!!10008731.java!!!	DTD(in name : String)
+	this.name = name;
+	defEntity("#RE", GENERAL, '\r');
+	defEntity("#RS", GENERAL, '\n');
+	defEntity("#SPACE", GENERAL, ' ');
+	defineElement("unknown", EMPTY, false, true, null, null, null, null);
+!!!10008859.java!!!	getName() : String
+	return name;
+!!!10008987.java!!!	getEntity(in name : String) : Entity
+	return (Entity)entityHash.get(name);
+!!!10009115.java!!!	getEntity(in ch : int) : Entity
+	return (Entity)entityHash.get(new Integer(ch));
+!!!10009243.java!!!	elementExists(in name : String) : boolean
+	Element e = (Element)elementHash.get(name);
+	return ((e == null) ? false : true);
+!!!10009371.java!!!	getElement(in name : String) : Element
+	Element e = (Element)elementHash.get(name);
+	if (e == null) {
+	    e = new Element(name, elements.size());
+	    elements.addElement(e);
+	    elementHash.put(name, e);
+	}
+	return e;
+!!!10009499.java!!!	getElement(in index : int) : Element
+	return (Element)elements.elementAt(index);
+!!!10009627.java!!!	defineEntity(in name : String, in type : int, in data : char) : Entity
+	Entity ent = (Entity)entityHash.get(name);
+	if (ent == null) {
+	    ent = new Entity(name, type, data);
+	    entityHash.put(name, ent);
+	    if (((type & GENERAL) != 0) && (data.length == 1)) {
+		switch (type & ~GENERAL) {
+		  case CDATA:
+		  case SDATA:
+		    entityHash.put(new Integer(data[0]), ent);
+		    break;
+		}
+	    }
+	}
+	return ent;
+!!!10009755.java!!!	defineElement(in name : String, in type : int, inout omitStart : boolean, inout omitEnd : boolean, inout content : ContentModel, inout exclusions : BitSet, inout inclusions : BitSet, inout atts : AttributeList) : Element
+	Element e = getElement(name);
+	e.type = type;
+	e.oStart = omitStart;
+	e.oEnd = omitEnd;
+	e.content = content;
+	e.exclusions = exclusions;
+	e.inclusions = inclusions;
+	e.atts = atts;
+	return e;
+!!!10009883.java!!!	defineAttributes(in name : String, inout atts : AttributeList) : void
+	Element e = getElement(name);
+	e.atts = atts;
+!!!10010011.java!!!	defEntity(in name : String, in type : int, in ch : int) : Entity
+	char data[] = {(char)ch};
+	return defineEntity(name, type, data);
+!!!10010139.java!!!	defEntity(in name : String, in type : int, in str : String) : Entity
+	int len = str.length();
+	char data[] = new char[len];
+	str.getChars(0, len, data, 0);
+	return defineEntity(name, type, data);
+!!!10010267.java!!!	defElement(in name : String, in type : int, inout omitStart : boolean, inout omitEnd : boolean, inout content : ContentModel, in exclusions : String, in inclusions : String, inout atts : AttributeList) : Element
+	BitSet excl = null;
+	if (exclusions != null && exclusions.length > 0) {
+	    excl = new BitSet();
+	    for (int i = 0; i < exclusions.length; i++) {
+		String str = exclusions[i];
+		if (str.length() > 0) {
+		    excl.set(getElement(str).getIndex());
+		}
+	    }
+	}
+	BitSet incl = null;
+	if (inclusions != null && inclusions.length > 0) {
+	    incl = new BitSet();
+	    for (int i = 0; i < inclusions.length; i++) {
+		String str = inclusions[i];
+		if (str.length() > 0) {
+		    incl.set(getElement(str).getIndex());
+		}
+	    }
+	}
+	return defineElement(name, type, omitStart, omitEnd, content, excl, incl, atts);
+!!!10010395.java!!!	defAttributeList(in name : String, in type : int, in modifier : int, in value : String, in values : String, inout atts : AttributeList) : AttributeList
+	Vector vals = null;
+	if (values != null) {
+	    vals = new Vector();
+	    for (StringTokenizer s = new StringTokenizer(values, "|") ; s.hasMoreTokens() ;) {
+		String str = s.nextToken();
+		if (str.length() > 0) {
+		    vals.addElement(str);
+		}
+	    }
+	}
+	return new AttributeList(name, type, modifier, value, vals, atts);
+!!!10010523.java!!!	defContentModel(in type : int, inout obj : Object, inout next : ContentModel) : ContentModel
+	return new ContentModel(type, obj, next);
+!!!10010651.java!!!	toString() : String
+	return name;
+!!!10010779.java!!!	putDTDHash(in name : String, inout dtd : DTD) : void
+    dtdHash.put(name, dtd);
+!!!10010907.java!!!	getDTD(in name : String) : DTD
+	name = name.toLowerCase();
+	DTD dtd = (DTD)dtdHash.get(name);
+	if (dtd == null)
+	  dtd = new DTD(name);
+
+	return dtd;
+!!!10011035.java!!!	read(inout in : DataInputStream) : void
+	if (in.readInt() != FILE_VERSION) {
+	}
+
+	//
+	// Read the list of names
+	//
+	String[] names = new String[in.readShort()];
+	for (int i = 0; i < names.length; i++) {
+	    names[i] = in.readUTF();
+	}
+
+
+	//
+	// Read the entities
+	//
+	int num = in.readShort();
+	for (int i = 0; i < num; i++) {
+	    short nameId = in.readShort();
+	    int type = in.readByte();
+	    String name = in.readUTF();
+	    defEntity(names[nameId], type | GENERAL, name);
+	}
+
+	// Read the elements
+	//
+	num = in.readShort();
+	for (int i = 0; i < num; i++) {
+	    short nameId = in.readShort();
+	    int type = in.readByte();
+	    byte flags = in.readByte();
+	    ContentModel m = readContentModel(in, names);
+	    String[] exclusions = readNameArray(in, names);
+	    String[] inclusions = readNameArray(in, names);
+	    AttributeList atts = readAttributeList(in, names);
+	    defElement(names[nameId], type,
+		       ((flags & 0x01) != 0), ((flags & 0x02) != 0),
+		       m, exclusions, inclusions, atts);
+	}
+!!!10011163.java!!!	readContentModel(inout in : DataInputStream, in names : String) : ContentModel
+	byte flag = in.readByte();
+	switch(flag) {
+	    case 0:		// null
+		return null;
+	    case 1: {		// content_c
+		int type = in.readByte();
+		ContentModel m = readContentModel(in, names);
+		ContentModel next = readContentModel(in, names);
+		return defContentModel(type, m, next);
+	    }
+	    case 2: {		// content_e
+		int type = in.readByte();
+		Element el = getElement(names[in.readShort()]);
+		ContentModel next = readContentModel(in, names);
+		return defContentModel(type, el, next);
+	    }
+	default:
+		throw new IOException("bad bdtd");
+	}
+!!!10011291.java!!!	readNameArray(inout in : DataInputStream, in names : String) : String
+	int num = in.readShort();
+	if (num == 0) {
+	    return null;
+	}
+	String[] result = new String[num];
+	for (int i = 0; i < num; i++) {
+	    result[i] = names[in.readShort()];
+	}
+	return result;
+!!!10011419.java!!!	readAttributeList(inout in : DataInputStream, in names : String) : AttributeList
+	AttributeList result = null;
+	for (int num = in.readByte(); num > 0; --num) {
+	    short nameId = in.readShort();
+	    int type = in.readByte();
+	    int modifier = in.readByte();
+	    short valueId = in.readShort();
+	    String value = (valueId == -1) ? null : names[valueId];
+	    Vector values = null;
+	    short numValues = in.readShort();
+	    if (numValues > 0) {
+		values = new Vector(numValues);
+		for (int i = 0; i < numValues; i++) {
+		    values.addElement(names[in.readShort()]);
+		}
+	    }
+result = new AttributeList(names[nameId], type, modifier, value,
+				       values, result);
+	    // We reverse the order of the linked list by doing this, but
+	    // that order isn't important.
+	}
+	return result;

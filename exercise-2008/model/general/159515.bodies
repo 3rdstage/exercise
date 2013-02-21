@@ -1,0 +1,94 @@
+class XMLUtils
+!!!392603.java!!!	load(inout props : Properties, inout in : InputStream) : void
+        Document doc = null;
+        try {
+            doc = getLoadingDoc(in);
+        } catch (SAXException saxe) {
+            throw new InvalidPropertiesFormatException(saxe);
+        }
+        Element propertiesElement = (Element)doc.getChildNodes().item(1);
+        String xmlVersion = propertiesElement.getAttribute("version");
+        if (xmlVersion.compareTo(EXTERNAL_XML_VERSION) > 0)
+            throw new InvalidPropertiesFormatException(
+                "Exported Properties file format version " + xmlVersion +
+                " is not supported. This java installation can read" +
+                " versions " + EXTERNAL_XML_VERSION + " or older. You" +
+                " may need to install a newer version of JDK.");
+        importProperties(props, propertiesElement);
+!!!392731.java!!!	getLoadingDoc(inout in : InputStream) : Document
+	DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+	dbf.setIgnoringElementContentWhitespace(true);
+	dbf.setValidating(true);
+        dbf.setCoalescing(true);
+        dbf.setIgnoringComments(true);
+	try {
+	    DocumentBuilder db = dbf.newDocumentBuilder();
+	    db.setEntityResolver(new Resolver());
+	    db.setErrorHandler(new EH());
+            InputSource is = new InputSource(in);
+	    return db.parse(is);
+	} catch (ParserConfigurationException x) {
+	    throw new Error(x);
+	}
+!!!392859.java!!!	importProperties(inout props : Properties, inout propertiesElement : Element) : void
+        NodeList entries = propertiesElement.getChildNodes();
+        int numEntries = entries.getLength();
+        int start = numEntries > 0 && 
+            entries.item(0).getNodeName().equals("comment") ? 1 : 0;
+        for (int i=start; i<numEntries; i++) {
+            Element entry = (Element)entries.item(i);
+            if (entry.hasAttribute("key")) {
+                Node n = entry.getFirstChild();
+                String val = (n == null) ? "" : n.getNodeValue();
+                props.setProperty(entry.getAttribute("key"), val);
+            }
+        }
+!!!392987.java!!!	save(inout props : Properties, inout os : OutputStream, in comment : String, in encoding : String) : void
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        DocumentBuilder db = null;
+        try {
+            db = dbf.newDocumentBuilder();
+        } catch (ParserConfigurationException pce) {
+            assert(false);
+        }
+        Document doc = db.newDocument();
+        Element properties =  (Element)
+            doc.appendChild(doc.createElement("properties"));
+
+        if (comment != null) {
+            Element comments = (Element)properties.appendChild(
+                doc.createElement("comment"));
+            comments.appendChild(doc.createTextNode(comment));
+        }
+
+        Set keys = props.keySet();
+        Iterator i = keys.iterator();
+        while(i.hasNext()) {
+            String key = (String)i.next();
+            Element entry = (Element)properties.appendChild(
+                doc.createElement("entry"));
+            entry.setAttribute("key", key);
+            entry.appendChild(doc.createTextNode(props.getProperty(key)));
+        }
+        emitDocument(doc, os, encoding);
+!!!393115.java!!!	emitDocument(inout doc : Document, inout os : OutputStream, in encoding : String) : void
+        TransformerFactory tf = TransformerFactory.newInstance();
+        Transformer t = null;
+        try {
+            t = tf.newTransformer();
+            t.setOutputProperty(OutputKeys.DOCTYPE_SYSTEM, PROPS_DTD_URI);
+            t.setOutputProperty(OutputKeys.INDENT, "yes");
+            t.setOutputProperty(OutputKeys.METHOD, "xml");
+            t.setOutputProperty(OutputKeys.ENCODING, encoding);
+        } catch (TransformerConfigurationException tce) {
+            assert(false);
+        }
+        DOMSource doms = new DOMSource(doc);
+        StreamResult sr = new StreamResult(os);
+        try {
+            t.transform(doms, sr);
+        } catch (TransformerException te) {
+            IOException ioe = new IOException();
+            ioe.initCause(te);
+            throw ioe;
+        }

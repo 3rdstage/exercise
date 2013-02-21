@@ -1,0 +1,424 @@
+class ThreadGroup
+!!!7084955.java!!!	ThreadGroup()
+	// called from C code
+	this.name = "system";
+	this.maxPriority = Thread.MAX_PRIORITY;
+!!!7085083.java!!!	ThreadGroup(in name : String)
+	this(Thread.currentThread().getThreadGroup(), name);
+!!!7085211.java!!!	ThreadGroup(inout parent : ThreadGroup, in name : String)
+	if (parent == null) {
+	    throw new NullPointerException();
+	}
+	parent.checkAccess();
+	this.name = name;
+	this.maxPriority = parent.maxPriority;
+	this.daemon = parent.daemon;
+	this.vmAllowSuspension = parent.vmAllowSuspension;
+	this.parent = parent;
+	parent.add(this);
+!!!7085339.java!!!	getName() : String
+	return name;
+!!!7085467.java!!!	getParent() : ThreadGroup
+	if (parent != null)
+	    parent.checkAccess();
+	return parent;
+!!!7085595.java!!!	getMaxPriority() : int
+	return maxPriority;
+!!!7085723.java!!!	isDaemon() : boolean
+	return daemon;
+!!!7085851.java!!!	isDestroyed() : boolean
+	return destroyed;
+!!!7085979.java!!!	setDaemon(inout daemon : boolean) : void
+	checkAccess();
+	this.daemon = daemon;
+!!!7086107.java!!!	setMaxPriority(in pri : int) : void
+	int ngroupsSnapshot;
+	ThreadGroup[] groupsSnapshot;
+	synchronized (this) {
+	    checkAccess();
+	    if (pri < Thread.MIN_PRIORITY) {
+		maxPriority = Thread.MIN_PRIORITY;
+	    } else if (pri < maxPriority) {
+		maxPriority = pri;
+	    }
+	    ngroupsSnapshot = ngroups;
+	    if (groups != null) {
+		groupsSnapshot = new ThreadGroup[ngroupsSnapshot];
+		System.arraycopy(groups, 0, groupsSnapshot, 0, ngroupsSnapshot);
+	    } else {
+		groupsSnapshot = null;
+	    }
+	}
+	for (int i = 0 ; i < ngroupsSnapshot ; i++) {
+	    groupsSnapshot[i].setMaxPriority(pri);
+	}
+!!!7086235.java!!!	parentOf(inout g : ThreadGroup) : boolean
+	for (; g != null ; g = g.parent) {
+	    if (g == this) {
+		return true;
+	    }
+	}
+	return false;
+!!!7086363.java!!!	checkAccess() : void
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkAccess(this);
+	}
+!!!7086491.java!!!	activeCount() : int
+	int result;
+	// Snapshot sub-group data so we don't hold this lock
+	// while our children are computing.
+	int ngroupsSnapshot;
+	ThreadGroup[] groupsSnapshot;
+	synchronized (this) {
+	    if (destroyed) {
+		return 0;
+	    }
+	    result = nthreads;
+	    ngroupsSnapshot = ngroups;
+	    if (groups != null) {
+		groupsSnapshot = new ThreadGroup[ngroupsSnapshot];
+		System.arraycopy(groups, 0, groupsSnapshot, 0, ngroupsSnapshot);
+	    } else {
+		groupsSnapshot = null;
+	    }
+	}
+	for (int i = 0 ; i < ngroupsSnapshot ; i++) {
+	    result += groupsSnapshot[i].activeCount();
+	}
+	return result;
+!!!7086619.java!!!	enumerate(inout list : Thread) : int
+        checkAccess();
+	return enumerate(list, 0, true);
+!!!7086747.java!!!	enumerate(inout list : Thread, inout recurse : boolean) : int
+        checkAccess();
+	return enumerate(list, 0, recurse);
+!!!7086875.java!!!	enumerate(inout list : Thread, in n : int, inout recurse : boolean) : int
+	int ngroupsSnapshot = 0;
+	ThreadGroup[] groupsSnapshot = null;
+	synchronized (this) {
+	    if (destroyed) {
+		return 0;
+	    }
+	    int nt = nthreads;
+	    if (nt > list.length - n) {
+		nt = list.length - n;
+	    }
+	    for (int i = 0; i < nt; i++) {
+                if (threads[i].isAlive()) {
+                    list[n++] = threads[i];
+                }
+            }
+	    if (recurse) {
+		ngroupsSnapshot = ngroups;
+		if (groups != null) {
+		    groupsSnapshot = new ThreadGroup[ngroupsSnapshot];
+		    System.arraycopy(groups, 0, groupsSnapshot, 0, ngroupsSnapshot);
+		} else {
+		    groupsSnapshot = null;
+		}
+	    }
+	}
+	if (recurse) {
+	    for (int i = 0 ; i < ngroupsSnapshot ; i++) {
+		n = groupsSnapshot[i].enumerate(list, n, true);
+	    }
+	}
+	return n;
+!!!7087003.java!!!	activeGroupCount() : int
+	int ngroupsSnapshot;
+	ThreadGroup[] groupsSnapshot;
+	synchronized (this) {
+	    if (destroyed) {
+		return 0;
+	    }
+	    ngroupsSnapshot = ngroups;
+	    if (groups != null) {
+		groupsSnapshot = new ThreadGroup[ngroupsSnapshot];
+		System.arraycopy(groups, 0, groupsSnapshot, 0, ngroupsSnapshot);
+	    } else {
+		groupsSnapshot = null;
+	    }
+	}
+	int n = ngroupsSnapshot;
+	for (int i = 0 ; i < ngroupsSnapshot ; i++) {
+	    n += groupsSnapshot[i].activeGroupCount();
+	}
+	return n;
+!!!7087131.java!!!	enumerate(inout list : ThreadGroup) : int
+        checkAccess();
+	return enumerate(list, 0, true);
+!!!7087259.java!!!	enumerate(inout list : ThreadGroup, inout recurse : boolean) : int
+        checkAccess();
+	return enumerate(list, 0, recurse);
+!!!7087387.java!!!	enumerate(inout list : ThreadGroup, in n : int, inout recurse : boolean) : int
+	int ngroupsSnapshot = 0;
+	ThreadGroup[] groupsSnapshot = null;
+	synchronized (this) {
+	    if (destroyed) {
+		return 0;
+	    }
+	    int ng = ngroups;
+	    if (ng > list.length - n) {
+		ng = list.length - n;
+	    }
+	    if (ng > 0) {
+		System.arraycopy(groups, 0, list, n, ng);
+		n += ng;
+	    }
+	    if (recurse) {
+		ngroupsSnapshot = ngroups;
+		if (groups != null) {
+		    groupsSnapshot = new ThreadGroup[ngroupsSnapshot];
+		    System.arraycopy(groups, 0, groupsSnapshot, 0, ngroupsSnapshot);
+		} else {
+		    groupsSnapshot = null;
+		}
+	    }
+	}
+	if (recurse) {
+	    for (int i = 0 ; i < ngroupsSnapshot ; i++) {
+		n = groupsSnapshot[i].enumerate(list, n, true);
+	    }
+	}
+	return n;
+!!!7087515.java!!!	stop() : void
+        if (stopOrSuspend(false))
+            Thread.currentThread().stop();
+!!!7087643.java!!!	interrupt() : void
+	int ngroupsSnapshot;
+	ThreadGroup[] groupsSnapshot;
+	synchronized (this) {
+	    checkAccess();
+	    for (int i = 0 ; i < nthreads ; i++) {
+		threads[i].interrupt();
+	    }
+	    ngroupsSnapshot = ngroups;
+	    if (groups != null) {
+		groupsSnapshot = new ThreadGroup[ngroupsSnapshot];
+		System.arraycopy(groups, 0, groupsSnapshot, 0, ngroupsSnapshot);
+	    } else {
+		groupsSnapshot = null;
+	    }
+	}
+	for (int i = 0 ; i < ngroupsSnapshot ; i++) {
+	    groupsSnapshot[i].interrupt();
+	}
+!!!7087771.java!!!	suspend() : void
+        if (stopOrSuspend(true))
+            Thread.currentThread().suspend();
+!!!7087899.java!!!	stopOrSuspend(inout suspend : boolean) : boolean
+        boolean suicide = false;
+        Thread us = Thread.currentThread();
+	int ngroupsSnapshot;
+	ThreadGroup[] groupsSnapshot = null;
+	synchronized (this) {
+	    checkAccess();
+	    for (int i = 0 ; i < nthreads ; i++) {
+                if (threads[i]==us)
+                    suicide = true;
+                else if (suspend)
+                    threads[i].suspend();
+                else
+                    threads[i].stop();
+	    }
+
+	    ngroupsSnapshot = ngroups;
+	    if (groups != null) {
+		groupsSnapshot = new ThreadGroup[ngroupsSnapshot];
+		System.arraycopy(groups, 0, groupsSnapshot, 0, ngroupsSnapshot);
+	    }
+	}
+	for (int i = 0 ; i < ngroupsSnapshot ; i++)
+	    suicide = groupsSnapshot[i].stopOrSuspend(suspend) || suicide;
+
+        return suicide;
+!!!7088027.java!!!	resume() : void
+	int ngroupsSnapshot;
+	ThreadGroup[] groupsSnapshot;
+	synchronized (this) {
+	    checkAccess();
+	    for (int i = 0 ; i < nthreads ; i++) {
+		threads[i].resume();
+	    }
+	    ngroupsSnapshot = ngroups;
+	    if (groups != null) {
+		groupsSnapshot = new ThreadGroup[ngroupsSnapshot];
+		System.arraycopy(groups, 0, groupsSnapshot, 0, ngroupsSnapshot);
+	    } else {
+		groupsSnapshot = null;
+	    }
+	}
+	for (int i = 0 ; i < ngroupsSnapshot ; i++) {
+	    groupsSnapshot[i].resume();
+	}
+!!!7088155.java!!!	destroy() : void
+	int ngroupsSnapshot;
+	ThreadGroup[] groupsSnapshot;
+	synchronized (this) {
+	    checkAccess();
+	    if (destroyed || (nthreads > 0)) {
+		throw new IllegalThreadStateException();
+	    }
+	    ngroupsSnapshot = ngroups;
+	    if (groups != null) {
+		groupsSnapshot = new ThreadGroup[ngroupsSnapshot];
+		System.arraycopy(groups, 0, groupsSnapshot, 0, ngroupsSnapshot);
+	    } else {
+		groupsSnapshot = null;
+	    }
+	    if (parent != null) {
+		destroyed = true;
+		ngroups = 0;
+		groups = null;
+		nthreads = 0;
+		threads = null;
+	    }
+	}
+	for (int i = 0 ; i < ngroupsSnapshot ; i += 1) {
+	    groupsSnapshot[i].destroy();
+	}
+	if (parent != null) {
+	    parent.remove(this);
+	}
+!!!7088283.java!!!	add(inout g : ThreadGroup) : void
+	synchronized (this) {
+	    if (destroyed) {
+		throw new IllegalThreadStateException();
+	    }
+	    if (groups == null) {
+		groups = new ThreadGroup[4];
+	    } else if (ngroups == groups.length) {
+		ThreadGroup newgroups[] = new ThreadGroup[ngroups * 2];
+		System.arraycopy(groups, 0, newgroups, 0, ngroups);
+		groups = newgroups;
+	    }
+	    groups[ngroups] = g;
+
+	    // This is done last so it doesn't matter in case the
+	    // thread is killed
+	    ngroups++;
+	}
+!!!7088411.java!!!	remove(inout g : ThreadGroup) : void
+	synchronized (this) {
+	    if (destroyed) {
+		return;
+	    }
+	    for (int i = 0 ; i < ngroups ; i++) {
+		if (groups[i] == g) {
+		    ngroups -= 1;
+		    System.arraycopy(groups, i + 1, groups, i, ngroups - i);
+		    // Zap dangling reference to the dead group so that
+		    // the garbage collector will collect it.
+		    groups[ngroups] = null;
+		    break;
+		}
+	    }
+	    if (nthreads == 0) {
+		notifyAll();
+	    }
+            if (daemon && (nthreads == 0) &&  
+                (nUnstartedThreads == 0) && (ngroups == 0))  
+            { 
+		destroy();
+	    }
+	}
+!!!7088539.java!!!	addUnstarted() : void
+        synchronized(this) {
+            if (destroyed) {
+                throw new IllegalThreadStateException();
+            }
+            nUnstartedThreads++;
+        }
+!!!7088667.java!!!	add(inout t : Thread) : void
+	synchronized (this) {
+	    if (destroyed) {
+		throw new IllegalThreadStateException();
+	    }
+	    if (threads == null) {
+		threads = new Thread[4];
+	    } else if (nthreads == threads.length) {
+		Thread newthreads[] = new Thread[nthreads * 2];
+		System.arraycopy(threads, 0, newthreads, 0, nthreads);
+		threads = newthreads;
+	    }
+	    threads[nthreads] = t;
+
+	    // This is done last so it doesn't matter in case the
+	    // thread is killed
+	    nthreads++;
+            nUnstartedThreads--;
+	}
+!!!7088795.java!!!	remove(inout t : Thread) : void
+	synchronized (this) {
+	    if (destroyed) {
+		return;
+	    }
+	    for (int i = 0 ; i < nthreads ; i++) {
+		if (threads[i] == t) {
+		    System.arraycopy(threads, i + 1, threads, i, --nthreads - i);
+		    // Zap dangling reference to the dead thread so that
+		    // the garbage collector will collect it.
+		    threads[nthreads] = null;
+		    break;
+		}
+	    }
+	    if (nthreads == 0) {
+		notifyAll();
+	    }
+            if (daemon && (nthreads == 0) &&  
+                (nUnstartedThreads == 0) && (ngroups == 0))  
+            { 
+		destroy();
+	    }
+	}
+!!!7088923.java!!!	list() : void
+	list(System.out, 0);
+!!!7089051.java!!!	list(inout out : PrintStream, in indent : int) : void
+	int ngroupsSnapshot;
+	ThreadGroup[] groupsSnapshot;
+	synchronized (this) {
+	    for (int j = 0 ; j < indent ; j++) {
+		out.print(" ");
+	    }
+	    out.println(this);
+	    indent += 4;
+	    for (int i = 0 ; i < nthreads ; i++) {
+		for (int j = 0 ; j < indent ; j++) {
+		    out.print(" ");
+		}
+		out.println(threads[i]);
+	    }
+	    ngroupsSnapshot = ngroups;
+	    if (groups != null) {
+		groupsSnapshot = new ThreadGroup[ngroupsSnapshot];
+		System.arraycopy(groups, 0, groupsSnapshot, 0, ngroupsSnapshot);
+	    } else {
+		groupsSnapshot = null;
+	    }
+	}
+	for (int i = 0 ; i < ngroupsSnapshot ; i++) {
+	    groupsSnapshot[i].list(out, indent);
+	}
+!!!7089179.java!!!	uncaughtException(inout t : Thread, inout e : Throwable) : void
+	if (parent != null) {
+	    parent.uncaughtException(t, e);
+	} else {
+            Thread.UncaughtExceptionHandler ueh = 
+                Thread.getDefaultUncaughtExceptionHandler();
+            if (ueh != null) {
+                ueh.uncaughtException(t, e);
+            } else if (!(e instanceof ThreadDeath)) {
+		System.err.print("Exception in thread \""
+				 + t.getName() + "\" ");
+                e.printStackTrace(System.err);
+            }
+        }
+!!!7089307.java!!!	allowThreadSuspension(inout b : boolean) : boolean
+	this.vmAllowSuspension = b;
+	if (!b) {
+	    VM.unsuspendSomeThreads();
+	}
+	return true;
+!!!7089435.java!!!	toString() : String
+	return getClass().getName() + "[name=" + getName() + ",maxpri=" + maxPriority + "]";

@@ -1,0 +1,387 @@
+class MBeanInstantiatorImpl
+!!!3193883.java!!!	MBeanInstantiatorImpl(inout clr : ModifiableClassLoaderRepository)
+	this.clr = clr;
+!!!3194011.java!!!	testCreation(inout c : Class) : void
+	Introspector.testCreation(c);
+!!!3194139.java!!!	findClassWithDefaultLoaderRepository(in className : String) : Class
+
+	Class theClass;
+	if (className == null) {
+	    throw new RuntimeOperationsException(new 
+		IllegalArgumentException("The class name cannot be null"), 
+                             "Exception occured during object instantiation");
+	}
+
+	try {
+	    if (clr == null) throw new ClassNotFoundException(className);
+	    theClass = clr.loadClass(className);
+	}
+	catch (ClassNotFoundException ee) {
+	    throw new ReflectionException(ee, 
+       "The MBean class could not be loaded by the default loader repository");
+	}
+	
+	return theClass;
+!!!3194267.java!!!	findClass(in className : String, inout loader : ClassLoader) : Class
+   
+        return loadClass(className,loader);
+!!!3194395.java!!!	findClass(in className : String, inout aLoader : ObjectName) : Class
+	Class theClass = null;
+
+        if (aLoader == null)  
+	    throw new RuntimeOperationsException(new 
+		IllegalArgumentException(), "Null loader passed in parameter");
+
+        // Retrieve the class loader from the repository
+        ClassLoader loader = null;
+        synchronized(this) {
+	    if (clr!=null) 
+		loader = clr.getClassLoader(aLoader);
+        }
+        if (loader == null) {
+            throw new InstanceNotFoundException("The loader named " + 
+		       aLoader + " is not registered in the MBeanServer");
+        }     
+	return findClass(className,loader);
+!!!3194523.java!!!	findSignatureClasses(in signature : String, inout loader : ClassLoader) : Class
+
+	if (signature == null) return null;
+	final ClassLoader aLoader = (ClassLoader) loader;
+	final int length= signature.length;
+	final Class tab[]=new Class[length]; 
+
+	if (length == 0) return tab;
+	try {
+	    for (int i= 0; i < length; i++) {
+		// Start handling primitive types (int. boolean and so 
+		// forth)
+		//
+		
+		final Class primCla = 
+		    StandardMetaDataImpl.findClassForPrim(signature[i]);
+		if (primCla != null) {
+		    tab[i] = primCla;
+		    continue;
+		}
+
+		// Ok we do not have a primitive type ! We need to build 
+		// the signature of the method
+		//
+		if (aLoader != null) {
+		    // We need to load the class through the class 
+		    // loader of the target object.
+		    // 
+		    tab[i] = Class.forName(signature[i], false, aLoader);
+		} else {
+		    // Load through the default class loader
+		    //
+		    tab[i] = findClass(signature[i], 
+				       this.getClass().getClassLoader());
+		}
+	    }
+	} catch (ClassNotFoundException e) {
+	    debugX("findSignatureClasses",e);
+	    throw new ReflectionException(e, 
+		      "The parameter class could not be found");
+	} catch (RuntimeException e) {
+	    debugX("findSignatureClasses",e);
+	    throw e; 
+	}
+	return tab;
+!!!3194651.java!!!	instantiate(inout theClass : Class) : Object
+        Object moi = null;
+
+
+	// ------------------------------ 
+	// ------------------------------
+        Constructor cons = 
+	    StandardMetaDataImpl.findConstructor(theClass, null);
+        if (cons == null) {
+            throw new ReflectionException(new 
+		NoSuchMethodException("No such constructor"));
+        }
+        // Instantiate the new object
+        try {
+            ReflectUtil.checkPackageAccess(theClass);
+            moi= cons.newInstance((Object[]) null);
+        } catch (InvocationTargetException e) {
+            // Wrap the exception.
+            Throwable t = e.getTargetException();
+            if (t instanceof RuntimeException) {
+                throw new RuntimeMBeanException((RuntimeException)t, 
+                   "RuntimeException thrown in the MBean's empty constructor");
+            } else if (t instanceof Error) {
+                throw new RuntimeErrorException((Error) t, 
+                   "Error thrown in the MBean's empty constructor");
+            } else {
+                throw new MBeanException((Exception) t, 
+                   "Exception thrown in the MBean's empty constructor");  
+            }
+        } catch (NoSuchMethodError error) {
+            throw new ReflectionException(new 
+		NoSuchMethodException("No constructor"), 
+					  "No such constructor");
+        } catch (InstantiationException e) {
+            throw new ReflectionException(e, 
+            "Exception thrown trying to invoke the MBean's empty constructor");
+        } catch (IllegalAccessException e) {
+            throw new ReflectionException(e, 
+            "Exception thrown trying to invoke the MBean's empty constructor");
+        } catch (IllegalArgumentException e) {
+            throw new ReflectionException(e, 
+            "Exception thrown trying to invoke the MBean's empty constructor");
+        }
+        return moi;
+
+!!!3194779.java!!!	instantiate(inout theClass : Class, inout params : Object, in signature : String, inout loader : ClassLoader) : Object
+        // Instantiate the new object    
+
+	// ------------------------------
+	// ------------------------------
+        final Class[] tab;
+        Object moi= null;
+        try {
+	    // Build the signature of the method
+	    //
+	    ClassLoader aLoader= (ClassLoader) theClass.getClassLoader();
+	    // Build the signature of the method
+	    //
+	    tab = 
+		((signature == null)?null:
+		 findSignatureClasses(signature,aLoader));
+	}
+        // Exception IllegalArgumentException raised in Jdk1.1.8
+        catch (IllegalArgumentException e) {
+            throw new ReflectionException(e, 
+		    "The constructor parameter classes could not be loaded");
+        }
+    
+        // Query the metadata service to get the right constructor          
+        Constructor cons = null;
+        cons= StandardMetaDataImpl.findConstructor(theClass, tab);
+        
+        if (cons == null) {
+            throw new ReflectionException(new 
+		NoSuchMethodException("No such constructor"));
+        }
+        try {
+            ReflectUtil.checkPackageAccess(theClass);
+            moi = cons.newInstance(params);
+        }
+        catch (NoSuchMethodError error) {
+            throw new ReflectionException(new 
+		NoSuchMethodException("No such constructor found"), 
+					  "No such constructor" );
+        }
+        catch (InstantiationException e) {
+            throw new ReflectionException(e, 
+                "Exception thrown trying to invoke the MBean's constructor");
+        }
+        catch (IllegalAccessException e) {
+            throw new ReflectionException(e, 
+                "Exception thrown trying to invoke the MBean's constructor");
+        }
+        catch (InvocationTargetException e) {
+            // Wrap the exception.         
+            Throwable th = e.getTargetException();
+            if (th instanceof RuntimeException) {
+                throw new RuntimeMBeanException((RuntimeException)th, 
+		      "RuntimeException thrown in the MBean's constructor");
+            } else if (th instanceof Error) {
+                throw new RuntimeErrorException((Error) th, 
+                      "Error thrown in the MBean's constructor");   
+            } else {
+                throw new MBeanException((Exception) th, 
+                      "Exception thrown in the MBean's constructor");
+            }
+        }       
+        return moi;
+!!!3194907.java!!!	deserialize(inout loader : ClassLoader, in data : byte) : ObjectInputStream
+
+        // Check parameter validity    
+        if (data == null) {
+            throw new  RuntimeOperationsException(new 
+		IllegalArgumentException(), "Null data passed in parameter");
+        }
+        if (data.length == 0) {
+	    throw new  RuntimeOperationsException(new 
+		IllegalArgumentException(), "Empty data passed in parameter");
+        }
+ 
+	// Object deserialization      
+        ByteArrayInputStream bIn;
+        ObjectInputStream    objIn;
+        String               typeStr;
+
+        bIn   = new ByteArrayInputStream(data);
+        try {
+            objIn = new ObjectInputStreamWithLoader(bIn,loader);
+        } catch (IOException e) {
+            throw new OperationsException(
+                     "An IOException occured trying to de-serialize the data");
+        }
+ 
+        return objIn;    
+!!!3195035.java!!!	deserialize(in className : String, inout loaderName : ObjectName, in data : byte, inout loader : ClassLoader) : ObjectInputStream
+
+        // Check parameter validity
+        if (data == null) {
+            throw new  RuntimeOperationsException(new 
+		IllegalArgumentException(), "Null data passed in parameter");
+        }
+        if (data.length == 0) {
+            throw new  RuntimeOperationsException(new 
+		IllegalArgumentException(), "Empty data passed in parameter");
+        }
+        if (className == null) {
+            throw new  RuntimeOperationsException(new 
+	     IllegalArgumentException(), "Null className passed in parameter");
+        }       
+        Class theClass = null;
+        if (loaderName == null) {
+            // Load the class using the agent class loader
+	    theClass = findClass(className, loader);
+        
+        } else {
+            // Get the class loader MBean
+	    try {
+		ClassLoader instance = null;
+		
+		if (clr!=null)  
+		    instance = clr.getClassLoader(loaderName);
+		if (instance == null) 
+		    throw new ClassNotFoundException(className);
+		theClass = Class.forName(className, false, instance);
+            }
+            catch (ClassNotFoundException e) {
+                throw new ReflectionException(e, 
+                               "The MBean class could not be loaded by the " + 
+		               loaderName.toString() + " class loader");
+            }
+        }
+ 
+        // Object deserialization
+        ByteArrayInputStream bIn;
+        ObjectInputStream    objIn;
+        String               typeStr;
+        
+        bIn   = new ByteArrayInputStream(data);
+        try {
+            objIn = new ObjectInputStreamWithLoader(bIn,
+					   theClass.getClassLoader());
+        } catch (IOException e) {
+            throw new OperationsException(
+                    "An IOException occured trying to de-serialize the data");
+        }
+        
+        return objIn;
+!!!3195163.java!!!	instantiate(in className : String) : Object
+
+	return instantiate(className, (Object[]) null, (String[]) null, null);
+!!!3195291.java!!!	instantiate(in className : String, inout loaderName : ObjectName, inout loader : ClassLoader) : Object
+
+	return instantiate(className, loaderName, (Object[]) null, 
+			   (String[]) null, loader);
+!!!3195419.java!!!	instantiate(in className : String, inout params : Object, in signature : String, inout loader : ClassLoader) : Object
+
+	Class theClass = findClassWithDefaultLoaderRepository(className);
+	return instantiate(theClass, params, signature, loader);
+!!!3195547.java!!!	instantiate(in className : String, inout loaderName : ObjectName, inout params : Object, in signature : String, inout loader : ClassLoader) : Object
+
+	// ------------------------------ 
+	// ------------------------------
+	Class theClass;
+	
+	if (loaderName == null) {
+	    theClass = findClass(className, loader);
+	} else {
+	    theClass = findClass(className, loaderName);	
+	}       
+	return instantiate(theClass, params, signature, loader);
+!!!3195675.java!!!	getClassLoaderRepository() : ModifiableClassLoaderRepository
+	return clr;
+!!!3195803.java!!!	loadClass(in className : String, inout loader : ClassLoader) : Class
+   
+        Class theClass = null;
+	if (className == null) {
+	    throw new RuntimeOperationsException(new 
+		IllegalArgumentException("The class name cannot be null"), 
+                              "Exception occured during object instantiation");
+	} 
+	try {
+	    if (loader == null) 
+		loader = MBeanInstantiatorImpl.class.getClassLoader();
+	    if (loader != null) {
+		theClass = Class.forName(className, false, loader);
+	    } else {
+		theClass = Class.forName(className);
+	    }
+	} catch (ClassNotFoundException e) {
+	    throw new ReflectionException(e, 
+	    "The MBean class could not be loaded by the context classloader");
+	}
+        return theClass;
+!!!3195931.java!!!	loadSignatureClasses(in signature : String, inout loader : ClassLoader) : Class
+	    
+	if (signature == null) return null;
+	final ClassLoader aLoader = 
+   	   (loader==null?MBeanInstantiatorImpl.class.getClassLoader():loader);
+	final int length= signature.length;
+	final Class tab[]=new Class[length]; 
+
+	if (length == 0) return tab;
+	try {
+	    for (int i= 0; i < length; i++) {
+		// Start handling primitive types (int. boolean and so 
+		// forth)
+		//
+		
+		final Class primCla = 
+		    StandardMetaDataImpl.findClassForPrim(signature[i]);
+		if (primCla != null) {
+		    tab[i] = primCla;
+		    continue;
+		}
+
+		// Ok we do not have a primitive type ! We need to build 
+		// the signature of the method
+		//
+		// We need to load the class through the class 
+		// loader of the target object.
+		// 
+		tab[i] = Class.forName(signature[i], false, aLoader);
+	    }
+	} catch (ClassNotFoundException e) {
+	    debugX("findSignatureClasses",e);
+	    throw new ReflectionException(e, 
+		      "The parameter class could not be found");
+	} catch (RuntimeException e) {
+	    debugX("findSignatureClasses",e);
+	    throw e; 
+	}
+	return tab;
+!!!3196059.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_MBEANSERVER);
+!!!3196187.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_MBEANSERVER, clz, func, info);
+!!!3196315.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!3196443.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_MBEANSERVER);
+!!!3196571.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_MBEANSERVER, clz, func, info);
+!!!3196699.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);
+!!!3196827.java!!!	debugX(in func : String, inout e : Throwable) : void
+	if (isDebugOn()) {
+	    final StringWriter s = new StringWriter();
+	    e.printStackTrace(new PrintWriter(s));
+	    final String stack = s.toString();
+	    
+	    debug(dbgTag,func,"Exception caught in "+ func+"(): "+e);
+	    debug(dbgTag,func,stack);
+	    
+	    // java.lang.System.err.println("**** Exception caught in "+
+	    //				 func+"(): "+e);
+	    // java.lang.System.err.println(stack);
+	}

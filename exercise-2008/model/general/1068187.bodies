@@ -1,0 +1,134 @@
+class HashAttributeSet
+!!!8580763.java!!!	writeObject(inout s : ObjectOutputStream) : void
+
+	s.defaultWriteObject();
+	Attribute [] attrs = toArray();
+	s.writeInt(attrs.length);
+	for (int i = 0; i < attrs.length; i++) {
+	    s.writeObject(attrs[i]);
+	}
+!!!8580891.java!!!	readObject(inout s : ObjectInputStream) : void
+	
+	s.defaultReadObject();
+	attrMap = new HashMap();
+	int count = s.readInt();
+	Attribute attr;
+	for (int i = 0; i < count; i++) {
+	    attr = (Attribute)s.readObject();
+	    add(attr);
+	}	
+!!!8581019.java!!!	HashAttributeSet()
+	this(Attribute.class);
+!!!8581147.java!!!	HashAttributeSet(inout attribute : Attribute)
+	this (attribute, Attribute.class);
+!!!8581275.java!!!	HashAttributeSet(inout attributes : Attribute)
+	this (attributes, Attribute.class);
+!!!8581403.java!!!	HashAttributeSet(inout attributes : AttributeSet)
+	this (attributes, Attribute.class);
+!!!8581531.java!!!	HashAttributeSet(inout interfaceName : Class)
+	if (interfaceName == null) {
+	    throw new NullPointerException("null interface");
+	}
+	myInterface = interfaceName;
+!!!8581659.java!!!	HashAttributeSet(inout attribute : Attribute, inout interfaceName : Class)
+	if (interfaceName == null) {
+	    throw new NullPointerException("null interface");
+	}
+	myInterface = interfaceName;
+	add (attribute);
+!!!8581787.java!!!	HashAttributeSet(inout attributes : Attribute, inout interfaceName : Class)
+	if (interfaceName == null) {
+	    throw new NullPointerException("null interface");
+	}
+	myInterface = interfaceName;
+	int n = attributes == null ? 0 : attributes.length;
+	for (int i = 0; i < n; ++ i) {
+	    add (attributes[i]);
+	}
+!!!8581915.java!!!	HashAttributeSet(inout attributes : AttributeSet, inout interfaceName : Class)
+      myInterface = interfaceName;
+      if (attributes != null) {
+	Attribute[] attribArray = attributes.toArray();	    
+	int n = attribArray == null ? 0 : attribArray.length;
+	for (int i = 0; i < n; ++ i) {
+	  add (attribArray[i]);
+	}
+      }
+!!!8582043.java!!!	get(inout category : Class) : Attribute
+	return (Attribute)
+	    attrMap.get(AttributeSetUtilities.
+			verifyAttributeCategory(category,
+						Attribute.class));
+!!!8582171.java!!!	add(inout attribute : Attribute) : boolean
+	Object oldAttribute = 
+	    attrMap.put(attribute.getCategory(),
+			AttributeSetUtilities.
+			verifyAttributeValue(attribute, myInterface));
+	return (!attribute.equals(oldAttribute));
+!!!8582299.java!!!	remove(inout category : Class) : boolean
+	return
+	    category != null &&
+	    AttributeSetUtilities.
+	    verifyAttributeCategory(category, Attribute.class) != null &&
+	    attrMap.remove(category) != null;
+!!!8582427.java!!!	remove(inout attribute : Attribute) : boolean
+	return
+	    attribute != null &&
+	    attrMap.remove(attribute.getCategory()) != null;
+!!!8582555.java!!!	containsKey(inout category : Class) : boolean
+	return
+	    category != null &&
+	    AttributeSetUtilities.
+	    verifyAttributeCategory(category, Attribute.class) != null &&
+	    attrMap.get(category) != null;
+!!!8582683.java!!!	containsValue(inout attribute : Attribute) : boolean
+	return
+	   attribute != null &&
+	   attribute instanceof Attribute &&
+	   attribute.equals(attrMap.get(((Attribute)attribute).getCategory()));
+!!!8582811.java!!!	addAll(inout attributes : AttributeSet) : boolean
+	
+	Attribute []attrs = attributes.toArray();
+	boolean result = false;
+	for (int i=0; i<attrs.length; i++) {
+	    Attribute newValue =
+		AttributeSetUtilities.verifyAttributeValue(attrs[i], 
+							   myInterface);
+	    Object oldValue = attrMap.put(newValue.getCategory(), newValue);
+	    result = (! newValue.equals(oldValue)) || result;
+	}
+	return result;
+!!!8582939.java!!!	size() : int
+	return attrMap.size();
+!!!8583067.java!!!	toArray() : Attribute
+	Attribute []attrs = new Attribute[size()];
+	attrMap.values().toArray(attrs);
+	return attrs;
+!!!8583195.java!!!	clear() : void
+	attrMap.clear();
+!!!8583323.java!!!	isEmpty() : boolean
+	return attrMap.isEmpty();
+!!!8583451.java!!!	equals(inout object : Object) : boolean
+	if (object == null || !(object instanceof AttributeSet)) {
+	    return false;
+	}
+
+	AttributeSet aset = (AttributeSet)object;
+	if (aset.size() != size()) {
+	    return false;
+	}
+
+	Attribute[] attrs = toArray();    
+	for (int i=0;i<attrs.length; i++) {
+	    if (!aset.containsValue(attrs[i])) {
+		return false;
+	    }
+	}
+	return true;
+!!!8583579.java!!!	hashCode() : int
+	int hcode = 0;
+	Attribute[] attrs = toArray();    
+	for (int i=0;i<attrs.length; i++) {
+	    hcode += attrs[i].hashCode();
+	}
+	return hcode;

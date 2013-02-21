@@ -1,0 +1,457 @@
+class JComboBox
+!!!2380315.java!!!	JComboBox(inout aModel : ComboBoxModel)
+        super();
+        setModel(aModel);
+        init();
+!!!2380443.java!!!	JComboBox(in items : Object)
+        super();
+        setModel(new DefaultComboBoxModel(items));
+        init();
+!!!2380571.java!!!	JComboBox(inout items : Vector)
+        super();
+        setModel(new DefaultComboBoxModel(items));
+        init();
+!!!2380699.java!!!	JComboBox()
+        super();
+        setModel(new DefaultComboBoxModel());
+        init();
+!!!2380827.java!!!	init() : void
+        installAncestorListener();
+        setOpaque(true);
+        updateUI();
+!!!2380955.java!!!	installAncestorListener() : void
+        addAncestorListener(new AncestorListener(){
+                                public void ancestorAdded(AncestorEvent event){ hidePopup();}
+                                public void ancestorRemoved(AncestorEvent event){ hidePopup();}
+                                public void ancestorMoved(AncestorEvent event){ 
+                                    if (event.getSource() != JComboBox.this)
+                                        hidePopup();
+                                }});
+!!!2381083.java!!!	setUI(inout ui : ComboBoxUI) : void
+        super.setUI(ui);
+!!!2381211.java!!!	updateUI() : void
+        setUI((ComboBoxUI)UIManager.getUI(this));
+!!!2381339.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!2381467.java!!!	getUI() : ComboBoxUI
+        return(ComboBoxUI)ui;
+!!!2381595.java!!!	setModel(inout aModel : ComboBoxModel) : void
+        ComboBoxModel oldModel = dataModel;
+	if (oldModel != null) {
+	    oldModel.removeListDataListener(this);
+	}
+        dataModel = aModel;
+	dataModel.addListDataListener(this);
+	
+	// set the current selected item.
+	selectedItemReminder = dataModel.getSelectedItem();
+
+        firePropertyChange( "model", oldModel, dataModel);
+!!!2381723.java!!!	getModel() : ComboBoxModel
+        return dataModel;
+!!!2381851.java!!!	setLightWeightPopupEnabled(inout aFlag : boolean) : void
+	boolean oldFlag = lightWeightPopupEnabled;
+        lightWeightPopupEnabled = aFlag;
+	firePropertyChange("lightWeightPopupEnabled", oldFlag, lightWeightPopupEnabled);
+!!!2381979.java!!!	isLightWeightPopupEnabled() : boolean
+ 
+        return lightWeightPopupEnabled;
+!!!2382107.java!!!	setEditable(inout aFlag : boolean) : void
+        boolean oldFlag = isEditable;
+        isEditable = aFlag;
+        firePropertyChange( "editable", oldFlag, isEditable );
+!!!2382235.java!!!	isEditable() : boolean
+        return isEditable;
+!!!2382363.java!!!	setMaximumRowCount(in count : int) : void
+        int oldCount = maximumRowCount;
+        maximumRowCount = count;
+        firePropertyChange( "maximumRowCount", oldCount, maximumRowCount );
+!!!2382491.java!!!	getMaximumRowCount() : int
+        return maximumRowCount;
+!!!2382619.java!!!	setRenderer(inout aRenderer : ListCellRenderer) : void
+        ListCellRenderer oldRenderer = renderer;
+        renderer = aRenderer;
+        firePropertyChange( "renderer", oldRenderer, renderer );
+        invalidate();
+!!!2382747.java!!!	getRenderer() : ListCellRenderer
+        return renderer;
+!!!2382875.java!!!	setEditor(inout anEditor : ComboBoxEditor) : void
+        ComboBoxEditor oldEditor = editor;
+
+        if ( editor != null ) {
+            editor.removeActionListener(this);
+	}
+        editor = anEditor;
+        if ( editor != null ) {
+            editor.addActionListener(this);
+        }
+        firePropertyChange( "editor", oldEditor, editor );
+!!!2383003.java!!!	getEditor() : ComboBoxEditor
+        return editor;
+!!!2383131.java!!!	setSelectedItem(inout anObject : Object) : void
+	Object oldSelection = selectedItemReminder;
+	if (oldSelection == null || !oldSelection.equals(anObject)) {
+
+	    if (anObject != null && !isEditable()) {
+		// For non editable combo boxes, an invalid selection
+		// will be rejected.
+		boolean found = false;
+		for (int i = 0; i < dataModel.getSize(); i++) {
+		    if (anObject.equals(dataModel.getElementAt(i))) {
+			found = true;
+			break;
+		    }
+		}
+		if (!found) {
+		    return;
+		}
+	    }
+	    
+	    // Must toggle the state of this flag since this method
+	    // call may result in ListDataEvents being fired.
+	    selectingItem = true;
+	    dataModel.setSelectedItem(anObject);
+	    selectingItem = false;
+
+	    if (selectedItemReminder != dataModel.getSelectedItem()) {
+		// in case a users implementation of ComboBoxModel
+		// doesn't fire a ListDataEvent when the selection
+		// changes.
+		selectedItemChanged();
+	    }
+	}
+	fireActionEvent();
+!!!2383259.java!!!	getSelectedItem() : Object
+        return dataModel.getSelectedItem();
+!!!2383387.java!!!	setSelectedIndex(in anIndex : int) : void
+        int size = dataModel.getSize();
+
+        if ( anIndex == -1 ) {
+            setSelectedItem( null );
+        } else if ( anIndex < -1 || anIndex >= size ) {
+            throw new IllegalArgumentException("setSelectedIndex: " + anIndex + " out of bounds");
+        } else {
+            setSelectedItem(dataModel.getElementAt(anIndex));
+        }
+!!!2383515.java!!!	getSelectedIndex() : int
+        Object sObject = dataModel.getSelectedItem();
+        int i,c;
+        Object obj;
+
+        for ( i=0,c=dataModel.getSize();i<c;i++ ) {
+            obj = dataModel.getElementAt(i);
+            if ( obj != null && obj.equals(sObject) )
+                return i;
+        }
+        return -1;
+!!!2383643.java!!!	getPrototypeDisplayValue() : Object
+        return prototypeDisplayValue;
+!!!2383771.java!!!	setPrototypeDisplayValue(inout prototypeDisplayValue : Object) : void
+        Object oldValue = this.prototypeDisplayValue;
+        this.prototypeDisplayValue = prototypeDisplayValue;
+        firePropertyChange("prototypeDisplayValue", oldValue, prototypeDisplayValue);
+!!!2383899.java!!!	addItem(inout anObject : Object) : void
+        checkMutableComboBoxModel();
+        ((MutableComboBoxModel)dataModel).addElement(anObject);
+!!!2384027.java!!!	insertItemAt(inout anObject : Object, in index : int) : void
+        checkMutableComboBoxModel();
+        ((MutableComboBoxModel)dataModel).insertElementAt(anObject,index);
+!!!2384155.java!!!	removeItem(inout anObject : Object) : void
+        checkMutableComboBoxModel();
+        ((MutableComboBoxModel)dataModel).removeElement(anObject);
+!!!2384283.java!!!	removeItemAt(in anIndex : int) : void
+        checkMutableComboBoxModel();
+        ((MutableComboBoxModel)dataModel).removeElementAt( anIndex );
+!!!2384411.java!!!	removeAllItems() : void
+        checkMutableComboBoxModel();
+        MutableComboBoxModel model = (MutableComboBoxModel)dataModel;
+        int size = model.getSize();
+
+        if ( model instanceof DefaultComboBoxModel ) {
+            ((DefaultComboBoxModel)model).removeAllElements();
+        }
+        else {
+            for ( int i = 0; i < size; ++i ) {
+                Object element = model.getElementAt( 0 );
+                model.removeElement( element );
+            }
+        }
+	selectedItemReminder = null;
+	if (isEditable()) {
+	    editor.setItem(null);
+	}
+!!!2384539.java!!!	checkMutableComboBoxModel() : void
+        if ( !(dataModel instanceof MutableComboBoxModel) )
+            throw new RuntimeException("Cannot use this method with a non-Mutable data model.");
+!!!2384667.java!!!	showPopup() : void
+        setPopupVisible(true);
+!!!2384795.java!!!	hidePopup() : void
+        setPopupVisible(false);
+!!!2384923.java!!!	setPopupVisible(inout v : boolean) : void
+        getUI().setPopupVisible(this, v);
+!!!2385051.java!!!	isPopupVisible() : boolean
+        return getUI().isPopupVisible(this);
+!!!2385179.java!!!	addItemListener(inout aListener : ItemListener) : void
+        listenerList.add(ItemListener.class,aListener);
+!!!2385307.java!!!	removeItemListener(inout aListener : ItemListener) : void
+        listenerList.remove(ItemListener.class,aListener);
+!!!2385435.java!!!	getItemListeners() : ItemListener
+        return (ItemListener[])listenerList.getListeners(ItemListener.class);
+!!!2385563.java!!!	addActionListener(inout l : ActionListener) : void
+        listenerList.add(ActionListener.class,l);
+!!!2385691.java!!!	removeActionListener(inout l : ActionListener) : void
+	if ((l != null) && (getAction() == l)) {
+	    setAction(null);
+	} else {
+	    listenerList.remove(ActionListener.class, l);
+	}
+!!!2385819.java!!!	getActionListeners() : ActionListener
+        return (ActionListener[])listenerList.getListeners(
+                ActionListener.class);
+!!!2385947.java!!!	addPopupMenuListener(inout l : PopupMenuListener) : void
+        listenerList.add(PopupMenuListener.class,l);
+!!!2386075.java!!!	removePopupMenuListener(inout l : PopupMenuListener) : void
+        listenerList.remove(PopupMenuListener.class,l);
+!!!2386203.java!!!	getPopupMenuListeners() : PopupMenuListener
+        return (PopupMenuListener[])listenerList.getListeners(
+                PopupMenuListener.class);
+!!!2386331.java!!!	firePopupMenuWillBecomeVisible() : void
+        Object[] listeners = listenerList.getListenerList();
+        PopupMenuEvent e=null;
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==PopupMenuListener.class) {
+                if (e == null)
+                    e = new PopupMenuEvent(this);
+                ((PopupMenuListener)listeners[i+1]).popupMenuWillBecomeVisible(e);
+            }
+        }    
+!!!2386459.java!!!	firePopupMenuWillBecomeInvisible() : void
+        Object[] listeners = listenerList.getListenerList();
+        PopupMenuEvent e=null;
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==PopupMenuListener.class) {
+                if (e == null)
+                    e = new PopupMenuEvent(this);
+                ((PopupMenuListener)listeners[i+1]).popupMenuWillBecomeInvisible(e);
+            }
+        }            
+!!!2386587.java!!!	firePopupMenuCanceled() : void
+        Object[] listeners = listenerList.getListenerList();
+        PopupMenuEvent e=null;
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==PopupMenuListener.class) {
+                if (e == null)
+                    e = new PopupMenuEvent(this);
+                ((PopupMenuListener)listeners[i+1]).popupMenuCanceled(e);
+            }
+        }
+!!!2386715.java!!!	setActionCommand(in aCommand : String) : void
+        actionCommand = aCommand;
+!!!2386843.java!!!	getActionCommand() : String
+        return actionCommand;
+!!!2386971.java!!!	setAction(inout a : Action) : void
+	Action oldValue = getAction();
+	if (action==null || !action.equals(a)) {
+	    action = a;
+	    if (oldValue!=null) {
+		removeActionListener(oldValue);
+		oldValue.removePropertyChangeListener(actionPropertyChangeListener);
+		actionPropertyChangeListener = null;
+	    }
+	    configurePropertiesFromAction(action);
+	    if (action!=null) {		
+		// Don't add if it is already a listener
+		if (!isListener(ActionListener.class, action)) {
+		    addActionListener(action);
+		}
+		// Reverse linkage:
+		actionPropertyChangeListener = createActionPropertyChangeListener(action);
+		action.addPropertyChangeListener(actionPropertyChangeListener);
+	    }
+	    firePropertyChange("action", oldValue, action);
+	    revalidate();
+	    repaint();
+	}
+!!!2387099.java!!!	isListener(inout c : Class, inout a : ActionListener) : boolean
+	boolean isListener = false;
+	Object[] listeners = listenerList.getListenerList();
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==c && listeners[i+1]==a) {
+		    isListener=true;
+	    }
+	}
+	return isListener;
+!!!2387227.java!!!	getAction() : Action
+	return action;
+!!!2387355.java!!!	configurePropertiesFromAction(inout a : Action) : void
+	setEnabled((a!=null?a.isEnabled():true));
+ 	setToolTipText((a!=null?(String)a.getValue(Action.SHORT_DESCRIPTION):null));	
+!!!2387483.java!!!	createActionPropertyChangeListener(inout a : Action) : PropertyChangeListener
+        return new AbstractActionPropertyChangeListener(this, a) {
+	    public void propertyChange(PropertyChangeEvent e) {	    
+		String propertyName = e.getPropertyName();
+		JComboBox comboBox = (JComboBox)getTarget();
+		if (comboBox == null) {   //WeakRef GC'ed in 1.2
+		    Action action = (Action)e.getSource();
+		    action.removePropertyChangeListener(this);
+		} else {
+		    if (e.getPropertyName().equals(Action.SHORT_DESCRIPTION)) {
+			String text = (String) e.getNewValue();
+			comboBox.setToolTipText(text);
+		    } else if (propertyName.equals("enabled")) {
+			Boolean enabledState = (Boolean) e.getNewValue();
+			comboBox.setEnabled(enabledState.booleanValue());
+			comboBox.repaint();
+		    } 
+		}
+	    }
+	};
+!!!2387611.java!!!	fireItemStateChanged(inout e : ItemEvent) : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for ( int i = listeners.length-2; i>=0; i-=2 ) {
+            if ( listeners[i]==ItemListener.class ) {
+                // Lazily create the event:
+                // if (changeEvent == null)
+                // changeEvent = new ChangeEvent(this);
+                ((ItemListener)listeners[i+1]).itemStateChanged(e);
+            }
+        }
+!!!2387739.java!!!	fireActionEvent() : void
+	if (!firingActionEvent) {
+	    // Set flag to ensure that an infinite loop is not created
+	    firingActionEvent = true;
+	    ActionEvent e = null;
+	    // Guaranteed to return a non-null array
+	    Object[] listeners = listenerList.getListenerList();
+            long mostRecentEventTime = EventQueue.getMostRecentEventTime();
+            int modifiers = 0;
+            AWTEvent currentEvent = EventQueue.getCurrentEvent();
+            if (currentEvent instanceof InputEvent) {
+                modifiers = ((InputEvent)currentEvent).getModifiers();
+            } else if (currentEvent instanceof ActionEvent) {
+                modifiers = ((ActionEvent)currentEvent).getModifiers();
+            }
+	    // Process the listeners last to first, notifying
+	    // those that are interested in this event
+	    for ( int i = listeners.length-2; i>=0; i-=2 ) {
+		if ( listeners[i]==ActionListener.class ) {
+		    // Lazily create the event:
+		    if ( e == null )
+			e = new ActionEvent(this,ActionEvent.ACTION_PERFORMED,
+                                            getActionCommand(),
+                                            mostRecentEventTime, modifiers);
+		    ((ActionListener)listeners[i+1]).actionPerformed(e);
+		}
+	    }
+	    firingActionEvent = false;
+	}
+!!!2387867.java!!!	selectedItemChanged() : void
+	if (selectedItemReminder != null ) {
+	    fireItemStateChanged(new ItemEvent(this,ItemEvent.ITEM_STATE_CHANGED,
+					       selectedItemReminder,
+					       ItemEvent.DESELECTED));
+	}
+	
+	// set the new selected item.
+	selectedItemReminder = dataModel.getSelectedItem();
+
+	if (selectedItemReminder != null ) {
+	    fireItemStateChanged(new ItemEvent(this,ItemEvent.ITEM_STATE_CHANGED,
+					       selectedItemReminder,
+					       ItemEvent.SELECTED));
+	}
+!!!2387995.java!!!	getSelectedObjects() : Object
+        Object selectedObject = getSelectedItem();
+        if ( selectedObject == null )
+            return new Object[0];
+        else {
+            Object result[] = new Object[1];
+            result[0] = selectedObject;
+            return result;
+        }
+!!!2388123.java!!!	actionPerformed(inout e : ActionEvent) : void
+        Object newItem = getEditor().getItem();
+        setPopupVisible(false);
+        getModel().setSelectedItem(newItem);
+	String oldCommand = getActionCommand();
+	setActionCommand("comboBoxEdited");
+	fireActionEvent();
+	setActionCommand(oldCommand);
+!!!2388251.java!!!	contentsChanged(inout e : ListDataEvent) : void
+	Object oldSelection = selectedItemReminder;
+	Object newSelection = dataModel.getSelectedItem();
+	if (oldSelection == null || !oldSelection.equals(newSelection)) {
+	    selectedItemChanged();
+	    if (!selectingItem) {
+		fireActionEvent();
+	    }
+	}
+!!!2388379.java!!!	intervalAdded(inout e : ListDataEvent) : void
+	if (selectedItemReminder != dataModel.getSelectedItem()) {
+	    selectedItemChanged();
+	}
+!!!2388507.java!!!	intervalRemoved(inout e : ListDataEvent) : void
+	contentsChanged(e);
+!!!2388635.java!!!	selectWithKeyChar(in keyChar : char) : boolean
+        int index;
+
+        if ( keySelectionManager == null )
+            keySelectionManager = createDefaultKeySelectionManager();
+
+        index = keySelectionManager.selectionForKey(keyChar,getModel());
+        if ( index != -1 ) {
+            setSelectedIndex(index);
+            return true;
+        }
+        else
+            return false;
+!!!2388763.java!!!	setEnabled(inout b : boolean) : void
+        super.setEnabled(b);
+        firePropertyChange( "enabled", !isEnabled(), isEnabled() );
+!!!2388891.java!!!	configureEditor(inout anEditor : ComboBoxEditor, inout anItem : Object) : void
+        anEditor.setItem(anItem);
+!!!2389019.java!!!	processKeyEvent(inout e : KeyEvent) : void
+        if ( e.getKeyCode() == KeyEvent.VK_TAB ) {
+            hidePopup();
+        }
+        super.processKeyEvent(e);
+!!!2389147.java!!!	setKeySelectionManager(inout aManager : KeySelectionManager) : void
+        keySelectionManager = aManager;
+!!!2389275.java!!!	getKeySelectionManager() : KeySelectionManager
+        return keySelectionManager;
+!!!2389403.java!!!	getItemCount() : int
+        return dataModel.getSize();
+!!!2389531.java!!!	getItemAt(in index : int) : Object
+        return dataModel.getElementAt(index);
+!!!2389659.java!!!	createDefaultKeySelectionManager() : KeySelectionManager
+        return new DefaultKeySelectionManager();
+!!!2390043.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!2390171.java!!!	paramString() : String
+        String selectedItemReminderString = (selectedItemReminder != null ?
+                                             selectedItemReminder.toString() :
+                                             "");
+        String isEditableString = (isEditable ? "true" : "false");
+        String lightWeightPopupEnabledString = (lightWeightPopupEnabled ?
+                                                "true" : "false");
+
+        return super.paramString() +
+        ",isEditable=" + isEditableString +
+        ",lightWeightPopupEnabled=" + lightWeightPopupEnabledString +
+        ",maximumRowCount=" + maximumRowCount +
+        ",selectedItemReminder=" + selectedItemReminderString;
+!!!2390299.java!!!	getAccessibleContext() : AccessibleContext
+        if ( accessibleContext == null ) {
+            accessibleContext = new AccessibleJComboBox();
+        }
+        return accessibleContext;

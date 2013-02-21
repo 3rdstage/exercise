@@ -1,0 +1,85 @@
+class BooleanType
+!!!4493723.java!!!	toString() : String
+	return "boolean";
+!!!4493851.java!!!	identicalTo(inout other : Type) : boolean
+	return this == other;
+!!!4493979.java!!!	toSignature() : String
+	return "Z";
+!!!4494107.java!!!	isSimple() : boolean
+	return true;
+!!!4494235.java!!!	toJCType() : Type
+	return com.sun.org.apache.bcel.internal.generic.Type.BOOLEAN;
+!!!4494363.java!!!	translateTo(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout type : Type) : void
+	if (type == Type.String) {
+	    translateTo(classGen, methodGen, (StringType) type);
+	}
+	else if (type == Type.Real) {
+	    translateTo(classGen, methodGen, (RealType) type);
+	}
+	else if (type == Type.Reference) {
+	    translateTo(classGen, methodGen, (ReferenceType) type);
+	}
+	else {
+	    ErrorMsg err = new ErrorMsg(ErrorMsg.DATA_CONVERSION_ERR,
+					toString(), type.toString());
+	    classGen.getParser().reportError(Constants.FATAL, err);
+	}
+!!!4494491.java!!!	translateTo(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout type : StringType) : void
+	final ConstantPoolGen cpg = classGen.getConstantPool();
+	final InstructionList il = methodGen.getInstructionList();
+	final BranchHandle falsec = il.append(new IFEQ(null));
+	il.append(new PUSH(cpg, "true"));
+	final BranchHandle truec = il.append(new GOTO(null));
+	falsec.setTarget(il.append(new PUSH(cpg, "false")));
+	truec.setTarget(il.append(NOP));
+!!!4494619.java!!!	translateTo(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout type : RealType) : void
+	methodGen.getInstructionList().append(I2D);
+!!!4494747.java!!!	translateTo(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout type : ReferenceType) : void
+	final ConstantPoolGen cpg = classGen.getConstantPool();
+	final InstructionList il = methodGen.getInstructionList();
+	il.append(new NEW(cpg.addClass(BOOLEAN_CLASS)));
+	il.append(DUP_X1);
+	il.append(SWAP);
+	il.append(new INVOKESPECIAL(cpg.addMethodref(BOOLEAN_CLASS,
+						     "<init>",
+						     "(Z)V")));
+!!!4494875.java!!!	translateTo(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout clazz : Class) : void
+	if (clazz == java.lang.Boolean.TYPE) {
+	    methodGen.getInstructionList().append(NOP);
+	}
+        // Is Boolean <: clazz? I.e. clazz in { Boolean, Object }
+        else if (clazz.isAssignableFrom(java.lang.Boolean.class)) {
+            translateTo(classGen, methodGen, Type.Reference);
+        }
+	else {
+	    ErrorMsg err = new ErrorMsg(ErrorMsg.DATA_CONVERSION_ERR,
+					toString(), clazz.getName());
+	    classGen.getParser().reportError(Constants.FATAL, err);
+	}
+!!!4495003.java!!!	translateFrom(inout classGen : ClassGenerator, inout methodGen : MethodGenerator, inout clazz : Class) : void
+	translateTo(classGen, methodGen, clazz);
+!!!4495131.java!!!	translateBox(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	translateTo(classGen, methodGen, Type.Reference);
+!!!4495259.java!!!	translateUnBox(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	final ConstantPoolGen cpg = classGen.getConstantPool();
+	final InstructionList il = methodGen.getInstructionList();
+	il.append(new CHECKCAST(cpg.addClass(BOOLEAN_CLASS)));
+	il.append(new INVOKEVIRTUAL(cpg.addMethodref(BOOLEAN_CLASS,
+						     BOOLEAN_VALUE, 
+						     BOOLEAN_VALUE_SIG)));
+!!!4495387.java!!!	LOAD(in slot : int) : Instruction
+	return new ILOAD(slot);
+!!!4495515.java!!!	STORE(in slot : int) : Instruction
+	return new ISTORE(slot);
+!!!4495643.java!!!	GT(inout tozero : boolean) : BranchInstruction
+	return tozero ? (BranchInstruction) new IFGT(null) : 
+	    (BranchInstruction) new IF_ICMPGT(null);
+!!!4495771.java!!!	GE(inout tozero : boolean) : BranchInstruction
+	return tozero ? (BranchInstruction) new IFGE(null) : 
+	    (BranchInstruction) new IF_ICMPGE(null);
+!!!4495899.java!!!	LT(inout tozero : boolean) : BranchInstruction
+	return tozero ? (BranchInstruction) new IFLT(null) : 
+	    (BranchInstruction) new IF_ICMPLT(null);
+!!!4496027.java!!!	LE(inout tozero : boolean) : BranchInstruction
+	return tozero ? (BranchInstruction) new IFLE(null) : 
+	    (BranchInstruction) new IF_ICMPLE(null);

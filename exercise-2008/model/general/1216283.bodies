@@ -1,0 +1,225 @@
+class SchemaFactoryFinder
+!!!10095899.java!!!	debugPrintln(in msg : String) : void
+        if (debug) {
+            System.err.println("JAXP: " + msg);
+        }
+!!!10096027.java!!!	SchemaFactoryFinder(inout loader : ClassLoader)
+        this.classLoader = loader;
+        if( debug ) {
+            debugDisplayClassLoader();
+        }
+!!!10096155.java!!!	debugDisplayClassLoader() : void
+        try {
+            if( classLoader == ss.getContextClassLoader() ) {
+                debugPrintln("using thread context class loader ("+classLoader+") for search");
+                return;
+            }
+        } catch( Throwable _ ) {
+            ; // getContextClassLoader() undefined in JDK1.1 
+        }
+        
+        if( classLoader==ClassLoader.getSystemClassLoader() ) {
+            debugPrintln("using system class loader ("+classLoader+") for search");
+            return;
+        }
+
+        debugPrintln("using class loader ("+classLoader+") for search");
+!!!10096283.java!!!	newFactory(in schemaLanguage : String) : SchemaFactory
+        if(schemaLanguage==null)        throw new NullPointerException();
+        SchemaFactory f = _newFactory(schemaLanguage);
+        if (f != null) {
+            debugPrintln("factory '" + f.getClass().getName() + "' was found for " + schemaLanguage);
+        } else {
+            debugPrintln("unable to find a factory for " + schemaLanguage);
+        }
+        return f;
+!!!10096411.java!!!	_newFactory(in schemaLanguage : String) : SchemaFactory
+        SchemaFactory sf;
+        
+        String propertyName = SERVICE_CLASS.getName() + ":" + schemaLanguage;
+        
+        // system property look up
+        try {
+            debugPrintln("Looking up system property '"+propertyName+"'" );
+            String r = ss.getSystemProperty(propertyName);
+            if(r!=null) {
+                debugPrintln("The value is '"+r+"'");
+                sf = createInstance(r);
+                if(sf!=null)    return sf;
+            } else
+                debugPrintln("The property is undefined.");
+        } catch( Throwable t ) {
+            if( debug ) {
+                debugPrintln("failed to look up system property '"+propertyName+"'" );
+                t.printStackTrace();
+            }
+        }
+
+        String javah = ss.getSystemProperty( "java.home" );
+        String configFile = javah + File.separator +
+        "lib" + File.separator + "jaxp.properties";
+
+        String factoryClassName = null ;
+
+        // try to read from $java.home/lib/jaxp.properties
+        try {
+            if(firstTime){
+                synchronized(cacheProps){
+                    if(firstTime){
+                        File f=new File( configFile );
+                        firstTime = false;
+                        if(ss.doesFileExist(f)){
+                            debugPrintln("Read properties file " + f);                                
+                            cacheProps.load(ss.getFileInputStream(f));
+                        }
+                    }
+                }
+            }
+            factoryClassName = cacheProps.getProperty(propertyName);            
+            debugPrintln("found " + factoryClassName + " in $java.home/jaxp.properties"); 
+
+            if (factoryClassName != null) {
+                sf = createInstance(factoryClassName);
+                if(sf != null){
+                    return sf;
+                }
+            }
+        } catch (Exception ex) {
+            if (debug) {
+                ex.printStackTrace();
+            } 
+        }
+
+        /**
+        // try to read from $java.home/lib/jaxp.properties
+        try {
+            String javah = ss.getSystemProperty( "java.home" );
+            String configFile = javah + File.separator +
+            "lib" + File.separator + "jaxp.properties";
+            File f = new File( configFile );
+            if( ss.doesFileExist(f)) {
+                sf = loadFromProperty(
+                        propertyName,f.getAbsolutePath(), new FileInputStream(f));
+                if(sf!=null)    return sf;
+            } else {
+                debugPrintln("Tried to read "+ f.getAbsolutePath()+", but it doesn't exist.");
+            }
+        } catch(Throwable e) {
+            if( debug ) {
+                debugPrintln("failed to read $java.home/lib/jaxp.properties");
+                e.printStackTrace();
+            }
+        }
+         */
+        
+        // try META-INF/services files
+        Iterator sitr = createServiceFileIterator();
+        while(sitr.hasNext()) {
+            URL resource = (URL)sitr.next();
+            debugPrintln("looking into " + resource);
+            try {
+                //sf = loadFromProperty(schemaLanguage,resource.toExternalForm(),resource.openStream());
+                sf = loadFromProperty(schemaLanguage,resource.toExternalForm(),ss.getURLInputStream(resource));
+                if(sf!=null)    return sf;
+            } catch(IOException e) {
+                if( debug ) {
+                    debugPrintln("failed to read "+resource);
+                    e.printStackTrace();
+                }
+            }
+        }
+        
+        // platform default
+        if(schemaLanguage.equals("http://www.w3.org/2001/XMLSchema")) {
+            debugPrintln("attempting to use the platform default XML Schema validator");
+            return createInstance("com.sun.org.apache.xerces.internal.jaxp.validation.xs.SchemaFactoryImpl");
+        }
+        
+        debugPrintln("all things were tried, but none was found. bailing out.");
+        return null;
+!!!10096539.java!!!	createInstance(in className : String) : SchemaFactory
+        try {
+            debugPrintln("instanciating "+className);
+            Class clazz;
+            if( classLoader!=null )
+                clazz = classLoader.loadClass(className);
+            else
+                clazz = Class.forName(className);
+            if(debug)       debugPrintln("loaded it from "+which(clazz));
+            Object o = clazz.newInstance();
+            
+            if( o instanceof SchemaFactory )
+                return (SchemaFactory)o;
+            
+            debugPrintln(className+" is not assignable to "+SERVICE_CLASS.getName());
+        } catch( Throwable t ) {
+            debugPrintln("failed to instanciate "+className);
+            if(debug)   t.printStackTrace();
+        }
+        return null;
+!!!10097179.java!!!	loadFromProperty(in keyName : String, in resourceName : String, inout in : InputStream) : SchemaFactory
+        debugPrintln("Reading "+resourceName );
+        
+        Properties props=new Properties();
+        props.load(in);
+        in.close();
+        String factoryClassName = props.getProperty(keyName);
+        if(factoryClassName != null){
+            debugPrintln("found "+keyName+" = " + factoryClassName);
+            return createInstance(factoryClassName);
+        } else {
+            debugPrintln(keyName+" is not in the property file");
+            return null;
+        }
+!!!10097307.java!!!	createServiceFileIterator() : Iterator
+        if (classLoader == null) {
+            return new SingleIterator() {
+                protected Object value() {
+                    ClassLoader classLoader = SchemaFactoryFinder.class.getClassLoader();
+                    //return (ClassLoader.getSystemResource( SERVICE_ID ));
+                    return ss.getResourceAsURL(classLoader, SERVICE_ID);
+                }
+            };
+        } else {
+            try {
+                //final Enumeration e = classLoader.getResources(SERVICE_ID);
+                final Enumeration e = ss.getResources(classLoader, SERVICE_ID);
+                if(!e.hasMoreElements()) {
+                    debugPrintln("no "+SERVICE_ID+" file was found");
+                }
+                
+                // wrap it into an Iterator.
+                return new Iterator() {
+                    public void remove() {
+                        throw new UnsupportedOperationException();
+                    }
+
+                    public boolean hasNext() {
+                        return e.hasMoreElements();
+                    }
+
+                    public Object next() {
+                        return e.nextElement();
+                    }
+                };
+            } catch (IOException e) {
+                debugPrintln("failed to enumerate resources "+SERVICE_ID);
+                if(debug)   e.printStackTrace();
+                return new ArrayList().iterator();  // empty iterator
+            }
+        }
+!!!10097435.java!!!	which(inout clazz : Class) : String
+        return which( clazz.getName(), clazz.getClassLoader() );
+!!!10097563.java!!!	which(in classname : String, inout loader : ClassLoader) : String
+
+        String classnameAsResource = classname.replace('.', '/') + ".class";
+        
+        if( loader==null )  loader = ClassLoader.getSystemClassLoader();
+        
+        //URL it = loader.getResource(classnameAsResource);
+        URL it = ss.getResourceAsURL(loader, classnameAsResource);
+        if (it != null) {
+            return it.toString();
+        } else {
+            return null;
+        }

@@ -1,0 +1,64 @@
+class Cache
+!!!7202971.java!!!	Cache(in policy : int)
+	    this.policy = policy;
+	    cache = new LinkedHashMap();
+!!!7203099.java!!!	put(in host : String, inout address : Object) : Cache
+	    if (policy == InetAddressCachePolicy.NEVER) {
+                return this;
+	    }
+
+	    // purge any expired entries
+
+	    if (policy != InetAddressCachePolicy.FOREVER) {
+
+		// As we iterate in insertion order we can
+		// terminate when a non-expired entry is found.		
+                LinkedList expired = new LinkedList();
+                Iterator i = cache.keySet().iterator();
+		long now = System.currentTimeMillis();
+                while (i.hasNext()) {
+                    String key = (String)i.next();
+                    CacheEntry entry = (CacheEntry)cache.get(key);
+
+                    if (entry.expiration >= 0 && entry.expiration < now) {
+                        expired.add(key);
+                    } else {
+                        break;
+                    }
+                }
+
+                i = expired.iterator();
+                while (i.hasNext()) {
+                    cache.remove(i.next());
+		}
+            }
+
+	    // create new entry and add it to the cache
+	    // -- as a HashMap replaces existing entries we
+	    //    don't need to explicitly check if there is 
+	    //    already an entry for this host.
+	    long expiration;
+	    if (policy == InetAddressCachePolicy.FOREVER) {
+		expiration = -1;
+	    } else {
+		expiration = System.currentTimeMillis() + (policy * 1000);
+	    }
+	    CacheEntry entry = new CacheEntry(address, expiration);
+	    cache.put(host, entry);
+	    return this;
+!!!7203227.java!!!	get(in host : String) : CacheEntry
+	    if (policy == InetAddressCachePolicy.NEVER) {
+		return null;
+	    }
+	    CacheEntry entry = (CacheEntry)cache.get(host);
+
+	    // check if entry has expired
+	    if (entry != null && policy != InetAddressCachePolicy.FOREVER) {
+		if (entry.expiration >= 0 && 
+		    entry.expiration < System.currentTimeMillis()) {
+		    cache.remove(host);
+		    entry = null;
+		}
+	    }
+
+	    return entry;

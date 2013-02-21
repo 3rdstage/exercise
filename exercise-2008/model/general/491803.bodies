@@ -1,0 +1,84 @@
+class DefaultTableCellRenderer
+!!!3028763.java!!!	DefaultTableCellRenderer()
+	super();
+	setOpaque(true);
+        setBorder(getNoFocusBorder());
+!!!3028891.java!!!	getNoFocusBorder() : Border
+        if (System.getSecurityManager() != null) {
+            return SAFE_NO_FOCUS_BORDER;
+        } else {
+            return noFocusBorder;
+        }
+!!!3029019.java!!!	setForeground(inout c : Color) : void
+        super.setForeground(c); 
+        unselectedForeground = c; 
+!!!3029147.java!!!	setBackground(inout c : Color) : void
+        super.setBackground(c); 
+        unselectedBackground = c; 
+!!!3029275.java!!!	updateUI() : void
+        super.updateUI(); 
+	setForeground(null);
+	setBackground(null);
+!!!3029403.java!!!	getTableCellRendererComponent(inout table : JTable, inout value : Object, inout isSelected : boolean, inout hasFocus : boolean, in row : int, in column : int) : Component
+
+	if (isSelected) {
+	   super.setForeground(table.getSelectionForeground());
+	   super.setBackground(table.getSelectionBackground());
+	}
+	else {
+	    super.setForeground((unselectedForeground != null) ? unselectedForeground 
+	                                                       : table.getForeground());
+	    super.setBackground((unselectedBackground != null) ? unselectedBackground 
+	                                                       : table.getBackground());
+	}
+	
+	setFont(table.getFont());
+
+	if (hasFocus) {
+            Border border = null;
+            if (isSelected) {
+                border = UIManager.getBorder("Table.focusSelectedCellHighlightBorder");
+            }
+            if (border == null) {
+                border = UIManager.getBorder("Table.focusCellHighlightBorder");
+            }
+            setBorder(border);
+
+	    if (!isSelected && table.isCellEditable(row, column)) {
+                Color col;
+                col = UIManager.getColor("Table.focusCellForeground");
+                if (col != null) {
+                    super.setForeground(col);
+                }
+                col = UIManager.getColor("Table.focusCellBackground");
+                if (col != null) {
+                    super.setBackground(col);
+                }
+	    }
+	} else {
+            setBorder(getNoFocusBorder());
+	}
+
+        setValue(value); 
+
+	return this;
+!!!3029531.java!!!	isOpaque() : boolean
+ 
+	Color back = getBackground();
+	Component p = getParent(); 
+	if (p != null) { 
+	    p = p.getParent(); 
+	}
+	// p should now be the JTable. 
+	boolean colorMatch = (back != null) && (p != null) && 
+	    back.equals(p.getBackground()) && 
+			p.isOpaque();
+	return !colorMatch && super.isOpaque(); 
+!!!3030427.java!!!	firePropertyChange(in propertyName : String, inout oldValue : Object, inout newValue : Object) : void
+	
+	// Strings get interned...
+	if (propertyName=="text") {
+	    super.firePropertyChange(propertyName, oldValue, newValue);
+	}
+!!!3030683.java!!!	setValue(inout value : Object) : void
+	setText((value == null) ? "" : value.toString());

@@ -1,0 +1,200 @@
+class RowView
+!!!9993883.java!!!	RowView(inout elem : Element)
+	    super(elem, View.X_AXIS);
+	    fillColumns = new BitSet();
+	    RowView.this.setPropertiesFromAttributes();
+!!!9994011.java!!!	clearFilledColumns() : void
+	    fillColumns.and(EMPTY);
+!!!9994139.java!!!	fillColumn(in col : int) : void
+	    fillColumns.set(col);
+!!!9994267.java!!!	isFilled(in col : int) : boolean
+	    return fillColumns.get(col);
+!!!9994395.java!!!	getColumnCount() : int
+	    int nfill = 0;
+	    int n = fillColumns.size();
+	    for (int i = 0; i < n; i++) {
+		if (fillColumns.get(i)) {
+		    nfill ++;
+		}
+	    }
+	    return getViewCount() + nfill;
+!!!9994523.java!!!	getAttributes() : AttributeSet
+	    return attr;
+!!!9994651.java!!!	findViewAtPoint(in x : int, in y : int, inout alloc : Rectangle) : View
+	    int n = getViewCount();
+	    for (int i = 0; i < n; i++) {
+		if (getChildAllocation(i, alloc).contains(x, y)) {
+		    childAllocation(i, alloc);
+		    return getView(i);
+		}
+	    }
+	    return null;
+!!!9994779.java!!!	getStyleSheet() : StyleSheet
+	    HTMLDocument doc = (HTMLDocument) getDocument();
+	    return doc.getStyleSheet();
+!!!9994907.java!!!	preferenceChanged(inout child : View, inout width : boolean, inout height : boolean) : void
+	    super.preferenceChanged(child, width, height);
+	    if (TableView.this.multiRowCells && height) {
+		for (int i = rowIndex  - 1; i >= 0; i--) {
+		    RowView rv = TableView.this.getRow(i);
+		    if (rv.multiRowCells) {
+			rv.preferenceChanged(null, false, true);
+			break;
+		    }
+		}
+	    }
+!!!9995035.java!!!	calculateMajorAxisRequirements(in axis : int, inout r : SizeRequirements) : SizeRequirements
+            SizeRequirements req = new SizeRequirements();
+            req.minimum = totalColumnRequirements.minimum;
+            req.maximum = totalColumnRequirements.maximum;
+            req.preferred = totalColumnRequirements.preferred;
+            req.alignment = 0f;
+            return req;
+!!!9995163.java!!!	getMinimumSpan(in axis : int) : float
+            float value;
+
+            if (axis == View.X_AXIS) {
+                value = totalColumnRequirements.minimum + getLeftInset() +
+                        getRightInset();
+            }
+            else {
+                value = super.getMinimumSpan(axis);
+            }
+            return value;
+!!!9995291.java!!!	getMaximumSpan(in axis : int) : float
+            float value;
+
+            if (axis == View.X_AXIS) {
+                // We're flexible.
+                value = (float)Integer.MAX_VALUE;
+            }
+            else {
+                value = super.getMaximumSpan(axis);
+            }
+            return value;
+!!!9995419.java!!!	getPreferredSpan(in axis : int) : float
+            float value;
+
+            if (axis == View.X_AXIS) {
+                value = totalColumnRequirements.preferred + getLeftInset() +
+                        getRightInset();
+            }
+            else {
+                value = super.getPreferredSpan(axis);
+            }
+            return value;
+!!!9995547.java!!!	changedUpdate(inout e : DocumentEvent, inout a : Shape, inout f : ViewFactory) : void
+	    super.changedUpdate(e, a, f);
+	    int pos = e.getOffset();
+	    if (pos <= getStartOffset() && (pos + e.getLength()) >=
+		getEndOffset()) {
+		RowView.this.setPropertiesFromAttributes();
+	    }
+!!!9995675.java!!!	paint(inout g : Graphics, inout allocation : Shape) : void
+	    Rectangle a = (Rectangle) allocation;
+	    painter.paint(g, a.x, a.y, a.width, a.height, this);
+	    super.paint(g, a);
+!!!9995803.java!!!	replace(in offset : int, in length : int, inout views : View) : void
+	    super.replace(offset, length, views);
+	    invalidateGrid();
+!!!9995931.java!!!	calculateMinorAxisRequirements(in axis : int, inout r : SizeRequirements) : SizeRequirements
+//	    return super.calculateMinorAxisRequirements(axis, r);
+	    long min = 0;
+	    long pref = 0;
+	    long max = 0;
+	    multiRowCells = false;
+	    int n = getViewCount();
+	    for (int i = 0; i < n; i++) {
+		View v = getView(i);
+		if (getRowsOccupied(v) > 1) {
+		    multiRowCells = true;
+		    max = Math.max((int) v.getMaximumSpan(axis), max);
+		} else {
+		    min = Math.max((int) v.getMinimumSpan(axis), min);
+		    pref = Math.max((int) v.getPreferredSpan(axis), pref);
+		    max = Math.max((int) v.getMaximumSpan(axis), max);
+		}
+	    }
+
+	    if (r == null) {
+		r = new SizeRequirements();
+		r.alignment = 0.5f;
+	    }
+	    r.preferred = (int) pref;
+	    r.minimum = (int) min;
+	    r.maximum = (int) max;
+	    return r;
+!!!9996059.java!!!	layoutMajorAxis(in targetSpan : int, in axis : int, in offsets : int, in spans : int) : void
+	    int col = 0;
+	    int ncells = getViewCount();
+	    for (int cell = 0; cell < ncells; cell++) {
+		View cv = getView(cell);
+		if (skipComments && !(cv instanceof CellView)) {
+		    continue;
+		}
+		for (; isFilled(col); col++); // advance to a free column
+		int colSpan = getColumnsOccupied(cv);
+		spans[cell] = columnSpans[col];
+		offsets[cell] = columnOffsets[col];
+		if (colSpan > 1) {
+		    int n = columnSpans.length;
+		    for (int j = 1; j < colSpan; j++) {
+			// Because the table may be only partially formed, some
+			// of the columns may not yet exist.  Therefore we check
+			// the bounds.
+			if ((col+j) < n) {
+			    spans[cell] += columnSpans[col+j];
+			    spans[cell] += cellSpacing;
+			}
+		    }
+		    col += colSpan - 1;
+		}
+		col++;
+	    }
+!!!9996187.java!!!	layoutMinorAxis(in targetSpan : int, in axis : int, in offsets : int, in spans : int) : void
+	    super.layoutMinorAxis(targetSpan, axis, offsets, spans);
+	    int col = 0;
+	    int ncells = getViewCount();
+	    for (int cell = 0; cell < ncells; cell++, col++) {
+		View cv = getView(cell);
+		for (; isFilled(col); col++); // advance to a free column
+		int colSpan = getColumnsOccupied(cv);
+		int rowSpan = getRowsOccupied(cv);
+		if (rowSpan > 1) {
+		    
+		    int row0 = rowIndex;
+		    int row1 = Math.min(rowIndex + rowSpan - 1, getRowCount()-1);
+		    spans[cell] = getMultiRowSpan(row0, row1);
+		}
+		if (colSpan > 1) {
+		    col += colSpan - 1;
+		}
+	    }
+!!!9996315.java!!!	getResizeWeight(in axis : int) : int
+	    return 1;
+!!!9996443.java!!!	getViewAtPosition(in pos : int, inout a : Rectangle) : View
+	    int n = getViewCount();
+	    for (int i = 0; i < n; i++) {
+		View v = getView(i);
+		int p0 = v.getStartOffset();
+		int p1 = v.getEndOffset();
+		if ((pos >= p0) && (pos < p1)) {
+		    // it's in this view.
+		    if (a != null) {
+			childAllocation(i, a);
+		    }
+		    return v;
+		}
+	    }
+	    if (pos == getEndOffset()) {
+		View v = getView(n - 1);
+		if (a != null) {
+		    this.childAllocation(n - 1, a);
+		}
+		return v;
+	    }
+	    return null;
+!!!9996571.java!!!	setPropertiesFromAttributes() : void
+	    StyleSheet sheet = getStyleSheet();
+	    attr = sheet.getViewAttributes(this);
+	    painter = sheet.getBoxPainter(attr);

@@ -1,0 +1,108 @@
+class SmallAttributeSet
+!!!2579867.java!!!	SmallAttributeSet(inout attributes : Object)
+            this.attributes = attributes;
+	    updateResolveParent();
+!!!2579995.java!!!	SmallAttributeSet(inout attrs : AttributeSet)
+            int n = attrs.getAttributeCount();
+            Object[] tbl = new Object[2 * n];
+            Enumeration names = attrs.getAttributeNames();
+            int i = 0;
+            while (names.hasMoreElements()) {
+                tbl[i] = names.nextElement();
+                tbl[i+1] = attrs.getAttribute(tbl[i]);
+                i += 2;
+            }
+            attributes = tbl;
+	    updateResolveParent();
+!!!2580123.java!!!	updateResolveParent() : void
+	    resolveParent = null;
+            Object[] tbl = attributes;
+            for (int i = 0; i < tbl.length; i += 2) {
+		if (tbl[i] == StyleConstants.ResolveAttribute) {
+		    resolveParent = (AttributeSet)tbl[i + 1];
+		    break;
+		}
+            }
+!!!2580251.java!!!	getLocalAttribute(inout nm : Object) : Object
+	    if (nm == StyleConstants.ResolveAttribute) {
+		return resolveParent;
+	    }
+            Object[] tbl = attributes;
+            for (int i = 0; i < tbl.length; i += 2) {
+                if (nm.equals(tbl[i])) {
+                    return tbl[i+1];
+                }
+            }
+            return null;
+!!!2580379.java!!!	toString() : String
+            String s = "{";
+            Object[] tbl = attributes;
+            for (int i = 0; i < tbl.length; i += 2) {
+                if (tbl[i+1] instanceof AttributeSet) {
+                    // don't recurse
+                    s = s + tbl[i] + "=" + "AttributeSet" + ",";
+                } else {
+                    s = s + tbl[i] + "=" + tbl[i+1] + ",";
+                }
+            }
+            s = s + "}";
+            return s;
+!!!2580507.java!!!	hashCode() : int
+            int code = 0;
+            Object[] tbl = attributes;
+            for (int i = 1; i < tbl.length; i += 2) {
+                code ^= tbl[i].hashCode();
+            }
+            return code;
+!!!2580635.java!!!	equals(inout obj : Object) : boolean
+            if (obj instanceof AttributeSet) {
+                AttributeSet attrs = (AttributeSet) obj;
+                return ((getAttributeCount() == attrs.getAttributeCount()) &&
+                        containsAttributes(attrs));
+            }
+            return false;
+!!!2580763.java!!!	clone() : Object
+            return this;
+!!!2580891.java!!!	getAttributeCount() : int
+            return attributes.length / 2;
+!!!2581019.java!!!	isDefined(inout key : Object) : boolean
+            Object[] a = attributes;
+            int n = a.length;
+            for (int i = 0; i < n; i += 2) {
+                if (key.equals(a[i])) {
+                    return true;
+                }
+            }
+            return false;
+!!!2581147.java!!!	isEqual(inout attr : AttributeSet) : boolean
+            if (attr instanceof SmallAttributeSet) {
+                return attr == this;
+            }
+            return ((getAttributeCount() == attr.getAttributeCount()) &&
+                    containsAttributes(attr));
+!!!2581275.java!!!	copyAttributes() : AttributeSet
+            return this;
+!!!2581403.java!!!	getAttribute(inout key : Object) : Object
+            Object value = getLocalAttribute(key);
+            if (value == null) {
+                AttributeSet parent = getResolveParent();
+                if (parent != null)
+                    value = parent.getAttribute(key);
+            }
+            return value;
+!!!2581531.java!!!	getAttributeNames() : Enumeration
+            return new KeyEnumeration(attributes);
+!!!2581659.java!!!	containsAttribute(inout name : Object, inout value : Object) : boolean
+            return value.equals(getAttribute(name));
+!!!2581787.java!!!	containsAttributes(inout attrs : AttributeSet) : boolean
+            boolean result = true;
+
+            Enumeration names = attrs.getAttributeNames();
+            while (result && names.hasMoreElements()) {
+                Object name = names.nextElement();
+                result = attrs.getAttribute(name).equals(getAttribute(name));
+            }
+
+            return result;
+!!!2581915.java!!!	getResolveParent() : AttributeSet
+            return resolveParent;

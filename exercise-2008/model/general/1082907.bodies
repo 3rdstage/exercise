@@ -1,0 +1,56 @@
+class KrbDelegationPermissionCollection
+!!!8663195.java!!!	KrbDelegationPermissionCollection()
+	perms = new ArrayList();
+!!!8663323.java!!!	implies(inout permission : Permission) : boolean
+	if (! (permission instanceof DelegationPermission))
+   		return false;
+
+	DelegationPermission np = (DelegationPermission) permission;
+	synchronized (this) {
+	    int len = perms.size();
+	    for (int i = 0; i < len; i++) {
+		DelegationPermission x = (DelegationPermission) perms.get(i);
+		if (x.implies(np))
+		    return true;
+	    }
+	}
+	return false;
+
+!!!8663451.java!!!	add(inout permission : Permission) : void
+	if (! (permission instanceof DelegationPermission))
+	    throw new IllegalArgumentException("invalid permission: "+
+					       permission);
+	if (isReadOnly())
+	    throw new SecurityException("attempt to add a Permission to a readonly PermissionCollection");
+
+	synchronized (this) {
+	    perms.add(0, permission);
+	}
+!!!8663579.java!!!	elements() : Enumeration
+        // Convert Iterator into Enumeration
+	synchronized (this) {
+	    return Collections.enumeration(perms);
+	}
+!!!8663707.java!!!	writeObject(inout out : ObjectOutputStream) : void
+	// Don't call out.defaultWriteObject()
+
+	// Write out Vector
+	Vector permissions = new Vector(perms.size());
+
+	synchronized (this) {
+	    permissions.addAll(perms);
+	}
+
+        ObjectOutputStream.PutField pfields = out.putFields();
+        pfields.put("permissions", permissions);
+        out.writeFields();
+!!!8663835.java!!!	readObject(inout in : ObjectInputStream) : void
+	// Don't call defaultReadObject()
+
+	// Read in serialized fields
+	ObjectInputStream.GetField gfields = in.readFields();
+
+	// Get the one we want
+	Vector permissions = (Vector)gfields.get("permissions", null);
+	perms = new ArrayList(permissions.size());
+	perms.addAll(permissions);

@@ -1,0 +1,28 @@
+class NewInstance
+!!!10449307.java!!!	newInstance(inout classLoader : ClassLoader, in className : String) : Object
+        Class driverClass;
+        if (classLoader == null) {
+            driverClass = Class.forName(className);
+        } else {
+            driverClass = classLoader.loadClass(className);
+        }
+        return driverClass.newInstance();
+!!!10449435.java!!!	getClassLoader() : ClassLoader
+        Method m = null;
+
+        try {
+            m = Thread.class.getMethod("getContextClassLoader", null);
+        } catch (NoSuchMethodException e) {
+            // Assume that we are running JDK 1.1, use the current ClassLoader
+            return NewInstance.class.getClassLoader();
+        }
+
+        try {
+            return (ClassLoader) m.invoke(Thread.currentThread(), null);
+        } catch (IllegalAccessException e) {
+            // assert(false)
+            throw new UnknownError(e.getMessage());
+        } catch (InvocationTargetException e) {
+            // assert(e.getTargetException() instanceof SecurityException)
+            throw new UnknownError(e.getMessage());
+        }

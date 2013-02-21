@@ -1,0 +1,608 @@
+class MLet
+!!!8277147.java!!!	MLet()
+	 this(new URL[0]);
+!!!8277275.java!!!	MLet(inout urls : URL)
+	 this(urls, true);
+!!!8277403.java!!!	MLet(inout urls : URL, inout parent : ClassLoader)
+	 this(urls, parent, true);
+!!!8277531.java!!!	MLet(inout urls : URL, inout parent : ClassLoader, inout factory : URLStreamHandlerFactory)
+	 this(urls, parent, factory, true);
+!!!8277659.java!!!	MLet(inout urls : URL, inout delegateToCLR : boolean)
+	 super(urls);
+	 init(delegateToCLR);
+!!!8277787.java!!!	MLet(inout urls : URL, inout parent : ClassLoader, inout delegateToCLR : boolean)
+	 super(urls, parent);
+	 init(delegateToCLR);
+!!!8277915.java!!!	MLet(inout urls : URL, inout parent : ClassLoader, inout factory : URLStreamHandlerFactory, inout delegateToCLR : boolean)
+	 super(urls, parent, factory);
+	 init(delegateToCLR);
+!!!8278043.java!!!	init(inout delegateToCLR : boolean) : void
+	 this.delegateToCLR = delegateToCLR;
+
+	 try {
+	     libraryDirectory = System.getProperty(JmxProperties.MLET_LIB_DIR);
+	     if (libraryDirectory == null)
+		 libraryDirectory = getTmpDir();
+	 } catch (SecurityException e) {
+	     // OK : We don't do AccessController.doPrivileged, but we don't
+	     //      stop the user from creating an MLet just because they
+	     //      can't read the MLET_LIB_DIR or java.io.tmpdir properties
+	     //      either.
+	 }
+!!!8278171.java!!!	addURL(inout url : URL) : void
+	 if (!Arrays.asList(getURLs()).contains(url))
+	     super.addURL(url);
+!!!8278299.java!!!	addURL(in url : String) : void
+	 try {
+	     URL ur = new URL(url);
+	     if (!Arrays.asList(getURLs()).contains(ur))
+		 super.addURL(ur);
+	 } catch (MalformedURLException e) {
+	     debug("addURL", url + ": Malformed URL. " + e); 
+	     throw new 
+		 ServiceNotFoundException("The specified URL is malformed");
+	 }
+!!!8278427.java!!!	getURLs() : URL
+	 return super.getURLs();
+!!!8278555.java!!!	getMBeansFromURL(inout url : URL) : Set
+ 
+	 if (url == null) {
+	     throw new ServiceNotFoundException("The specified URL is null");
+	 }
+	 return getMBeansFromURL(url.toString());
+!!!8278683.java!!!	getMBeansFromURL(in url : String) : Set
+	 
+	 String mth = "getMBeansFromURL";
+
+	 if (server == null) {
+	     throw new IllegalStateException("This MLet MBean is not registered with an MBeanServer.");
+	 }
+	 // Parse arguments     
+	 if (url == null) {
+	     if (isTraceOn()) {
+		 trace(mth, "URL is null");
+	     }  
+	     throw new ServiceNotFoundException("The specified URL is null");
+	 } else {
+	     url = url.replace(File.separatorChar,'/');
+	 }
+	 if (isTraceOn()) {
+	     trace(mth, "<URL = " + url + ">");
+	 }       
+
+	 // Parse URL
+	 try {
+	     MLetParser parser = new MLetParser();
+	     mletList = parser.parseURL(url);
+	 } catch (Exception e) {
+	     final String msg =
+		 "Problems while parsing URL [" + url +
+		 "], got exception [" + e.toString() + "]";
+	     if (isTraceOn()) {
+		 trace(mth, msg);
+	     }
+	     ServiceNotFoundException snfe = new ServiceNotFoundException(msg);
+	     /* Make a best effort to set the cause, but if we don't
+		succeed, too bad, you don't get that useful debugging
+		information.  We jump through hoops here so that we can
+		work on platforms prior to J2SE 1.4 where the
+		Throwable.initCause method was introduced.  If we change
+		the public interface of JMRuntimeException in a future
+		version we can add getCause() so we don't need to do this. */
+	     try {
+		 java.lang.reflect.Method initCause =
+		     Throwable.class.getMethod("initCause",
+					       new Class[] {Throwable.class});
+		 initCause.invoke(snfe, new Object[] {e});
+	     } catch (Exception x) {
+		 // OK: just means we won't have debugging info
+	     }
+	     throw snfe;
+	 }
+
+	 // Check that the list of MLets is not empty     
+	 if (mletList.size() == 0) {
+	     if (isTraceOn()) {
+		 trace(mth, "File " + url + " not found or MLET tag not defined in file");
+	     }       
+	     throw new ServiceNotFoundException("File " + url + " not found or MLET tag not defined in file");
+	 }
+	 
+	 // Walk through the list of MLets        
+	 HashSet mbeans = new HashSet();
+	 for(Enumeration e = mletList.elements(); e.hasMoreElements(); ) {	 
+	     // Get MLet item from list	 
+	     MLetContent elmt = (MLetContent) e.nextElement();	 
+	     // Initialise local variables            
+	     String code = elmt.getCode();
+	     if (code != null) {
+		 if (code.endsWith(".class")) {
+		     code = code.substring(0, code.length() - 6);
+		 }
+	     }
+	     String name = elmt.getName();
+	     URL codebase = elmt.getCodeBase();
+	     String version = elmt.getVersion();    
+	     String serName = elmt.getSerializedObject(); 
+	     String jarFiles = elmt.getJarFiles(); 
+	     URL documentBase = elmt.getDocumentBase();
+	     Map attributes = elmt.getAttributes();
+	     
+	     // Display debug information
+	     if (isTraceOn()) {
+		 trace(mth, "MLET TAG     = " + attributes.toString());
+		 trace(mth, "CODEBASE     = " + codebase);
+		 trace(mth, "ARCHIVE      = " + jarFiles);
+		 trace(mth, "CODE         = " + code);
+		 trace(mth, "OBJECT       = " + serName);
+		 trace(mth, "NAME         = " + name);
+		 trace(mth, "VERSION      = " + version);
+		 trace(mth, "DOCUMENT URL = " + documentBase);
+	     }
+	     
+	     // Load classes from JAR files	    
+	     StringTokenizer st = new StringTokenizer(jarFiles, ",", false);
+	     while (st.hasMoreTokens()) {
+		 String tok = st.nextToken().trim();
+		 if (isTraceOn()) {
+		     trace(mth, "Load archive for codebase <" + codebase + ">, file <" + tok + ">");
+		 }
+		 // Check which is the codebase to be used for loading the jar file.
+		 // If we are using the base MLet implementation then it will be
+		 // always the remote server but if the service has been extended in
+		 // order to support caching and versioning then this method will
+		 // return the appropriate one.
+		 //
+		 try {
+		     codebase = check(version, codebase, tok, elmt);
+		 } catch (Exception ex) {
+		     if (isDebugOn()) {
+			 debug(mth, "check returned exception: " + ex);
+		     }  
+		     mbeans.add(ex);
+		     continue;
+		 }
+		 
+		 // Appends the specified JAR file URL to the list of URLs to search for classes and resources.
+		 try {
+		     if (!Arrays.asList(getURLs()).contains(new URL(codebase.toString() + tok))) {
+			 addURL(codebase + tok);
+		     }	     
+		 } catch (MalformedURLException me) {
+		     // OK : Ignore jar file if its name provokes the URL to be an invalid one.
+		 }
+		 
+	     }
+	     // Instantiate the class specified in the
+	     // CODE or OBJECT section of the MLet tag
+	     //
+	     Object o = null;
+	     ObjectInstance objInst = null;
+	     
+	     if (code != null && serName != null) {
+		 if (isTraceOn()) {
+		     trace(mth, "CODE and OBJECT parameters cannot be specified at the same time in tag MLET.");
+		 }
+		 mbeans.add(new Error("CODE and OBJECT parameters cannot be specified at the same time in tag MLET"));
+		 continue;
+	     }
+	     if (code == null && serName == null) {
+		 if (isTraceOn()) {
+		     trace(mth, "Either CODE or OBJECT parameter must be specified in tag MLET.");
+		 }
+		 mbeans.add(new Error("Either CODE or OBJECT parameter must be specified in tag MLET"));
+		 continue;
+	     }
+	     try {
+		 if (code != null) {
+		
+		     Vector signat = new Vector();
+		     Vector pars = new Vector();
+
+		     for (Iterator p = attributes.keySet().iterator(); p.hasNext(); ) {	
+			 String param_name = (String) p.next();
+			 if (param_name.equals("types")) {
+			     signat = (Vector)elmt.getParameter(param_name);
+			 }
+			 if (param_name.equals("values")) {
+			     pars = (Vector)elmt.getParameter(param_name);
+			 }			 
+		     }
+
+		     for (int i = 0; i < signat.size(); i++) {
+			 pars.setElementAt(constructParameter((String)pars.elementAt(i), (String)signat.elementAt(i)), i);
+		     }	
+		     if (signat.isEmpty()) {
+			 if (name == null) {
+			     objInst = server.createMBean(code, null, mletObjectName); 
+			 } else {
+			     objInst = server.createMBean(code, new ObjectName(name), mletObjectName); 
+			 }
+		     } else {		     
+			 Object[] parms = pars.toArray();
+			 String[] signature = new String[signat.size()];
+			 for (int i=0;i<signature.length;i++) {
+			     signature[i] = (String) signat.elementAt(i);
+			 }
+			 if (isDebugOn()) {
+			     for (int i=0;i<signature.length;i++) {
+				 debug(mth, "Signature     = " + signature[i]);
+				 debug(mth, "Params     = " + parms[i].toString());
+			     }
+			 }	
+			 if (name == null) {
+			     objInst = server.createMBean(code, null, mletObjectName, parms, signature); 
+			 } else {
+			     objInst = server.createMBean(code, new ObjectName(name), mletObjectName, parms, signature); 
+			 }
+		     } 		    
+		 } else {
+		     o = loadSerializedObject(codebase,serName);
+		     if (name == null) {
+			 server.registerMBean(o, null);
+		     } else {
+			 server.registerMBean(o,  new ObjectName(name));
+		     }
+		     objInst = new ObjectInstance(name, o.getClass().getName());
+		 }
+	     } catch (ReflectionException  ex) {
+		 if (isTraceOn()) {
+		     trace(mth, "ReflectionException: " + ex.getMessage());
+		 }	
+		 mbeans.add(ex);
+		 continue;
+	     } catch (InstanceAlreadyExistsException  ex) {
+		 if (isTraceOn()) {
+		     trace(mth, "InstanceAlreadyExistsException: " + ex.getMessage());
+		 }	
+		 mbeans.add(ex);
+		 continue;
+	     } catch (MBeanRegistrationException ex) {      
+		 if (isTraceOn()) {
+		     trace(mth, "MBeanRegistrationException: " + ex.getMessage());
+		 }
+		 mbeans.add(ex);
+		 continue;
+	     } catch (MBeanException  ex) {
+		 if (isTraceOn()) {
+		     trace(mth, "MBeanException: " + ex.getMessage());
+		 }      
+		 mbeans.add(ex);
+		 continue;
+	     } catch (NotCompliantMBeanException  ex) {      
+		 if (isTraceOn()) {
+		     trace(mth, "NotCompliantMBeanException: " + ex.getMessage());
+		 }  
+		 mbeans.add(ex);
+		 continue;
+	     } catch (InstanceNotFoundException   ex) { 
+		 if (isTraceOn()) {
+		     trace(mth, "InstanceNotFoundException: " + ex.getMessage());
+		 }  
+		 mbeans.add(ex);
+		 continue;
+	     } catch (IOException ex) {
+		 if (isTraceOn()) {
+		     trace(mth, "IOException: " + ex.getMessage());
+		 }  
+		 mbeans.add(ex);
+		 continue;
+	     } catch (SecurityException ex) {
+		 if (isTraceOn()) {
+		     trace(mth, "SecurityException: " + ex.getMessage());
+		 } 
+		 mbeans.add(ex);
+		 continue;
+	     } catch (Exception ex) {
+		 if (isTraceOn()) {
+		     trace(mth, "Exception: " + ex.getClass().getName() + ex.getMessage());
+		 } 
+		 mbeans.add(ex);
+		 continue;
+	     } catch (Error ex) {
+		 if (isTraceOn()) {
+		     trace(mth, "Error: " + ex.getMessage());
+		 } 
+		 mbeans.add(ex);
+		 continue;
+	     }
+	     mbeans.add(objInst);
+	 }
+	 return mbeans;
+!!!8278811.java!!!	getLibraryDirectory() : String
+	 return libraryDirectory;
+!!!8278939.java!!!	setLibraryDirectory(in libdir : String) : void
+	 libraryDirectory = libdir;
+!!!8279067.java!!!	preRegister(inout server : MBeanServer, inout name : ObjectName) : ObjectName
+	 
+	 // Initialise local pointer to the MBean server
+	 setMBeanServer(server);
+	 
+	 // If no name is specified return a default name for the MLet
+	 if (name == null) {
+	     name = new ObjectName(server.getDefaultDomain() + ":" + ServiceName.MLET);
+	 }
+
+	this.mletObjectName = name;
+	return this.mletObjectName;
+!!!8279579.java!!!	writeExternal(inout out : ObjectOutput) : void
+	 throw new UnsupportedOperationException("MLet.writeExternal");
+!!!8279707.java!!!	readExternal(inout in : ObjectInput) : void
+	 throw new UnsupportedOperationException("MLet.readExternal");
+!!!8279835.java!!!	loadClass(in name : String, inout clr : ClassLoaderRepository) : Class
+	 final ClassLoaderRepository before=currentClr;
+	 try {
+	     currentClr = clr;
+	     final Class c = loadClass(name);
+	     return c;
+	 } finally {
+	     currentClr = before;
+	 }
+!!!8279963.java!!!	findClass(in name : String) : Class
+	 /* currentClr is context sensitive - used to avoid recursion
+	    in the class loader repository.  (This is no longer
+	    necessary with the new CLR semantics but is kept for
+	    compatibility with code that might have called the
+	    two-parameter loadClass explicitly.)  */
+	 return findClass(name, currentClr);
+!!!8280091.java!!!	findClass(in name : String, inout clr : ClassLoaderRepository) : Class
+	 Class c = null;
+	 if (isTraceOn()) {
+	     trace("findClass", name);
+	 }   
+	 // Try looking in the JAR:
+	 try {
+	     c = super.findClass(name);
+	     if (isTraceOn()) {
+		 trace("findClass", "Class "+name+
+		       " loaded through mlet classloader");
+	     }     
+	 } catch (ClassNotFoundException e) {
+	     // Drop through
+	     debug("findClass", "Class "+name+ " not found locally.");
+	 }
+	 // if we are not called from the ClassLoaderRepository
+	 if (c == null && delegateToCLR && clr != null) {
+	     // Try the classloader repository:
+	     //
+	     try {
+		 debug("findClass", "Class "+name+": looking in CLR"); 
+		 c = clr.loadClassBefore(this, name);
+		 // The loadClassBefore method never returns null.
+		 // If the class is not found we get an exception.
+		 if (isTraceOn()) {
+		     trace("findClass", "Class "+name+
+			   " loaded through the default classloader repository");
+		 }
+	     } catch (ClassNotFoundException e) {
+		 debug("findClass", "Class "+name+ " not found in CLR.");
+		 // Drop through
+	     }
+	 }
+	 if (c == null) {
+	     debug("findClass","Failed to load class " + name);
+	     throw new ClassNotFoundException(name);
+         }
+	 return c;
+!!!8280219.java!!!	findLibrary(in libname : String) : String
+	 
+	 String abs_path;
+	 String mth = "findLibrary";
+	 
+	 // Get the platform-specific string representing a native library.
+	 //
+	 String nativelibname = System.mapLibraryName(libname);
+	 
+	 //
+	 // See if the native library is accessible as a resource through the JAR file.
+	 //
+	 if (isTraceOn()) {
+	     trace(mth, "Search " + libname + " in all JAR files.");
+	 }       
+	 
+	 // First try to locate the library in the JAR file using only the native library name.
+	 // e.g. if user requested a load for "foo" on Solaris SPARC 5.7 we try to load
+	 //      "libfoo.so" from the JAR file.
+	 //
+	 if (isTraceOn()) {
+	     trace(mth, "loadLibraryAsResource(" + nativelibname + ")");
+	 }        
+	 abs_path = loadLibraryAsResource(nativelibname);
+	 if (abs_path != null) {
+	     if (isTraceOn()) {
+		 trace(mth, nativelibname + " loaded " + "absolute path = " + abs_path);
+	     }             
+	     return abs_path;
+	 }
+
+	 // Next try to locate it using the native library name and the architecture-specific path name.
+	 // e.g. if user requested a load for "foo" on Solaris SPARC 5.7 we try to load
+	 //      "SunOS/sparc/5.7/lib/libfoo.so" from the JAR file.
+	 //
+	 nativelibname = removeSpace(System.getProperty("os.name")) + File.separator +
+	     removeSpace(System.getProperty("os.arch")) + File.separator +
+	     removeSpace(System.getProperty("os.version")) + File.separator +
+	     "lib" + File.separator + nativelibname;
+	 if (isTraceOn()) {
+	     trace(mth, "loadLibraryAsResource(" + nativelibname + ")");
+	 }     
+	 
+	 abs_path = loadLibraryAsResource(nativelibname);
+	 if (abs_path != null) {
+	     if (isTraceOn()) {
+		 trace(mth, nativelibname + " loaded " + "absolute path = " + abs_path);
+	     }                
+	     return abs_path;
+	 }
+	 
+	 //
+	 // All paths exhausted, library not found in JAR file.
+	 //
+	 
+	 if (isTraceOn()) {
+	     trace(mth, libname + " not found in any JAR file.");
+	     trace(mth, "Search " + libname + " along the path specified as the java.library.path property.");
+	 }     
+	 
+	 
+	 // Let the VM search the library along the path
+	 // specified as the java.library.path property.
+	 //
+	 return null;
+!!!8280347.java!!!	getTmpDir() : String
+	 // JDK 1.4
+	 String tmpDir = (String)System.getProperty("java.io.tmpdir");
+	 if (tmpDir != null) return tmpDir;
+
+	 // JDK < 1.4
+	 File tmpFile = null;
+	 try {
+	     // Try to guess the system temporary dir...
+	     tmpFile = File.createTempFile("tmp","jmx");
+	     if (tmpFile == null) return null;
+	     final File tmpDirFile = tmpFile.getParentFile();
+	     if (tmpDirFile == null) return null;
+	     return tmpDirFile.getAbsolutePath();
+	 } catch (Exception x) {
+	     debug("getTmpDir","Failed to determine system temporary dir.");
+	     return null;
+	 } finally {
+	     // Cleanup ...
+	     if (tmpFile!=null) try { 
+		 tmpFile.delete(); 
+	     } catch (Exception x) {
+		 debug("getTmpDir","Failed to delete temporary file: " + x.getMessage());
+	 }
+     }
+!!!8280475.java!!!	loadLibraryAsResource(in libname : String) : String
+	 try {
+	     InputStream is = getResourceAsStream(libname.replace(File.separatorChar,'/'));
+	     if (is != null) {
+		 File directory = new File(libraryDirectory);
+		 directory.mkdirs();
+		 File file = File.createTempFile(libname + ".", null, directory);
+		 file.deleteOnExit();
+		 FileOutputStream fileOutput = new FileOutputStream(file);
+		 int c;
+		 while ((c = is.read()) != -1) {
+		     fileOutput.write(c);
+		 }
+		 is.close();
+		 fileOutput.close();
+		 if (file.exists()) {
+		     return file.getAbsolutePath();
+		 }
+	     }
+	 } catch (Exception e) {
+	     debug("loadLibraryAsResource",libname+
+		   ": Failed to load library. " + e);
+	     return null;
+	 }
+	 return null;
+!!!8280603.java!!!	removeSpace(in s : String) : String
+	 s = s.trim();
+	 int j = s.indexOf(' ');
+	 if (j == -1) {
+	     return s;
+	 }
+	 String temp = "";
+	 int k = 0;
+	 while (j != -1) {
+	     s = s.substring(k);
+	     j = s.indexOf(' ');
+	     if (j != -1) {
+		 temp = temp + s.substring(0, j);
+	     } else {
+		 temp = temp + s.substring(0);
+	     }
+	     k = j + 1;
+	 }
+	 return temp;
+!!!8280731.java!!!	check(in version : String, inout codebase : URL, in jarfile : String, inout mlet : MLetContent) : URL
+	 return codebase;
+!!!8280859.java!!!	loadSerializedObject(inout codebase : URL, in filename : String) : Object
+        if (filename != null) {
+            filename = filename.replace(File.separatorChar,'/');
+        }		
+	if (isTraceOn()) {
+	    trace("loadSerializedObject", codebase.toString() + filename);
+	}	
+        InputStream is = getResourceAsStream(filename);
+        if (is != null) {
+            try {
+                ObjectInputStream ois = new MLetObjectInputStream(is, this);
+                Object serObject = ois.readObject();
+                ois.close();
+                return serObject;
+            } catch (IOException e) {
+		if (isDebugOn()) {
+		    debug("loadSerializedObject", "Exception while deserializing " + filename + ", " + e.getMessage());
+		}
+                throw e;
+            } catch (ClassNotFoundException e) {
+		if (isDebugOn()) {
+		    debug("loadSerializedObject", "Exception while deserializing " + filename + ", " + e.getMessage());
+		}
+                throw e;
+            }
+        } else {
+	    if (isDebugOn()) {
+		debug("loadSerializedObject", "Error: File " + filename + " containing serialized object not found");
+	    }
+            throw new Error("File " + filename + " containing serialized object not found");
+        }
+!!!8280987.java!!!	constructParameter(in param : String, in type : String) : Object
+	 // check if it is a primitive type
+	 Class c = (Class) primitiveClasses.get(type);
+	 if (c != null) {
+	    try {
+		Constructor cons =
+		    c.getConstructor(new Class[] {String.class});
+		Object[] oo = new Object[1];
+		oo[0]=param;
+		return(cons.newInstance(oo));
+
+	    } catch (Exception  e) {
+		if (isDebugOn()) {
+		    debug(dbgTag, "constructParameter", "Unexpected Exception" + e.getClass().getName() + " occured");
+		}
+	    }
+	}
+	if (type.compareTo("java.lang.Boolean") == 0) 
+	     return new Boolean(param);
+	if (type.compareTo("java.lang.Byte") == 0) 
+	     return new Byte(param);
+	if (type.compareTo("java.lang.Short") == 0) 
+	     return new Short(param);
+	if (type.compareTo("java.lang.Long") == 0) 
+	     return new Long(param);
+	if (type.compareTo("java.lang.Integer") == 0) 
+	     return new Integer(param);
+	if (type.compareTo("java.lang.Float") == 0) 
+	     return new Float(param);
+	if (type.compareTo("java.lang.Double") == 0) 
+	     return new Double(param);
+	if (type.compareTo("java.lang.String") == 0) 
+	     return param;
+	
+	return param;
+!!!8281115.java!!!	setMBeanServer(in server : MBeanServer) : void
+	 this.server = server;
+        currentClr = (ClassLoaderRepository)
+            AccessController.doPrivileged(new PrivilegedAction() {
+                    public Object run() {
+                        return server.getClassLoaderRepository();
+     }
+                });
+!!!8281243.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_MLET);
+!!!8281371.java!!!	trace(in clz : String, in func : String, in info : String) : void
+	 Trace.send(Trace.LEVEL_TRACE, Trace.INFO_MLET, clz, func, info);
+!!!8281499.java!!!	trace(in func : String, in info : String) : void
+	 trace(dbgTag, func, info);
+!!!8281627.java!!!	isDebugOn() : boolean
+	 return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_MLET);
+!!!8281755.java!!!	debug(in clz : String, in func : String, in info : String) : void
+	 Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_MLET, clz, func, info);
+!!!8281883.java!!!	debug(in func : String, in info : String) : void
+	 debug(dbgTag, func, info);

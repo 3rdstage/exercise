@@ -1,0 +1,83 @@
+class AbstractAction
+!!!2218523.java!!!	AbstractAction(in name : String)
+	putValue(Action.NAME, name);
+!!!2218651.java!!!	AbstractAction(in name : String, inout icon : Icon)
+	this(name);
+	putValue(Action.SMALL_ICON, icon);
+!!!2218779.java!!!	getValue(in key : String) : Object
+	if (arrayTable == null) {
+	    return null;
+	}
+	return arrayTable.get(key);
+!!!2218907.java!!!	putValue(in key : String, inout newValue : Object) : void
+	Object oldValue = null;
+	if (arrayTable == null) {
+	    arrayTable = new ArrayTable();
+	}
+	if (arrayTable.containsKey(key))
+	    oldValue = arrayTable.get(key);
+	// Remove the entry for key if newValue is null
+	// else put in the newValue for key.
+	if (newValue == null) {
+	    arrayTable.remove(key);
+	} else {
+	    arrayTable.put(key,newValue);
+	}
+	firePropertyChange(key, oldValue, newValue);
+!!!2219035.java!!!	isEnabled() : boolean
+	return enabled;
+!!!2219163.java!!!	setEnabled(inout newValue : boolean) : void
+	boolean oldValue = this.enabled;
+
+	if (oldValue != newValue) {
+	    this.enabled = newValue;
+	    firePropertyChange("enabled", 
+			       Boolean.valueOf(oldValue), Boolean.valueOf(newValue));
+	}
+!!!2219291.java!!!	getKeys() : Object
+	if (arrayTable == null) {
+	    return null;
+	}
+	Object[] keys = new Object[arrayTable.size()];
+	arrayTable.getKeys(keys);
+	return keys;
+!!!2219419.java!!!	firePropertyChange(in propertyName : String, inout oldValue : Object, inout newValue : Object) : void
+        if (changeSupport == null || 
+	    (oldValue != null && newValue != null && oldValue.equals(newValue))) {
+            return;
+        }
+        changeSupport.firePropertyChange(propertyName, oldValue, newValue);
+!!!2219547.java!!!	addPropertyChangeListener(inout listener : PropertyChangeListener) : void
+        if (changeSupport == null) {
+	    changeSupport = new SwingPropertyChangeSupport(this);
+        }
+        changeSupport.addPropertyChangeListener(listener);
+!!!2219675.java!!!	removePropertyChangeListener(inout listener : PropertyChangeListener) : void
+        if (changeSupport == null) {
+            return;
+        }
+        changeSupport.removePropertyChangeListener(listener);
+!!!2219803.java!!!	getPropertyChangeListeners() : PropertyChangeListener
+        if (changeSupport == null) {
+            return new PropertyChangeListener[0];
+        }
+        return changeSupport.getPropertyChangeListeners();
+!!!2219931.java!!!	clone() : Object
+	AbstractAction newAction = (AbstractAction)super.clone();
+	synchronized(this) {
+	    if (arrayTable != null) {
+		newAction.arrayTable = (ArrayTable)arrayTable.clone();
+	    }
+	}
+	return newAction;
+!!!2220059.java!!!	writeObject(inout s : ObjectOutputStream) : void
+	// Store the default fields
+        s.defaultWriteObject();
+
+        // And the keys
+        ArrayTable.writeArrayTable(s, arrayTable);
+!!!2220187.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+	for (int counter = s.readInt() - 1; counter >= 0; counter--) {
+	    putValue((String)s.readObject(), s.readObject());
+	}

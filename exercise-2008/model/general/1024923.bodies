@@ -1,0 +1,62 @@
+class SubRegistry
+!!!8172955.java!!!	SubRegistry(inout registry : ServiceRegistry, inout category : Class)
+        this.registry = registry;
+        this.category = category;
+!!!8173083.java!!!	registerServiceProvider(inout provider : Object) : boolean
+        Object oprovider = map.get(provider.getClass());
+        boolean present =  oprovider != null;
+
+        if (present) {
+            deregisterServiceProvider(oprovider);
+        }
+        map.put(provider.getClass(), provider);
+        poset.add(provider);
+        if (provider instanceof RegisterableService) {
+            RegisterableService rs = (RegisterableService)provider;
+            rs.onRegistration(registry, category);
+        }
+
+        return !present;
+!!!8173211.java!!!	deregisterServiceProvider(inout provider : Object) : boolean
+        Object oprovider = map.get(provider.getClass());
+
+        if (provider == oprovider) {
+            map.remove(provider.getClass());
+            poset.remove(provider);
+            if (provider instanceof RegisterableService) {
+                RegisterableService rs = (RegisterableService)provider;
+                rs.onDeregistration(registry, category);
+            }
+
+            return true;
+        }
+        return false;
+!!!8173339.java!!!	contains(inout provider : Object) : boolean
+        Object oprovider = map.get(provider.getClass());
+        return oprovider == provider;
+!!!8173467.java!!!	setOrdering(inout firstProvider : Object, inout secondProvider : Object) : boolean
+        return poset.setOrdering(firstProvider, secondProvider);
+!!!8173595.java!!!	unsetOrdering(inout firstProvider : Object, inout secondProvider : Object) : boolean
+        return poset.unsetOrdering(firstProvider, secondProvider);
+!!!8173723.java!!!	getServiceProviders(inout useOrdering : boolean) : Iterator
+        if (useOrdering) {
+            return poset.iterator();
+        } else {
+            return map.values().iterator();
+        }
+!!!8173851.java!!!	getServiceProviderByClass(inout providerClass : Class) : T
+        return (T)map.get(providerClass);
+!!!8173979.java!!!	clear() : void
+        Iterator iter = map.values().iterator();
+        while (iter.hasNext()) {
+            Object provider = iter.next();
+            iter.remove();
+
+            if (provider instanceof RegisterableService) {
+                RegisterableService rs = (RegisterableService)provider;
+                rs.onDeregistration(registry, category);
+            }
+        }
+        poset.clear();
+!!!8174107.java!!!	finalize() : void
+        clear();

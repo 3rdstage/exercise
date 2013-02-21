@@ -1,0 +1,114 @@
+class TreeNode
+!!!3445531.java!!!	registerNode(inout agent : SnmpMibAgent) : void
+            long[] oid= agent.getRootOid();
+            registerNode(oid, 0, agent);
+!!!3445659.java!!!	retrieveMatchingBranch(in oid : long, in cursor : int) : TreeNode
+	    TreeNode node= retrieveChild(oid, cursor);
+            if (node == null)
+                return this;
+            if (children.size() == 0) {
+                // In this case, the node does not have any children. So no point to
+                // continue the search ...
+                return node;
+            }
+            if( cursor + 1 == oid.length) {
+                // In this case, the oid does not have any more element. So the search
+                // is over.
+                return node;
+            }
+	    
+            TreeNode n = node.retrieveMatchingBranch(oid, cursor + 1);
+	    //If the returned node got a null agent, we have to replace it by 
+	    //the current one (in case it is not null)
+	    //
+	    return n.agent == null ? this : n;
+!!!3445787.java!!!	getAgentMib() : SnmpMibAgent
+            return agent;
+!!!3445915.java!!!	printTree(in ident : String) : void
+	
+            StringBuffer buff= new StringBuffer();
+            if (agents == null) {
+                return;
+            }
+      
+            for(Enumeration e= agents.elements(); e.hasMoreElements(); ) {
+                SnmpMibAgent mib= (SnmpMibAgent) e.nextElement();
+                if (mib == null)
+                    buff.append("empty ");
+                else
+                    buff.append(mib.getMibName() + " ");
+            }
+            ident+= " ";
+            if (children == null) {
+                return;
+            }
+            for(Enumeration e= children.elements(); e.hasMoreElements(); ) {
+                TreeNode node= (TreeNode) e.nextElement();
+                node.printTree(ident);
+            }
+!!!3446043.java!!!	TreeNode(in nodeValue : long, inout agent : SnmpMibAgent, inout sup : TreeNode)
+            this.nodeValue= nodeValue;
+            this.parent= sup;
+            agents.addElement(agent);
+!!!3446171.java!!!	removeAgentFully(inout agent : SnmpMibAgent) : void
+	    Vector v = new Vector();
+	    for(Enumeration e= children.elements(); e.hasMoreElements(); ) {
+		
+                TreeNode node= (TreeNode) e.nextElement();
+                node.removeAgentFully(agent);
+		if(node.agents.isEmpty())
+		    v.add(node);
+		
+            }
+	    for(Enumeration e= v.elements(); e.hasMoreElements(); ) {
+		children.removeElement(e.nextElement());
+	    }
+            removeAgent(agent);
+	    
+!!!3446299.java!!!	removeAgent(inout mib : SnmpMibAgent) : void
+            if (!agents.contains(mib))
+                return;
+            agents.removeElement(mib);
+	    
+	    if (!agents.isEmpty())
+		agent= (SnmpMibAgent)agents.firstElement();
+	   
+!!!3446427.java!!!	setAgent(inout agent : SnmpMibAgent) : void
+	this.agent = agent;
+!!!3446555.java!!!	registerNode(in oid : long, in cursor : int, inout agent : SnmpMibAgent) : void
+
+            if (cursor >= oid.length)
+                //That's it !
+                //
+                return;	    
+            TreeNode child = retrieveChild(oid, cursor);
+            if (child == null) {
+                // Create a child and register it !
+                //
+                long theValue= oid[cursor];
+		child= new TreeNode(theValue, agent, this);
+                children.addElement(child);
+            }
+	    else
+		if (agents.contains(agent) == false) {
+		    agents.addElement(agent);
+		}
+	    
+	    // We have to set the agent attribute
+	    //
+	    if(cursor == (oid.length - 1)) {
+	      child.setAgent(agent);
+	    }
+	    else
+	      child.registerNode(oid, cursor+1, agent);
+!!!3446683.java!!!	retrieveChild(in oid : long, in current : int) : TreeNode
+            long theValue= oid[current];
+	
+            for(Enumeration e= children.elements(); e.hasMoreElements(); ) {
+                TreeNode node= (TreeNode) e.nextElement();
+                if (node.match(theValue))
+                    return node;
+            }
+            return null;
+!!!3446811.java!!!	match(in value : long) : boolean
+            return (nodeValue == value) ? true : false;

@@ -1,0 +1,404 @@
+class AbstractStringBuilder
+!!!6924315.java!!!	AbstractStringBuilder(in capacity : int)
+        value = new char[capacity];
+!!!6924443.java!!!	length() : int
+	return count;
+!!!6924571.java!!!	capacity() : int
+	return value.length;
+!!!6924699.java!!!	ensureCapacity(in minimumCapacity : int) : void
+	if (minimumCapacity > value.length) {
+	    expandCapacity(minimumCapacity);
+	}
+!!!6924827.java!!!	expandCapacity(in minimumCapacity : int) : void
+	int newCapacity = (value.length + 1) * 2;
+        if (newCapacity < 0) {
+            newCapacity = Integer.MAX_VALUE;
+        } else if (minimumCapacity > newCapacity) {
+	    newCapacity = minimumCapacity;
+	}	
+	char newValue[] = new char[newCapacity];
+	System.arraycopy(value, 0, newValue, 0, count);
+	value = newValue;
+!!!6924955.java!!!	trimToSize() : void
+        if (count < value.length) {
+            char[] newValue = new char[count];
+            System.arraycopy(value, 0, newValue, 0, count); 
+            this.value = newValue;
+        }
+!!!6925083.java!!!	setLength(in newLength : int) : void
+	if (newLength < 0)
+	    throw new StringIndexOutOfBoundsException(newLength);
+	if (newLength > value.length)
+	    expandCapacity(newLength);
+
+	if (count < newLength) {
+	    for (; count < newLength; count++)
+		value[count] = '\0';
+	} else {
+            count = newLength;
+        }
+!!!6925211.java!!!	charAt(in index : int) : char
+	if ((index < 0) || (index >= count))
+	    throw new StringIndexOutOfBoundsException(index);
+	return value[index];
+!!!6925339.java!!!	codePointAt(in index : int) : int
+        if ((index < 0) || (index >= count)) {
+            throw new StringIndexOutOfBoundsException(index);
+        }
+        return Character.codePointAt(value, index);
+!!!6925467.java!!!	codePointBefore(in index : int) : int
+	int i = index - 1;
+        if ((i < 0) || (i >= count)) {
+            throw new StringIndexOutOfBoundsException(index);
+        }
+        return Character.codePointBefore(value, index);
+!!!6925595.java!!!	codePointCount(in beginIndex : int, in endIndex : int) : int
+	if (beginIndex < 0 || endIndex > count || beginIndex > endIndex) {
+	    throw new IndexOutOfBoundsException();
+	}
+	return Character.codePointCountImpl(value, beginIndex, endIndex-beginIndex);
+!!!6925723.java!!!	offsetByCodePoints(in index : int, in codePointOffset : int) : int
+	if (index < 0 || index > count) {
+	    throw new IndexOutOfBoundsException();
+	}
+	return Character.offsetByCodePointsImpl(value, 0, count,
+						index, codePointOffset);
+!!!6925851.java!!!	getChars(in srcBegin : int, in srcEnd : int, in dst : char, in dstBegin : int) : void
+	if (srcBegin < 0)
+	    throw new StringIndexOutOfBoundsException(srcBegin);
+	if ((srcEnd < 0) || (srcEnd > count))
+	    throw new StringIndexOutOfBoundsException(srcEnd);
+        if (srcBegin > srcEnd)
+            throw new StringIndexOutOfBoundsException("srcBegin > srcEnd");
+	System.arraycopy(value, srcBegin, dst, dstBegin, srcEnd - srcBegin);
+!!!6925979.java!!!	setCharAt(in index : int, in ch : char) : void
+	if ((index < 0) || (index >= count))
+	    throw new StringIndexOutOfBoundsException(index);
+	value[index] = ch;
+!!!6926107.java!!!	append(inout obj : Object) : AbstractStringBuilder
+	return append(String.valueOf(obj));
+!!!6926235.java!!!	append(in str : String) : AbstractStringBuilder
+	if (str == null) str = "null";
+        int len = str.length();
+	if (len == 0) return this;
+	int newCount = count + len;
+	if (newCount > value.length)
+	    expandCapacity(newCount);
+	str.getChars(0, len, value, count);
+	count = newCount;
+	return this;
+!!!6926363.java!!!	append(inout sb : StringBuffer) : AbstractStringBuilder
+	if (sb == null)
+            return append("null");
+	int len = sb.length();
+	int newCount = count + len;
+	if (newCount > value.length)
+	    expandCapacity(newCount);
+	sb.getChars(0, len, value, count);
+	count = newCount;
+	return this;
+!!!6926491.java!!!	append(inout s : CharSequence) : AbstractStringBuilder
+        if (s == null)
+            s = "null";
+        if (s instanceof String)
+            return this.append((String)s);
+        if (s instanceof StringBuffer)
+            return this.append((StringBuffer)s);
+        return this.append(s, 0, s.length());
+!!!6926619.java!!!	append(inout s : CharSequence, in start : int, in end : int) : AbstractStringBuilder
+        if (s == null)
+            s = "null";
+	if ((start < 0) || (end < 0) || (start > end) || (end > s.length()))
+	    throw new IndexOutOfBoundsException(
+                "start " + start + ", end " + end + ", s.length() " 
+                + s.length());
+	int len = end - start;
+	if (len == 0)
+            return this;
+	int newCount = count + len;
+	if (newCount > value.length)
+	    expandCapacity(newCount);
+        for (int i=start; i<end; i++)
+            value[count++] = s.charAt(i);
+        count = newCount;
+	return this;
+!!!6926747.java!!!	append(in str : char) : AbstractStringBuilder
+ 
+	int newCount = count + str.length;
+	if (newCount > value.length)
+	    expandCapacity(newCount);
+        System.arraycopy(str, 0, value, count, str.length);
+        count = newCount;
+        return this;
+!!!6926875.java!!!	append(in str : char, in offset : int, in len : int) : AbstractStringBuilder
+        int newCount = count + len;
+	if (newCount > value.length)
+	    expandCapacity(newCount);
+	System.arraycopy(str, offset, value, count, len);
+	count = newCount;
+	return this;
+!!!6927003.java!!!	append(inout b : boolean) : AbstractStringBuilder
+        if (b) {
+            int newCount = count + 4;
+            if (newCount > value.length)
+                expandCapacity(newCount);
+            value[count++] = 't';
+            value[count++] = 'r';
+            value[count++] = 'u';
+            value[count++] = 'e';
+        } else {
+            int newCount = count + 5;
+            if (newCount > value.length)
+                expandCapacity(newCount);
+            value[count++] = 'f';
+            value[count++] = 'a';
+            value[count++] = 'l';
+            value[count++] = 's';
+            value[count++] = 'e';
+        }
+	return this;
+!!!6927131.java!!!	append(in c : char) : AbstractStringBuilder
+        int newCount = count + 1;
+	if (newCount > value.length)
+	    expandCapacity(newCount);
+	value[count++] = c;
+	return this;
+!!!6927259.java!!!	append(in i : int) : AbstractStringBuilder
+        if (i == Integer.MIN_VALUE) {
+            append("-2147483648");
+            return this;
+        }
+        int appendedLength = (i < 0) ? stringSizeOfInt(-i) + 1 
+                                     : stringSizeOfInt(i);
+        int spaceNeeded = count + appendedLength;
+        if (spaceNeeded > value.length)
+            expandCapacity(spaceNeeded);
+	Integer.getChars(i, spaceNeeded, value);
+        count = spaceNeeded;
+        return this;
+!!!6927387.java!!!	stringSizeOfInt(in x : int) : int
+        for (int i=0; ; i++)
+            if (x <= sizeTable[i])
+                return i+1;
+!!!6927515.java!!!	append(in l : long) : AbstractStringBuilder
+        if (l == Long.MIN_VALUE) {
+            append("-9223372036854775808");
+            return this;
+        }
+        int appendedLength = (l < 0) ? stringSizeOfLong(-l) + 1 
+                                     : stringSizeOfLong(l);
+        int spaceNeeded = count + appendedLength;
+        if (spaceNeeded > value.length)
+            expandCapacity(spaceNeeded);
+	Long.getChars(l, spaceNeeded, value);
+        count = spaceNeeded;
+        return this;
+!!!6927643.java!!!	stringSizeOfLong(in x : long) : int
+        long p = 10;
+        for (int i=1; i<19; i++) {
+            if (x < p)
+                return i;
+            p = 10*p;
+        }
+        return 19;
+!!!6927771.java!!!	append(in f : float) : AbstractStringBuilder
+	new FloatingDecimal(f).appendTo(this);
+ 	return this;
+!!!6927899.java!!!	append(in d : double) : AbstractStringBuilder
+	new FloatingDecimal(d).appendTo(this);
+ 	return this;
+!!!6928027.java!!!	delete(in start : int, in end : int) : AbstractStringBuilder
+	if (start < 0)
+	    throw new StringIndexOutOfBoundsException(start);
+	if (end > count)
+	    end = count;
+	if (start > end)
+	    throw new StringIndexOutOfBoundsException();
+        int len = end - start;
+        if (len > 0) {
+            System.arraycopy(value, start+len, value, start, count-end);
+            count -= len;
+        }
+        return this;
+!!!6928155.java!!!	appendCodePoint(in codePoint : int) : AbstractStringBuilder
+	if (!Character.isValidCodePoint(codePoint)) {
+	    throw new IllegalArgumentException();
+	}
+	int n = 1;
+	if (codePoint >= Character.MIN_SUPPLEMENTARY_CODE_POINT) {
+	    n++;
+	}
+	int newCount = count + n;
+	if (newCount > value.length) {
+	    expandCapacity(newCount);
+	}
+	if (n == 1) {
+	    value[count++] = (char) codePoint;
+	} else {
+	    Character.toSurrogates(codePoint, value, count);
+	    count += n;
+	}
+	return this;
+!!!6928283.java!!!	deleteCharAt(in index : int) : AbstractStringBuilder
+        if ((index < 0) || (index >= count))
+	    throw new StringIndexOutOfBoundsException(index);
+	System.arraycopy(value, index+1, value, index, count-index-1);
+	count--;
+        return this;
+!!!6928411.java!!!	replace(in start : int, in end : int, in str : String) : AbstractStringBuilder
+        if (start < 0)
+	    throw new StringIndexOutOfBoundsException(start);
+        if (start > count)
+            throw new StringIndexOutOfBoundsException("start > length()");
+	if (start > end)
+	    throw new StringIndexOutOfBoundsException("start > end");
+        if (end > count)
+            end = count;
+
+        if (end > count)
+            end = count;
+	int len = str.length();
+	int newCount = count + len - (end - start);
+	if (newCount > value.length)
+	    expandCapacity(newCount);
+
+        System.arraycopy(value, end, value, start + len, count - end);
+        str.getChars(value, start);
+        count = newCount;
+        return this;
+!!!6928539.java!!!	substring(in start : int) : String
+        return substring(start, count);
+!!!6928667.java!!!	subSequence(in start : int, in end : int) : CharSequence
+        return substring(start, end);
+!!!6928795.java!!!	substring(in start : int, in end : int) : String
+	if (start < 0)
+	    throw new StringIndexOutOfBoundsException(start);
+	if (end > count)
+	    throw new StringIndexOutOfBoundsException(end);
+	if (start > end)
+	    throw new StringIndexOutOfBoundsException(end - start);
+        return new String(value, start, end - start);
+!!!6928923.java!!!	insert(in index : int, in str : char, in offset : int, in len : int) : AbstractStringBuilder
+        if ((index < 0) || (index > length()))
+	    throw new StringIndexOutOfBoundsException(index);
+        if ((offset < 0) || (len < 0) || (offset > str.length - len))
+            throw new StringIndexOutOfBoundsException(
+                "offset " + offset + ", len " + len + ", str.length " 
+                + str.length);
+	int newCount = count + len;
+	if (newCount > value.length)
+	    expandCapacity(newCount);
+	System.arraycopy(value, index, value, index + len, count - index);
+	System.arraycopy(str, offset, value, index, len);
+	count = newCount;
+	return this;
+!!!6929051.java!!!	insert(in offset : int, inout obj : Object) : AbstractStringBuilder
+	return insert(offset, String.valueOf(obj));
+!!!6929179.java!!!	insert(in offset : int, in str : String) : AbstractStringBuilder
+	if ((offset < 0) || (offset > length()))
+	    throw new StringIndexOutOfBoundsException(offset);
+	if (str == null)
+	    str = "null";
+	int len = str.length();
+	int newCount = count + len;
+	if (newCount > value.length)
+	    expandCapacity(newCount);
+	System.arraycopy(value, offset, value, offset + len, count - offset);
+	str.getChars(value, offset);
+	count = newCount;
+	return this;
+!!!6929307.java!!!	insert(in offset : int, in str : char) : AbstractStringBuilder
+	if ((offset < 0) || (offset > length()))
+	    throw new StringIndexOutOfBoundsException(offset);
+	int len = str.length;
+	int newCount = count + len;
+	if (newCount > value.length)
+	    expandCapacity(newCount);
+	System.arraycopy(value, offset, value, offset + len, count - offset);
+	System.arraycopy(str, 0, value, offset, len);
+	count = newCount;
+	return this;
+!!!6929435.java!!!	insert(in dstOffset : int, inout s : CharSequence) : AbstractStringBuilder
+        if (s == null)
+            s = "null";
+        if (s instanceof String)
+            return this.insert(dstOffset, (String)s);
+        return this.insert(dstOffset, s, 0, s.length());
+!!!6929563.java!!!	insert(in dstOffset : int, inout s : CharSequence, in start : int, in end : int) : AbstractStringBuilder
+        if (s == null)
+            s = "null";
+	if ((dstOffset < 0) || (dstOffset > this.length()))
+	    throw new IndexOutOfBoundsException("dstOffset "+dstOffset);
+	if ((start < 0) || (end < 0) || (start > end) || (end > s.length()))
+            throw new IndexOutOfBoundsException(
+                "start " + start + ", end " + end + ", s.length() " 
+                + s.length());
+	int len = end - start;
+        if (len == 0)
+            return this;
+	int newCount = count + len;
+	if (newCount > value.length)
+	    expandCapacity(newCount);
+	System.arraycopy(value, dstOffset, value, dstOffset + len,
+                         count - dstOffset);
+	for (int i=start; i<end; i++)
+            value[dstOffset++] = s.charAt(i);
+	count = newCount;
+        return this;
+!!!6929691.java!!!	insert(in offset : int, inout b : boolean) : AbstractStringBuilder
+	return insert(offset, String.valueOf(b));
+!!!6929819.java!!!	insert(in offset : int, in c : char) : AbstractStringBuilder
+	int newCount = count + 1;
+	if (newCount > value.length)
+	    expandCapacity(newCount);
+	System.arraycopy(value, offset, value, offset + 1, count - offset);
+	value[offset] = c;
+	count = newCount;
+	return this;
+!!!6929947.java!!!	insert(in offset : int, in i : int) : AbstractStringBuilder
+	return insert(offset, String.valueOf(i));
+!!!6930075.java!!!	insert(in offset : int, in l : long) : AbstractStringBuilder
+	return insert(offset, String.valueOf(l));
+!!!6930203.java!!!	insert(in offset : int, in f : float) : AbstractStringBuilder
+	return insert(offset, String.valueOf(f));
+!!!6930331.java!!!	insert(in offset : int, in d : double) : AbstractStringBuilder
+	return insert(offset, String.valueOf(d));
+!!!6930459.java!!!	indexOf(in str : String) : int
+	return indexOf(str, 0);
+!!!6930587.java!!!	indexOf(in str : String, in fromIndex : int) : int
+        return String.indexOf(value, 0, count,
+                              str.toCharArray(), 0, str.length(), fromIndex);
+!!!6930715.java!!!	lastIndexOf(in str : String) : int
+        return lastIndexOf(str, count);
+!!!6930843.java!!!	lastIndexOf(in str : String, in fromIndex : int) : int
+        return String.lastIndexOf(value, 0, count,
+                              str.toCharArray(), 0, str.length(), fromIndex);
+!!!6930971.java!!!	reverse() : AbstractStringBuilder
+	boolean hasSurrogate = false;
+	int n = count - 1;
+	for (int j = (n-1) >> 1; j >= 0; --j) {
+	    char temp = value[j];
+	    char temp2 = value[n - j];
+	    if (!hasSurrogate) {
+		hasSurrogate = (temp >= Character.MIN_SURROGATE && temp <= Character.MAX_SURROGATE)
+		    || (temp2 >= Character.MIN_SURROGATE && temp2 <= Character.MAX_SURROGATE);
+	    }
+	    value[j] = temp2;
+	    value[n - j] = temp;
+	}
+	if (hasSurrogate) {
+	    // Reverse back all valid surrogate pairs
+	    for (int i = 0; i < count - 1; i++) {
+		char c2 = value[i];
+		if (Character.isLowSurrogate(c2)) {
+		    char c1 = value[i + 1];
+		    if (Character.isHighSurrogate(c1)) {
+			value[i++] = c1;
+			value[i] = c2;
+		    }
+		}
+	    }
+	}
+	return this;
+!!!6931227.java!!!	getValue() : char
+        return value;

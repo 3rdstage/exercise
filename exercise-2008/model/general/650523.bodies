@@ -1,0 +1,99 @@
+class XMLMessages
+!!!4308891.java!!!	setLocale(inout locale : Locale) : void
+    fLocale = locale;
+!!!4309019.java!!!	getLocale() : Locale
+    return fLocale;
+!!!4309147.java!!!	createXMLMessage(in msgKey : String, inout args : Object) : String
+    if (XMLBundle == null)
+      XMLBundle = loadResourceBundle(XML_ERROR_RESOURCES);
+    
+    if (XMLBundle != null)
+    {
+      return createMsg(XMLBundle, msgKey, args);
+    }
+    else
+      return "Could not load any resource bundles.";
+!!!4309275.java!!!	createMsg(inout fResourceBundle : ListResourceBundle, in msgKey : String, inout args : Object) : String
+
+    String fmsg = null;
+    boolean throwex = false;
+    String msg = null;
+
+    if (msgKey != null)
+      msg = fResourceBundle.getString(msgKey);
+
+    if (msg == null)
+    {
+      msg = fResourceBundle.getString(BAD_CODE);
+      throwex = true;
+    }
+
+    if (args != null)
+    {
+      try
+      {
+
+        // Do this to keep format from crying.
+        // This is better than making a bunch of conditional
+        // code all over the place.
+        int n = args.length;
+
+        for (int i = 0; i < n; i++)
+        {
+          if (null == args[i])
+            args[i] = "";
+        }
+
+        fmsg = java.text.MessageFormat.format(msg, args);
+      }
+      catch (Exception e)
+      {
+        fmsg = fResourceBundle.getString(FORMAT_FAILED);
+        fmsg += " " + msg;
+      }
+    }
+    else
+      fmsg = msg;
+
+    if (throwex)
+    {
+      throw new RuntimeException(fmsg);
+    }
+
+    return fmsg;
+!!!4309403.java!!!	loadResourceBundle(in className : String) : ListResourceBundle
+    
+    Locale locale = Locale.getDefault();
+
+    try
+    {
+      return (ListResourceBundle)ResourceBundle.getBundle(className, locale);
+    }
+    catch (MissingResourceException e)
+    {
+      try  // try to fall back to en_US if we can't load
+      {
+
+        // Since we can't find the localized property file,
+        // fall back to en_US.
+        return (ListResourceBundle)ResourceBundle.getBundle(
+          className, new Locale("en", "US"));
+      }
+      catch (MissingResourceException e2)
+      {
+
+        // Now we are really in trouble.
+        // very bad, definitely very bad...not going to get very far
+        throw new MissingResourceException(
+          "Could not load any resource bundles." + className, className, "");
+      }
+    }
+!!!4309531.java!!!	getResourceSuffix(inout locale : Locale) : String
+
+    String suffix = "_" + locale.getLanguage();
+    String country = locale.getCountry();
+
+    if (country.equals("TW"))
+      suffix += "_" + country;
+
+    return suffix;

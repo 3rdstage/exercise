@@ -1,0 +1,496 @@
+class UIManager
+!!!9313307.java!!!	getLAFState() : LAFState
+	// First check whether we're running on the same thread as
+	// the last request.
+	Thread thisThread = Thread.currentThread();
+	if (thisThread == currentLAFStateThread) {
+	    return currentLAFState;
+	}
+
+        LAFState rv = (LAFState)SwingUtilities.appContextGet(lafStateACKey);
+        if (rv == null) {
+	    synchronized (classLock) {
+		rv = (LAFState)SwingUtilities.appContextGet(lafStateACKey);
+		if (rv == null) {
+		    SwingUtilities.appContextPut(lafStateACKey, 
+						 (rv = new LAFState()));
+		}
+	    }
+        }
+
+	currentLAFStateThread = thisThread;
+	currentLAFState = rv;
+
+	return rv;
+!!!9313435.java!!!	makeInstalledLAFKey(in laf : String, in attr : String) : String
+        return "swing.installedlaf." + laf + "." + attr;
+!!!9313563.java!!!	makeSwingPropertiesFilename() : String
+        String sep = File.separator;
+        // No need to wrap this in a doPrivileged as it's called from
+        // a doPrivileged.
+        String javaHome = System.getProperty("java.home");
+        if (javaHome == null) {
+            javaHome = "<java.home undefined>";
+        }
+        return javaHome + sep + "lib" + sep + "swing.properties";
+!!!9314203.java!!!	getInstalledLookAndFeels() : LookAndFeelInfo
+        maybeInitialize();
+        LookAndFeelInfo[] ilafs = installedLAFs;
+        LookAndFeelInfo[] rv = new LookAndFeelInfo[ilafs.length];
+        System.arraycopy(ilafs, 0, rv, 0, ilafs.length);
+        return rv;
+!!!9314331.java!!!	setInstalledLookAndFeels(inout infos : LookAndFeelInfo) : void
+        LookAndFeelInfo[] newInfos = new LookAndFeelInfo[infos.length];
+        System.arraycopy(infos, 0, newInfos, 0, infos.length);
+        installedLAFs = newInfos;
+!!!9314459.java!!!	installLookAndFeel(inout info : LookAndFeelInfo) : void
+        LookAndFeelInfo[] infos = getInstalledLookAndFeels();
+        LookAndFeelInfo[] newInfos = new LookAndFeelInfo[infos.length + 1];
+        System.arraycopy(infos, 0, newInfos, 0, infos.length);
+        newInfos[infos.length] = info;
+        setInstalledLookAndFeels(newInfos);
+!!!9314587.java!!!	installLookAndFeel(in name : String, in className : String) : void
+        installLookAndFeel(new LookAndFeelInfo(name, className));
+!!!9314715.java!!!	getLookAndFeel() : LookAndFeel
+        maybeInitialize();
+        return getLAFState().lookAndFeel;
+!!!9314843.java!!!	setLookAndFeel(inout newLookAndFeel : LookAndFeel) : void
+        if ((newLookAndFeel != null) && !newLookAndFeel.isSupportedLookAndFeel()) {
+            String s = newLookAndFeel.toString() + " not supported on this platform";
+            throw new UnsupportedLookAndFeelException(s);
+        }
+
+        LAFState lafState = getLAFState();
+        LookAndFeel oldLookAndFeel = lafState.lookAndFeel;
+        if (oldLookAndFeel != null) {
+            oldLookAndFeel.uninitialize();
+        }
+
+        lafState.lookAndFeel = newLookAndFeel;
+        if (newLookAndFeel != null) {
+            sun.swing.DefaultLookup.setDefaultLookup(null);
+            newLookAndFeel.initialize();
+            lafState.setLookAndFeelDefaults(newLookAndFeel.getDefaults());
+        }
+        else {
+            lafState.setLookAndFeelDefaults(null);
+        }
+
+        SwingPropertyChangeSupport changeSupport = lafState.
+                                         getPropertyChangeSupport(false);
+        if (changeSupport != null) {
+            changeSupport.firePropertyChange("lookAndFeel", oldLookAndFeel,
+                                             newLookAndFeel);
+        }
+!!!9314971.java!!!	setLookAndFeel(in className : String) : void
+        if ("javax.swing.plaf.metal.MetalLookAndFeel".equals(className)) {
+            // Avoid reflection for the common case of metal.
+            setLookAndFeel(new javax.swing.plaf.metal.MetalLookAndFeel());
+        }
+        else {
+            Class lnfClass = SwingUtilities.loadSystemClass(className);
+            setLookAndFeel((LookAndFeel)(lnfClass.newInstance()));
+        }
+!!!9315099.java!!!	getSystemLookAndFeelClassName() : String
+	String systemLAF = (String)AccessController.doPrivileged(
+                             new GetPropertyAction("swing.systemlaf"));
+        if (systemLAF != null) {
+            return systemLAF;
+        }
+	String osName = (String)AccessController.doPrivileged(
+                             new GetPropertyAction("os.name"));
+
+        if (osName != null) {
+            if (osName.indexOf("Windows") != -1) {
+                return "com.sun.java.swing.plaf.windows.WindowsLookAndFeel";
+            }
+            else {
+                String desktop = (String)AccessController.doPrivileged(
+                             new GetPropertyAction("sun.desktop"));
+                if ("gnome".equals(desktop)) {
+                    // May be set on Linux and Solaris boxs.
+                    return "com.sun.java.swing.plaf.gtk.GTKLookAndFeel";
+                }
+                if ((osName.indexOf("Solaris") != -1) || 
+		             (osName.indexOf("SunOS") != -1)) {
+                    return "com.sun.java.swing.plaf.motif.MotifLookAndFeel";
+                }
+            }
+        }
+        return getCrossPlatformLookAndFeelClassName();
+!!!9315227.java!!!	getCrossPlatformLookAndFeelClassName() : String
+	String laf = (String)AccessController.doPrivileged(
+                             new GetPropertyAction("swing.crossplatformlaf"));
+        if (laf != null) {
+            return laf;
+        }
+        return "javax.swing.plaf.metal.MetalLookAndFeel";
+!!!9315355.java!!!	getDefaults() : UIDefaults
+        maybeInitialize();
+        return getLAFState().multiUIDefaults;
+!!!9315483.java!!!	getFont(inout key : Object) : Font
+ 
+        return getDefaults().getFont(key); 
+!!!9315611.java!!!	getFont(inout key : Object, inout l : Locale) : Font
+ 
+        return getDefaults().getFont(key,l); 
+!!!9315739.java!!!	getColor(inout key : Object) : Color
+ 
+        return getDefaults().getColor(key); 
+!!!9315867.java!!!	getColor(inout key : Object, inout l : Locale) : Color
+ 
+        return getDefaults().getColor(key,l); 
+!!!9315995.java!!!	getIcon(inout key : Object) : Icon
+ 
+        return getDefaults().getIcon(key); 
+!!!9316123.java!!!	getIcon(inout key : Object, inout l : Locale) : Icon
+ 
+        return getDefaults().getIcon(key,l); 
+!!!9316251.java!!!	getBorder(inout key : Object) : Border
+ 
+        return getDefaults().getBorder(key); 
+!!!9316379.java!!!	getBorder(inout key : Object, inout l : Locale) : Border
+ 
+        return getDefaults().getBorder(key,l); 
+!!!9316507.java!!!	getString(inout key : Object) : String
+ 
+        return getDefaults().getString(key); 
+!!!9316635.java!!!	getString(inout key : Object, inout l : Locale) : String
+ 
+        return getDefaults().getString(key,l); 
+!!!9316763.java!!!	getString(inout key : Object, inout c : Component) : String
+ 
+        Locale l = (c == null) ? Locale.getDefault() : c.getLocale();
+        return getString(key, l);
+!!!9316891.java!!!	getInt(inout key : Object) : int
+        return getDefaults().getInt(key);
+!!!9317019.java!!!	getInt(inout key : Object, inout l : Locale) : int
+        return getDefaults().getInt(key,l);
+!!!9317147.java!!!	getInt(inout key : Object, in defaultValue : int) : int
+        Object value = UIManager.get(key);
+
+        if (value instanceof Integer) {
+            return ((Integer)value).intValue();
+        }
+        if (value instanceof String) {
+            try {
+                return Integer.parseInt((String)value);
+            } catch (NumberFormatException nfe) {}
+        }
+        return defaultValue;
+!!!9317275.java!!!	getBoolean(inout key : Object) : boolean
+        return getDefaults().getBoolean(key);
+!!!9317403.java!!!	getBoolean(inout key : Object, inout l : Locale) : boolean
+        return getDefaults().getBoolean(key,l);
+!!!9317531.java!!!	getInsets(inout key : Object) : Insets
+        return getDefaults().getInsets(key);
+!!!9317659.java!!!	getInsets(inout key : Object, inout l : Locale) : Insets
+        return getDefaults().getInsets(key,l);
+!!!9317787.java!!!	getDimension(inout key : Object) : Dimension
+        return getDefaults().getDimension(key);
+!!!9317915.java!!!	getDimension(inout key : Object, inout l : Locale) : Dimension
+        return getDefaults().getDimension(key,l);
+!!!9318043.java!!!	get(inout key : Object) : Object
+ 
+        return getDefaults().get(key); 
+!!!9318171.java!!!	get(inout key : Object, inout l : Locale) : Object
+ 
+        return getDefaults().get(key,l); 
+!!!9318299.java!!!	put(inout key : Object, inout value : Object) : Object
+ 
+        return getDefaults().put(key, value); 
+!!!9318427.java!!!	getUI(inout target : JComponent) : ComponentUI
+        maybeInitialize();
+        ComponentUI ui = null;
+        LookAndFeel multiLAF = getLAFState().multiLookAndFeel;
+        if (multiLAF != null) {
+            // This can return null if the multiplexing look and feel
+            // doesn't support a particular UI.
+            ui = multiLAF.getDefaults().getUI(target);
+        }
+        if (ui == null) {
+            ui = getDefaults().getUI(target);
+        }
+        return ui;
+!!!9318555.java!!!	getLookAndFeelDefaults() : UIDefaults
+        maybeInitialize();
+        return getLAFState().getLookAndFeelDefaults();
+!!!9318683.java!!!	getMultiLookAndFeel() : LookAndFeel
+	LookAndFeel multiLookAndFeel = getLAFState().multiLookAndFeel;
+	if (multiLookAndFeel == null) {
+            String defaultName = "javax.swing.plaf.multi.MultiLookAndFeel";
+            String className = getLAFState().swingProps.getProperty(multiplexingLAFKey, defaultName);
+            try {
+                Class lnfClass = SwingUtilities.loadSystemClass(className);
+                multiLookAndFeel = (LookAndFeel)lnfClass.newInstance();
+            } catch (Exception exc) {
+                System.err.println("UIManager: failed loading " + className);
+            }
+	}
+	return multiLookAndFeel;
+!!!9318811.java!!!	addAuxiliaryLookAndFeel(inout laf : LookAndFeel) : void
+        maybeInitialize();
+
+        if (!laf.isSupportedLookAndFeel()) {
+            // Ideally we would throw an exception here, but it's too late
+            // for that.
+            return;
+        }
+        Vector v = getLAFState().auxLookAndFeels;
+        if (v == null) {
+            v = new Vector();
+        } 
+
+	if (!v.contains(laf)) {
+	    v.addElement(laf);
+	    laf.initialize();
+            getLAFState().auxLookAndFeels = v;
+
+	    if (getLAFState().multiLookAndFeel == null) {
+	        getLAFState().multiLookAndFeel = getMultiLookAndFeel();
+            }
+	}
+!!!9318939.java!!!	removeAuxiliaryLookAndFeel(inout laf : LookAndFeel) : boolean
+        maybeInitialize();
+
+	boolean result;
+
+        Vector v = getLAFState().auxLookAndFeels;
+        if ((v == null) || (v.size() == 0)) {
+            return false;
+        } 
+	
+	result = v.removeElement(laf);
+	if (result) {
+	    if (v.size() == 0) {
+	        getLAFState().auxLookAndFeels = null;
+	        getLAFState().multiLookAndFeel = null;
+	    } else {
+	        getLAFState().auxLookAndFeels = v;
+            }
+        }
+	laf.uninitialize();
+
+	return result;
+!!!9319067.java!!!	getAuxiliaryLookAndFeels() : LookAndFeel
+        maybeInitialize();
+
+        Vector v = getLAFState().auxLookAndFeels;
+        if ((v == null) || (v.size() == 0)) {
+            return null;
+        } 
+        else {
+            LookAndFeel[] rv = new LookAndFeel[v.size()];
+            for (int i = 0; i < rv.length; i++) {
+                rv[i] = (LookAndFeel)v.elementAt(i);
+            }
+            return rv;
+        }
+!!!9319195.java!!!	addPropertyChangeListener(inout listener : PropertyChangeListener) : void
+	synchronized (classLock) {
+	    getLAFState().getPropertyChangeSupport(true).
+                             addPropertyChangeListener(listener);
+	}
+!!!9319323.java!!!	removePropertyChangeListener(inout listener : PropertyChangeListener) : void
+        synchronized (classLock) {
+	    getLAFState().getPropertyChangeSupport(true).
+                          removePropertyChangeListener(listener);
+	}
+!!!9319451.java!!!	getPropertyChangeListeners() : PropertyChangeListener
+        synchronized(classLock) {
+            return getLAFState().getPropertyChangeSupport(true).
+                      getPropertyChangeListeners();
+        }
+!!!9319579.java!!!	loadSwingProperties() : Properties
+	/* Don't bother checking for Swing properties if untrusted, as
+	 * there's no way to look them up without triggering SecurityExceptions.
+	 */
+        if (UIManager.class.getClassLoader() != null) {
+	    return new Properties();
+	}
+	else {
+	    final Properties props = new Properties();
+
+            java.security.AccessController.doPrivileged(
+                new java.security.PrivilegedAction() {
+                public Object run() {
+		    try {
+			File file = new File(makeSwingPropertiesFilename());
+
+                        if (file.exists()) {
+                            // InputStream has been buffered in Properties
+                            // class
+                            FileInputStream ins = new FileInputStream(file);
+                            props.load(ins);
+                            ins.close();
+                        }
+		    } 
+		    catch (Exception e) {
+			// No such file, or file is otherwise non-readable.
+		    }
+
+		    // Check whether any properties were overridden at the
+		    // command line.
+		    checkProperty(props, defaultLAFKey);
+		    checkProperty(props, auxiliaryLAFsKey);
+		    checkProperty(props, multiplexingLAFKey);
+		    checkProperty(props, installedLAFsKey);
+		    checkProperty(props, disableMnemonicKey);
+                    // Don't care about return value.
+                    return null;
+		}
+	    });
+	    return props;
+	}
+!!!9319707.java!!!	checkProperty(inout props : Properties, in key : String) : void
+        // No need to do catch the SecurityException here, this runs
+        // in a doPrivileged.
+        String value = System.getProperty(key);
+        if (value != null) {
+            props.put(key, value);
+        }
+!!!9319835.java!!!	initializeInstalledLAFs(inout swingProps : Properties) : void
+        String ilafsString = swingProps.getProperty(installedLAFsKey);
+        if (ilafsString == null) {
+            return;
+        }
+
+        /* Create a vector that contains the value of the swing.installedlafs
+         * property.  For example given "swing.installedlafs=motif,windows"
+         * lafs = {"motif", "windows"}.
+         */
+        Vector lafs = new Vector();
+        StringTokenizer st = new StringTokenizer(ilafsString, ",", false);
+        while (st.hasMoreTokens()) {
+            lafs.addElement(st.nextToken());
+        }
+
+        /* Look up the name and class for each name in the "swing.installedlafs"
+         * list.  If they both exist then add a LookAndFeelInfo to 
+         * the installedLafs array.
+         */
+        Vector ilafs = new Vector(lafs.size());
+        for(int i = 0; i < lafs.size(); i++) {
+            String laf = (String)lafs.elementAt(i);
+            String name = swingProps.getProperty(makeInstalledLAFKey(laf, "name"), laf);
+            String cls = swingProps.getProperty(makeInstalledLAFKey(laf, "class"));
+            if (cls != null) {
+                ilafs.addElement(new LookAndFeelInfo(name, cls));
+            }
+        }
+
+        installedLAFs = new LookAndFeelInfo[ilafs.size()];
+        for(int i = 0; i < ilafs.size(); i++) {
+            installedLAFs[i] = (LookAndFeelInfo)(ilafs.elementAt(i));
+        }
+!!!9319963.java!!!	initializeDefaultLAF(inout swingProps : Properties) : void
+        if (getLAFState().lookAndFeel != null) {
+            return;
+        }
+
+        String metalLnf = getCrossPlatformLookAndFeelClassName();
+        String lnfDefault = metalLnf;
+
+        String lnfName = "<undefined>" ;
+        try {
+            lnfName = swingProps.getProperty(defaultLAFKey, lnfDefault);
+            setLookAndFeel(lnfName);
+        } catch (Exception e) {
+            try {
+                lnfName = swingProps.getProperty(defaultLAFKey, metalLnf);
+                setLookAndFeel(lnfName);
+            } catch (Exception e2) {
+                throw new Error("can't load " + lnfName);
+            }
+        }
+!!!9320091.java!!!	initializeAuxiliaryLAFs(inout swingProps : Properties) : void
+        String auxLookAndFeelNames = swingProps.getProperty(auxiliaryLAFsKey);
+        if (auxLookAndFeelNames == null) {
+            return;
+        }
+
+        Vector auxLookAndFeels = new Vector();
+
+        StringTokenizer p = new StringTokenizer(auxLookAndFeelNames,",");
+        String factoryName;
+
+        /* Try to load each LookAndFeel subclass in the list.
+         */
+
+        while (p.hasMoreTokens()) {
+            String className = p.nextToken();
+            try {
+                Class lnfClass = SwingUtilities.loadSystemClass(className);
+		LookAndFeel newLAF = (LookAndFeel)lnfClass.newInstance();
+		newLAF.initialize();
+                auxLookAndFeels.addElement(newLAF);
+            } 
+            catch (Exception e) {
+                System.err.println("UIManager: failed loading auxiliary look and feel " + className);
+            }
+        }
+
+        /* If there were problems and no auxiliary look and feels were 
+         * loaded, make sure we reset auxLookAndFeels to null.
+         * Otherwise, we are going to use the MultiLookAndFeel to get
+         * all component UI's, so we need to load it now.
+         */
+        if (auxLookAndFeels.size() == 0) {
+            auxLookAndFeels = null;
+        } 
+        else {
+	    getLAFState().multiLookAndFeel = getMultiLookAndFeel();
+	    if (getLAFState().multiLookAndFeel == null) {
+                auxLookAndFeels = null;
+	    }
+        }
+
+        getLAFState().auxLookAndFeels = auxLookAndFeels;
+!!!9320219.java!!!	initializeSystemDefaults(inout swingProps : Properties) : void
+	getLAFState().swingProps = swingProps;
+!!!9320347.java!!!	maybeInitialize() : void
+	synchronized (classLock) {
+	    if (!getLAFState().initialized) {
+		getLAFState().initialized = true;
+		initialize();
+	    }
+        }
+!!!9320475.java!!!	initialize() : void
+        Properties swingProps = loadSwingProperties();
+        initializeSystemDefaults(swingProps);
+        initializeDefaultLAF(swingProps);
+        initializeAuxiliaryLAFs(swingProps);
+        initializeInstalledLAFs(swingProps);
+
+        // Enable the Swing default LayoutManager.
+        String toolkitName = Toolkit.getDefaultToolkit().getClass().getName();
+        // don't set default policy if this is XAWT.
+        if (!"sun.awt.X11.XToolkit".equals(toolkitName)) {
+            if (FocusManager.isFocusManagerEnabled()) {
+                KeyboardFocusManager.getCurrentKeyboardFocusManager().
+                    setDefaultFocusTraversalPolicy(
+                        new LayoutFocusTraversalPolicy());
+            }
+        }
+        // Install a hook that will be invoked if no one consumes the
+        // KeyEvent.  If the source isn't a JComponent this will process
+        // key bindings, if the source is a JComponent it implies that
+        // processKeyEvent was already invoked and thus no need to process
+        // the bindings again, unless the Component is disabled, in which
+        // case KeyEvents will no longer be dispatched to it so that we
+        // handle it here.
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().
+                addKeyEventPostProcessor(new KeyEventPostProcessor() {
+                    public boolean postProcessKeyEvent(KeyEvent e) {
+                        Component c = e.getComponent();
+
+                        if ((!(c instanceof JComponent) ||
+                             (c != null && !((JComponent)c).isEnabled())) &&
+                                JComponent.KeyboardState.shouldProcess(e) &&
+                                SwingUtilities.processKeyBindings(e)) {
+                            e.consume();
+                            return true;
+                        }
+                        return false;
+                    }
+                });

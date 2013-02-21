@@ -1,0 +1,111 @@
+class MBeanServerPermission
+!!!8248603.java!!!	MBeanServerPermission(in name : String)
+	this(name, null);
+!!!8248731.java!!!	MBeanServerPermission(in name : String, in actions : String)
+        super(getCanonicalName(parseMask(name)), actions);
+
+	/* It's annoying to have to parse the name twice, but since
+	   Permission.getName() is final and since we can't access "this"
+	   until after the call to the superclass constructor, there
+	   isn't any very clean way to do this.  MBeanServerPermission
+	   objects aren't constructed very often, luckily.  */
+	mask = parseMask(name);
+
+	/* Check that actions is a null empty string */
+	if (actions != null && actions.length() > 0)
+	    throw new IllegalArgumentException("MBeanServerPermission " +
+					       "actions must be null: " +
+					       actions);
+!!!8248859.java!!!	MBeanServerPermission(in mask : int)
+	super(getCanonicalName(mask));
+	this.mask = impliedMask(mask);
+!!!8248987.java!!!	readObject(inout in : ObjectInputStream) : void
+	in.defaultReadObject();
+	mask = parseMask(getName());
+!!!8249115.java!!!	simplifyMask(in mask : int) : int
+	if ((mask & CREATE_MASK) != 0)
+	    mask &= ~NEW_MASK;
+	return mask;
+!!!8249243.java!!!	impliedMask(in mask : int) : int
+	if ((mask & CREATE_MASK) != 0)
+	    mask |= NEW_MASK;
+	return mask;
+!!!8249371.java!!!	getCanonicalName(in mask : int) : String
+	if (mask == ALL_MASK)
+	    return "*";
+
+	mask = simplifyMask(mask);
+
+	synchronized (canonicalNames) {
+	    if (canonicalNames[mask] == null)
+		canonicalNames[mask] = makeCanonicalName(mask);
+	}
+
+	return canonicalNames[mask];
+!!!8249499.java!!!	makeCanonicalName(in mask : int) : String
+	StringBuffer buf = new StringBuffer();
+	for (int i = 0; i < N_NAMES; i++) {
+	    if ((mask & (1<<i)) != 0) {
+		if (buf.length() > 0)
+		    buf.append(',');
+		buf.append(names[i]);
+	    }
+	}
+	return buf.toString().intern();
+	/* intern() avoids duplication when the mask has only
+	   one bit, so is equivalent to the string constants
+	   we have for the names[] array.  */
+!!!8249627.java!!!	parseMask(in name : String) : int
+	/* Check that target name is a non-null non-empty string */
+	if (name == null) {
+	    throw new NullPointerException("MBeanServerPermission: " +
+					   "target name can't be null");
+	}
+
+	name = name.trim();
+	if (name.equals("*"))
+	    return ALL_MASK;
+
+	/* If the name is empty, nameIndex will barf. */
+	if (name.indexOf(',') < 0)
+	    return impliedMask(1 << nameIndex(name.trim()));
+
+	int mask = 0;
+
+	StringTokenizer tok = new StringTokenizer(name, ",");
+	while (tok.hasMoreTokens()) {
+	    String action = tok.nextToken();
+	    int i = nameIndex(action.trim());
+	    mask |= (1 << i);
+	}
+
+	return impliedMask(mask);
+!!!8249755.java!!!	nameIndex(in name : String) : int
+	for (int i = 0; i < N_NAMES; i++) {
+	    if (names[i].equals(name))
+		return i;
+	}
+	final String msg =
+	    "Invalid MBeanServerPermission name: \"" + name + "\"";
+	throw new IllegalArgumentException(msg);
+!!!8249883.java!!!	hashCode() : int
+	return mask;
+!!!8250011.java!!!	implies(inout p : Permission) : boolean
+	if (!(p instanceof MBeanServerPermission))
+	    return false;
+
+	MBeanServerPermission that = (MBeanServerPermission) p;
+
+	return ((this.mask & that.mask) == that.mask);
+!!!8250139.java!!!	equals(inout obj : Object) : boolean
+	if (obj == this)
+	    return true;
+
+	if (! (obj instanceof MBeanServerPermission))
+	    return false;
+
+	MBeanServerPermission that = (MBeanServerPermission) obj;
+
+	return (this.mask == that.mask);
+!!!8250267.java!!!	newPermissionCollection() : PermissionCollection
+	return new MBeanServerPermissionCollection();

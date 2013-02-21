@@ -1,0 +1,57 @@
+class Worker
+!!!7951643.java!!!	Worker(inout firstTask : Runnable)
+            this.firstTask = firstTask;
+!!!7951771.java!!!	isActive() : boolean
+            return runLock.isLocked();
+!!!7951899.java!!!	interruptIfIdle() : void
+            final ReentrantLock runLock = this.runLock;
+            if (runLock.tryLock()) {
+                try {
+                    thread.interrupt();
+                } finally {
+                    runLock.unlock();
+                }
+            }
+!!!7952027.java!!!	interruptNow() : void
+            thread.interrupt();
+!!!7952155.java!!!	runTask(inout task : Runnable) : void
+            final ReentrantLock runLock = this.runLock;
+            runLock.lock();
+            try {
+                // Abort now if immediate cancel.  Otherwise, we have
+                // committed to run this task.
+                if (runState == STOP)
+                    return;
+
+                Thread.interrupted(); // clear interrupt status on entry
+                boolean ran = false;
+                beforeExecute(thread, task);
+                try {
+                    task.run();
+                    ran = true;
+                    afterExecute(task, null);
+                    ++completedTasks;
+                } catch(RuntimeException ex) {
+                    if (!ran)
+                        afterExecute(task, ex);
+                    // Else the exception occurred within
+                    // afterExecute itself in which case we don't
+                    // want to call it again.
+                    throw ex;
+                }
+            } finally {
+                runLock.unlock();
+            }
+!!!7952283.java!!!	run() : void
+            try {
+                Runnable task = firstTask;
+                firstTask = null;
+                while (task != null || (task = getTask()) != null) {
+                    runTask(task);
+                    task = null; // unnecessary but can help GC
+                }
+            } catch(InterruptedException ie) {
+                // fall through
+            } finally {
+                workerDone(this);
+            }

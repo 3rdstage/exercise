@@ -1,0 +1,192 @@
+class PropertyChangeSupport
+!!!6782363.java!!!	PropertyChangeSupport(inout sourceBean : Object)
+	if (sourceBean == null) {
+	    throw new NullPointerException();
+	}
+	source = sourceBean;
+!!!6782491.java!!!	addPropertyChangeListener(inout listener : PropertyChangeListener) : void
+	if (listener == null) {
+	    return;
+	}
+
+	if (listener instanceof PropertyChangeListenerProxy) {
+	    PropertyChangeListenerProxy proxy =
+                   (PropertyChangeListenerProxy)listener;
+	    // Call two argument add method.
+	    addPropertyChangeListener(proxy.getPropertyName(),
+                    (PropertyChangeListener)proxy.getListener());
+	} else {
+	    if (listeners == null) {
+		listeners = new EventListenerAggregate(PropertyChangeListener.class);
+	    }
+	    listeners.add(listener);
+	}
+!!!6782619.java!!!	removePropertyChangeListener(inout listener : PropertyChangeListener) : void
+	if (listener == null) {
+	    return;
+	}
+
+	if (listener instanceof PropertyChangeListenerProxy) {
+	    PropertyChangeListenerProxy proxy =
+                    (PropertyChangeListenerProxy)listener;
+	    // Call two argument remove method.
+	    removePropertyChangeListener(proxy.getPropertyName(),
+                   (PropertyChangeListener)proxy.getListener());
+	} else {
+	    if (listeners == null) {
+		return;
+	    }
+	    listeners.remove(listener);
+	}
+!!!6782747.java!!!	getPropertyChangeListeners() : PropertyChangeListener
+	List returnList = new ArrayList();
+     
+	// Add all the PropertyChangeListeners 
+	if (listeners != null) {
+	    returnList.addAll(Arrays.asList(listeners.getListenersInternal()));
+	}
+	 
+	// Add all the PropertyChangeListenerProxys
+	if (children != null) {
+	    Iterator iterator = children.keySet().iterator();
+	    while (iterator.hasNext()) {
+		String key = (String)iterator.next();
+		PropertyChangeSupport child =
+                        (PropertyChangeSupport)children.get(key);
+		PropertyChangeListener[] childListeners =
+                        child.getPropertyChangeListeners();
+		for (int index = childListeners.length - 1; index >= 0;
+                        index--) {
+		    returnList.add(new PropertyChangeListenerProxy(
+                            key, childListeners[index]));
+		}
+	    }
+	}
+	return (PropertyChangeListener[])(returnList.toArray(
+                new PropertyChangeListener[0]));
+!!!6782875.java!!!	addPropertyChangeListener(in propertyName : String, inout listener : PropertyChangeListener) : void
+        if (listener == null || propertyName == null) {
+            return;
+        }
+        if (children == null) {
+            children = new java.util.Hashtable();
+        }
+        PropertyChangeSupport child = (PropertyChangeSupport)children.get(propertyName);
+        if (child == null) {
+            child = new PropertyChangeSupport(source);
+            children.put(propertyName, child);
+        }
+        child.addPropertyChangeListener(listener);
+!!!6783003.java!!!	removePropertyChangeListener(in propertyName : String, inout listener : PropertyChangeListener) : void
+        if (listener == null || propertyName == null) {
+            return;
+        }
+        if (children == null) {
+            return;
+        }
+        PropertyChangeSupport child = (PropertyChangeSupport)children.get(propertyName);
+        if (child == null) {
+            return;
+        }
+        child.removePropertyChangeListener(listener);
+!!!6783131.java!!!	getPropertyChangeListeners(in propertyName : String) : PropertyChangeListener
+        ArrayList returnList = new ArrayList();
+
+        if (children != null && propertyName != null) {
+            PropertyChangeSupport support =
+                    (PropertyChangeSupport)children.get(propertyName);
+            if (support != null) {
+                returnList.addAll(
+                        Arrays.asList(support.getPropertyChangeListeners()));
+            }
+        }
+        return (PropertyChangeListener[])(returnList.toArray(
+                new PropertyChangeListener[0]));
+!!!6783259.java!!!	firePropertyChange(in propertyName : String, inout oldValue : Object, inout newValue : Object) : void
+	if (oldValue != null && newValue != null && oldValue.equals(newValue)) {
+	    return;
+	}
+	firePropertyChange(new PropertyChangeEvent(source, propertyName,
+						   oldValue, newValue));
+!!!6783387.java!!!	firePropertyChange(in propertyName : String, in oldValue : int, in newValue : int) : void
+	if (oldValue == newValue) {
+	    return;
+	}
+	firePropertyChange(propertyName, new Integer(oldValue), new Integer(newValue));
+!!!6783515.java!!!	firePropertyChange(in propertyName : String, inout oldValue : boolean, inout newValue : boolean) : void
+	if (oldValue == newValue) {
+	    return;
+	}
+	firePropertyChange(propertyName, Boolean.valueOf(oldValue), Boolean.valueOf(newValue));
+!!!6783643.java!!!	firePropertyChange(inout evt : PropertyChangeEvent) : void
+	Object oldValue = evt.getOldValue();
+	Object newValue = evt.getNewValue();
+        String propertyName = evt.getPropertyName();
+	if (oldValue != null && newValue != null && oldValue.equals(newValue)) {
+	    return;
+	}
+
+	if (listeners != null) {
+	    Object[] list = listeners.getListenersInternal();
+	    for (int i = 0; i < list.length; i++) {
+		PropertyChangeListener target = (PropertyChangeListener)list[i];
+		target.propertyChange(evt);
+	    }
+	}
+
+	if (children != null && propertyName != null) {
+	    PropertyChangeSupport child = null;
+	    child = (PropertyChangeSupport)children.get(propertyName);
+	    if (child != null) {
+		child.firePropertyChange(evt);
+	    }
+	}
+!!!6783771.java!!!	fireIndexedPropertyChange(in propertyName : String, in index : int, inout oldValue : Object, inout newValue : Object) : void
+	firePropertyChange(new IndexedPropertyChangeEvent
+	    (source, propertyName, oldValue, newValue, index));
+!!!6783899.java!!!	fireIndexedPropertyChange(in propertyName : String, in index : int, in oldValue : int, in newValue : int) : void
+	if (oldValue == newValue) {
+	    return;
+	}
+	fireIndexedPropertyChange(propertyName, index, 
+				  new Integer(oldValue), 
+				  new Integer(newValue));
+!!!6784027.java!!!	fireIndexedPropertyChange(in propertyName : String, in index : int, inout oldValue : boolean, inout newValue : boolean) : void
+	if (oldValue == newValue) {
+	    return;
+	}
+	fireIndexedPropertyChange(propertyName, index, Boolean.valueOf(oldValue), 
+				  Boolean.valueOf(newValue));
+!!!6784155.java!!!	hasListeners(in propertyName : String) : boolean
+	if (listeners != null && !listeners.isEmpty()) {
+	    // there is a generic listener
+	    return true;
+	}
+	if (children != null && propertyName != null) {
+	    PropertyChangeSupport child = (PropertyChangeSupport)children.get(propertyName);
+	    if (child != null && child.listeners != null) {
+		return !child.listeners.isEmpty();
+	    }
+	}
+	return false;
+!!!6784283.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+
+	if (listeners != null) {
+	    Object[] list = listeners.getListenersCopy();
+
+	    for (int i = 0; i < list.length; i++) {
+	        PropertyChangeListener l = (PropertyChangeListener)list[i];
+	        if (l instanceof Serializable) {
+	            s.writeObject(l);
+	        }
+            }
+        }
+        s.writeObject(null);
+!!!6784411.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+      
+        Object listenerOrNull;
+        while (null != (listenerOrNull = s.readObject())) {
+	    addPropertyChangeListener((PropertyChangeListener)listenerOrNull);
+        }

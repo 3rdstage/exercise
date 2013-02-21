@@ -1,0 +1,59 @@
+class StyledEditorKit
+!!!9384859.java!!!	StyledEditorKit()
+        createInputAttributeUpdated();
+        createInputAttributes();
+!!!9384987.java!!!	getInputAttributes() : MutableAttributeSet
+	return inputAttributes;
+!!!9385115.java!!!	getCharacterAttributeRun() : Element
+	return currentRun;
+!!!9385243.java!!!	getActions() : Action
+	return TextAction.augmentList(super.getActions(), this.defaultActions);
+!!!9385371.java!!!	createDefaultDocument() : Document
+	return new DefaultStyledDocument();
+!!!9385499.java!!!	install(inout c : JEditorPane) : void
+	c.addCaretListener(inputAttributeUpdater);
+	c.addPropertyChangeListener(inputAttributeUpdater);
+	Caret caret = c.getCaret();
+	if (caret != null) {
+	    inputAttributeUpdater.updateInputAttributes
+		                  (caret.getDot(), caret.getMark(), c);
+	}
+!!!9385627.java!!!	deinstall(inout c : JEditorPane) : void
+	c.removeCaretListener(inputAttributeUpdater);
+	c.removePropertyChangeListener(inputAttributeUpdater);
+
+	// remove references to current document so it can be collected.
+	currentRun = null;
+	currentParagraph = null;
+!!!9385755.java!!!	getViewFactory() : ViewFactory
+	return defaultFactory;
+!!!9385883.java!!!	clone() : Object
+	StyledEditorKit o = (StyledEditorKit)super.clone();
+        o.currentRun = o.currentParagraph = null;
+        o.createInputAttributeUpdated();
+        o.createInputAttributes();
+	return o;
+!!!9386011.java!!!	createInputAttributes() : void
+        inputAttributes = new SimpleAttributeSet() {
+            public AttributeSet getResolveParent() {
+                return (currentParagraph != null) ?
+                           currentParagraph.getAttributes() : null;
+            }
+
+            public Object clone() {
+                return new SimpleAttributeSet(this);
+            }
+        };
+!!!9386139.java!!!	createInputAttributeUpdated() : void
+        inputAttributeUpdater = new AttributeTracker();
+!!!9386651.java!!!	createInputAttributes(inout element : Element, inout set : MutableAttributeSet) : void
+        if (element.getAttributes().getAttributeCount() > 0
+            || element.getEndOffset() - element.getStartOffset() > 1
+            || element.getEndOffset() < element.getDocument().getLength()) {
+	    set.removeAttributes(set);
+	    set.addAttributes(element.getAttributes());
+	    set.removeAttribute(StyleConstants.ComponentAttribute);
+	    set.removeAttribute(StyleConstants.IconAttribute);
+	    set.removeAttribute(AbstractDocument.ElementNameAttribute);
+	    set.removeAttribute(StyleConstants.ComposedTextAttribute);
+	}

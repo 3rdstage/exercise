@@ -1,0 +1,450 @@
+class DataFlavor
+!!!6406811.java!!!	tryToLoadClass(in className : String, inout fallback : ClassLoader) : Class
+	ClassLoader systemClassLoader = (ClassLoader)
+	    java.security.AccessController.doPrivileged(
+                new java.security.PrivilegedAction() {
+		    public Object run() {
+			ClassLoader cl = Thread.currentThread().
+			    getContextClassLoader();
+			return (cl != null)
+			    ? cl
+			    : ClassLoader.getSystemClassLoader();
+		    }
+		    });
+	
+	try {
+	    return Class.forName(className, true, systemClassLoader);
+	} catch (ClassNotFoundException e2) {
+	    if (fallback != null) {
+		return Class.forName(className, true, fallback);
+	    } else {
+		throw new ClassNotFoundException(className);
+	    }
+	}
+!!!6406939.java!!!	createConstant(inout rc : Class, in prn : String) : DataFlavor
+        try {
+            return new DataFlavor(rc, prn);
+        } catch (Exception e) {
+            return null;
+        }
+!!!6407067.java!!!	createConstant(in mt : String, in prn : String) : DataFlavor
+        try {
+            return new DataFlavor(mt, prn);
+        } catch (Exception e) {
+            return null;
+        }
+!!!6407195.java!!!	DataFlavor()
+ 
+        super(); 
+!!!6407323.java!!!	DataFlavor(in primaryType : String, in subType : String, inout params : MimeTypeParameterList, inout representationClass : Class, in humanPresentableName : String)
+        super();
+        if (primaryType == null) {
+            throw new NullPointerException("primaryType");
+        }
+        if (subType == null) {
+            throw new NullPointerException("subType");
+        }
+        if (representationClass == null) {
+            throw new NullPointerException("representationClass");
+        }
+        
+        if (params == null) params = new MimeTypeParameterList();
+        
+        params.set("class", representationClass.getName());
+        
+        if (humanPresentableName == null) {
+            humanPresentableName = (String)params.get("humanPresentableName");
+            
+            if (humanPresentableName == null)
+                humanPresentableName = primaryType + "/" + subType;
+        }
+        
+        try {
+            mimeType = new MimeType(primaryType, subType, params);
+        } catch (MimeTypeParseException mtpe) {
+            throw new IllegalArgumentException("MimeType Parse Exception: " + mtpe.getMessage());
+        }
+        
+        this.representationClass  = representationClass;
+        this.humanPresentableName = humanPresentableName;
+        
+        mimeType.removeParameter("humanPresentableName");
+!!!6407451.java!!!	DataFlavor(inout representationClass : Class, in humanPresentableName : String)
+        this("application", "x-java-serialized-object", null, representationClass, humanPresentableName);
+        if (representationClass == null) {
+            throw new NullPointerException("representationClass");
+        }
+!!!6407579.java!!!	DataFlavor(in mimeType : String, in humanPresentableName : String)
+        super();
+        if (mimeType == null) {
+            throw new NullPointerException("mimeType");
+        }
+        try {
+            initialize(mimeType, humanPresentableName, this.getClass().getClassLoader());
+        } catch (MimeTypeParseException mtpe) {
+            throw new IllegalArgumentException("failed to parse:" + mimeType);
+        } catch (ClassNotFoundException cnfe) {
+            throw new IllegalArgumentException("can't find specified class: " + cnfe.getMessage());
+        }
+!!!6407707.java!!!	DataFlavor(in mimeType : String, in humanPresentableName : String, inout classLoader : ClassLoader)
+	super();
+        if (mimeType == null) {
+            throw new NullPointerException("mimeType");
+        }
+	try {
+            initialize(mimeType, humanPresentableName, classLoader);
+        } catch (MimeTypeParseException mtpe) {
+            throw new IllegalArgumentException("failed to parse:" + mimeType);
+        }
+!!!6407835.java!!!	DataFlavor(in mimeType : String)
+        super();
+        if (mimeType == null) {
+            throw new NullPointerException("mimeType");
+        }
+        try {
+            initialize(mimeType, null, this.getClass().getClassLoader());
+        } catch (MimeTypeParseException mtpe) {
+            throw new IllegalArgumentException("failed to parse:" + mimeType);
+        }
+!!!6407963.java!!!	initialize(in mimeType : String, in humanPresentableName : String, inout classLoader : ClassLoader) : void
+        if (mimeType == null) {
+            throw new NullPointerException("mimeType");
+        }
+        
+        this.mimeType = new MimeType(mimeType); // throws
+	
+	String rcn = getParameter("class");
+	
+	if (rcn == null) {
+            if ("application/x-java-serialized-object".equals(this.mimeType.getBaseType()))
+		    
+                throw new IllegalArgumentException("no representation class specified for:" + mimeType);
+            else
+                representationClass = java.io.InputStream.class; // default
+        } else { // got a class name
+            representationClass = DataFlavor.tryToLoadClass(rcn, classLoader);
+        }
+        
+        this.mimeType.setParameter("class", representationClass.getName());
+        
+        if (humanPresentableName == null) {
+            humanPresentableName = this.mimeType.getParameter("humanPresentableName");
+            if (humanPresentableName == null) 
+                humanPresentableName = this.mimeType.getPrimaryType() + "/" + this.mimeType.getSubType();
+        }
+        
+        this.humanPresentableName = humanPresentableName; // set it.
+        
+        this.mimeType.removeParameter("humanPresentableName"); // just in case
+!!!6408091.java!!!	toString() : String
+        String string = getClass().getName();
+        string += "["+paramString()+"]";
+        return string;
+!!!6408219.java!!!	paramString() : String
+        String params = "";
+        params += "mimetype=";
+        if (mimeType == null) {
+            params += "null";
+        } else {
+            params += mimeType.getBaseType();
+        }
+        params += ";representationclass=";
+        if (representationClass == null) {
+           params += "null";
+        } else {
+           params += representationClass.getName();
+        }
+        if (DataTransferer.isFlavorCharsetTextType(this) &&
+            (isRepresentationClassInputStream() ||
+             isRepresentationClassByteBuffer() ||
+             DataTransferer.byteArrayClass.equals(representationClass)))
+        {
+            params += ";charset=" + DataTransferer.getTextCharset(this);
+        }
+        return params;
+!!!6408347.java!!!	getTextPlainUnicodeFlavor() : DataFlavor
+	String encoding = null;
+	DataTransferer transferer = DataTransferer.getInstance();
+	if (transferer != null) {
+	    encoding = transferer.getDefaultUnicodeEncoding();
+	}
+	return new DataFlavor(
+	    "text/plain;charset="+encoding
+	    +";class=java.io.InputStream", "Plain Text"); 
+!!!6408475.java!!!	selectBestTextFlavor(inout availableFlavors : DataFlavor) : DataFlavor
+        if (availableFlavors == null || availableFlavors.length == 0) {
+            return null;
+        }
+
+        if (textFlavorComparator == null) {
+            textFlavorComparator = new TextFlavorComparator();
+        }
+
+        DataFlavor bestFlavor = 
+            (DataFlavor)Collections.max(Arrays.asList(availableFlavors), 
+                                        textFlavorComparator);
+
+        if (!bestFlavor.isFlavorTextType()) {
+            return null;
+        }
+        
+        return bestFlavor;
+!!!6408731.java!!!	getReaderForText(inout transferable : Transferable) : Reader
+	Object transferObject = transferable.getTransferData(this);
+	if (transferObject == null) {
+	    throw new IllegalArgumentException
+		("getTransferData() returned null");
+	}
+
+	if (transferObject instanceof Reader) {
+	    return (Reader)transferObject;
+	} else if (transferObject instanceof String) {
+	    return new StringReader((String)transferObject);
+        } else if (transferObject instanceof CharBuffer) {
+            CharBuffer buffer = (CharBuffer)transferObject;
+            int size = buffer.remaining();
+            char[] chars = new char[size];
+            buffer.get(chars, 0, size);
+            return new CharArrayReader(chars);
+	} else if (transferObject instanceof char[]) {
+	    return new CharArrayReader((char[])transferObject);
+	}
+
+	InputStream stream = null;
+
+	if (transferObject instanceof InputStream) {
+	    stream = (InputStream)transferObject;
+        } else if (transferObject instanceof ByteBuffer) {
+            ByteBuffer buffer = (ByteBuffer)transferObject;
+            int size = buffer.remaining();
+            byte[] bytes = new byte[size];
+            buffer.get(bytes, 0, size);
+            stream = new ByteArrayInputStream(bytes);
+	} else if (transferObject instanceof byte[]) {
+	    stream = new ByteArrayInputStream((byte[])transferObject);
+	}
+
+	if (stream == null) {
+            throw new IllegalArgumentException("transfer data is not Reader, String, CharBuffer, char array, InputStream, ByteBuffer, or byte array");
+	}
+
+	String encoding = getParameter("charset");
+	return (encoding == null)
+	    ? new InputStreamReader(stream)
+	    : new InputStreamReader(stream, encoding);
+!!!6408859.java!!!	getMimeType() : String
+        return (mimeType != null) ? mimeType.toString() : null;
+!!!6408987.java!!!	getRepresentationClass() : Class
+        return representationClass;
+!!!6409115.java!!!	getHumanPresentableName() : String
+        return humanPresentableName;
+!!!6409243.java!!!	getPrimaryType() : String
+        return (mimeType != null) ? mimeType.getPrimaryType() : null;
+!!!6409371.java!!!	getSubType() : String
+        return (mimeType != null) ? mimeType.getSubType() : null;
+!!!6409499.java!!!	getParameter(in paramName : String) : String
+        if (paramName.equals("humanPresentableName")) {
+            return humanPresentableName;
+        } else {
+            return (mimeType != null)
+                ? mimeType.getParameter(paramName) : null;
+        }
+!!!6409627.java!!!	setHumanPresentableName(in humanPresentableName : String) : void
+        this.humanPresentableName = humanPresentableName;
+!!!6409755.java!!!	equals(inout o : Object) : boolean
+        return ((o instanceof DataFlavor) && equals((DataFlavor)o));
+!!!6409883.java!!!	equals(inout that : DataFlavor) : boolean
+        if (that == null) {
+            return false;
+        }
+        if (this == that) {
+            return true;
+        }
+
+        if (representationClass == null) {
+            if (that.getRepresentationClass() != null) {
+                return false;
+            }
+        } else {
+            if (!representationClass.equals(that.getRepresentationClass())) {
+                return false;
+            }
+        }
+
+        if (mimeType == null) {
+            if (that.mimeType != null) {
+                return false;
+            }
+        } else {
+            if (!mimeType.match(that.mimeType)) {
+                return false;
+            }
+
+            if ("text".equals(getPrimaryType()) &&
+                DataTransferer.doesSubtypeSupportCharset(this) &&
+		representationClass != null &&
+		!(isRepresentationClassReader() ||
+		  String.class.equals(representationClass) ||
+                  isRepresentationClassCharBuffer() ||
+		  DataTransferer.charArrayClass.equals(representationClass)))
+	    {
+                String thisCharset =
+		    DataTransferer.canonicalName(getParameter("charset"));
+                String thatCharset =
+		    DataTransferer.canonicalName(that.getParameter("charset"));
+                if (thisCharset == null) {
+                    if (thatCharset != null) {
+                        return false;
+                    }
+                } else {
+                    if (!thisCharset.equals(thatCharset)) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+!!!6410011.java!!!	equals(in s : String) : boolean
+        if (s == null || mimeType == null)
+            return false;
+        return isMimeTypeEqual(s);
+!!!6410139.java!!!	hashCode() : int
+        int total = 0;
+
+        if (representationClass != null) {
+            total += representationClass.hashCode();
+        }
+
+        if (mimeType != null) {
+            String primaryType = mimeType.getPrimaryType();
+            if (primaryType != null) {
+                total += primaryType.hashCode();
+            }
+
+            // Do not add subType.hashCode() to the total. equals uses
+            // MimeType.match which reports a match if one or both of the
+            // subTypes is '*', regardless of the other subType.
+
+            if ("text".equals(primaryType) &&
+                DataTransferer.doesSubtypeSupportCharset(this) &&
+                representationClass != null &&
+                !(isRepresentationClassReader() ||
+                  String.class.equals(representationClass) ||
+                  isRepresentationClassCharBuffer() ||
+                  DataTransferer.charArrayClass.equals
+                  (representationClass)))
+            {
+                String charset =
+                    DataTransferer.canonicalName(getParameter("charset"));
+                if (charset != null) {
+                    total += charset.hashCode();
+                }
+            }
+        }
+
+        return total;
+!!!6410267.java!!!	match(inout that : DataFlavor) : boolean
+	return equals(that);
+!!!6410395.java!!!	isMimeTypeEqual(in mimeType : String) : boolean
+	// JCK Test DataFlavor0117: if 'mimeType' is null, throw NPE
+	if (mimeType == null) {
+	    throw new NullPointerException("mimeType");
+	}
+        if (this.mimeType == null) {
+            return false;
+        }
+        try {
+            return this.mimeType.match(new MimeType(mimeType));
+        } catch (MimeTypeParseException mtpe) {
+            return false; 
+        }
+!!!6410523.java!!!	isMimeTypeEqual(inout dataFlavor : DataFlavor) : boolean
+        return isMimeTypeEqual(dataFlavor.mimeType);
+!!!6410651.java!!!	isMimeTypeEqual(inout mtype : MimeType) : boolean
+        if (this.mimeType == null) {
+            return (mtype == null);
+        }
+        return mimeType.match(mtype);
+!!!6410779.java!!!	isMimeTypeSerializedObject() : boolean
+        return isMimeTypeEqual(javaSerializedObjectMimeType);
+!!!6410907.java!!!	getDefaultRepresentationClass() : Class
+        return ioInputStreamClass;
+!!!6411035.java!!!	getDefaultRepresentationClassAsString() : String
+        return getDefaultRepresentationClass().getName();
+!!!6411163.java!!!	isRepresentationClassInputStream() : boolean
+        return ioInputStreamClass.isAssignableFrom(representationClass);
+!!!6411291.java!!!	isRepresentationClassReader() : boolean
+	return java.io.Reader.class.isAssignableFrom(representationClass);
+!!!6411419.java!!!	isRepresentationClassCharBuffer() : boolean
+        return java.nio.CharBuffer.class.isAssignableFrom(representationClass);
+!!!6411547.java!!!	isRepresentationClassByteBuffer() : boolean
+        return java.nio.ByteBuffer.class.isAssignableFrom(representationClass);
+!!!6411675.java!!!	isRepresentationClassSerializable() : boolean
+        return java.io.Serializable.class.isAssignableFrom(representationClass);
+!!!6411803.java!!!	isRepresentationClassRemote() : boolean
+        return java.rmi.Remote.class.isAssignableFrom(representationClass);
+!!!6411931.java!!!	isFlavorSerializedObjectType() : boolean
+        return isRepresentationClassSerializable() && isMimeTypeEqual(javaSerializedObjectMimeType);
+!!!6412059.java!!!	isFlavorRemoteObjectType() : boolean
+        return isRepresentationClassRemote() 
+            && isRepresentationClassSerializable() 
+            && isMimeTypeEqual(javaRemoteObjectMimeType);
+!!!6412187.java!!!	isFlavorJavaFileListType() : boolean
+        if (mimeType == null || representationClass == null)
+            return false;
+        return java.util.List.class.isAssignableFrom(representationClass) &&
+               mimeType.match(javaFileListFlavor.mimeType);
+
+!!!6412315.java!!!	isFlavorTextType() : boolean
+ 
+        return (DataTransferer.isFlavorCharsetTextType(this) ||
+                DataTransferer.isFlavorNoncharsetTextType(this));
+!!!6412443.java!!!	writeExternal(inout os : ObjectOutput) : void
+       if (mimeType != null) {
+           mimeType.setParameter("humanPresentableName", humanPresentableName);
+           os.writeObject(mimeType);
+           mimeType.removeParameter("humanPresentableName");
+       } else {
+           os.writeObject(null);
+       }
+       
+       os.writeObject(representationClass);
+!!!6412571.java!!!	readExternal(inout is : ObjectInput) : void
+       String rcn = null;
+        mimeType = (MimeType)is.readObject();
+
+        if (mimeType != null) {
+            humanPresentableName =
+                mimeType.getParameter("humanPresentableName");
+            mimeType.removeParameter("humanPresentableName");
+            rcn = mimeType.getParameter("class");
+            if (rcn == null) {
+                throw new IOException("no class parameter specified in: " +
+                                      mimeType);
+            }
+        }
+
+        try {
+            representationClass = (Class)is.readObject();
+        } catch (OptionalDataException ode) {
+            if (!ode.eof || ode.length != 0) {
+                throw ode;
+            }
+            // Ensure backward compatibility.
+            // Old versions didn't write the representation class to the stream.
+            if (rcn != null) {
+                representationClass =
+                    DataFlavor.tryToLoadClass(rcn, getClass().getClassLoader());
+            }
+        }
+!!!6412699.java!!!	clone() : Object
+	Object newObj = super.clone();
+	if (mimeType != null) {
+	    ((DataFlavor)newObj).mimeType = (MimeType)mimeType.clone();
+	}
+	return newObj;
+!!!6412827.java!!!	normalizeMimeTypeParameter(in parameterName : String, in parameterValue : String) : String
+        return parameterValue;        
+!!!6412955.java!!!	normalizeMimeType(in mimeType : String) : String
+        return mimeType;        

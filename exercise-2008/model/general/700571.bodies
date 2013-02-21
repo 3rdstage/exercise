@@ -1,0 +1,195 @@
+class DecimalFormatSymbols
+!!!7833243.java!!!	DecimalFormatSymbols()
+        initialize( Locale.getDefault() );
+!!!7833371.java!!!	DecimalFormatSymbols(inout locale : Locale)
+        initialize( locale );
+!!!7833499.java!!!	getZeroDigit() : char
+        return zeroDigit;
+!!!7833627.java!!!	setZeroDigit(in zeroDigit : char) : void
+        this.zeroDigit = zeroDigit;
+!!!7833755.java!!!	getGroupingSeparator() : char
+        return groupingSeparator;
+!!!7833883.java!!!	setGroupingSeparator(in groupingSeparator : char) : void
+        this.groupingSeparator = groupingSeparator;
+!!!7834011.java!!!	getDecimalSeparator() : char
+        return decimalSeparator;
+!!!7834139.java!!!	setDecimalSeparator(in decimalSeparator : char) : void
+        this.decimalSeparator = decimalSeparator;
+!!!7834267.java!!!	getPerMill() : char
+        return perMill;
+!!!7834395.java!!!	setPerMill(in perMill : char) : void
+        this.perMill = perMill;
+!!!7834523.java!!!	getPercent() : char
+        return percent;
+!!!7834651.java!!!	setPercent(in percent : char) : void
+        this.percent = percent;
+!!!7834779.java!!!	getDigit() : char
+        return digit;
+!!!7834907.java!!!	setDigit(in digit : char) : void
+        this.digit = digit;
+!!!7835035.java!!!	getPatternSeparator() : char
+        return patternSeparator;
+!!!7835163.java!!!	setPatternSeparator(in patternSeparator : char) : void
+        this.patternSeparator = patternSeparator;
+!!!7835291.java!!!	getInfinity() : String
+        return infinity;
+!!!7835419.java!!!	setInfinity(in infinity : String) : void
+        this.infinity = infinity;
+!!!7835547.java!!!	getNaN() : String
+        return NaN;
+!!!7835675.java!!!	setNaN(in NaN : String) : void
+        this.NaN = NaN;
+!!!7835803.java!!!	getMinusSign() : char
+        return minusSign;
+!!!7835931.java!!!	setMinusSign(in minusSign : char) : void
+        this.minusSign = minusSign;
+!!!7836059.java!!!	getCurrencySymbol() : String
+        return currencySymbol;
+!!!7836187.java!!!	setCurrencySymbol(in currency : String) : void
+        currencySymbol = currency;
+!!!7836315.java!!!	getInternationalCurrencySymbol() : String
+        return intlCurrencySymbol;
+!!!7836443.java!!!	setInternationalCurrencySymbol(in currencyCode : String) : void
+        intlCurrencySymbol = currencyCode;
+        currency = null;
+        if (currencyCode != null) {
+            try {
+                currency = Currency.getInstance(currencyCode);
+                currencySymbol = currency.getSymbol();
+            } catch (IllegalArgumentException e) {
+            }
+        }
+!!!7836571.java!!!	getCurrency() : Currency
+        return currency;
+!!!7836699.java!!!	setCurrency(inout currency : Currency) : void
+        if (currency == null) {
+            throw new NullPointerException();
+        }
+        this.currency = currency;
+        intlCurrencySymbol = currency.getCurrencyCode();
+        currencySymbol = currency.getSymbol(locale);
+!!!7836827.java!!!	getMonetaryDecimalSeparator() : char
+        return monetarySeparator;
+!!!7836955.java!!!	setMonetaryDecimalSeparator(in sep : char) : void
+        monetarySeparator = sep;
+!!!7837083.java!!!	getExponentialSymbol() : char
+        return exponential;
+!!!7837211.java!!!	setExponentialSymbol(in exp : char) : void
+        exponential = exp;
+!!!7837339.java!!!	clone() : Object
+        try {
+            return (DecimalFormatSymbols)super.clone();
+            // other fields are bit-copied
+        } catch (CloneNotSupportedException e) {
+            throw new InternalError();
+        }
+!!!7837467.java!!!	equals(inout obj : Object) : boolean
+        if (obj == null) return false;
+        if (this == obj) return true;
+        if (getClass() != obj.getClass()) return false;
+        DecimalFormatSymbols other = (DecimalFormatSymbols) obj;
+        return (zeroDigit == other.zeroDigit &&
+        groupingSeparator == other.groupingSeparator &&
+        decimalSeparator == other.decimalSeparator &&
+        percent == other.percent &&
+        perMill == other.perMill &&
+        digit == other.digit &&
+        minusSign == other.minusSign &&
+        patternSeparator == other.patternSeparator &&
+        infinity.equals(other.infinity) &&
+        NaN.equals(other.NaN) &&
+        currencySymbol.equals(other.currencySymbol) &&
+        intlCurrencySymbol.equals(other.intlCurrencySymbol) &&
+        currency == other.currency &&
+        monetarySeparator == other.monetarySeparator &&
+        locale.equals(other.locale));
+!!!7837595.java!!!	hashCode() : int
+            int result = zeroDigit;
+            result = result * 37 + groupingSeparator;
+            result = result * 37 + decimalSeparator;
+            return result;
+!!!7837723.java!!!	initialize(inout locale : Locale) : void
+        this.locale = locale;
+
+        // get resource bundle data - try the cache first
+        boolean needCacheUpdate = false;
+        Object[] data = (Object[]) cachedLocaleData.get(locale);
+        if (data == null) {  /* cache miss */
+            data = new Object[3];
+            ResourceBundle rb = LocaleData.getLocaleElements(locale);
+            data[0] = rb.getStringArray("NumberElements");
+            needCacheUpdate = true;
+        }
+
+        String[] numberElements = (String[]) data[0];;
+
+        decimalSeparator = numberElements[0].charAt(0);
+        groupingSeparator = numberElements[1].charAt(0);
+        patternSeparator = numberElements[2].charAt(0);
+        percent = numberElements[3].charAt(0);
+        zeroDigit = numberElements[4].charAt(0); //different for Arabic,etc.
+        digit = numberElements[5].charAt(0);
+        minusSign = numberElements[6].charAt(0);
+        exponential = numberElements[7].charAt(0);
+        perMill = numberElements[8].charAt(0);
+        infinity  = numberElements[9];
+        NaN = numberElements[10];
+        
+        // Try to obtain the currency used in the locale's country.
+        // Check for empty country string separately because it's a valid
+        // country ID for Locale (and used for the C locale), but not a valid
+        // ISO 3166 country code, and exceptions are expensive.
+        if (!"".equals(locale.getCountry())) {
+            try {
+                currency = Currency.getInstance(locale);
+            } catch (IllegalArgumentException e) {
+                // use default values below for compatibility
+            }
+        }
+        if (currency != null) {
+            intlCurrencySymbol = currency.getCurrencyCode();
+            if (data[1] != null && data[1] == intlCurrencySymbol) {
+                currencySymbol = (String) data[2];
+            } else {
+                currencySymbol = currency.getSymbol(locale);
+                data[1] = intlCurrencySymbol;
+                data[2] = currencySymbol;
+                needCacheUpdate = true;
+            }
+        } else {
+            // default values
+            intlCurrencySymbol = "XXX";
+            try {
+                currency = Currency.getInstance(intlCurrencySymbol);
+            } catch (IllegalArgumentException e) {
+            }
+            currencySymbol = "\u00A4";
+        }
+        // Currently the monetary decimal separator is the same as the
+        // standard decimal separator for all locales that we support.
+        // If that changes, add a new entry to NumberElements.
+        monetarySeparator = decimalSeparator;
+        
+        if (needCacheUpdate) {
+            cachedLocaleData.put(locale, data);
+        }
+!!!7837851.java!!!	readObject(inout stream : ObjectInputStream) : void
+        stream.defaultReadObject();
+        if (serialVersionOnStream < 1) {
+            // Didn't have monetarySeparator or exponential field;
+            // use defaults.
+            monetarySeparator = decimalSeparator;
+            exponential       = 'E';
+        }
+        if (serialVersionOnStream < 2) {
+            // didn't have locale; use root locale
+            locale = new Locale("");
+        }
+        serialVersionOnStream = currentSerialVersion;
+
+        if (intlCurrencySymbol != null) {
+            try {
+                 currency = Currency.getInstance(intlCurrencySymbol);
+            } catch (IllegalArgumentException e) {
+            }
+        }

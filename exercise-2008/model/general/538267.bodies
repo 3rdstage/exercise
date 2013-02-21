@@ -1,0 +1,264 @@
+class SnmpV3Message
+!!!3334427.java!!!	encodeMessage(in outputBytes : byte) : int
+        int encodingLength = 0;
+	if(isTraceOn()) {
+	    trace("encodeMessage", "Can't encode directly V3Message!!!!! Need a SecuritySubSystem");
+	}
+	throw new IllegalArgumentException("Can't encode");
+!!!3334555.java!!!	decodeMessage(in inputBytes : byte, in byteCount : int) : void
+	
+        try {
+            BerDecoder bdec = new BerDecoder(inputBytes);
+            bdec.openSequence();
+            version = bdec.fetchInteger();
+	    bdec.openSequence();
+	    msgId = bdec.fetchInteger();
+	    msgMaxSize = bdec.fetchInteger();
+	    msgFlags = bdec.fetchOctetString()[0];
+	    msgSecurityModel =bdec.fetchInteger();
+	    bdec.closeSequence();
+	    msgSecurityParameters = bdec.fetchOctetString();
+	    if( (msgFlags & SnmpDefinitions.privMask) == 0 ) {
+		bdec.openSequence();
+		contextEngineId = bdec.fetchOctetString();
+		contextName = bdec.fetchOctetString();
+		data = bdec.fetchAny();
+		dataLength = data.length;
+		bdec.closeSequence();
+	    }
+	    else {
+		encryptedPdu = bdec.fetchOctetString();
+	    }
+            bdec.closeSequence() ;
+        }
+        catch(BerException x) {
+	    x.printStackTrace();
+            throw new SnmpStatusException("Invalid encoding") ;
+        }
+	
+	if(isTraceOn()) {
+	    trace("decodeMessage", "Unmarshalled message : \n" +
+		  "version :" + version + "\n" +
+		  "msgId :" + msgId +  "\n" +
+		  "msgMaxSize :" + msgMaxSize + "\n" +
+		  "msgFlags :" + msgFlags + "\n" +
+		  "msgSecurityModel :" + msgSecurityModel + "\n" +
+		  "contextEngineId :" + (contextEngineId == null ? null : SnmpEngineId.createEngineId(contextEngineId)) + "\n" +
+		  "contextName :" + (contextName == null ? null : new String(contextName)) + "\n" +
+		  "data :" + data + "\n" +
+		  "dat len :" + ((data == null) ? 0 : data.length) + "\n" +
+		  "encryptedPdu :" + encryptedPdu + "\n");
+	}
+!!!3334683.java!!!	getRequestId(in data : byte) : int
+	BerDecoder bdec = null;
+	int msgId = 0;
+	try {
+            bdec = new BerDecoder(data);
+            bdec.openSequence();
+            bdec.fetchInteger();
+	    bdec.openSequence();
+	    msgId = bdec.fetchInteger();
+	}catch(BerException x) {
+	    throw new SnmpStatusException("Invalid encoding") ;
+	}
+	try {
+	    bdec.closeSequence();
+	}
+	catch(BerException x) {
+	}
+	
+	return msgId;
+!!!3334811.java!!!	encodeSnmpPdu(inout p : SnmpPdu, in maxDataLength : int) : void
+	
+	SnmpScopedPduPacket pdu = (SnmpScopedPduPacket) p;
+
+	if(isTraceOn()) {
+	    trace("encodeSnmpPdu", "Pdu to marshall: \n" +
+		  "security parameters : " + pdu.securityParameters + "\n" +
+		  "type :" + pdu.type + "\n" +
+		  "version :" + pdu.version + "\n" +
+		  "requestId :" + pdu.requestId +  "\n" +
+		  "msgId :" + pdu.msgId +  "\n" +
+		  "msgMaxSize :" + pdu.msgMaxSize + "\n" +
+		  "msgFlags :" + pdu.msgFlags + "\n" +
+		  "msgSecurityModel :" + pdu.msgSecurityModel + "\n" +
+		  "contextEngineId :" + pdu.contextEngineId + "\n" +
+		  "contextName :" + pdu.contextName + "\n");
+	}
+
+        version = pdu.version;
+        address = pdu.address;
+        port = pdu.port;
+	msgId = pdu.msgId;
+	msgMaxSize = pdu.msgMaxSize;
+	msgFlags = pdu.msgFlags;
+	msgSecurityModel = pdu.msgSecurityModel;
+
+	contextEngineId = pdu.contextEngineId;
+	contextName = pdu.contextName;
+
+	securityParameters = pdu.securityParameters;
+
+        //
+        // Allocate the array to receive the encoding.
+        //
+        data = new byte[maxDataLength];
+    
+        //
+        // Encode the pdu
+        // Reminder: BerEncoder does backward encoding !
+        //
+    
+        try {
+            BerEncoder benc = new BerEncoder(data) ;
+            benc.openSequence() ;
+            encodeVarBindList(benc, pdu.varBindList) ;
+
+            switch(pdu.type) {
+
+            case pduGetRequestPdu :
+            case pduGetNextRequestPdu :
+            case pduInformRequestPdu :
+            case pduGetResponsePdu :
+            case pduSetRequestPdu :
+            case pduV2TrapPdu :
+            case pduReportPdu :
+                SnmpPduRequestType reqPdu = (SnmpPduRequestType) pdu;
+                benc.putInteger(reqPdu.getErrorIndex());
+                benc.putInteger(reqPdu.getErrorStatus());
+                benc.putInteger(pdu.requestId);
+                break;
+
+            case pduGetBulkRequestPdu :
+                SnmpPduBulkType bulkPdu = (SnmpPduBulkType) pdu;
+                benc.putInteger(bulkPdu.getMaxRepetitions());
+                benc.putInteger(bulkPdu.getNonRepeaters());
+                benc.putInteger(pdu.requestId);
+                break ;
+
+            default:
+                throw new SnmpStatusException("Invalid pdu type " + String.valueOf(pdu.type)) ;
+            }
+            benc.closeSequence(pdu.type) ;
+            dataLength = benc.trim() ;
+        }
+        catch(ArrayIndexOutOfBoundsException x) {
+            throw new SnmpTooBigException() ;
+        }
+!!!3334939.java!!!	decodeSnmpPdu() : SnmpPdu
+  
+	SnmpScopedPduPacket pdu = null;
+
+        BerDecoder bdec = new BerDecoder(data) ;
+        try {
+            int type = bdec.getTag() ;
+            bdec.openSequence(type) ;
+            switch(type) {
+      
+            case pduGetRequestPdu :
+            case pduGetNextRequestPdu :
+            case pduInformRequestPdu :
+            case pduGetResponsePdu :
+            case pduSetRequestPdu :
+            case pduV2TrapPdu :
+            case pduReportPdu :
+                SnmpScopedPduRequest reqPdu = new SnmpScopedPduRequest() ;
+                reqPdu.requestId = bdec.fetchInteger() ;
+                reqPdu.setErrorStatus(bdec.fetchInteger());
+                reqPdu.setErrorIndex(bdec.fetchInteger());
+                pdu = reqPdu ;
+                break ;
+
+            case pduGetBulkRequestPdu :
+                SnmpScopedPduBulk bulkPdu = new SnmpScopedPduBulk() ;
+                bulkPdu.requestId = bdec.fetchInteger() ;
+                bulkPdu.setNonRepeaters(bdec.fetchInteger());
+                bulkPdu.setMaxRepetitions(bdec.fetchInteger());
+                pdu = bulkPdu ;
+                break ;
+            default:
+                throw new SnmpStatusException(snmpRspWrongEncoding) ;
+            }
+            pdu.type = type;
+            pdu.varBindList = decodeVarBindList(bdec);
+            bdec.closeSequence() ;
+        } catch(BerException e) {
+            if (isDebugOn()) {
+                debug("decodeSnmpPdu", e);
+            }
+            throw new SnmpStatusException(snmpRspWrongEncoding);
+        }
+    
+        //
+        // The easy work.
+        //
+	pdu.address = address;
+        pdu.port = port;
+	pdu.msgFlags = msgFlags;
+        pdu.version = version;
+	pdu.msgId = msgId;
+	pdu.msgMaxSize = msgMaxSize;
+	pdu.msgSecurityModel = msgSecurityModel;
+	pdu.contextEngineId = contextEngineId;
+	pdu.contextName = contextName;
+	
+	pdu.securityParameters = securityParameters;
+
+	if(isTraceOn()) {
+	    trace("decodeSnmpPdu", "Unmarshalled pdu : \n" +
+		  "type :" + pdu.type + "\n" +
+		  "version :" + pdu.version + "\n" +
+		  "requestId :" + pdu.requestId + "\n" +
+		  "msgId :" + pdu.msgId +  "\n" +
+		  "msgMaxSize :" + pdu.msgMaxSize + "\n" +
+		  "msgFlags :" + pdu.msgFlags + "\n" +
+		  "msgSecurityModel :" + pdu.msgSecurityModel + "\n" +
+		  "contextEngineId :" + pdu.contextEngineId + "\n" +
+		  "contextName :" + pdu.contextName + "\n");
+	}	
+        return pdu ;
+!!!3335067.java!!!	printMessage() : String
+	StringBuffer sb = new StringBuffer();
+	sb.append("msgId : " + msgId + "\n");
+	sb.append("msgMaxSize : " + msgMaxSize + "\n");
+	sb.append("msgFlags : " + msgFlags + "\n");
+	sb.append("msgSecurityModel : " + msgSecurityModel + "\n");
+
+	if (contextEngineId == null) {
+            sb.append("contextEngineId : null");
+        }
+        else {
+            sb.append("contextEngineId : {\n");
+            sb.append(dumpHexBuffer(contextEngineId, 
+				    0, 
+				    contextEngineId.length));
+            sb.append("\n}\n");
+        }
+
+	if (contextName == null) {
+            sb.append("contextName : null");
+        }
+        else {
+            sb.append("contextName : {\n");
+            sb.append(dumpHexBuffer(contextName, 
+				    0, 
+				    contextName.length));
+            sb.append("\n}\n");
+        }
+	return sb.append(super.printMessage()).toString();	
+!!!3335195.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_SNMP);
+!!!3335323.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_SNMP, clz, func, info);
+!!!3335451.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!3335579.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_SNMP);
+!!!3335707.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_SNMP, clz, func, info);
+!!!3335835.java!!!	debug(in clz : String, in func : String, inout exception : Throwable) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_SNMP, clz, func, exception);
+!!!3335963.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);
+!!!3336091.java!!!	debug(in func : String, inout exception : Throwable) : void
+        debug(dbgTag, func, exception);

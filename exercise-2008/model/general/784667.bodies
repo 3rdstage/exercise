@@ -1,0 +1,512 @@
+class DOMUtil
+!!!5489051.java!!!	copyInto(inout src : Node, inout dest : Node) : void
+
+        // get node factory
+        Document factory = dest.getOwnerDocument();
+        boolean domimpl = factory instanceof DocumentImpl;
+
+        // placement variables
+        Node start  = src;
+        Node parent = src;
+        Node place  = src;
+
+        // traverse source tree
+        while (place != null) {
+
+            // copy this node
+            Node node = null;
+            int  type = place.getNodeType();
+            switch (type) {
+                case Node.CDATA_SECTION_NODE: {
+                    node = factory.createCDATASection(place.getNodeValue());
+                    break;
+                }
+                case Node.COMMENT_NODE: {
+                    node = factory.createComment(place.getNodeValue());
+                    break;
+                }
+                case Node.ELEMENT_NODE: {
+                    Element element = factory.createElement(place.getNodeName());
+                    node = element;
+                    NamedNodeMap attrs  = place.getAttributes();
+                    int attrCount = attrs.getLength();
+                    for (int i = 0; i < attrCount; i++) {
+                        Attr attr = (Attr)attrs.item(i);
+                        String attrName = attr.getNodeName();
+                        String attrValue = attr.getNodeValue();
+                        element.setAttribute(attrName, attrValue);
+                        if (domimpl && !attr.getSpecified()) {
+                            ((AttrImpl)element.getAttributeNode(attrName)).setSpecified(false);
+                        }
+                    }
+                    break;
+                }
+                case Node.ENTITY_REFERENCE_NODE: {
+                    node = factory.createEntityReference(place.getNodeName());
+                    break;
+                }
+                case Node.PROCESSING_INSTRUCTION_NODE: {
+                    node = factory.createProcessingInstruction(place.getNodeName(),
+                                                               place.getNodeValue());
+                    break;
+                }
+                case Node.TEXT_NODE: {
+                    node = factory.createTextNode(place.getNodeValue());
+                    break;
+                }
+                default: {
+                    throw new IllegalArgumentException("can't copy node type, "+
+                                                       type+" ("+
+                                                       node.getNodeName()+')');
+                }
+            }
+            dest.appendChild(node);
+
+            // iterate over children
+            if (place.hasChildNodes()) {
+                parent = place;
+                place  = place.getFirstChild();
+                dest   = node;
+            }
+
+            // advance
+            else {
+                place = place.getNextSibling();
+                while (place == null && parent != start) {
+                    place  = parent.getNextSibling();
+                    parent = parent.getParentNode();
+                    dest   = dest.getParentNode();
+                }
+            }
+
+        }
+
+!!!5489179.java!!!	getFirstChildElement(inout parent : Node) : Element
+
+        // search for node
+        Node child = parent.getFirstChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                return (Element)child;
+            }
+            child = child.getNextSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5489307.java!!!	getFirstVisibleChildElement(inout parent : Node) : Element
+
+        // search for node
+        Node child = parent.getFirstChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.ELEMENT_NODE &&
+                !isHidden(child)) {
+                return (Element)child;
+            }
+            child = child.getNextSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5489435.java!!!	getLastChildElement(inout parent : Node) : Element
+
+        // search for node
+        Node child = parent.getLastChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                return (Element)child;
+            }
+            child = child.getPreviousSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5489563.java!!!	getLastVisibleChildElement(inout parent : Node) : Element
+
+        // search for node
+        Node child = parent.getLastChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.ELEMENT_NODE &&
+                !isHidden(child)) {
+                return (Element)child;
+            }
+            child = child.getPreviousSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5489691.java!!!	getNextSiblingElement(inout node : Node) : Element
+
+        // search for node
+        Node sibling = node.getNextSibling();
+        while (sibling != null) {
+            if (sibling.getNodeType() == Node.ELEMENT_NODE) {
+                return (Element)sibling;
+            }
+            sibling = sibling.getNextSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5489819.java!!!	getNextVisibleSiblingElement(inout node : Node) : Element
+
+        // search for node
+        Node sibling = node.getNextSibling();
+        while (sibling != null) {
+            if (sibling.getNodeType() == Node.ELEMENT_NODE &&
+                !isHidden(sibling)) {
+                return (Element)sibling;
+            }
+            sibling = sibling.getNextSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5489947.java!!!	setHidden(inout node : Node) : void
+        if (node instanceof com.sun.org.apache.xerces.internal.impl.xs.opti.NodeImpl)
+            ((com.sun.org.apache.xerces.internal.impl.xs.opti.NodeImpl)node).setReadOnly(true, false);
+        else if (node instanceof com.sun.org.apache.xerces.internal.dom.NodeImpl)
+            ((com.sun.org.apache.xerces.internal.dom.NodeImpl)node).setReadOnly(true, false);
+!!!5490075.java!!!	setVisible(inout node : Node) : void
+        if (node instanceof com.sun.org.apache.xerces.internal.impl.xs.opti.NodeImpl)
+            ((com.sun.org.apache.xerces.internal.impl.xs.opti.NodeImpl)node).setReadOnly(false, false);
+        else if (node instanceof com.sun.org.apache.xerces.internal.dom.NodeImpl)
+            ((com.sun.org.apache.xerces.internal.dom.NodeImpl)node).setReadOnly(false, false);
+!!!5490203.java!!!	isHidden(inout node : Node) : boolean
+        if (node instanceof com.sun.org.apache.xerces.internal.impl.xs.opti.NodeImpl)
+            return ((com.sun.org.apache.xerces.internal.impl.xs.opti.NodeImpl)node).getReadOnly();
+        else if (node instanceof com.sun.org.apache.xerces.internal.dom.NodeImpl)
+            return ((com.sun.org.apache.xerces.internal.dom.NodeImpl)node).getReadOnly();
+        return false;
+!!!5490331.java!!!	getFirstChildElement(inout parent : Node, in elemName : String) : Element
+
+        // search for node
+        Node child = parent.getFirstChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                if (child.getNodeName().equals(elemName)) {
+                    return (Element)child;
+                }
+            }
+            child = child.getNextSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5490459.java!!!	getLastChildElement(inout parent : Node, in elemName : String) : Element
+
+        // search for node
+        Node child = parent.getLastChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                if (child.getNodeName().equals(elemName)) {
+                    return (Element)child;
+                }
+            }
+            child = child.getPreviousSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5490587.java!!!	getNextSiblingElement(inout node : Node, in elemName : String) : Element
+
+        // search for node
+        Node sibling = node.getNextSibling();
+        while (sibling != null) {
+            if (sibling.getNodeType() == Node.ELEMENT_NODE) {
+                if (sibling.getNodeName().equals(elemName)) {
+                    return (Element)sibling;
+                }
+            }
+            sibling = sibling.getNextSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5490715.java!!!	getFirstChildElementNS(inout parent : Node, in uri : String, in localpart : String) : Element
+
+        // search for node
+        Node child = parent.getFirstChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                String childURI = child.getNamespaceURI();
+                if (childURI != null && childURI.equals(uri) &&
+                    child.getLocalName().equals(localpart)) {
+                    return (Element)child;
+                }
+            }
+            child = child.getNextSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5490843.java!!!	getLastChildElementNS(inout parent : Node, in uri : String, in localpart : String) : Element
+
+        // search for node
+        Node child = parent.getLastChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                String childURI = child.getNamespaceURI();
+                if (childURI != null && childURI.equals(uri) &&
+                    child.getLocalName().equals(localpart)) {
+                    return (Element)child;
+                }
+            }
+            child = child.getPreviousSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5490971.java!!!	getNextSiblingElementNS(inout node : Node, in uri : String, in localpart : String) : Element
+
+        // search for node
+        Node sibling = node.getNextSibling();
+        while (sibling != null) {
+            if (sibling.getNodeType() == Node.ELEMENT_NODE) {
+                String siblingURI = sibling.getNamespaceURI();
+                if (siblingURI != null && siblingURI.equals(uri) &&
+                    sibling.getLocalName().equals(localpart)) {
+                    return (Element)sibling;
+                }
+            }
+            sibling = sibling.getNextSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5491099.java!!!	getFirstChildElement(inout parent : Node, in elemNames : String) : Element
+
+        // search for node
+        Node child = parent.getFirstChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                for (int i = 0; i < elemNames.length; i++) {
+                    if (child.getNodeName().equals(elemNames[i])) {
+                        return (Element)child;
+                    }
+                }
+            }
+            child = child.getNextSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5491227.java!!!	getLastChildElement(inout parent : Node, in elemNames : String) : Element
+
+        // search for node
+        Node child = parent.getLastChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                for (int i = 0; i < elemNames.length; i++) {
+                    if (child.getNodeName().equals(elemNames[i])) {
+                        return (Element)child;
+                    }
+                }
+            }
+            child = child.getPreviousSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5491355.java!!!	getNextSiblingElement(inout node : Node, in elemNames : String) : Element
+
+        // search for node
+        Node sibling = node.getNextSibling();
+        while (sibling != null) {
+            if (sibling.getNodeType() == Node.ELEMENT_NODE) {
+                for (int i = 0; i < elemNames.length; i++) {
+                    if (sibling.getNodeName().equals(elemNames[i])) {
+                        return (Element)sibling;
+                    }
+                }
+            }
+            sibling = sibling.getNextSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5491483.java!!!	getFirstChildElementNS(inout parent : Node, in elemNames : String) : Element
+
+        // search for node
+        Node child = parent.getFirstChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                for (int i = 0; i < elemNames.length; i++) {
+                    String uri = child.getNamespaceURI();
+                    if (uri != null && uri.equals(elemNames[i][0]) &&
+                        child.getLocalName().equals(elemNames[i][1])) {
+                        return (Element)child;
+                    }
+                }
+            }
+            child = child.getNextSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5491611.java!!!	getLastChildElementNS(inout parent : Node, in elemNames : String) : Element
+
+        // search for node
+        Node child = parent.getLastChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                for (int i = 0; i < elemNames.length; i++) {
+                    String uri = child.getNamespaceURI();
+                    if (uri != null && uri.equals(elemNames[i][0]) &&
+                        child.getLocalName().equals(elemNames[i][1])) {
+                        return (Element)child;
+                    }
+                }
+            }
+            child = child.getPreviousSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5491739.java!!!	getNextSiblingElementNS(inout node : Node, in elemNames : String) : Element
+
+        // search for node
+        Node sibling = node.getNextSibling();
+        while (sibling != null) {
+            if (sibling.getNodeType() == Node.ELEMENT_NODE) {
+                for (int i = 0; i < elemNames.length; i++) {
+                    String uri = sibling.getNamespaceURI();
+                    if (uri != null && uri.equals(elemNames[i][0]) &&
+                        sibling.getLocalName().equals(elemNames[i][1])) {
+                        return (Element)sibling;
+                    }
+                }
+            }
+            sibling = sibling.getNextSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5491867.java!!!	getFirstChildElement(inout parent : Node, in elemName : String, in attrName : String, in attrValue : String) : Element
+
+        // search for node
+        Node child = parent.getFirstChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                Element element = (Element)child;
+                if (element.getNodeName().equals(elemName) &&
+                    element.getAttribute(attrName).equals(attrValue)) {
+                    return element;
+                }
+            }
+            child = child.getNextSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5491995.java!!!	getLastChildElement(inout parent : Node, in elemName : String, in attrName : String, in attrValue : String) : Element
+
+        // search for node
+        Node child = parent.getLastChild();
+        while (child != null) {
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                Element element = (Element)child;
+                if (element.getNodeName().equals(elemName) &&
+                    element.getAttribute(attrName).equals(attrValue)) {
+                    return element;
+                }
+            }
+            child = child.getPreviousSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5492123.java!!!	getNextSiblingElement(inout node : Node, in elemName : String, in attrName : String, in attrValue : String) : Element
+
+        // search for node
+        Node sibling = node.getNextSibling();
+        while (sibling != null) {
+            if (sibling.getNodeType() == Node.ELEMENT_NODE) {
+                Element element = (Element)sibling;
+                if (element.getNodeName().equals(elemName) &&
+                    element.getAttribute(attrName).equals(attrValue)) {
+                    return element;
+                }
+            }
+            sibling = sibling.getNextSibling();
+        }
+
+        // not found
+        return null;
+
+!!!5492251.java!!!	getChildText(inout node : Node) : String
+
+        // is there anything to do?
+        if (node == null) {
+            return null;
+        }
+
+        // concatenate children text
+        StringBuffer str = new StringBuffer();
+        Node child = node.getFirstChild();
+        while (child != null) {
+            short type = child.getNodeType();
+            if (type == Node.TEXT_NODE) {
+                str.append(child.getNodeValue());
+            }
+            else if (type == Node.CDATA_SECTION_NODE) {
+                str.append(getChildText(child));
+            }
+            child = child.getNextSibling();
+        }
+
+        // return text value
+        return str.toString();
+
+!!!5492379.java!!!	getName(inout node : Node) : String
+        return node.getNodeName();
+!!!5492507.java!!!	getLocalName(inout node : Node) : String
+        String name = node.getLocalName();
+        return (name!=null)? name:node.getNodeName();
+!!!5492635.java!!!	getParent(inout elem : Element) : Element
+        Node parent = elem.getParentNode();
+        if (parent instanceof Element)
+            return (Element)parent;
+        return null;
+!!!5492763.java!!!	getDocument(inout node : Node) : Document
+        return node.getOwnerDocument();
+!!!5492891.java!!!	getRoot(inout doc : Document) : Element
+        return doc.getDocumentElement();
+!!!5493019.java!!!	getAttr(inout elem : Element, in name : String) : Attr
+        return elem.getAttributeNode(name);
+!!!5493147.java!!!	getAttrNS(inout elem : Element, in nsUri : String, in localName : String) : Attr
+        return elem.getAttributeNodeNS(nsUri, localName);
+!!!5493275.java!!!	getAttrs(inout elem : Element) : Attr
+        NamedNodeMap attrMap = elem.getAttributes();
+        Attr [] attrArray = new Attr[attrMap.getLength()];
+        for (int i=0; i<attrMap.getLength(); i++)
+            attrArray[i] = (Attr)attrMap.item(i);
+        return attrArray;
+!!!5493403.java!!!	getValue(inout attribute : Attr) : String
+        return attribute.getValue();
+!!!5493531.java!!!	getAttrValue(inout elem : Element, in name : String) : String
+        return elem.getAttribute(name);
+!!!5493659.java!!!	getAttrValueNS(inout elem : Element, in nsUri : String, in localName : String) : String
+        return elem.getAttributeNS(nsUri, localName);
+!!!5493787.java!!!	getNamespaceURI(inout node : Node) : String
+        return node.getNamespaceURI();

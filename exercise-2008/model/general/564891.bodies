@@ -1,0 +1,55 @@
+class SourceOrderComparator
+!!!3577499.java!!!	equals(inout d1 : Declaration, inout d2 : Declaration) : boolean
+	    return d1 == d2 || (d1 != null && d1.equals(d2));
+!!!3579163.java!!!	compareEqualPosition(inout d1 : Declaration, inout d2 : Declaration) : int
+	    assert d1.getPosition() == d2.getPosition();
+
+	    DeclPartialOrder dpo1 = new DeclPartialOrder();
+	    DeclPartialOrder dpo2 = new DeclPartialOrder();
+
+	    d1.accept(dpo1);
+	    d2.accept(dpo2);
+
+	    int difference = dpo1.getValue() - dpo2.getValue();
+	    if (difference != 0)
+		return difference;
+	    else {
+		int result = d1.getSimpleName().compareTo(d2.getSimpleName());
+		if (result != 0)
+		    return result;
+		return (int)( Long.signum((long)System.identityHashCode(d1) -
+					  (long)System.identityHashCode(d2)));
+	    }
+!!!3579291.java!!!	compare(inout d1 : Declaration, inout d2 : Declaration) : int
+	    if (equals(d1, d2))
+		return 0;
+
+	    SourcePosition p1 = d1.getPosition();
+	    SourcePosition p2 = d2.getPosition();
+
+	    if (p1 == null && p2 != null)
+		return 1;
+	    else if (p1 != null && p2 == null)
+		return -1;
+	    else if(p1 == null && p2 == null)
+		return compareEqualPosition(d1, d2);
+	    else {
+		assert p1 != null && p2 != null;
+		int fileComp = p1.file().compareTo(p2.file()) ;
+		if (fileComp == 0) {
+		    long diff = (long)p1.line() - (long)p2.line();
+		    if (diff == 0) {
+			diff = Long.signum((long)p1.column() - (long)p2.column());
+			if (diff != 0)
+			    return (int)diff;
+			else { 
+			    // declarations may be two
+			    // compiler-generated members with the
+			    // same source position
+			    return compareEqualPosition(d1, d2);
+			}
+		    } else
+			return (diff<0)? -1:1;
+		} else
+		    return fileComp; 
+	    }

@@ -1,0 +1,712 @@
+class GTKStyle
+!!!2081819.java!!!	calculateLightColor(inout bg : Color) : Color
+        return GTKColorType.adjustColor(bg, 1.0f, 1.3f, 1.3f);
+!!!2081947.java!!!	calculateDarkColor(inout bg : Color) : Color
+        return GTKColorType.adjustColor(bg, 1.0f, .7f, .7f);
+!!!2082075.java!!!	calculateMidColor(inout lightColor : Color, inout darkColor : Color) : Color
+        int light = lightColor.getRGB();
+        int dark = darkColor.getRGB();
+        int rLight = (light & 0xFF0000) >> 16;
+        int rDark = (dark & 0xFF0000) >> 16;
+        int gLight = (light & 0x00FF00) >> 8;
+        int gDark = (dark & 0x00FF00) >> 8;
+        int bLight = (light & 0xFF);
+        int bDark = (dark & 0xFF);
+        return new ColorUIResource((((rLight + rDark) / 2) << 16) |
+                                   (((gLight + gDark) / 2) << 8) |
+                                   ((bLight + bDark) / 2));
+!!!2082203.java!!!	calculateMidColor(inout bg : Color) : Color
+        return calculateMidColor(calculateLightColor(bg),
+                                 calculateDarkColor(bg));
+!!!2082331.java!!!	getColorsFrom(inout bg : Color, inout fg : Color) : Color
+        Color lightColor = calculateLightColor(bg);
+        Color darkColor = calculateDarkColor(bg);
+        Color midColor = calculateMidColor(lightColor, darkColor);
+        Color[] colors = new Color[GTKColorType.MAX_COUNT];
+        colors[GTKColorType.BACKGROUND.getID()] = bg;
+        colors[GTKColorType.LIGHT.getID()] = lightColor;
+        colors[GTKColorType.DARK.getID()] = darkColor;
+        colors[GTKColorType.MID.getID()] = midColor;
+        colors[GTKColorType.BLACK.getID()] = BLACK_COLOR;
+        colors[GTKColorType.WHITE.getID()] = WHITE_COLOR;
+        colors[GTKColorType.FOCUS.getID()] = BLACK_COLOR;
+        colors[GTKColorType.FOREGROUND.getID()] = fg;
+        colors[GTKColorType.TEXT_FOREGROUND.getID()] = fg;
+        colors[GTKColorType.TEXT_BACKGROUND.getID()] = WHITE_COLOR;
+        return colors;
+!!!2082459.java!!!	GTKStyle(inout style : DefaultSynthStyle)
+        super(style);
+        if (style instanceof GTKStyle) {
+            GTKStyle gStyle = (GTKStyle)style;
+            xThickness = gStyle.xThickness;
+            yThickness = gStyle.yThickness;
+            icons = gStyle.icons;
+            classSpecificValues = cloneClassSpecificValues(
+                                       gStyle.classSpecificValues);
+        }
+!!!2082587.java!!!	GTKStyle()
+        super(new Insets(-1, -1, -1, -1), true, null, null);
+!!!2082715.java!!!	GTKStyle(inout font : Font)
+        this();
+        setFont(font);
+!!!2082843.java!!!	GTKStyle(inout states : StateInfo, inout classSpecificValues : CircularIdentityList, inout font : Font, in xThickness : int, in yThickness : int, inout icons : GTKStockIconInfo)
+        super(new Insets(-1, -1, -1, -1), true, states, null);
+        setFont(font);
+        this.xThickness = xThickness;
+        this.yThickness = yThickness;
+        this.icons = icons;
+        this.classSpecificValues = classSpecificValues;
+!!!2082971.java!!!	installDefaults(inout context : SynthContext) : void
+        super.installDefaults(context);
+        if (!context.getRegion().isSubregion()) {
+            context.getComponent().putClientProperty(
+                SwingUtilities2.AA_TEXT_PROPERTY_KEY,
+                GTKLookAndFeel.aaText);
+        }        
+!!!2083099.java!!!	getGraphicsUtils(inout context : SynthContext) : SynthGraphicsUtils
+        return GTK_GRAPHICS;
+!!!2083227.java!!!	getEngine(inout context : SynthContext) : GTKEngine
+        GTKEngine engine = (GTKEngine)get(context, "engine");
+
+        if (engine == null) {
+            return GTKEngine.INSTANCE;
+        }
+        return engine;
+!!!2083355.java!!!	getPainter(inout state : SynthContext) : SynthPainter
+        return GTKPainter.INSTANCE;
+!!!2083483.java!!!	getInsets(inout state : SynthContext, inout insets : Insets) : Insets
+        insets = super.getInsets(state, insets);
+
+        if (insets.top == -1) {
+            insets.left = insets.right = insets.top = insets.bottom = 0;
+            insets = GTKPainter.INSTANCE.getInsets(state, insets);
+        }
+        return insets;
+!!!2083611.java!!!	getClassSpecificValue(inout region : Region, in key : String) : Object
+        if (classSpecificValues != null) {
+            String gtkClass = GTKStyleFactory.gtkClassFor(region);
+
+            while (gtkClass != null) {
+                CircularIdentityList classValues = (CircularIdentityList)
+                                classSpecificValues.get(gtkClass);
+
+                if (classValues != null) {
+                    Object value = classValues.get(key);
+
+                    if (value != null) {
+                        return value;
+                    }
+                }
+                gtkClass = GTKStyleFactory.gtkSuperclass(gtkClass);
+            }
+        }
+        return null;
+!!!2083739.java!!!	getClassSpecificValue(inout context : SynthContext, in key : String) : Object
+        return getClassSpecificValue(context.getRegion(), key);
+!!!2083867.java!!!	getClassSpecificIntValue(inout context : SynthContext, in key : String, in defaultValue : int) : int
+        Object value = getClassSpecificValue(context, key);
+
+        if (value instanceof Number) {
+            return ((Number)value).intValue();
+        }
+        return defaultValue;
+!!!2083995.java!!!	getClassSpecificInsetsValue(inout context : SynthContext, in key : String, inout defaultValue : Insets) : Insets
+        Object value = getClassSpecificValue(context, key);
+
+        if (value instanceof Insets) {
+            return (Insets)value;
+        }
+        return defaultValue;
+!!!2084123.java!!!	getClassSpecificBoolValue(inout context : SynthContext, in key : String, inout defaultValue : boolean) : boolean
+        Object value = getClassSpecificValue(context, key);
+
+        if (value instanceof Boolean) {
+            return ((Boolean)value).booleanValue();
+        }
+        return defaultValue;
+!!!2084251.java!!!	getDefaultValue(inout context : SynthContext, inout key : Object) : Object
+        // See if this is a class specific value.
+        Object classKey = CLASS_SPECIFIC_MAP.get(key);
+        Object value = null;
+
+        if (classKey != null) {
+            value = getClassSpecificValue(context, (String)classKey);
+            if (value != null) {
+                return value;
+            }
+        }
+            
+        if (key == "ScrollPane.viewportBorderInsets") {
+            return GTKPainter.INSTANCE.getScrollPaneInsets(context,
+                                                     new Insets(0,0,0,0));
+        } else if (key == "Slider.tickColor") {
+            return getColor(context.getComponent(), context.getRegion(),
+                            context.getComponentState(), ColorType.FOREGROUND);
+        }
+        synchronized (DATA) {
+            value = DATA.get(key);
+        }
+        if (value instanceof StyleSpecificValue) {
+            put(key, ((StyleSpecificValue)value).getValue(context));
+        }
+        if (value == null && key != "engine") {
+            // For backward compatability we'll fallback to the UIManager.
+            // We don't go to the UIManager for engine as the engine is GTK
+            // specific.
+            value = UIManager.get(key);
+            if (key == "Table.rowHeight") {
+                int focusLineWidth = getClassSpecificIntValue(
+                         context, "focus-line-width", 0);
+                if (value == null && focusLineWidth > 0) {
+                    value = new Integer(16 + 2 * focusLineWidth);
+                }
+            }
+        }
+        // Don't call super, we don't want to pick up defaults from
+        // SynthStyle.
+        return value;
+!!!2084379.java!!!	getFontForState(inout c : JComponent, inout id : Region, in state : int) : Font
+        state = GTKLookAndFeel.synthStateToGTKState(id, state);
+
+        Font f = super.getFontForState(c, id, state);
+
+        if (f == null) {
+            return DEFAULT_FONT;
+        }
+        return f;
+!!!2084507.java!!!	getGTKColor(in state : int, inout type : ColorType) : Color
+        return getGTKColor(null, null, state, type);
+!!!2084635.java!!!	getGTKColor(inout c : JComponent, inout id : Region, in state : int, inout type : ColorType) : Color
+        // NOTE: c and id are only ever null when this is called from
+        // GTKLookAndFeel.loadSystemColorDefaults.
+        if (c != null && id != null) {
+            if (!id.isSubregion() &&
+                (state & SynthConstants.ENABLED) == SynthConstants.ENABLED) {
+                if (type == ColorType.BACKGROUND) {
+                    Color bg = c.getBackground();
+                    if (!(bg instanceof UIResource)) {
+                        return bg;
+                    }
+                }
+                else if (type == ColorType.FOREGROUND) {
+                    Color fg = c.getForeground();
+                    if (!(fg instanceof UIResource)) {
+                        return fg;
+                    }
+                }
+                else if (type == ColorType.TEXT_FOREGROUND) {
+                    Color fg = c.getForeground();
+                    if (!(fg instanceof UIResource)) {
+                        return fg;
+                    }
+                }
+                else if (type == ColorType.TEXT_BACKGROUND) {
+                    Color bg = c.getBackground();
+                    if (!(bg instanceof UIResource)) {
+                        return bg;
+                    }
+                }
+            }
+        }
+        Color color = super.getColorForState(c, id, state, type);
+        if (color != null) {
+            return color;
+        }
+        return getDefaultColor(c, id, state, type);
+!!!2084763.java!!!	getColor(inout c : JComponent, inout id : Region, in state : int, inout type : ColorType) : Color
+        if (id == Region.LABEL && type == ColorType.TEXT_FOREGROUND) {
+            type = ColorType.FOREGROUND;
+        }
+        state = GTKLookAndFeel.synthStateToGTKState(id, state);
+        if (!id.isSubregion() &&
+                (state & SynthConstants.ENABLED) == SynthConstants.ENABLED) {
+            if (type == ColorType.BACKGROUND) {
+                return c.getBackground();
+            }
+            else if (type == ColorType.FOREGROUND) {
+                return c.getForeground();
+            }
+            else if (type == ColorType.TEXT_FOREGROUND) {
+                Color fg = c.getForeground();
+                if (fg != null && !(fg instanceof UIResource)) {
+                    // Only use the fg for text if specified.
+                    return fg;
+                }
+            }
+        }
+        return getColorForState(c, id, state, type);
+!!!2084891.java!!!	getColorForState(inout c : JComponent, inout id : Region, in state : int, inout type : ColorType) : Color
+        Color color = super.getColorForState(c, id, state, type);
+
+        if (color != null) {
+            return color;
+        }
+        if (type == ColorType.FOCUS) {
+            return BLACK_COLOR;
+        }
+        else if (type == GTKColorType.BLACK) {
+            return BLACK_COLOR;
+        }
+        else if (type == GTKColorType.WHITE) {
+            return WHITE_COLOR;
+        }
+        if (type == ColorType.TEXT_FOREGROUND && (GTKStyleFactory.
+                    isLabelBearing(id) || id == Region.MENU_ITEM_ACCELERATOR ||
+                    id == Region.TABBED_PANE_TAB)) {
+            type = ColorType.FOREGROUND;
+        }
+        else if (id == Region.TABLE || id == Region.LIST ||
+                 id == Region.TREE || id == Region.TREE_CELL){
+            if (type == ColorType.FOREGROUND) {
+                type = ColorType.TEXT_FOREGROUND;
+                if (state == SynthConstants.PRESSED) {
+                    state = SynthConstants.SELECTED;
+                }
+            }
+            else if (type == ColorType.BACKGROUND) {
+                type = ColorType.TEXT_BACKGROUND;
+                if (state == SynthConstants.PRESSED) {
+                    state = SynthConstants.SELECTED;
+                }
+            }
+        }
+        return getDefaultColor(c, id, state, type);
+!!!2085019.java!!!	getDefaultColor(inout c : JComponent, inout id : Region, in state : int, inout type : ColorType) : Color
+        if (type == ColorType.FOCUS) {
+            return BLACK_COLOR;
+        }
+        else if (type == GTKColorType.BLACK) {
+            return BLACK_COLOR;
+        }
+        else if (type == GTKColorType.WHITE) {
+            return WHITE_COLOR;
+        }
+        for (int counter = DEFAULT_COLOR_MAP.length - 1;
+                     counter >= 0; counter--) {
+            if ((DEFAULT_COLOR_MAP[counter] & state) != 0) {
+                if (type.getID() < DEFAULT_COLORS[counter].length) {
+                    return DEFAULT_COLORS[counter][type.getID()];
+                }
+            }
+        }
+        if (type.getID() < DEFAULT_COLORS[2].length) {
+            return DEFAULT_COLORS[2][type.getID()];
+        }
+        return null;
+!!!2085147.java!!!	isOpaque(inout context : SynthContext) : boolean
+        Region region = context.getRegion();
+        if (region == Region.COMBO_BOX ||
+              region == Region.DESKTOP_PANE ||
+              region == Region.DESKTOP_ICON ||
+              region == Region.EDITOR_PANE ||
+              region == Region.FORMATTED_TEXT_FIELD ||
+              region == Region.INTERNAL_FRAME ||
+              region == Region.LIST ||
+              region == Region.MENU_BAR ||
+              region == Region.PASSWORD_FIELD || 
+              region == Region.POPUP_MENU ||
+              region == Region.PROGRESS_BAR ||
+              region == Region.ROOT_PANE ||
+              region == Region.SCROLL_PANE ||
+              region == Region.SPINNER ||
+              region == Region.TABLE ||
+              region == Region.TEXT_AREA ||
+              region == Region.TEXT_FIELD ||
+              region == Region.TEXT_PANE ||
+              region == Region.TOOL_BAR_DRAG_WINDOW ||
+              region == Region.TOOL_TIP ||
+              region == Region.TREE ||
+              region == Region.VIEWPORT) {
+            return true;
+        }
+        Component c = context.getComponent();
+        String name = c.getName();
+        if (name == "ComboBox.renderer" || name == "ComboBox.listRenderer") {
+            return true;
+        }
+        return false;
+!!!2085275.java!!!	getXThickness() : int
+        return xThickness;
+!!!2085403.java!!!	getYThickness() : int
+        return yThickness;
+!!!2085531.java!!!	getStockIcon(inout context : SynthContext, in key : String, in type : int) : Icon
+        Icon icon = null;
+        GTKStockIconInfo iconInfo = null;
+        GTKIconSource bestSource = null;
+        int direction = LTR;
+        
+        if (context != null) {
+            ComponentOrientation co = context.getComponent().
+                                              getComponentOrientation();
+
+            if (co == null || co.isLeftToRight()) {
+                direction = LTR;
+            }
+            else {
+                direction = RTL;
+            }
+        }
+        // See if the style defines an icon
+        if (icons != null) {
+            for (int i = 0; i < icons.length; i++) {
+                // find the first one that matches our key
+                if (icons[i].getKey() == key) {
+                    iconInfo = icons[i];
+                    break;
+                }
+            }
+            
+            if (iconInfo != null) {
+                // PENDING(shannonh) - pass in actual state
+                bestSource = iconInfo.getBestIconSource(direction,
+                                                        SynthConstants.ENABLED,
+                                                        type);
+            }
+            
+            if (bestSource != null) {
+                icon = bestSource.toIcon();
+            }
+        }
+        
+        if (icon == null) {
+            // Use a default icon
+            String propName = ICON_PROPERTY_PREFIX + key + '.' + type + '.' +
+                              (direction == RTL ? "rtl" : "ltr"); 
+            Image img = (Image)Toolkit.getDefaultToolkit().
+                                       getDesktopProperty(propName);
+            if (img != null) {
+                icon = new ImageIcon(img);
+                return icon;
+            } else {
+                icon = (Icon)((UIDefaults.LazyValue)LookAndFeel.makeIcon(
+                              GTKStyle.class, "resources/" + key + "-" + type +
+                              ".png")).createValue(null);
+            }
+        }
+        
+        if (icon == null) {
+            return null;
+        }
+        BufferedImage image = null; 
+
+        // If the stock icon we found had a wildcard size, 
+        // we force the size to match that requested 
+        if (bestSource == null || bestSource.getSize() == UNDEFINED) { 
+            Dimension iconSize = GTKStockIconInfo.getIconSize(type); 
+            
+            if (iconSize != null && (icon.getIconWidth() != iconSize.width || 
+                    icon.getIconHeight() != iconSize.height)) { 
+                image = new BufferedImage(iconSize.width, iconSize.height, 
+                        BufferedImage.TYPE_INT_ARGB); 
+                
+                Graphics2D g2d = (Graphics2D)image.getGraphics(); 
+                
+                // for nicer scaling 
+                g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, 
+                        RenderingHints.VALUE_INTERPOLATION_BILINEAR); 
+                
+                Image oldImage = getImageFromIcon(icon, false); 
+                g2d.drawImage(oldImage, 0, 0, iconSize.width, iconSize.height, null); 
+                g2d.dispose(); 
+            }
+        }
+/* This is not done for now. We cache icons and use cached copies regardless
+   of the component state, so we don't want to cache desaturated icons
+   
+        if (bestSource == null || bestSource.getState() == UNDEFINED) { 
+            // We may need to change saturation for some states
+            int state = context.getComponentState();
+            if (state == SynthConstants.DISABLED ||
+                state == SynthConstants.MOUSE_OVER) {
+                
+                if (image == null) {
+                    image = (BufferedImage)getImageFromIcon(icon, true);
+                }
+                float rescaleFactor =
+                        (state == SynthConstants.DISABLED ? 0.8f : 1.2f); 
+                RescaleOp op = new RescaleOp(rescaleFactor, 0, null);
+                // RescaleOp allows for in-place filtering
+                op.filter(image, image);
+            }
+        }
+*/        
+        if (image != null) {
+            icon = new ImageIcon(image);
+        }
+        return icon;
+!!!2085659.java!!!	getImageFromIcon(inout icon : Icon, inout requireBufferedImage : boolean) : Image
+        Image img = null;
+        
+        if (icon instanceof ImageIcon) { 
+            img = ((ImageIcon)icon).getImage();
+            if (requireBufferedImage && !(img instanceof BufferedImage)) {
+                img = null;
+            }
+        }
+        if (img == null) { 
+            img = new BufferedImage(icon.getIconWidth(), icon.getIconHeight(),
+                                    BufferedImage.TYPE_INT_ARGB);                             
+            Graphics g = img.getGraphics(); 
+            icon.paintIcon(null, g, 0, 0); 
+            g.dispose(); 
+        } 
+        return img;
+!!!2085787.java!!!	addLabelProperties(inout style : GTKStyle) : void
+        StateInfo[] states = getStateInfo();
+        StateInfo[] oStates = style.getStateInfo();
+        // Take the font
+        setFont(style.getFontForState(null, null, 0));
+        // And TEXT_FOREGROUND
+        if (states == null) {
+            if (oStates == null) {
+                return;
+            }
+            states = new StateInfo[oStates.length];
+            for (int counter = 0; counter < oStates.length; counter++) {
+                Color color = oStates[counter].getColor(
+                                     GTKColorType.FOREGROUND);
+
+                states[counter] = createStateInfo(oStates[counter].
+                     getComponentState(), GTKColorType.TEXT_FOREGROUND, color);
+            }
+        }
+        else {
+            // Reset the text foreground of all our states, this will ensure
+            // the correct color is picked up if style doesn't specify a
+            // text color.
+            for (int counter = states.length - 1; counter >= 0; counter--) {
+                ((GTKStateInfo)states[counter]).setColor(
+                               GTKColorType.TEXT_FOREGROUND, null);
+            }
+            if (oStates != null) {
+                for (int oCounter = oStates.length - 1; oCounter >= 0;
+                         oCounter--) {
+                    boolean matched = false;
+                    StateInfo oState = oStates[oCounter];
+                    int componentState = oState.getComponentState();
+                    Color color = oState.getColor(GTKColorType.FOREGROUND);
+
+                    for (int tCounter = states.length - 1; tCounter >= 0;
+                             tCounter--) {
+                        if (componentState == states[tCounter].
+                                     getComponentState()) {
+                            ((GTKStateInfo)states[tCounter]).setColor(
+                                      GTKColorType.TEXT_FOREGROUND, color);
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched) {
+                        StateInfo[] newStates = new StateInfo[states.length+1];
+                        System.arraycopy(states, 0, newStates, 0,
+                                         states.length);
+                        newStates[states.length] = createStateInfo(
+                                 componentState, GTKColorType.TEXT_FOREGROUND,
+                                 color);
+                        states = newStates;
+                    }
+                }
+            }
+        }
+!!!2085915.java!!!	createStateInfo(in state : int, inout type : ColorType, inout color : Color) : GTKStateInfo
+        Color[] colors = new Color[GTKColorType.MAX_COUNT];
+
+        colors[type.getID()] = color;
+        return new GTKStateInfo(state, null, colors, null);
+!!!2086043.java!!!	put(inout key : Object, inout value : Object) : void
+        Map data = getData();
+        if (data== null) {
+            data = new HashMap();
+            setData(data);
+        }
+        data.put(key, value);
+!!!2086171.java!!!	fillBackground(inout context : SynthContext, in state : int) : boolean
+        GTKStateInfo info = (GTKStateInfo)getStateInfo(state);
+
+        if (info != null) {
+            Object backgroundImage = info.getBackgroundImage();
+
+            if (backgroundImage == "<none>" || backgroundImage == null) {
+                return true;
+            }
+            return false;
+        }
+        return true;
+!!!2086299.java!!!	getBackgroundImage(inout context : SynthContext, in state : int) : Image
+        GTKStateInfo info = (GTKStateInfo)getStateInfo(state);
+
+        if (info != null) {
+            Object backgroundImage = info.getBackgroundImage();
+
+            if (backgroundImage instanceof Image) {
+                return (Image)backgroundImage;
+            }
+        }
+        return null;
+!!!2086427.java!!!	clone() : Object
+        GTKStyle style = (GTKStyle)super.clone();
+
+        style.classSpecificValues = cloneClassSpecificValues(
+                                         style.classSpecificValues);
+        return style;
+!!!2086555.java!!!	addTo(inout style : DefaultSynthStyle) : DefaultSynthStyle
+        if (!(style instanceof GTKStyle)) {
+            style = new GTKStyle(style);
+        }
+        GTKStyle gtkStyle = (GTKStyle)super.addTo(style);
+        if (xThickness != UNDEFINED_THICKNESS) {
+            gtkStyle.xThickness = xThickness;
+        }
+        if (yThickness != UNDEFINED_THICKNESS) {
+            gtkStyle.yThickness = yThickness;
+        }
+        if (gtkStyle.icons == null) {
+            gtkStyle.icons = icons;
+        }
+        else if (icons != null) {
+            GTKStockIconInfo[] mergedIcons =
+                new GTKStockIconInfo[gtkStyle.icons.length + icons.length];
+                
+            System.arraycopy(icons, 0, mergedIcons, 0, icons.length);
+            System.arraycopy(gtkStyle.icons, 0, mergedIcons, icons.length, gtkStyle.icons.length);
+            
+            gtkStyle.icons = mergedIcons;
+        }
+        
+        if (gtkStyle.classSpecificValues == null) {
+            gtkStyle.classSpecificValues =
+                cloneClassSpecificValues(classSpecificValues);
+        } else {
+            addClassSpecificValues(classSpecificValues, gtkStyle.classSpecificValues);
+        }
+            
+        return gtkStyle;
+!!!2086683.java!!!	addClassSpecificValues(inout from : CircularIdentityList, inout to : CircularIdentityList) : void
+        if (to == null) {
+            throw new IllegalArgumentException("to may not be null");
+        }
+        
+        if (from == null) {
+            return;
+        }
+
+        synchronized(from) {
+            Object firstKey = from.next();
+            if (firstKey != null) {
+                Object key = firstKey;
+                do {
+                    CircularIdentityList cList = ((CircularIdentityList)
+                            from.get());
+                    CircularIdentityList oSublist = (CircularIdentityList)
+                                     to.get(key);
+                    if (oSublist == null) {
+                        to.set(key, cList.clone());
+                    }
+                    else {
+                        Object cFirstKey = cList.next();
+
+                        if (cFirstKey != null) {
+                            Object cKey = cFirstKey;
+                            do {
+                                oSublist.set(cKey, cList.get());
+                                cKey = cList.next();
+                            } while (cKey != cFirstKey);
+                        }
+                    }
+                    key = from.next();
+                } while (key != firstKey);
+            }
+        }
+!!!2086811.java!!!	cloneClassSpecificValues(inout list : CircularIdentityList) : CircularIdentityList
+        if (list == null) {
+            return null;
+        }
+        CircularIdentityList clone;
+        synchronized(list) {
+            Object firstKey = list.next();
+            if (firstKey == null) {
+                // Empty list
+                return null;
+            }
+            clone = new CircularIdentityList();
+            Object key = firstKey;
+            do {
+                clone.set(key, ((CircularIdentityList)list.get()).clone());
+                key = list.next();
+            } while (key != firstKey);
+        }
+        return clone;
+!!!2089115.java!!!	toString() : String
+        StringBuffer buf = new StringBuffer(super.toString());
+
+        if (xThickness != UNDEFINED_THICKNESS) {
+            buf.append("xt=").append(String.valueOf(xThickness)).append('\n');
+        }
+
+        if (yThickness != UNDEFINED_THICKNESS) {
+            buf.append("yt=").append(String.valueOf(yThickness)).append('\n');
+        }
+
+        if (classSpecificValues != null) {
+            buf.append("*** Properties ***\n");
+            buf.append(classSpecValsToString(classSpecificValues)).append('\n');
+        }
+
+        if (icons != null) {
+            buf.append("*** Stock Icons ***\n");
+            for (int i = 0; i < icons.length; i++) {
+                buf.append(icons[i].toString()).append('\n');
+            }
+        }
+
+        // remove last newline
+        buf.deleteCharAt(buf.length() - 1);
+
+        return buf.toString();
+!!!2089243.java!!!	classSpecValsToString(inout parent : CircularIdentityList) : String
+        StringBuffer buf = new StringBuffer();
+
+        Object parentFirst = parent.next();
+            
+        if (parentFirst == null) {
+            return "";
+        }
+
+        Object parentKey = parentFirst;
+
+        do {
+            buf.append(parentKey).append('\n');
+
+            CircularIdentityList child = (CircularIdentityList)parent.get();
+
+            Object childFirst = child.next();
+                
+            if (childFirst == null) {
+                break;
+            }
+                    
+            Object childKey = childFirst;
+                    
+            do {
+                buf.append("    ").append(childKey).append('=').append(child.get()).append('\n');
+                childKey = child.next();
+            } while (childKey != childFirst);
+            
+            parentKey = parent.next();
+        } while (parentKey != parentFirst);
+
+        // remove last newline
+        buf.deleteCharAt(buf.length() - 1);
+
+        return buf.toString();
+!!!2090395.java!!!	getStateName(in state : int, in undef : String) : String
+        switch(state) {
+            case SynthConstants.ENABLED: return "NORMAL";
+            case SynthConstants.PRESSED: return "ACTIVE";
+            case SynthConstants.SELECTED: return "SELECTED";
+            case SynthConstants.MOUSE_OVER: return "PRELIGHT";
+            case SynthConstants.DISABLED: return "INSENSITIVE";
+            case UNDEFINED: return undef;
+        }
+        
+        return "UNKNOWN";

@@ -1,0 +1,83 @@
+class Timer
+!!!370971.java!!!	serialNumber() : int
+        return nextSerialNumber++;
+!!!371099.java!!!	Timer()
+        this("Timer-" + serialNumber());
+!!!371227.java!!!	Timer(inout isDaemon : boolean)
+        this("Timer-" + serialNumber(), isDaemon);
+!!!371355.java!!!	Timer(in name : String)
+        thread.setName(name);
+        thread.start();
+!!!371483.java!!!	Timer(in name : String, inout isDaemon : boolean)
+        thread.setName(name);
+        thread.setDaemon(isDaemon);
+        thread.start();
+!!!371611.java!!!	schedule(inout task : TimerTask, in delay : long) : void
+        if (delay < 0)
+            throw new IllegalArgumentException("Negative delay.");
+        sched(task, System.currentTimeMillis()+delay, 0);
+!!!371739.java!!!	schedule(inout task : TimerTask, inout time : Date) : void
+        sched(task, time.getTime(), 0);
+!!!371867.java!!!	schedule(inout task : TimerTask, in delay : long, in period : long) : void
+        if (delay < 0)
+            throw new IllegalArgumentException("Negative delay.");
+        if (period <= 0)
+            throw new IllegalArgumentException("Non-positive period.");
+        sched(task, System.currentTimeMillis()+delay, -period);
+!!!371995.java!!!	schedule(inout task : TimerTask, inout firstTime : Date, in period : long) : void
+        if (period <= 0)
+            throw new IllegalArgumentException("Non-positive period.");
+        sched(task, firstTime.getTime(), -period);
+!!!372123.java!!!	scheduleAtFixedRate(inout task : TimerTask, in delay : long, in period : long) : void
+        if (delay < 0)
+            throw new IllegalArgumentException("Negative delay.");
+        if (period <= 0)
+            throw new IllegalArgumentException("Non-positive period.");
+        sched(task, System.currentTimeMillis()+delay, period);
+!!!372251.java!!!	scheduleAtFixedRate(inout task : TimerTask, inout firstTime : Date, in period : long) : void
+        if (period <= 0)
+            throw new IllegalArgumentException("Non-positive period.");
+        sched(task, firstTime.getTime(), period);
+!!!372379.java!!!	sched(inout task : TimerTask, in time : long, in period : long) : void
+        if (time < 0)
+            throw new IllegalArgumentException("Illegal execution time.");
+        
+        synchronized(queue) {
+            if (!thread.newTasksMayBeScheduled)
+                throw new IllegalStateException("Timer already cancelled.");
+
+            synchronized(task.lock) {
+                if (task.state != TimerTask.VIRGIN)
+                    throw new IllegalStateException(
+                        "Task already scheduled or cancelled");
+                task.nextExecutionTime = time;
+                task.period = period;
+                task.state = TimerTask.SCHEDULED;
+            }
+
+            queue.add(task);
+            if (queue.getMin() == task)
+                queue.notify();
+        }
+!!!372507.java!!!	cancel() : void
+        synchronized(queue) {
+            thread.newTasksMayBeScheduled = false;
+            queue.clear();
+            queue.notify();  // In case queue was already empty.
+        }
+!!!372635.java!!!	purge() : int
+         int result = 0;
+
+         synchronized(queue) {
+             for (int i = queue.size(); i > 0; i--) {
+                 if (queue.get(i).state == TimerTask.CANCELLED) {
+                     queue.quickRemove(i);
+                     result++;
+                 }
+             }
+
+             if (result != 0)
+                 queue.heapify();
+         }
+
+         return result;

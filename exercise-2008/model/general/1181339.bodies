@@ -1,0 +1,46 @@
+class SynthComboBoxEditor
+!!!9671323.java!!!	SynthComboBoxEditor()
+            editor = new JTextField("",9);
+            editor.setName("ComboBox.textField");
+!!!9671451.java!!!	getEditorComponent() : Component
+            return editor;
+!!!9671579.java!!!	setItem(inout anObject : Object) : void
+            String text;
+
+            if ( anObject != null )  {
+                text = anObject.toString();
+                oldValue = anObject;
+            } else {
+                text = "";
+            }
+            // workaround for 4530952
+            if (!text.equals(editor.getText())) {
+                editor.setText(text);
+            }
+!!!9671707.java!!!	getItem() : Object
+            Object newValue = editor.getText();
+        
+            if (oldValue != null && !(oldValue instanceof String))  {
+                // The original value is not a string. Should return the value in it's
+                // original type.
+                if (newValue.equals(oldValue.toString())) {
+                    return oldValue;
+                } else {
+                    // Must take the value from the editor and get the value and cast it to the new type.
+                    Class cls = oldValue.getClass();
+                    try {
+                        Method method = cls.getMethod("valueOf", new Class[]{String.class});
+                        newValue = method.invoke(oldValue, new Object[] { editor.getText()});
+                    } catch (Exception ex) {
+                        // Fail silently and return the newValue (a String object)
+                    }
+                }
+            }
+            return newValue;
+!!!9671835.java!!!	selectAll() : void
+            editor.selectAll();
+            editor.requestFocus();
+!!!9671963.java!!!	addActionListener(inout l : ActionListener) : void
+            editor.addActionListener(l);
+!!!9672091.java!!!	removeActionListener(inout l : ActionListener) : void
+            editor.removeActionListener(l);

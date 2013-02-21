@@ -1,0 +1,90 @@
+class InflaterInputStream
+!!!8022683.java!!!	ensureOpen() : void
+	if (closed) {
+	    throw new IOException("Stream closed");
+        }
+!!!8022811.java!!!	InflaterInputStream(inout in : InputStream, inout inf : Inflater, in size : int)
+	super(in);
+        if (in == null || inf == null) {
+            throw new NullPointerException();
+        } else if (size <= 0) {
+            throw new IllegalArgumentException("buffer size <= 0");
+        }
+	this.inf = inf;
+	buf = new byte[size];
+!!!8022939.java!!!	InflaterInputStream(inout in : InputStream, inout inf : Inflater)
+	this(in, inf, 512);
+!!!8023067.java!!!	InflaterInputStream(inout in : InputStream)
+	this(in, new Inflater());
+        usesDefaultInflater = true;
+!!!8023195.java!!!	read() : int
+	ensureOpen();
+	return read(singleByteBuf, 0, 1) == -1 ? -1 : singleByteBuf[0] & 0xff;
+!!!8023323.java!!!	read(in b : byte, in off : int, in len : int) : int
+	ensureOpen();
+        if ((off | len | (off + len) | (b.length - (off + len))) < 0) {
+	    throw new IndexOutOfBoundsException();
+	} else if (len == 0) {
+	    return 0;
+	}
+	try {
+	    int n;
+	    while ((n = inf.inflate(b, off, len)) == 0) {
+		if (inf.finished() || inf.needsDictionary()) {
+                    reachEOF = true;
+		    return -1;
+		}
+		if (inf.needsInput()) {
+		    fill();
+		}
+	    }
+	    return n;
+	} catch (DataFormatException e) {
+	    String s = e.getMessage();
+	    throw new ZipException(s != null ? s : "Invalid ZLIB data format");
+	}
+!!!8023451.java!!!	available() : int
+        ensureOpen();
+        if (reachEOF) {
+            return 0;
+        } else {
+            return 1;
+        }
+!!!8023579.java!!!	skip(in n : long) : long
+        if (n < 0) {
+            throw new IllegalArgumentException("negative skip length");
+        }
+	ensureOpen();
+	int max = (int)Math.min(n, Integer.MAX_VALUE);
+	int total = 0;
+	while (total < max) {
+	    int len = max - total;
+	    if (len > b.length) {
+		len = b.length;
+	    }
+	    len = read(b, 0, len);
+	    if (len == -1) {
+                reachEOF = true;
+		break;
+	    }
+	    total += len;
+	}
+	return total;
+!!!8023707.java!!!	close() : void
+        if (!closed) {
+            if (usesDefaultInflater)
+                inf.end();
+	    in.close();
+            closed = true;
+        }
+!!!8023835.java!!!	fill() : void
+	ensureOpen();
+	len = in.read(buf, 0, buf.length);
+	if (len == -1) {
+	    throw new EOFException("Unexpected end of ZLIB input stream");
+	}
+	inf.setInput(buf, 0, len);
+!!!8023963.java!!!	markSupported() : boolean
+        return false;
+!!!8024219.java!!!	reset() : void
+        throw new IOException("mark/reset not supported");

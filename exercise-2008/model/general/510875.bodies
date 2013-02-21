@@ -1,0 +1,866 @@
+class ObjectName
+!!!8256027.java!!!	construct(in name : String) : void
+
+	// The name cannot be null
+	if (name == null)
+	    throw new NullPointerException("name cannot be null");
+
+	// Test if the name is empty
+	if (name.length() == 0) {
+            // this is equivalent to the whole word query object name.
+            _canonicalName = "*:*";
+            _kp_array = _Empty_property_array;
+            _ca_array = _Empty_property_array;
+            _domain_length = 1;
+            _propertyList = null;
+            _domain_pattern = true;
+            _property_pattern = true;
+            return;
+        }
+
+        // initialize parsing of the string
+        char[] name_chars = name.toCharArray();
+        int len = name_chars.length;
+        char[] canonical_chars = new char[len]; // canonical form will be same
+                                                // length at most
+        int cname_index = 0;
+	int index = 0;
+        char c, c1;
+
+        // parses domain part
+    domain_parsing:
+        while (index < len) {
+            switch (c = name_chars[index]) {
+                case ':' :
+                    _domain_length = index++;
+                    break domain_parsing;
+                case '=' :
+                    int i = ++index;
+                    while ((i < len) && (name_chars[i++] != ':'))
+                    if (i == len)
+			throw new MalformedObjectNameException(
+					   "Domain part must be specified");
+		    break;
+                case '\n' :
+                    throw new MalformedObjectNameException(
+			      "Invalid character '\\n' in domain name");
+                case '*' :
+                case '?' :
+                    _domain_pattern = true;
+                default :
+                    index++;
+            }
+        }
+
+        // check for non-empty properties
+        if (index == len)
+	    throw new MalformedObjectNameException(
+					 "Key properties cannot be empty");
+
+        // we have got the domain part, begins building of _canonicalName
+        System.arraycopy(name_chars, 0, canonical_chars, 0, _domain_length);
+        canonical_chars[_domain_length] = ':';
+        cname_index = _domain_length + 1;
+
+        // parses property list
+        Property prop;
+        HashMap keys_map = new HashMap();
+        String[] keys;
+        String key_name;
+        boolean quoted_value;
+        int property_index = 0;
+        int in_index;
+        int key_index, key_length, value_index, value_length;
+
+        keys = new String[10];
+        _kp_array = new Property[10];
+        _property_pattern = false;
+
+        while (index < len) {
+            c = name_chars[index];
+
+            // case of pattern properties
+            if (c == '*') {
+                if (_property_pattern)
+		    throw new MalformedObjectNameException(
+			      "Cannot have several '*' characters in pattern " +
+			      "properties");
+                else {
+                    _property_pattern = true;
+                    if ((++index < len ) && (name_chars[index] != ','))
+			throw new MalformedObjectNameException(
+			          "Invalid character found after '*': end of " +
+				  "name or ',' expected");
+                    else if (index == len) {
+                        if (property_index == 0) {
+                            // empty properties case
+                            _kp_array = _Empty_property_array;
+                            _ca_array = _Empty_property_array;
+                            _propertyList = _EmptyPropertyList;
+                        }
+                        break;
+                    }
+                    else {
+                        // correct pattern spec in props, continue
+                        index++;
+                        continue;
+                    }
+                }
+            }
+
+            // standard property case, key part
+            in_index = index;
+            key_index = in_index;
+            while ((in_index < len) && ((c1 = name_chars[in_index++]) != '='))
+                switch (c1) {
+                    // '=' considered to introduce value part
+                    case  '*' :
+                    case  '?' :
+                    case  ',' :
+                    case  ':' :
+                    case  '\n' :
+			final String ichar = ((c1=='\n')?"\\n":""+c1);
+                        throw new MalformedObjectNameException(
+				  "Invalid character '" + ichar +
+				  "' in key part of property");
+                    default: ;
+                }
+            if (in_index == len)
+		throw new MalformedObjectNameException(
+					     "Unterminated key property part");
+            if (in_index == index)
+		throw new MalformedObjectNameException("Invalid key (empty)");
+            value_index = in_index; // in_index pointing after '=' char
+            key_length = value_index - key_index - 1; // found end of key
+
+            // standard property case, value part
+            if (name_chars[in_index] == '\"') {
+                quoted_value = true;
+                // the case of quoted value part
+            quoted_value_parsing:
+                while ((++in_index < len) &&
+		       ((c1 = name_chars[in_index]) != '\"')) {
+                    // the case of an escaped character
+                    if (c1 == '\\') {
+                        if (++in_index == len)
+			    throw new MalformedObjectNameException(
+					       "Unterminated quoted value");
+                        switch (c1 = name_chars[in_index]) {
+                            case '\\' :
+                            case '\"' :
+                            case '?' :
+                            case '*' :
+                            case 'n' :
+                                break; // valid character
+                            default :
+                                throw new MalformedObjectNameException(
+					  "Invalid escape sequence '\\" +
+					  c1 + "' in quoted value");
+                        }
+		    } else if (c1 == '\n') {
+			throw new MalformedObjectNameException(
+						     "Newline in quoted value");
+		    } else {
+                        switch (c1) {
+                            case '?' :
+                            case '*' :
+                                throw new MalformedObjectNameException(
+				      "Invalid unescaped reserved character '" +
+				      c1 + "' in quoted value");
+                            default:
+                                break;
+                        }
+                    }
+		}
+                if (in_index == len)
+		    throw new MalformedObjectNameException(
+						 "Unterminated quoted value");
+                else value_length = ++in_index - value_index;
+            }
+            else {
+                // the case of standard value part
+                quoted_value = false;
+                while ((in_index < len) && ((c1 = name_chars[in_index]) != ','))
+                switch (c1) {
+                    // ',' considered to be the value separator
+                    case '*' :
+                    case '?' :
+                    case '=' :
+                    case ':' :
+                    case '"' :
+                    case '\n' :
+			final String ichar = ((c1=='\n')?"\\n":""+c1);
+                        throw new MalformedObjectNameException(
+						 "Invalid character '" + c1 +
+						 "' in value part of property");
+                    default : in_index++;
+                }
+                value_length = in_index - value_index;
+            }
+
+            // Parsed property, checks the end of name
+            if (in_index == len - 1) {
+                if (quoted_value)
+		    throw new MalformedObjectNameException(
+					     "Invalid ending character `" +
+					     name_chars[in_index] + "'");
+                else throw new MalformedObjectNameException(
+						  "Invalid ending comma");
+            }
+            else in_index++;
+
+            // we got the key and value part, prepare a property for this
+            prop = new Property(key_index, key_length, value_length);
+            key_name = name.substring(key_index, key_index + key_length);
+
+            if (property_index == keys.length) {
+                String[] tmp_string_array = new String[property_index + 10];
+                System.arraycopy(keys, 0, tmp_string_array, 0, property_index);
+                keys = tmp_string_array;
+            }
+            keys[property_index] = key_name;
+
+            addProperty(prop, property_index, keys_map, key_name);
+            property_index++;
+            index = in_index;
+        }
+
+        // computes and set canonical name
+        setCanonicalName(name_chars, canonical_chars, keys,
+			 keys_map, cname_index, property_index);
+!!!8256155.java!!!	construct(in domain : String, inout props : Hashtable) : void
+
+	// The domain cannot be null
+	if (domain == null)
+	    throw new NullPointerException("domain cannot be null");
+
+	// The key property list cannot be null
+	if (props == null)
+	    throw new NullPointerException("key property list cannot be null");
+
+	// The key property list cannot be empty
+	if (props.isEmpty())
+	    throw new MalformedObjectNameException(
+					 "key property list cannot be empty");
+
+        // checks domain validity
+	if (!isDomain(domain))
+            throw new MalformedObjectNameException("Invalid domain: " + domain);
+
+        // init canonicalname
+	final StringBuffer sb = new StringBuffer();
+        sb.append(domain).append(':');
+        _domain_length = domain.length();
+
+        // allocates the property array
+        int nb_props = props.size();
+        _kp_array = new Property[nb_props];
+
+        String[] keys = new String[nb_props];
+	final Enumeration e = props.keys();
+        final HashMap keys_map = new HashMap();
+        Property prop;
+        int key_index;
+	for (int i = 0; e.hasMoreElements(); i++ ) {
+            if (i > 0) sb.append(",");
+	    String key = "";
+	    try {
+		key = (String)e.nextElement();
+	    } catch (Exception x) {
+		throw new MalformedObjectNameException("Invalid key `" +
+						       key + "'");
+	    }
+	    String value = "";
+	    try {
+		value = (String)props.get(key);
+	    } catch (Exception x) {
+		throw new MalformedObjectNameException("Invalid value `" +
+						       value + "'");
+	    }
+	    key_index = sb.length();
+            checkKey(key);
+            sb.append(key);
+            keys[i] = key;
+            sb.append("=");
+	    checkValue(value);
+            sb.append(value);
+            prop = new Property(key_index, key.length(), value.length());
+	    addProperty(prop, i, keys_map, key);
+	}
+
+        // initialise canonical name and data structure
+        int len = sb.length();
+        char[] initial_chars = new char[len];
+        sb.getChars(0, len, initial_chars, 0);
+        char[] canonical_chars = new char[len];
+        System.arraycopy(initial_chars, 0, canonical_chars, 0,
+			 _domain_length + 1);
+        setCanonicalName(initial_chars, canonical_chars, keys, keys_map,
+			 _domain_length + 1, _kp_array.length);
+!!!8256283.java!!!	addProperty(inout prop : Property, in index : int, inout keys_map : HashMap, in key_name : String) : void
+
+        if (keys_map.containsKey(key_name)) throw new
+                MalformedObjectNameException("key `" + 
+					 key_name +"' already defined");
+            
+        // if no more space for property arrays, have to increase it 
+        if (index == _kp_array.length) {
+            Property[] tmp_prop_array = new Property[index + 10];
+            System.arraycopy(_kp_array, 0, tmp_prop_array, 0, index);
+            _kp_array = tmp_prop_array;
+        }
+        _kp_array[index] = prop;
+        keys_map.put(key_name, prop);
+!!!8256411.java!!!	setCanonicalName(in specified_chars : char, in canonical_chars : char, in keys : String, inout keys_map : HashMap, in prop_index : int, in nb_props : int) : void
+
+        // Sort the list of found properties
+        if (_kp_array != _Empty_property_array) {
+            String[] tmp_keys = new String[nb_props];
+            Property[] tmp_props = new Property[nb_props];
+
+            System.arraycopy(keys, 0, tmp_keys, 0, nb_props);
+            Arrays.sort(tmp_keys);
+            keys = tmp_keys;
+            System.arraycopy(_kp_array, 0, tmp_props, 0 , nb_props);
+            _kp_array = tmp_props;
+            _ca_array = new Property[nb_props];
+
+            // now assigns _ca_array to the sorted list of keys
+            // (there cannot be two identical keys in an objectname.
+            for (int i = 0; i < nb_props; i++)
+                _ca_array[i] = (Property) keys_map.get(keys[i]);
+
+            // now we build the canonical name and set begin indexes of
+            // properties to reflect canonical form
+            int last_index = nb_props - 1;
+            int prop_len; 
+            Property prop;
+            for (int i = 0; i <= last_index; i++) {
+                prop = _ca_array[i];
+		// length of prop including '=' char
+                prop_len = prop._key_length + prop._value_length + 1;
+                System.arraycopy(specified_chars, prop._key_index,
+				 canonical_chars, prop_index, prop_len);
+                prop.setKeyIndex(prop_index);
+                prop_index += prop_len;
+                if (i != last_index) {
+                    canonical_chars[prop_index] = ',';
+                    prop_index++;
+                }
+            }
+        }
+        
+        // terminate canonicalname with '*' in case of pattern
+        if (_property_pattern) {
+            if (_kp_array != _Empty_property_array)
+		canonical_chars[prop_index++] = ',';
+            canonical_chars[prop_index++] = '*';
+        }
+
+        // we now build the canonicalname string
+        _canonicalName = (new String(canonical_chars, 0, prop_index)).intern();
+!!!8256539.java!!!	parseKey(in s : char, in startKey : int) : int
+	int next   = startKey;
+	int endKey = startKey;
+	final int len = s.length;
+	while (next < len) {
+	    final char k = s[next++];
+	    switch (k) {
+	    case '*':
+	    case '?':
+	    case ',':
+	    case ':':
+	    case '\n':
+		final String ichar = ((k=='\n')?"\\n":""+k);
+		throw new 
+		    MalformedObjectNameException("Invalid character in key: `"
+						 + ichar + "'");
+	    case '=':
+		// we got the key.
+		endKey = next-1;
+		break;
+	    default:
+		if (next < len) continue;
+		else endKey=next;
+	    }
+	    break;
+	}
+	return endKey;
+!!!8256667.java!!!	parseValue(in s : char, in startValue : int) : int
+
+	int next   = startValue;
+	int endValue = startValue;
+
+	final int len = s.length;
+	final char q=s[startValue];
+
+	if (q == '"') {
+	    // quoted value
+	    if (++next == len) throw new 
+		MalformedObjectNameException("Invalid quote");
+	    while (next < len) {
+		char last = s[next];
+                if (last == '\\') {
+                    if (++next == len) throw new 
+                        MalformedObjectNameException(
+			   "Invalid unterminated quoted character sequence");
+                    last = s[next];
+                    switch (last) {
+                        case '\\' :
+                        case '?' :
+                        case '*' :
+			case 'n' :
+                            break;
+                        case '\"' :
+			    // We have an escaped quote. If this escaped
+			    // quote is the last character, it does not
+			    // qualify as a valid termination quote.
+			    //
+			    if (next+1 == len) throw new
+				MalformedObjectNameException(
+						 "Missing termination quote");
+			    break;
+                        default:
+                            throw new 
+                                MalformedObjectNameException(
+				"Invalid quoted character sequence '\\" + 
+				last + "'");
+                    }
+                } else if (last == '\n') {
+		    throw new MalformedObjectNameException(
+						 "Newline in quoted value");
+                } else if (last == '\"') {
+                    next++;
+                    break;
+                } else {
+                    switch (last) {
+                        case '?' :
+                        case '*' :
+                            throw new MalformedObjectNameException(
+				      "Invalid unescaped reserved character '" +
+				      last + "' in quoted value");
+                        default:
+                            break;
+                    }
+                }
+                next++;
+
+		// Check that last character is a termination quote.
+		// We have already handled the case were the last
+		// character is an escaped quote earlier.
+		//
+		if ((next >= len) && (last != '\"')) throw new 
+		    MalformedObjectNameException("Missing termination quote");
+	    }
+	    endValue = next;
+	    if (next < len) {
+		if (s[next++] != ',') throw new 
+		    MalformedObjectNameException("Invalid quote");
+	    }
+	}
+        else {
+	    // Non quoted value.
+	    while (next < len) {
+		final char v=s[next++];
+		switch(v) {
+                    case '*':
+                    case '?':
+                    case '=':
+                    case ':':
+                    case '\n' :
+			final String ichar = ((v=='\n')?"\\n":""+v);
+                        throw new 
+			MalformedObjectNameException("Invalid character `" + 
+						     ichar + "' in value");
+		    case ',':
+		        endValue = next-1;
+		    break;
+		default:
+		    if (next < len) continue;
+		    else endValue=next;
+		}
+		break;
+	    }
+	}
+	return endValue;
+!!!8256795.java!!!	checkValue(in val : String) : String
+
+	if (val == null) throw new
+	    MalformedObjectNameException("Invalid value (null)");
+
+	final int len  = val.length();
+	if (len == 0) throw new
+	    MalformedObjectNameException("Invalid value (empty)");
+
+	final char[] s = val.toCharArray();
+	final int endValue = parseValue(s,0);
+	if (endValue < len) throw new 
+	    MalformedObjectNameException("Invalid character in value: `" + 
+					 s[endValue] + "'");
+	return val;
+!!!8256923.java!!!	checkKey(in key : String) : String
+
+	if (key == null) throw new
+	    MalformedObjectNameException("Invalid key (null)");
+	
+	final int len = key.length();
+	if (len == 0) throw new
+	    MalformedObjectNameException("Invalid key (empty)");
+	final char[] k=key.toCharArray();
+	final int endKey = parseKey(k,0);
+	if (endKey < len) throw new 
+	    MalformedObjectNameException("Invalid character in value: `" + 
+					 k[endKey] + "'");
+	return key;
+!!!8257051.java!!!	wildmatch(in s : char, in p : char, in si : int, in pi : int) : boolean
+        char c;
+        final int slen = s.length;
+        final int plen = p.length;
+
+        while (pi < plen) {            // While still string
+            c = p[pi++];
+            if (c == '?') {
+                if (++si > slen) return false;
+            } else if (c == '*') {        // Wildcard
+                if (pi >= plen) return true;
+                do {
+                    if (wildmatch(s,p,si,pi)) return true;
+                } while (++si < slen);
+                return false;
+            } else {
+                if (si >= slen || c != s[si++]) return false;
+            }
+        }
+        return (si == slen);
+!!!8257179.java!!!	isDomain(in domain : String) : boolean
+	if (domain == null) return true;
+	final char[] d=domain.toCharArray();
+	final int len = d.length;
+	int next = 0;
+	while (next < len) {
+	    final char c = d[next++];
+	    switch (c) {
+                case ':' :
+                case '\n' :
+                    return false;
+                case '*' :
+                case '?' :
+                    _domain_pattern = true;
+                default:
+                    continue;
+	    }
+	}
+	return true;
+!!!8257307.java!!!	readObject(inout in : ObjectInputStream) : void
+
+	String cn;
+	if (compat) {
+	    // Read an object serialized in the old serial form
+	    //
+	    //in.defaultReadObject();
+	    final ObjectInputStream.GetField fields = in.readFields();
+	    String propListString =
+		(String)fields.get("propertyListString", "");
+
+            // 6616825: take care of property patterns
+            final boolean propPattern = 
+                    fields.get("propertyPattern" , false);
+            if (propPattern) {
+                propListString = 
+                        (propListString.length()==0?"*":(propListString+",*"));
+            }
+             
+            cn = (String)fields.get("domain", "default")+
+                ":"+ propListString;
+	} else {
+	    // Read an object serialized in the new serial form
+	    //
+	    in.defaultReadObject();
+	    cn = (String)in.readObject();
+	}
+
+	try {
+	    construct(cn);
+	} catch (NullPointerException e) {
+	    throw new InvalidObjectException(e.toString());
+	} catch (MalformedObjectNameException e) {
+	    throw new InvalidObjectException(e.toString());
+	}
+!!!8257435.java!!!	writeObject(inout out : ObjectOutputStream) : void
+      if (compat)
+      {
+        // Serializes this instance in the old serial form
+        //
+        ObjectOutputStream.PutField fields = out.putFields();
+	fields.put("domain", _canonicalName.substring(0, _domain_length));
+	fields.put("propertyList", getKeyPropertyList());
+	fields.put("propertyListString", getKeyPropertyListString());
+	fields.put("canonicalName", _canonicalName);
+	fields.put("pattern", (_domain_pattern || _property_pattern));
+	fields.put("propertyPattern", _property_pattern);
+	out.writeFields();
+      }
+      else
+      {
+        // Serializes this instance in the new serial form
+        //
+        out.defaultWriteObject();
+        out.writeObject(getSerializedNameString());
+      }
+!!!8257563.java!!!	getInstance(in name : String) : ObjectName
+        return new ObjectName(name);
+!!!8257691.java!!!	getInstance(in domain : String, in key : String, in value : String) : ObjectName
+        return new ObjectName(domain, key, value);
+!!!8257819.java!!!	getInstance(in domain : String, inout table : Hashtable) : ObjectName
+        return new ObjectName(domain, table);
+!!!8257947.java!!!	getInstance(inout name : ObjectName) : ObjectName
+	if (name.getClass().equals(ObjectName.class))
+	    return name;
+	try {
+	    return new ObjectName(name.getSerializedNameString());
+	} catch (MalformedObjectNameException e) {
+	    throw new IllegalArgumentException("Unexpected: " + e);
+	    // can't happen
+	}
+!!!8258075.java!!!	ObjectName(in name : String)
+	construct(name);
+!!!8258203.java!!!	ObjectName(in domain : String, in key : String, in value : String)
+	// If key or value are null a NullPointerException
+	// will be thrown by the put method in Hashtable.
+	//
+	Hashtable table = new Hashtable(1);
+	table.put(key, value);
+	construct(domain, table);
+!!!8258331.java!!!	ObjectName(in domain : String, inout table : Hashtable)
+        construct(domain, table);
+!!!8258459.java!!!	isPattern() : boolean
+    
+        return (_domain_pattern || _property_pattern);
+!!!8258587.java!!!	isDomainPattern() : boolean
+        return _domain_pattern;
+!!!8258715.java!!!	isPropertyPattern() : boolean
+    
+        return _property_pattern;
+!!!8258843.java!!!	getCanonicalName() : String
+    
+        return _canonicalName;
+!!!8258971.java!!!	getDomain() : String
+       
+        return _canonicalName.substring(0, _domain_length);
+!!!8259099.java!!!	getKeyProperty(in property : String) : String
+        return (String) _getKeyPropertyList().get(property);
+!!!8259227.java!!!	_getKeyPropertyList() : Hashtable
+        synchronized (this) {
+            if (_propertyList == null) {
+                // build (lazy eval) the property list from the canonical
+		// properties array
+                _propertyList = new Hashtable();
+                int len = _ca_array.length;
+                Property prop;
+                for (int i = len - 1; i >= 0; i--) {
+                    prop = _ca_array[i];
+                    _propertyList.put(prop.getKeyString(_canonicalName),
+                                      prop.getValueString(_canonicalName));
+                }
+            }
+        }
+        return _propertyList;
+!!!8259355.java!!!	getKeyPropertyList() : Hashtable
+        return (Hashtable)_getKeyPropertyList().clone();
+!!!8259483.java!!!	getKeyPropertyListString() : String
+ 
+        // BEWARE : we rebuild the propertyliststring at each call !!
+        if (_kp_array.length == 0) return "";
+
+        // the size of the string is the canonical one minus domain 
+	// part and pattern part
+        final int total_size = _canonicalName.length() - _domain_length - 1
+	    - (_property_pattern?2:0);
+
+        final char[] dest_chars = new char[total_size];
+        final char[] value = _canonicalName.toCharArray();
+	writeKeyPropertyListString(value,dest_chars,0);
+        return new String(dest_chars);
+!!!8259611.java!!!	getSerializedNameString() : String
+ 
+
+        // the size of the string is the canonical one 
+        final int total_size = _canonicalName.length();
+        final char[] dest_chars = new char[total_size];
+	final char[] value = _canonicalName.toCharArray();
+	final int offset = _domain_length+1;
+
+	// copy "domain:" into dest_chars
+	//
+	System.arraycopy(value, 0, dest_chars, 0, offset);
+
+	// Add property list string
+	final int end = writeKeyPropertyListString(value,dest_chars,offset);
+
+	// Add ",*" if necessary
+        if (_property_pattern) {
+	    if (end == offset)  {
+		// Property list string is empty.
+		dest_chars[end] = '*';
+	    } else {
+		// Property list string is not empty.
+		dest_chars[end]   = ',';
+		dest_chars[end+1] = '*';
+	    }
+	}
+
+        return new String(dest_chars);
+!!!8259739.java!!!	writeKeyPropertyListString(in canonicalChars : char, in data : char, in offset : int) : int
+ 
+        if (_kp_array.length == 0) return offset;
+
+        final char[] dest_chars = data;
+        final char[] value = _canonicalName.toCharArray();
+
+        int index = offset;
+        final int len = _kp_array.length;
+	final int last = len - 1;
+        for (int i = 0; i < len; i++) {
+            final Property prop = _kp_array[i];
+            final int prop_len = prop._key_length + prop._value_length + 1;
+            System.arraycopy(value, prop._key_index, dest_chars, index, 
+			     prop_len);
+            index += prop_len;
+            if (i < last ) dest_chars[index++] = ',';
+        }
+	return index;
+!!!8259867.java!!!	getCanonicalKeyPropertyListString() : String
+        if (_ca_array.length == 0) return "";
+
+        int len = _canonicalName.length();
+        if (_property_pattern) len -= 2;
+        return _canonicalName.substring(_domain_length +1, len);
+!!!8259995.java!!!	toString() : String
+	return getSerializedNameString();
+!!!8260123.java!!!	equals(inout object : Object) : boolean
+
+        // same object case
+        if (this == object) return true;
+
+        // object is not an object name case
+        if (!(object instanceof ObjectName)) return false;
+
+        // equality when canonical names are the same
+        // (because usage of intern())
+        ObjectName on = (ObjectName) object;
+        String on_string = on._canonicalName;
+        if (_canonicalName == on_string) return true;
+
+        // Because we are sharing canonical form between object names,
+        // we have finished the comparison at this stage ==> unequal
+        return false;
+!!!8260251.java!!!	hashCode() : int
+        return _canonicalName.hashCode();
+!!!8260379.java!!!	quote(in s : String) : String
+	final StringBuffer buf = new StringBuffer("\"");
+	final int len = s.length();
+	for (int i = 0; i < len; i++) {
+	    char c = s.charAt(i);
+	    switch (c) {
+	    case '\n':
+		c = 'n';
+		// fall in...
+	    case '\\':
+	    case '\"':
+	    case '*':
+	    case '?':
+		buf.append('\\');
+		break;
+	    }
+	    buf.append(c);
+	}
+	buf.append('"');
+	return buf.toString();
+!!!8260507.java!!!	unquote(in q : String) : String
+	final StringBuffer buf = new StringBuffer();
+	final int len = q.length();
+	if (len < 2 || q.charAt(0) != '"' || q.charAt(len - 1) != '"')
+	    throw new IllegalArgumentException("Argument not quoted");
+	for (int i = 1; i < len - 1; i++) {
+	    char c = q.charAt(i);
+	    if (c == '\\') {
+		if (i == len - 2)
+		    throw new IllegalArgumentException("Trailing backslash");
+		c = q.charAt(++i);
+		switch (c) {
+		case 'n':
+		    c = '\n';
+		    break;
+		case '\\':
+		case '\"':
+		case '*':
+		case '?':
+		    break;
+                default: 
+                  throw new IllegalArgumentException(
+				   "Bad character '" + c + "' after backslash");
+		}
+	    }
+            else {
+                switch (c) {
+                    case '*' :
+                    case '?' :
+                    case '\"':    
+                    case '\n':
+                         throw new IllegalArgumentException(
+					  "Invalid unescaped character '" + c +
+					  "' in the string to unquote");
+                    default : ;
+                }
+            }
+	    buf.append(c);
+	}
+	return buf.toString();
+!!!8260635.java!!!	apply(inout name : ObjectName) : boolean
+
+        if (name == null) throw new NullPointerException();
+        
+	if (name._domain_pattern || name._property_pattern)
+	    return false;
+
+	// No pattern
+	if (!_domain_pattern && !_property_pattern)
+	    return _canonicalName.equals(name._canonicalName);
+
+	return matchDomains(name) && matchKeys(name);
+!!!8260763.java!!!	matchDomains(inout name : ObjectName) : boolean
+	if (_domain_pattern) {
+	    // wildmatch domains
+	    final char[] dom_pattern = getDomain().toCharArray();
+	    final char[] dom_string  = name.getDomain().toCharArray();
+	    return wildmatch(dom_string,dom_pattern,0,0);
+	} 
+	return getDomain().equals(name.getDomain());
+!!!8260891.java!!!	matchKeys(inout name : ObjectName) : boolean
+	if (_property_pattern) {
+	    // Every property inside pattern should exist in name
+	    final Hashtable  nameProps = name._getKeyPropertyList();
+	    final Property[] props=_ca_array;
+	    final String     cn=_canonicalName;
+	    for (int i= props.length -1; i >= 0 ; i--) {
+		
+		// find value in given object name for key at current 
+		// index in receiver
+		
+		final Property p = props[i];
+		final String   k = p.getKeyString(cn);
+		final String   v = (String)nameProps.get(k);
+
+		// did we find a value for this key ?
+		if (v == null) return false; 
+                    
+		// if this property is ok (same key, same value), 
+		// go to next
+		if (v.equals(p.getValueString(cn))) continue; 
+		return false;
+	    }
+	    return true;
+	} 
+	final String p1 = name.getCanonicalKeyPropertyListString();
+	final String p2 = getCanonicalKeyPropertyListString();
+	return (p1.equals(p2));

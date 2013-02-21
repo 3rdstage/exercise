@@ -1,0 +1,434 @@
+class FixedHeightLayoutCache
+!!!10049051.java!!!	FixedHeightLayoutCache()
+	super();
+	tempStacks = new Stack();
+	boundsBuffer = new Rectangle();
+	treePathMapping = new Hashtable();
+	info = new SearchInfo();
+	setRowHeight(1);
+!!!10049179.java!!!	setModel(inout newModel : TreeModel) : void
+	super.setModel(newModel);
+	rebuild(false);
+!!!10049307.java!!!	setRootVisible(inout rootVisible : boolean) : void
+	if(isRootVisible() != rootVisible) {
+	    super.setRootVisible(rootVisible);
+	    if(root != null) {
+		if(rootVisible) {
+		    rowCount++;
+		    root.adjustRowBy(1);
+		}
+		else {
+		    rowCount--;
+		    root.adjustRowBy(-1);
+		}
+		visibleNodesChanged();
+	    }
+	}
+!!!10049435.java!!!	setRowHeight(in rowHeight : int) : void
+	if(rowHeight <= 0)
+	    throw new IllegalArgumentException("FixedHeightLayoutCache only supports row heights greater than 0");
+	if(getRowHeight() != rowHeight) {
+	    super.setRowHeight(rowHeight);
+	    visibleNodesChanged();
+	}
+!!!10049563.java!!!	getRowCount() : int
+	return rowCount;
+!!!10049819.java!!!	invalidateSizes() : void
+	// Nothing to do here, rowHeight still same, which is all
+	// this is interested in, visible region may have changed though.
+	visibleNodesChanged();
+!!!10049947.java!!!	isExpanded(inout path : TreePath) : boolean
+	if(path != null) {
+	    FHTreeStateNode     lastNode = getNodeForPath(path, true, false);
+
+	    return (lastNode != null && lastNode.isExpanded());
+	}
+	return false;
+!!!10050075.java!!!	getBounds(inout path : TreePath, inout placeIn : Rectangle) : Rectangle
+	if(path == null)
+	    return null;
+
+	FHTreeStateNode      node = getNodeForPath(path, true, false);
+
+	if(node != null)
+	    return getBounds(node, -1, placeIn);
+
+	// node hasn't been created yet.
+	TreePath       parentPath = path.getParentPath();
+
+	node = getNodeForPath(parentPath, true, false);
+	if(node != null) {
+	    int              childIndex = treeModel.getIndexOfChild
+		                 (parentPath.getLastPathComponent(),
+				  path.getLastPathComponent());
+
+	    if(childIndex != -1)
+		return getBounds(node, childIndex, placeIn);
+	}
+	return null;
+!!!10050203.java!!!	getPathForRow(in row : int) : TreePath
+	if(row >= 0 && row < getRowCount()) {
+	    if(root.getPathForRow(row, getRowCount(), info)) {
+		return info.getPath();
+	    }
+	}
+	return null;
+!!!10050331.java!!!	getRowForPath(inout path : TreePath) : int
+	if(path == null || root == null)
+	    return -1;
+
+	FHTreeStateNode         node = getNodeForPath(path, true, false);
+
+	if(node != null)
+	    return node.getRow();
+
+	TreePath       parentPath = path.getParentPath();
+
+	node = getNodeForPath(parentPath, true, false);
+	if(node != null && node.isExpanded()) {
+	    return node.getRowToModelIndex(treeModel.getIndexOfChild
+					   (parentPath.getLastPathComponent(),
+					    path.getLastPathComponent()));
+	}
+	return -1;
+!!!10050459.java!!!	getPathClosestTo(in x : int, in y : int) : TreePath
+	if(getRowCount() == 0)
+	    return null;
+
+	int                row = getRowContainingYLocation(y);
+
+	return getPathForRow(row);
+!!!10050587.java!!!	getVisibleChildCount(inout path : TreePath) : int
+	FHTreeStateNode         node = getNodeForPath(path, true, false);
+
+	if(node == null)
+	    return 0;
+	return node.getTotalChildCount();
+!!!10050715.java!!!	getVisiblePathsFrom(inout path : TreePath) : Enumeration
+	if(path == null)
+	    return null;
+
+	FHTreeStateNode         node = getNodeForPath(path, true, false);
+
+	if(node != null) {
+	    return new VisibleFHTreeStateNodeEnumeration(node);
+	}
+	TreePath            parentPath = path.getParentPath();
+
+	node = getNodeForPath(parentPath, true, false);
+	if(node != null && node.isExpanded()) {
+	    return new VisibleFHTreeStateNodeEnumeration(node,
+		  treeModel.getIndexOfChild(parentPath.getLastPathComponent(),
+					    path.getLastPathComponent()));
+	}
+	return null;
+!!!10050843.java!!!	setExpandedState(inout path : TreePath, inout isExpanded : boolean) : void
+	if(isExpanded)
+	    ensurePathIsExpanded(path, true);
+	else if(path != null) {
+	    TreePath              parentPath = path.getParentPath();
+
+	    // YECK! Make the parent expanded.
+	    if(parentPath != null) {
+		FHTreeStateNode     parentNode = getNodeForPath(parentPath,
+								false, true);
+		if(parentNode != null)
+		    parentNode.makeVisible();
+	    }
+	    // And collapse the child.
+	    FHTreeStateNode         childNode = getNodeForPath(path, true,
+							       false);
+
+	    if(childNode != null)
+		childNode.collapse(true);
+	}
+!!!10050971.java!!!	getExpandedState(inout path : TreePath) : boolean
+	FHTreeStateNode       node = getNodeForPath(path, true, false);
+
+	return (node != null) ? (node.isVisible() && node.isExpanded()) :
+	                         false;
+!!!10051099.java!!!	treeNodesChanged(inout e : TreeModelEvent) : void
+	if(e != null) {
+	    int                 changedIndexs[];
+	    FHTreeStateNode     changedParent = getNodeForPath
+		                  (e.getTreePath(), false, false);
+	    int                 maxCounter;
+
+	    changedIndexs = e.getChildIndices();
+	    /* Only need to update the children if the node has been
+	       expanded once. */
+	    // PENDING(scott): make sure childIndexs is sorted!
+	    if (changedParent != null) {
+		if (changedIndexs != null &&
+		    (maxCounter = changedIndexs.length) > 0) {
+		    Object       parentValue = changedParent.getUserObject();
+
+		    for(int counter = 0; counter < maxCounter; counter++) {
+			FHTreeStateNode    child = changedParent.
+			         getChildAtModelIndex(changedIndexs[counter]);
+
+			if(child != null) {
+			    child.setUserObject(treeModel.getChild(parentValue,
+						     changedIndexs[counter]));
+			}
+		    }
+		    if(changedParent.isVisible() && changedParent.isExpanded())
+			visibleNodesChanged();
+		}
+		// Null for root indicates it changed.
+		else if (changedParent == root && changedParent.isVisible() &&
+			 changedParent.isExpanded()) {
+		    visibleNodesChanged();
+		}
+	    }
+	}
+!!!10051227.java!!!	treeNodesInserted(inout e : TreeModelEvent) : void
+	if(e != null) {
+	    int                 changedIndexs[];
+	    FHTreeStateNode     changedParent = getNodeForPath
+		                  (e.getTreePath(), false, false);
+	    int                 maxCounter;
+
+	    changedIndexs = e.getChildIndices();
+	    /* Only need to update the children if the node has been
+	       expanded once. */
+	    // PENDING(scott): make sure childIndexs is sorted!
+	    if(changedParent != null && changedIndexs != null &&
+	       (maxCounter = changedIndexs.length) > 0) {
+		boolean          isVisible =
+		    (changedParent.isVisible() &&
+		     changedParent.isExpanded());
+
+		for(int counter = 0; counter < maxCounter; counter++) {
+		    changedParent.childInsertedAtModelIndex
+			(changedIndexs[counter], isVisible);
+		}
+		if(isVisible && treeSelectionModel != null)
+		    treeSelectionModel.resetRowSelection();
+		if(changedParent.isVisible())
+		    this.visibleNodesChanged();
+	    }
+	}
+!!!10051355.java!!!	treeNodesRemoved(inout e : TreeModelEvent) : void
+	if(e != null) {
+	    int                  changedIndexs[];
+	    int                  maxCounter;
+	    TreePath             parentPath = e.getTreePath();
+	    FHTreeStateNode      changedParentNode = getNodeForPath
+		                       (parentPath, false, false);
+
+	    changedIndexs = e.getChildIndices();
+	    // PENDING(scott): make sure that changedIndexs are sorted in
+	    // ascending order.
+	    if(changedParentNode != null && changedIndexs != null &&
+	       (maxCounter = changedIndexs.length) > 0) {
+		Object[]           children = e.getChildren();
+		boolean            isVisible =
+		    (changedParentNode.isVisible() &&
+		     changedParentNode.isExpanded());
+
+		for(int counter = maxCounter - 1; counter >= 0; counter--) {
+		    changedParentNode.removeChildAtModelIndex
+			             (changedIndexs[counter], isVisible);
+		}
+		if(isVisible) {
+		    if(treeSelectionModel != null)
+			treeSelectionModel.resetRowSelection();
+                    if (treeModel.getChildCount(changedParentNode.
+                                                getUserObject()) == 0 &&
+                                  changedParentNode.isLeaf()) {
+                        // Node has become a leaf, collapse it.
+                        changedParentNode.collapse(false);
+                    }
+		    visibleNodesChanged();
+		}
+		else if(changedParentNode.isVisible())
+		    visibleNodesChanged();
+	    }
+	}
+!!!10051483.java!!!	treeStructureChanged(inout e : TreeModelEvent) : void
+	if(e != null) {
+	    TreePath          changedPath = e.getTreePath();
+            FHTreeStateNode   changedNode = getNodeForPath
+			                        (changedPath, false, false);
+
+	    // Check if root has changed, either to a null root, or
+            // to an entirely new root.
+	    if (changedNode == root ||
+                (changedNode == null &&
+                 ((changedPath == null && treeModel != null &&
+                   treeModel.getRoot() == null) ||
+                  (changedPath != null && changedPath.getPathCount() <= 1)))) {
+                rebuild(true);
+            }
+            else if(changedNode != null) {
+                boolean             wasExpanded, wasVisible;
+                FHTreeStateNode     parent = (FHTreeStateNode)
+                                              changedNode.getParent();
+
+                wasExpanded = changedNode.isExpanded();
+                wasVisible = changedNode.isVisible();
+
+  		int index = parent.getIndex(changedNode);
+  		changedNode.collapse(false);
+  		parent.remove(index);
+
+                if(wasVisible && wasExpanded) {
+ 		    int row = changedNode.getRow();
+ 		    parent.resetChildrenRowsFrom(row, index,
+ 						 changedNode.getChildIndex());
+                    changedNode = getNodeForPath(changedPath, false, true);
+                    changedNode.expand();
+                }
+                if(treeSelectionModel != null && wasVisible && wasExpanded)
+                    treeSelectionModel.resetRowSelection();
+                if(wasVisible)
+                    this.visibleNodesChanged();
+	    }
+	}
+!!!10051739.java!!!	getBounds(inout parent : FHTreeStateNode, in childIndex : int, inout placeIn : Rectangle) : Rectangle
+	boolean              expanded;
+	int                  level;
+	int                  row;
+	Object               value;
+
+	if(childIndex == -1) {
+	    // Getting bounds for parent
+	    row = parent.getRow();
+	    value = parent.getUserObject();
+	    expanded = parent.isExpanded();
+	    level = parent.getLevel();
+	}
+	else {
+	    row = parent.getRowToModelIndex(childIndex);
+	    value = treeModel.getChild(parent.getUserObject(), childIndex);
+	    expanded = false;
+	    level = parent.getLevel() + 1;
+	}
+
+	Rectangle      bounds = getNodeDimensions(value, row, level,
+						  expanded, boundsBuffer);
+	// No node dimensions, bail.
+	if(bounds == null)
+	    return null;
+
+	if(placeIn == null)
+	    placeIn = new Rectangle();
+
+	placeIn.x = bounds.x;
+	placeIn.height = getRowHeight();
+	placeIn.y = row * placeIn.height;
+	placeIn.width = bounds.width;
+	return placeIn;
+!!!10051867.java!!!	adjustRowCountBy(in changeAmount : int) : void
+	rowCount += changeAmount;
+!!!10051995.java!!!	addMapping(inout node : FHTreeStateNode) : void
+	treePathMapping.put(node.getTreePath(), node);
+!!!10052123.java!!!	removeMapping(inout node : FHTreeStateNode) : void
+	treePathMapping.remove(node.getTreePath());
+!!!10052251.java!!!	getMapping(inout path : TreePath) : FHTreeStateNode
+	return (FHTreeStateNode)treePathMapping.get(path);
+!!!10052379.java!!!	rebuild(inout clearSelection : boolean) : void
+        Object            rootUO;
+
+	treePathMapping.clear();
+	if(treeModel != null && (rootUO = treeModel.getRoot()) != null) {
+	    root = createNodeForValue(rootUO, 0);
+	    root.path = new TreePath(rootUO);
+	    addMapping(root);
+	    if(isRootVisible()) {
+		rowCount = 1;
+		root.row = 0;
+	    }
+	    else {
+		rowCount = 0;
+		root.row = -1;
+	    }
+	    root.expand();
+	}
+	else {
+	    root = null;
+	    rowCount = 0;
+	}
+	if(clearSelection && treeSelectionModel != null) {
+	    treeSelectionModel.clearSelection();
+	}
+	this.visibleNodesChanged();
+!!!10052507.java!!!	getRowContainingYLocation(in location : int) : int
+	if(getRowCount() == 0)
+	    return -1;
+	return Math.max(0, Math.min(getRowCount() - 1,
+				    location / getRowHeight()));
+!!!10052635.java!!!	ensurePathIsExpanded(inout aPath : TreePath, inout expandLast : boolean) : boolean
+	if(aPath != null) {
+	    // Make sure the last entry isn't a leaf.
+	    if(treeModel.isLeaf(aPath.getLastPathComponent())) {
+		aPath = aPath.getParentPath();
+		expandLast = true;
+	    }
+	    if(aPath != null) {
+		FHTreeStateNode     lastNode = getNodeForPath(aPath, false,
+							      true);
+
+		if(lastNode != null) {
+		    lastNode.makeVisible();
+		    if(expandLast)
+			lastNode.expand();
+		    return true;
+		}
+	    }
+	}
+	return false;
+!!!10052763.java!!!	createNodeForValue(inout value : Object, in childIndex : int) : FHTreeStateNode
+	return new FHTreeStateNode(value, childIndex, -1);
+!!!10052891.java!!!	getNodeForPath(inout path : TreePath, inout onlyIfVisible : boolean, inout shouldCreate : boolean) : FHTreeStateNode
+	if(path != null) {
+	    FHTreeStateNode      node;
+
+	    node = getMapping(path);
+	    if(node != null) {
+		if(onlyIfVisible && !node.isVisible())
+		    return null;
+		return node;
+	    }
+	    if(onlyIfVisible)
+		return null;
+
+	    // Check all the parent paths, until a match is found.
+	    Stack                paths;
+
+	    if(tempStacks.size() == 0) {
+		paths = new Stack();
+	    }
+	    else {
+		paths = (Stack)tempStacks.pop();
+	    }
+
+	    try {
+		paths.push(path);
+		path = path.getParentPath();
+		node = null;
+		while(path != null) {
+		    node = getMapping(path);
+		    if(node != null) {
+			// Found a match, create entries for all paths in
+			// paths.
+			while(node != null && paths.size() > 0) {
+			    path = (TreePath)paths.pop();
+			    node = node.createChildFor(path.
+						       getLastPathComponent());
+			}
+			return node;
+		    }
+		    paths.push(path);
+		    path = path.getParentPath();
+		}
+	    }
+	    finally {
+		paths.removeAllElements();
+		tempStacks.push(paths);
+	    }
+	    // If we get here it means they share a different root!
+	    return null;
+	}
+	return null;

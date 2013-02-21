@@ -1,0 +1,496 @@
+class ObjectOutputStream
+!!!706203.java!!!	ObjectOutputStream(inout out : OutputStream)
+	verifySubclass();
+	bout = new BlockDataOutputStream(out);
+	handles = new HandleTable(10, (float) 3.00);
+	subs = new ReplaceTable(10, (float) 3.00);
+	enableOverride = false;
+	writeStreamHeader();
+	bout.setBlockDataMode(true);
+!!!706331.java!!!	ObjectOutputStream()
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {
+	    sm.checkPermission(SUBCLASS_IMPLEMENTATION_PERMISSION);
+	}
+	bout = null;
+	handles = null;
+	subs = null;
+	enableOverride = true;
+!!!706459.java!!!	useProtocolVersion(in version : int) : void
+	if (handles.size() != 0) {
+	    // REMIND: implement better check for pristine stream?
+	    throw new IllegalStateException("stream non-empty");
+	}
+	switch (version) {
+	    case PROTOCOL_VERSION_1:
+	    case PROTOCOL_VERSION_2:
+		protocol = version;
+		break;
+		
+	    default:
+		throw new IllegalArgumentException(
+		    "unknown version: " + version);
+	}
+!!!706587.java!!!	writeObject(inout obj : Object) : void
+	if (enableOverride) {
+	    writeObjectOverride(obj);
+	    return;
+	}
+	try {
+	    writeObject0(obj, false);
+	} catch (IOException ex) {
+	    if (depth == 0) {
+		writeFatalException(ex);
+	    }
+	    throw ex;
+	}
+!!!706843.java!!!	writeUnshared(inout obj : Object) : void
+	try {
+	    writeObject0(obj, true);
+	} catch (IOException ex) {
+	    if (depth == 0) {
+		writeFatalException(ex);
+	    }
+	    throw ex;
+	}
+!!!706971.java!!!	defaultWriteObject() : void
+	if (curObj == null || curDesc == null) {
+	    throw new NotActiveException("not in call to writeObject");
+	}
+	bout.setBlockDataMode(false);
+	defaultWriteFields(curObj, curDesc);
+	bout.setBlockDataMode(true);
+!!!707099.java!!!	putFields() : PutField
+	if (curPut == null) {
+	    if (curObj == null || curDesc == null) {
+		throw new NotActiveException("not in call to writeObject");
+	    }
+	    curPut = new PutFieldImpl(curDesc);
+	}
+	return curPut;
+!!!707227.java!!!	writeFields() : void
+	if (curPut == null) {
+	    throw new NotActiveException("no current PutField object");
+	}
+	bout.setBlockDataMode(false);
+	curPut.writeFields();
+	bout.setBlockDataMode(true);
+!!!707355.java!!!	reset() : void
+	if (depth != 0) {
+	    throw new IOException("stream active");
+	}
+	bout.setBlockDataMode(false);
+	bout.writeByte(TC_RESET);
+	clear();
+	bout.setBlockDataMode(true);
+!!!707739.java!!!	replaceObject(inout obj : Object) : Object
+	return obj;
+!!!707867.java!!!	enableReplaceObject(inout enable : boolean) : boolean
+	if (enable == enableReplace) {
+	    return enable;
+	}
+	if (enable) {
+	    SecurityManager sm = System.getSecurityManager();
+	    if (sm != null) {
+		sm.checkPermission(SUBSTITUTION_PERMISSION);
+	    }
+	}
+	enableReplace = enable;
+	return !enableReplace;
+!!!707995.java!!!	writeStreamHeader() : void
+	bout.writeShort(STREAM_MAGIC);
+	bout.writeShort(STREAM_VERSION);
+!!!708123.java!!!	writeClassDescriptor(inout desc : ObjectStreamClass) : void
+	desc.writeNonProxy(this);
+!!!708251.java!!!	write(in val : int) : void
+	bout.write(val);
+!!!708379.java!!!	write(in buf : byte) : void
+	bout.write(buf, 0, buf.length, false);
+!!!708507.java!!!	write(in buf : byte, in off : int, in len : int) : void
+	if (buf == null) {
+	    throw new NullPointerException();
+	}
+	int endoff = off + len;
+	if (off < 0 || len < 0 || endoff > buf.length || endoff < 0) {
+	    throw new IndexOutOfBoundsException();
+	}
+	bout.write(buf, off, len, false);
+!!!708635.java!!!	flush() : void
+	bout.flush();
+!!!708763.java!!!	drain() : void
+	bout.drain();
+!!!708891.java!!!	close() : void
+	flush();
+	clear();
+	bout.close();
+!!!709019.java!!!	writeBoolean(inout val : boolean) : void
+	bout.writeBoolean(val);
+!!!709147.java!!!	writeByte(in val : int) : void
+	bout.writeByte(val);
+!!!709275.java!!!	writeShort(in val : int) : void
+	bout.writeShort(val);
+!!!709403.java!!!	writeChar(in val : int) : void
+	bout.writeChar(val);
+!!!709531.java!!!	writeInt(in val : int) : void
+	bout.writeInt(val);
+!!!709659.java!!!	writeLong(in val : long) : void
+	bout.writeLong(val);
+!!!709787.java!!!	writeFloat(in val : float) : void
+	bout.writeFloat(val);
+!!!709915.java!!!	writeDouble(in val : double) : void
+	bout.writeDouble(val);
+!!!710043.java!!!	writeBytes(in str : String) : void
+	bout.writeBytes(str);
+!!!710171.java!!!	writeChars(in str : String) : void
+	bout.writeChars(str);
+!!!710299.java!!!	writeUTF(in str : String) : void
+	bout.writeUTF(str);
+!!!711707.java!!!	getProtocolVersion() : int
+	return protocol;
+!!!711835.java!!!	writeTypeString(in str : String) : void
+	int handle;
+	if (str == null) {
+	    writeNull();
+	} else if ((handle = handles.lookup(str)) != -1) {
+	    writeHandle(handle);
+	} else {
+	    writeString(str, false);
+	}
+!!!711963.java!!!	verifySubclass() : void
+	Class cl = getClass();
+	processQueue(Caches.subclassAuditsQueue, Caches.subclassAudits);
+	WeakClassKey key = new WeakClassKey(cl, Caches.subclassAuditsQueue);
+	Boolean result = Caches.subclassAudits.get(key);
+	if (result == null) {
+	    result = Boolean.valueOf(auditSubclass(cl));
+	    Caches.subclassAudits.putIfAbsent(key, result);
+	}
+	if (result.booleanValue()) {
+	    return;
+	}
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {
+	    sm.checkPermission(SUBCLASS_IMPLEMENTATION_PERMISSION);
+	}
+!!!712091.java!!!	auditSubclass(in subcl : Class) : boolean
+	Boolean result = (Boolean) AccessController.doPrivileged(
+	    new PrivilegedAction() {
+		public Object run() {
+		    for (Class cl = subcl;
+			 cl != ObjectOutputStream.class;
+			 cl = cl.getSuperclass())
+		    {
+			try {
+			    cl.getDeclaredMethod(
+				"writeUnshared", new Class[] { Object.class });
+			    return Boolean.FALSE;
+			} catch (NoSuchMethodException ex) {
+			}
+			try {
+			    cl.getDeclaredMethod("putFields", new Class[0]);
+			    return Boolean.FALSE;
+			} catch (NoSuchMethodException ex) {
+			}
+		    }
+		    return Boolean.TRUE;
+		}
+	    }
+	);
+	return result.booleanValue();
+!!!712219.java!!!	clear() : void
+	subs.clear();
+	handles.clear();
+!!!712347.java!!!	writeObject0(inout obj : Object, inout unshared : boolean) : void
+	boolean oldMode = bout.setBlockDataMode(false);
+	depth++;
+	try {
+	    // handle previously written and non-replaceable objects
+	    int h;
+	    if ((obj = subs.lookup(obj)) == null) {
+		writeNull();
+		return;
+	    } else if (!unshared && (h = handles.lookup(obj)) != -1) {
+		writeHandle(h);
+		return;
+	    } else if (obj instanceof Class) {
+		writeClass((Class) obj, unshared);
+		return;
+	    } else if (obj instanceof ObjectStreamClass) {
+		writeClassDesc((ObjectStreamClass) obj, unshared);
+		return;
+	    }
+	    
+	    // check for replacement object
+	    Object orig = obj;
+	    Class cl = obj.getClass();
+	    ObjectStreamClass desc;
+	    for (;;) {
+		// REMIND: skip this check for strings/arrays?
+		Class repCl;
+		desc = ObjectStreamClass.lookup(cl, true);
+		if (!desc.hasWriteReplaceMethod() ||
+		    (obj = desc.invokeWriteReplace(obj)) == null ||
+		    (repCl = obj.getClass()) == cl)
+		{
+		    break;
+		}
+		cl = repCl;
+	    }
+	    if (enableReplace) {
+		Object rep = replaceObject(obj);
+		if (rep != obj && rep != null) {
+		    cl = rep.getClass();
+		    desc = ObjectStreamClass.lookup(cl, true);
+		}
+		obj = rep;
+	    }
+
+	    // if object replaced, run through original checks a second time
+	    if (obj != orig) {
+		subs.assign(orig, obj);
+		if (obj == null) {
+		    writeNull();
+		    return;
+		} else if (!unshared && (h = handles.lookup(obj)) != -1) {
+		    writeHandle(h);
+		    return;
+		} else if (obj instanceof Class) {
+		    writeClass((Class) obj, unshared);
+		    return;
+		} else if (obj instanceof ObjectStreamClass) {
+		    writeClassDesc((ObjectStreamClass) obj, unshared);
+		    return;
+		}
+	    }
+	    
+	    // remaining cases
+	    if (obj instanceof String) {
+		writeString((String) obj, unshared);
+	    } else if (cl.isArray()) {
+		writeArray(obj, desc, unshared);
+	    } else if (obj instanceof Enum) {
+		writeEnum((Enum) obj, desc, unshared);
+	    } else if (obj instanceof Serializable) {
+		writeOrdinaryObject(obj, desc, unshared);
+	    } else {
+		throw new NotSerializableException(cl.getName());
+	    }
+	} finally {
+	    depth--;
+	    bout.setBlockDataMode(oldMode);
+	}
+!!!712475.java!!!	writeNull() : void
+	bout.writeByte(TC_NULL);
+!!!712603.java!!!	writeHandle(in handle : int) : void
+	bout.writeByte(TC_REFERENCE);
+	bout.writeInt(baseWireHandle + handle);
+!!!712731.java!!!	writeClass(inout cl : Class, inout unshared : boolean) : void
+	bout.writeByte(TC_CLASS);
+	writeClassDesc(ObjectStreamClass.lookup(cl, true), false);
+	handles.assign(unshared ? null : cl);
+!!!712859.java!!!	writeClassDesc(inout desc : ObjectStreamClass, inout unshared : boolean) : void
+	int handle;
+	if (desc == null) {
+	    writeNull();
+	} else if (!unshared && (handle = handles.lookup(desc)) != -1) {
+	    writeHandle(handle);
+	} else if (desc.isProxy()) {
+	    writeProxyDesc(desc, unshared);
+	} else {
+	    writeNonProxyDesc(desc, unshared);
+	}
+!!!712987.java!!!	writeProxyDesc(inout desc : ObjectStreamClass, inout unshared : boolean) : void
+	bout.writeByte(TC_PROXYCLASSDESC);
+	handles.assign(unshared ? null : desc);
+
+	Class cl = desc.forClass();
+	Class[] ifaces = cl.getInterfaces();
+	bout.writeInt(ifaces.length);
+	for (int i = 0; i < ifaces.length; i++) {
+	    bout.writeUTF(ifaces[i].getName());
+	}
+	
+	bout.setBlockDataMode(true);
+	annotateProxyClass(cl);
+	bout.setBlockDataMode(false);
+	bout.writeByte(TC_ENDBLOCKDATA);
+	
+	writeClassDesc(desc.getSuperDesc(), false);
+!!!713115.java!!!	writeNonProxyDesc(inout desc : ObjectStreamClass, inout unshared : boolean) : void
+	bout.writeByte(TC_CLASSDESC);
+	handles.assign(unshared ? null : desc);
+	
+	if (protocol == PROTOCOL_VERSION_1) {
+	    // do not invoke class descriptor write hook with old protocol
+	    desc.writeNonProxy(this);
+	} else {
+	    writeClassDescriptor(desc);
+	}
+	
+	Class cl = desc.forClass();
+	bout.setBlockDataMode(true);
+	annotateClass(cl);
+	bout.setBlockDataMode(false);
+	bout.writeByte(TC_ENDBLOCKDATA);
+	
+	writeClassDesc(desc.getSuperDesc(), false);
+!!!713243.java!!!	writeString(in str : String, inout unshared : boolean) : void
+	handles.assign(unshared ? null : str);
+	long utflen = bout.getUTFLength(str);
+	if (utflen <= 0xFFFF) {
+	    bout.writeByte(TC_STRING);
+	    bout.writeUTF(str, utflen);
+	} else {
+	    bout.writeByte(TC_LONGSTRING);
+	    bout.writeLongUTF(str, utflen);
+	}
+!!!713371.java!!!	writeArray(inout array : Object, inout desc : ObjectStreamClass, inout unshared : boolean) : void
+	bout.writeByte(TC_ARRAY);
+	writeClassDesc(desc, false);
+	handles.assign(unshared ? null : array);
+	
+	Class ccl = desc.forClass().getComponentType();
+	if (ccl.isPrimitive()) {
+	    if (ccl == Integer.TYPE) {
+		int[] ia = (int[]) array;
+		bout.writeInt(ia.length);
+		bout.writeInts(ia, 0, ia.length);
+	    } else if (ccl == Byte.TYPE) {
+		byte[] ba = (byte[]) array;
+		bout.writeInt(ba.length);
+		bout.write(ba, 0, ba.length, true);
+	    } else if (ccl == Long.TYPE) {
+		long[] ja = (long[]) array;
+		bout.writeInt(ja.length);
+		bout.writeLongs(ja, 0, ja.length);
+	    } else if (ccl == Float.TYPE) {
+		float[] fa = (float[]) array;
+		bout.writeInt(fa.length);
+		bout.writeFloats(fa, 0, fa.length);
+	    } else if (ccl == Double.TYPE) {
+		double[] da = (double[]) array;
+		bout.writeInt(da.length);
+		bout.writeDoubles(da, 0, da.length);
+	    } else if (ccl == Short.TYPE) {
+		short[] sa = (short[]) array;
+		bout.writeInt(sa.length);
+		bout.writeShorts(sa, 0, sa.length);
+	    } else if (ccl == Character.TYPE) {
+		char[] ca = (char[]) array;
+		bout.writeInt(ca.length);
+		bout.writeChars(ca, 0, ca.length);
+	    } else if (ccl == Boolean.TYPE) {
+		boolean[] za = (boolean[]) array;
+		bout.writeInt(za.length);
+		bout.writeBooleans(za, 0, za.length);
+	    } else {
+		throw new InternalError();
+	    }
+	} else {
+	    Object[] objs = (Object[]) array;
+	    int len = objs.length;
+	    bout.writeInt(len);
+	    for (int i = 0; i < len; i++) {
+		writeObject0(objs[i], false);
+	    }
+	}
+!!!713499.java!!!	writeEnum(inout en : Enum, inout desc : ObjectStreamClass, inout unshared : boolean) : void
+	bout.writeByte(TC_ENUM);
+	ObjectStreamClass sdesc = desc.getSuperDesc();
+	writeClassDesc((sdesc.forClass() == Enum.class) ? desc : sdesc, false);
+	handles.assign(unshared ? null : en);
+	writeString(en.name(), false);
+!!!713627.java!!!	writeOrdinaryObject(inout obj : Object, inout desc : ObjectStreamClass, inout unshared : boolean) : void
+	desc.checkSerialize();
+
+	bout.writeByte(TC_OBJECT);
+	writeClassDesc(desc, false);
+	handles.assign(unshared ? null : obj);
+
+	if (desc.isExternalizable() && !desc.isProxy()) {
+	    writeExternalData((Externalizable) obj);
+	} else {
+	    writeSerialData(obj, desc);
+	}
+!!!713755.java!!!	writeExternalData(inout obj : Externalizable) : void
+	Object oldObj = curObj;
+	ObjectStreamClass oldDesc = curDesc;
+	PutFieldImpl oldPut = curPut;
+	curObj = obj;
+	curDesc = null;
+	curPut = null;
+	
+	if (protocol == PROTOCOL_VERSION_1) {
+	    obj.writeExternal(this);
+	} else {
+	    bout.setBlockDataMode(true);
+	    obj.writeExternal(this);
+	    bout.setBlockDataMode(false);
+	    bout.writeByte(TC_ENDBLOCKDATA);
+	}
+
+	curObj = oldObj;
+	curDesc = oldDesc;
+	curPut = oldPut;
+!!!713883.java!!!	writeSerialData(inout obj : Object, inout desc : ObjectStreamClass) : void
+	ObjectStreamClass.ClassDataSlot[] slots = desc.getClassDataLayout();
+	for (int i = 0; i < slots.length; i++) {
+	    ObjectStreamClass slotDesc = slots[i].desc;
+	    if (slotDesc.hasWriteObjectMethod()) {
+		Object oldObj = curObj;
+		ObjectStreamClass oldDesc = curDesc;
+		PutFieldImpl oldPut = curPut;
+		curObj = obj;
+		curDesc = slotDesc;
+		curPut = null;
+
+		bout.setBlockDataMode(true);
+		slotDesc.invokeWriteObject(obj, this);
+		bout.setBlockDataMode(false);
+		bout.writeByte(TC_ENDBLOCKDATA);
+
+		curObj = oldObj;
+		curDesc = oldDesc;
+		curPut = oldPut;
+	    } else {
+		defaultWriteFields(obj, slotDesc);
+	    }
+	}
+!!!714011.java!!!	defaultWriteFields(inout obj : Object, inout desc : ObjectStreamClass) : void
+	// REMIND: perform conservative isInstance check here?
+	desc.checkDefaultSerialize();
+
+	int primDataSize = desc.getPrimDataSize();
+	if (primVals == null || primVals.length < primDataSize) {
+	    primVals = new byte[primDataSize];
+	}
+	desc.getPrimFieldValues(obj, primVals);
+	bout.write(primVals, 0, primDataSize, false);
+	
+	ObjectStreamField[] fields = desc.getFields(false);
+	Object[] objVals = new Object[desc.getNumObjFields()];
+	int numPrimFields = fields.length - objVals.length;
+	desc.getObjFieldValues(obj, objVals);
+	for (int i = 0; i < objVals.length; i++) {
+	    writeObject0(objVals[i], fields[numPrimFields + i].isUnshared());
+	}
+!!!714139.java!!!	writeFatalException(inout ex : IOException) : void
+	/*
+	 * Note: the serialization specification states that if a second
+	 * IOException occurs while attempting to serialize the original fatal
+	 * exception to the stream, then a StreamCorruptedException should be
+	 * thrown (section 2.1).  However, due to a bug in previous
+	 * implementations of serialization, StreamCorruptedExceptions were
+	 * rarely (if ever) actually thrown--the "root" exceptions from
+	 * underlying streams were thrown instead.  This historical behavior is
+	 * followed here for consistency.
+	 */
+	clear();
+	boolean oldMode = bout.setBlockDataMode(false);
+	try {
+	    bout.writeByte(TC_EXCEPTION);
+	    writeObject0(ex, false);
+	    clear();
+	} finally {
+	    bout.setBlockDataMode(oldMode);
+	}

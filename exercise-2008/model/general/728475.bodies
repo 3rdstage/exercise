@@ -1,0 +1,73 @@
+class XML11DTDScannerImpl
+!!!4960667.java!!!	XML11DTDScannerImpl()
+super();
+!!!4960795.java!!!	XML11DTDScannerImpl(inout symbolTable : SymbolTable, inout errorReporter : XMLErrorReporter, inout entityManager : XMLEntityManager)
+        super(symbolTable, errorReporter, entityManager);
+!!!4960923.java!!!	scanPubidLiteral(inout literal : XMLString) : boolean
+        int quote = fEntityScanner.scanChar();
+        if (quote != '\'' && quote != '"') {
+            reportFatalError("QuoteRequiredInPublicID", null);
+            return false;
+        }
+
+        fStringBuffer.clear();
+        // skip leading whitespace
+        boolean skipSpace = true;
+        boolean dataok = true;
+        while (true) {
+            int c = fEntityScanner.scanChar();
+            // REVISIT:  it could really only be \n or 0x20; all else is normalized, no?  - neilg
+            if (c == ' ' || c == '\n' || c == '\r' || c == 0x85 || c == 0x2028) {
+                if (!skipSpace) {
+                    // take the first whitespace as a space and skip the others
+                    fStringBuffer.append(' ');
+                    skipSpace = true;
+                }
+            }
+            else if (c == quote) {
+                if (skipSpace) {
+                    // if we finished on a space let's trim it
+                    fStringBuffer.length--;
+                }
+                literal.setValues(fStringBuffer);
+                break;
+            }
+            else if (XMLChar.isPubid(c)) {
+                fStringBuffer.append((char)c);
+                skipSpace = false;
+            }
+            else if (c == -1) {
+                reportFatalError("PublicIDUnterminated", null);
+                return false;
+            }
+            else {
+                dataok = false;
+                reportFatalError("InvalidCharInPublicID",
+                                 new Object[]{Integer.toHexString(c)});
+            }
+        }
+        return dataok;
+!!!4961051.java!!!	normalizeWhitespace(inout value : XMLString) : void
+        int end = value.offset + value.length;
+        for (int i = value.offset; i < end; i++) {
+            int c = value.ch[i];
+            if (XMLChar.isSpace(c)) {
+                value.ch[i] = ' ';
+            }
+        }
+!!!4961179.java!!!	isInvalid(in value : int) : boolean
+        return (!XML11Char.isXML11Valid(value)); 
+!!!4961307.java!!!	isInvalidLiteral(in value : int) : boolean
+        return (!XML11Char.isXML11ValidLiteral(value)); 
+!!!4961435.java!!!	isValidNameChar(in value : int) : boolean
+        return (XML11Char.isXML11Name(value)); 
+!!!4961563.java!!!	isValidNameStartChar(in value : int) : boolean
+        return (XML11Char.isXML11NameStart(value)); 
+!!!4961691.java!!!	isValidNCName(in value : int) : boolean
+        return (XML11Char.isXML11NCName(value));
+!!!4961819.java!!!	isValidNameStartHighSurrogate(in value : int) : boolean
+        return XML11Char.isXML11NameHighSurrogate(value); 
+!!!4961947.java!!!	versionSupported(in version : String) : boolean
+        return version.equals("1.1") || version.equals ("1.0");
+!!!4962075.java!!!	getVersionNotSupportedKey() : String
+        return "VersionNotSupported11";

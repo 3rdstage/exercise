@@ -1,0 +1,44 @@
+class DateEditor
+!!!9078555.java!!!	getDefaultPattern(inout loc : Locale) : String
+            ResourceBundle r = LocaleData.getLocaleElements(loc);
+            String[] dateTimePatterns = r.getStringArray("DateTimePatterns");
+	    Object[] dateTimeArgs = {dateTimePatterns[DateFormat.SHORT],
+				     dateTimePatterns[DateFormat.SHORT + 4]};
+            return MessageFormat.format(dateTimePatterns[8], dateTimeArgs);
+!!!9078683.java!!!	DateEditor(inout spinner : JSpinner)
+            this(spinner, getDefaultPattern(spinner.getLocale()));
+!!!9078811.java!!!	DateEditor(inout spinner : JSpinner, in dateFormatPattern : String)
+	    this(spinner, new SimpleDateFormat(dateFormatPattern,
+                                               spinner.getLocale()));
+!!!9078939.java!!!	DateEditor(inout spinner : JSpinner, inout format : DateFormat)
+	    super(spinner);
+	    if (!(spinner.getModel() instanceof SpinnerDateModel)) {
+		throw new IllegalArgumentException(
+                                 "model not a SpinnerDateModel");
+	    }
+
+	    SpinnerDateModel model = (SpinnerDateModel)spinner.getModel();
+	    DateFormatter formatter = new DateEditorFormatter(model, format);
+	    DefaultFormatterFactory factory = new DefaultFormatterFactory(
+                                                  formatter);
+	    JFormattedTextField ftf = getTextField();
+	    ftf.setEditable(true);
+	    ftf.setFormatterFactory(factory);
+
+	    /* TBD - initializing the column width of the text field
+	     * is imprecise and doing it here is tricky because 
+	     * the developer may configure the formatter later.
+	     */
+	    try {
+		String maxString = formatter.valueToString(model.getStart());
+		String minString = formatter.valueToString(model.getEnd());
+		ftf.setColumns(Math.max(maxString.length(),
+                                        minString.length()));
+	    }
+	    catch (ParseException e) {
+                // PENDING: hmuller
+	    }
+!!!9079067.java!!!	getFormat() : SimpleDateFormat
+	    return (SimpleDateFormat)((DateFormatter)(getTextField().getFormatter())).getFormat();
+!!!9079195.java!!!	getModel() : SpinnerDateModel
+	    return (SpinnerDateModel)(getSpinner().getModel());

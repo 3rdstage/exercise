@@ -1,0 +1,239 @@
+class JTextArea
+!!!9162267.java!!!	JTextArea()
+        this(null, null, 0, 0);
+!!!9162395.java!!!	JTextArea(in text : String)
+        this(null, text, 0, 0);
+!!!9162523.java!!!	JTextArea(in rows : int, in columns : int)
+        this(null, null, rows, columns);
+!!!9162651.java!!!	JTextArea(in text : String, in rows : int, in columns : int)
+        this(null, text, rows, columns);
+!!!9162779.java!!!	JTextArea(inout doc : Document)
+        this(doc, null, 0, 0);
+!!!9162907.java!!!	JTextArea(inout doc : Document, in text : String, in rows : int, in columns : int)
+        super();
+        this.rows = rows;
+        this.columns = columns;
+        if (doc == null) {
+            doc = createDefaultModel();
+        }
+        setDocument(doc);
+        if (text != null) {
+            setText(text);
+            select(0, 0);
+        }
+	if (rows < 0) {
+	    throw new IllegalArgumentException("rows: " + rows);
+	}
+	if (columns < 0) {
+	    throw new IllegalArgumentException("columns: " + columns);
+	}
+        LookAndFeel.installProperty(this,
+                                    "focusTraversalKeysForward", 
+                                    JComponent.
+                                    getManagingFocusForwardTraversalKeys());
+        LookAndFeel.installProperty(this,
+                                    "focusTraversalKeysBackward", 
+                                    JComponent.
+                                    getManagingFocusBackwardTraversalKeys());
+!!!9163035.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!9163163.java!!!	createDefaultModel() : Document
+        return new PlainDocument();
+!!!9163291.java!!!	setTabSize(in size : int) : void
+        Document doc = getDocument();
+        if (doc != null) {
+            int old = getTabSize();
+            doc.putProperty(PlainDocument.tabSizeAttribute, new Integer(size));
+            firePropertyChange("tabSize", old, size);
+        }
+!!!9163419.java!!!	getTabSize() : int
+        int size = 8;
+        Document doc = getDocument();
+        if (doc != null) {
+            Integer i = (Integer) doc.getProperty(PlainDocument.tabSizeAttribute);
+            if (i != null) {
+                size = i.intValue();
+            }
+        }
+        return size;
+!!!9163547.java!!!	setLineWrap(inout wrap : boolean) : void
+        boolean old = this.wrap;
+        this.wrap = wrap;
+        firePropertyChange("lineWrap", old, wrap);
+!!!9163675.java!!!	getLineWrap() : boolean
+        return wrap;
+!!!9163803.java!!!	setWrapStyleWord(inout word : boolean) : void
+        boolean old = this.word;
+        this.word = word;
+        firePropertyChange("wrapStyleWord", old, word);
+!!!9163931.java!!!	getWrapStyleWord() : boolean
+        return word;
+!!!9164059.java!!!	getLineOfOffset(in offset : int) : int
+        Document doc = getDocument();
+        if (offset < 0) {
+            throw new BadLocationException("Can't translate offset to line", -1);
+        } else if (offset > doc.getLength()) {
+            throw new BadLocationException("Can't translate offset to line", doc.getLength()+1);
+        } else {
+            Element map = getDocument().getDefaultRootElement();
+            return map.getElementIndex(offset);
+        }
+!!!9164187.java!!!	getLineCount() : int
+        Element map = getDocument().getDefaultRootElement();
+        return map.getElementCount();
+!!!9164315.java!!!	getLineStartOffset(in line : int) : int
+        int lineCount = getLineCount();
+        if (line < 0) {
+            throw new BadLocationException("Negative line", -1);
+        } else if (line >= lineCount) {
+            throw new BadLocationException("No such line", getDocument().getLength()+1);
+        } else {
+            Element map = getDocument().getDefaultRootElement();
+            Element lineElem = map.getElement(line);
+            return lineElem.getStartOffset();
+        }
+!!!9164443.java!!!	getLineEndOffset(in line : int) : int
+        int lineCount = getLineCount();
+        if (line < 0) {
+            throw new BadLocationException("Negative line", -1);
+        } else if (line >= lineCount) {
+            throw new BadLocationException("No such line", getDocument().getLength()+1);
+        } else {
+            Element map = getDocument().getDefaultRootElement();
+            Element lineElem = map.getElement(line);
+            int endOffset = lineElem.getEndOffset();
+            // hide the implicit break at the end of the document
+            return ((line == lineCount - 1) ? (endOffset - 1) : endOffset);
+        }
+!!!9164571.java!!!	insert(in str : String, in pos : int) : void
+        Document doc = getDocument();
+        if (doc != null) {
+            try {
+                doc.insertString(pos, str, null);
+            } catch (BadLocationException e) {
+                throw new IllegalArgumentException(e.getMessage());
+            }
+        }
+!!!9164699.java!!!	append(in str : String) : void
+        Document doc = getDocument();
+        if (doc != null) {
+            try {
+                doc.insertString(doc.getLength(), str, null);
+            } catch (BadLocationException e) {
+            }
+        }
+!!!9164827.java!!!	replaceRange(in str : String, in start : int, in end : int) : void
+        if (end < start) {
+            throw new IllegalArgumentException("end before start");
+        }
+        Document doc = getDocument();
+        if (doc != null) {
+            try {
+                if (doc instanceof AbstractDocument) {
+                    ((AbstractDocument)doc).replace(start, end - start, str,
+                                                    null);
+                }
+                else {
+                    doc.remove(start, end - start);
+                    doc.insertString(start, str, null);
+                }
+            } catch (BadLocationException e) {
+                throw new IllegalArgumentException(e.getMessage());
+            }
+        }
+!!!9164955.java!!!	getRows() : int
+        return rows;
+!!!9165083.java!!!	setRows(in rows : int) : void
+        int oldVal = this.rows;
+        if (rows < 0) {
+            throw new IllegalArgumentException("rows less than zero.");
+        }
+        if (rows != oldVal) {
+            this.rows = rows;
+            invalidate();
+        }
+!!!9165211.java!!!	getRowHeight() : int
+        if (rowHeight == 0) {
+            FontMetrics metrics = getFontMetrics(getFont());
+            rowHeight = metrics.getHeight();
+        }
+        return rowHeight;
+!!!9165339.java!!!	getColumns() : int
+        return columns;
+!!!9165467.java!!!	setColumns(in columns : int) : void
+        int oldVal = this.columns;
+        if (columns < 0) {
+            throw new IllegalArgumentException("columns less than zero.");
+        }
+        if (columns != oldVal) {
+            this.columns = columns;
+            invalidate();
+        }
+!!!9165595.java!!!	getColumnWidth() : int
+        if (columnWidth == 0) {
+            FontMetrics metrics = getFontMetrics(getFont());
+            columnWidth = metrics.charWidth('m');
+        }
+        return columnWidth;
+!!!9165723.java!!!	getPreferredSize() : Dimension
+	Dimension d = super.getPreferredSize();
+        d = (d == null) ? new Dimension(400,400) : d;
+        Insets insets = getInsets();
+
+        if (columns != 0) {
+            d.width = Math.max(d.width, columns * getColumnWidth() + 
+                    insets.left + insets.right); 	
+        }
+	if (rows != 0) {
+	    d.height = Math.max(d.height, rows * getRowHeight() +
+                                insets.top + insets.bottom);
+	}
+	return d;
+!!!9165851.java!!!	setFont(inout f : Font) : void
+        super.setFont(f);
+        rowHeight = 0; 
+        columnWidth = 0;
+!!!9165979.java!!!	paramString() : String
+        String wrapString = (wrap ?
+			     "true" : "false");
+        String wordString = (word ?
+			     "true" : "false");
+
+        return super.paramString() +
+        ",colums=" + columns +
+        ",columWidth=" + columnWidth +
+        ",rows=" + rows +
+        ",rowHeight=" + rowHeight +
+        ",word=" + wordString +
+        ",wrap=" + wrapString;
+!!!9166107.java!!!	getScrollableTracksViewportWidth() : boolean
+        return (wrap) ? true : super.getScrollableTracksViewportWidth();
+!!!9166235.java!!!	getPreferredScrollableViewportSize() : Dimension
+        Dimension size = super.getPreferredScrollableViewportSize();
+        size = (size == null) ? new Dimension(400,400) : size;
+        size.width = (columns == 0) ? size.width : columns * getColumnWidth();
+        size.height = (rows == 0) ? size.height : rows * getRowHeight();
+        return size;
+!!!9166363.java!!!	getScrollableUnitIncrement(inout visibleRect : Rectangle, in orientation : int, in direction : int) : int
+        switch (orientation) {
+        case SwingConstants.VERTICAL:
+            return getRowHeight();
+        case SwingConstants.HORIZONTAL:
+            return getColumnWidth();
+        default:
+            throw new IllegalArgumentException("Invalid orientation: " + orientation);
+        }
+!!!9166491.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!9166619.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJTextArea();
+        }
+        return accessibleContext;

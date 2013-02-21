@@ -1,0 +1,54 @@
+class MemoryCacheImageInputStream
+!!!8215835.java!!!	MemoryCacheImageInputStream(inout stream : InputStream)
+        if (stream == null) {
+            throw new IllegalArgumentException("stream == null!");
+        }        
+        this.stream = stream;
+!!!8215963.java!!!	read() : int
+        checkClosed();
+        bitOffset = 0;
+        long thisByte = streamPos;
+        long pos = cache.loadFromStream(stream, streamPos+1);
+        if (pos >= streamPos+1) {
+            return cache.read(streamPos++);
+        } else {
+            return -1;
+        }
+!!!8216091.java!!!	read(in b : byte, in off : int, in len : int) : int
+        checkClosed();
+        // Will throw NullPointerException
+        if (off < 0 || len < 0 || off + len > b.length || off + len < 0) {
+            throw new IndexOutOfBoundsException
+                ("off < 0 || len < 0 || off + len > b.length!");
+        }
+
+        bitOffset = 0;
+
+        if (len == 0) {
+            return 0;
+        }
+
+        long pos = cache.loadFromStream(stream, streamPos+len);
+
+        len = (int)(pos - streamPos);  // In case stream ended early
+
+        if (len > 0) {
+            cache.read(b, off, len, streamPos);
+            streamPos += len;
+            return len;
+        } else {
+            return -1;
+        }
+!!!8216219.java!!!	flushBefore(in pos : long) : void
+        super.flushBefore(pos);
+        cache.disposeBefore(pos);
+!!!8216347.java!!!	isCached() : boolean
+        return true;
+!!!8216475.java!!!	isCachedFile() : boolean
+        return false;
+!!!8216603.java!!!	isCachedMemory() : boolean
+        return true;
+!!!8216731.java!!!	close() : void
+        super.close();
+        cache.reset();
+        stream = null;

@@ -1,0 +1,83 @@
+class FilterExpr
+!!!4376091.java!!!	FilterExpr(inout primary : Expression, inout predicates : Vector)
+	_primary = primary;
+	_predicates = predicates;
+	primary.setParent(this);
+!!!4376219.java!!!	getExpr() : Expression
+	if (_primary instanceof CastExpr)
+	    return ((CastExpr)_primary).getExpr();
+	else
+	    return _primary;
+!!!4376347.java!!!	setParser(inout parser : Parser) : void
+	super.setParser(parser);
+	_primary.setParser(parser);
+	if (_predicates != null) {
+	    final int n = _predicates.size();
+	    for (int i = 0; i < n; i++) {
+		final Expression exp = (Expression)_predicates.elementAt(i);
+		exp.setParser(parser);
+		exp.setParent(this);
+	    }
+	}
+!!!4376475.java!!!	toString() : String
+	return "filter-expr(" + _primary + ", " + _predicates + ")";
+!!!4376603.java!!!	typeCheck(inout stable : SymbolTable) : Type
+	Type ptype = _primary.typeCheck(stable);
+
+	if (ptype instanceof NodeSetType == false) {
+	    if (ptype instanceof ReferenceType)  {
+		_primary = new CastExpr(_primary, Type.NodeSet);
+	    }
+	    else {
+		throw new TypeCheckError(this);
+	    }
+	}
+
+        // Type check predicates and turn all optimizations off
+	int n = _predicates.size();
+	for (int i = 0; i < n; i++) {
+	    Predicate pred = (Predicate) _predicates.elementAt(i);
+            pred.dontOptimize();
+	    pred.typeCheck(stable);
+	}
+	return _type = Type.NodeSet;	
+!!!4376731.java!!!	translate(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	if (_predicates.size() > 0) {
+	    translatePredicates(classGen, methodGen);
+	}
+	else {
+	    _primary.translate(classGen, methodGen);
+	}
+!!!4376859.java!!!	translatePredicates(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	final ConstantPoolGen cpg = classGen.getConstantPool();
+	final InstructionList il = methodGen.getInstructionList();
+
+        // If not predicates left, translate primary expression
+	if (_predicates.size() == 0) {
+	    translate(classGen, methodGen);
+	}
+	else {
+            // Translate predicates from right to left
+	    final int initCNLI = cpg.addMethodref(CURRENT_NODE_LIST_ITERATOR,
+						  "<init>",
+						  "("+NODE_ITERATOR_SIG+"Z"+
+						  CURRENT_NODE_LIST_FILTER_SIG +
+						  NODE_SIG+TRANSLET_SIG+")V");
+
+	    Predicate predicate = (Predicate)_predicates.lastElement();
+	    _predicates.remove(predicate);
+
+            // Create a CurrentNodeListIterator
+            il.append(new NEW(cpg.addClass(CURRENT_NODE_LIST_ITERATOR)));
+            il.append(DUP);
+            
+            // Translate the rest of the predicates from right to left
+            translatePredicates(classGen, methodGen);
+            
+            // Initialize CurrentNodeListIterator
+            il.append(ICONST_1);
+            predicate.translate(classGen, methodGen);
+            il.append(methodGen.loadCurrentNode());
+            il.append(classGen.loadTranslet());
+            il.append(new INVOKESPECIAL(initCNLI));
+	}

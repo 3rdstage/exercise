@@ -1,0 +1,34 @@
+class MetalMenuBarUI
+!!!9527707.java!!!	createUI(inout x : JComponent) : ComponentUI
+        if (x == null) {
+            throw new NullPointerException("Must pass in a non-null component");
+        }
+	return new MetalMenuBarUI();
+!!!9527835.java!!!	installUI(inout c : JComponent) : void
+        super.installUI(c);
+        MetalToolBarUI.register(c);
+!!!9527963.java!!!	uninstallUI(inout c : JComponent) : void
+        super.uninstallUI(c);
+        MetalToolBarUI.unregister(c);
+!!!9528091.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        boolean isOpaque = c.isOpaque();
+        if (isOpaque && (c.getBackground() instanceof UIResource) &&
+                        UIManager.get("MenuBar.gradient") != null) {
+            if (MetalToolBarUI.doesMenuBarBorderToolBar((JMenuBar)c)) {
+                JToolBar tb = (JToolBar)MetalToolBarUI.
+                     findRegisteredComponentOfType(c, JToolBar.class);
+                if (tb.isOpaque() &&tb.getBackground() instanceof UIResource) {
+                    MetalUtils.drawGradient(c, g, "MenuBar.gradient", 0, 0,
+                                            c.getWidth(), c.getHeight() +
+                                            tb.getHeight(), true);
+                    paint(g, c);
+                    return;
+                }
+            }
+            MetalUtils.drawGradient(c, g, "MenuBar.gradient", 0, 0,
+                                    c.getWidth(), c.getHeight(),true);
+            paint(g, c);
+        }
+        else {
+            super.update(g, c);
+        }

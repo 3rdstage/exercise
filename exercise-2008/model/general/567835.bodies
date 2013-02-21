@@ -1,0 +1,40 @@
+class Field
+!!!3636379.java!!!	Field(inout c : Field)
+    super(c);
+!!!3636507.java!!!	Field(inout file : DataInputStream, inout constant_pool : ConstantPool)
+    super(file, constant_pool);
+!!!3636635.java!!!	Field(in access_flags : int, in name_index : int, in signature_index : int, inout attributes : Attribute, inout constant_pool : ConstantPool)
+    super(access_flags, name_index, signature_index, attributes, constant_pool);
+!!!3636763.java!!!	accept(inout v : Visitor) : void
+    v.visitField(this);
+!!!3636891.java!!!	getConstantValue() : ConstantValue
+    for(int i=0; i < attributes_count; i++)
+      if(attributes[i].getTag() == Constants.ATTR_CONSTANT_VALUE)
+	return (ConstantValue)attributes[i];
+
+    return null;
+!!!3637019.java!!!	toString() : String
+    String name, signature, access; // Short cuts to constant pool
+
+    // Get names from constant pool
+    access    = Utility.accessToString(access_flags);
+    access    = access.equals("")? "" : (access + " ");
+    signature = Utility.signatureToString(getSignature());
+    name      = getName();
+
+    StringBuffer  buf = new StringBuffer(access + signature + " " + name);
+    ConstantValue cv  = getConstantValue();
+
+    if(cv != null)
+      buf.append(" = " + cv);
+
+    for(int i=0; i < attributes_count; i++) {
+      Attribute a = attributes[i];
+
+      if(!(a instanceof ConstantValue))
+	buf.append(" [" + a.toString() + "]");
+    }
+
+    return buf.toString();
+!!!3637147.java!!!	copy(inout constant_pool : ConstantPool) : Field
+    return (Field)copy_(constant_pool);

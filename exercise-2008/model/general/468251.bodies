@@ -1,0 +1,359 @@
+class Handler
+!!!2912155.java!!!	keyTyped(inout e : KeyEvent) : void
+	    // handle first letter navigation
+	    if(tree != null && tree.getRowCount()>0 && tree.hasFocus() &&
+               tree.isEnabled()) {
+		if (e.isAltDown() || e.isControlDown() || e.isMetaDown() ||
+		    isNavigationKey(e)) {
+		    return;
+		}
+		boolean startingFromSelection = true;
+
+ 		char c = e.getKeyChar();
+
+ 		long time = e.getWhen();
+ 		int startingRow = tree.getLeadSelectionRow();
+ 		if (time - lastTime < timeFactor) {
+ 		    typedString += c;
+ 		    if((prefix.length() == 1) && (c == prefix.charAt(0))) {
+ 			// Subsequent same key presses move the keyboard focus to the next
+ 			// object that starts with the same letter.
+ 			startingRow++;
+ 		    } else {
+ 			prefix = typedString;
+ 		    }
+ 		} else {
+ 		    startingRow++;
+ 		    typedString = "" + c;
+ 		    prefix = typedString;
+ 		}
+ 		lastTime = time;
+
+		if (startingRow < 0 || startingRow >= tree.getRowCount()) {
+		    startingFromSelection = false;
+		    startingRow = 0;
+		}
+		TreePath path = tree.getNextMatch(prefix, startingRow,
+						  Position.Bias.Forward);
+		if (path != null) {
+                    tree.setSelectionPath(path);
+		    int row = getRowForPath(tree, path);
+		    ensureRowsAreVisible(row, row);
+		} else if (startingFromSelection) {
+		    path = tree.getNextMatch(prefix, 0,
+					     Position.Bias.Forward);
+		    if (path != null) {
+			tree.setSelectionPath(path);
+			int row = getRowForPath(tree, path);
+			ensureRowsAreVisible(row, row);
+		    }
+		}
+	    }
+!!!2912283.java!!!	keyPressed(inout e : KeyEvent) : void
+ 	    if ( isNavigationKey(e) ) {
+ 		prefix = "";
+ 		typedString = "";
+ 		lastTime = 0L;
+ 	    }
+!!!2912539.java!!!	isNavigationKey(inout event : KeyEvent) : boolean
+ 	    InputMap inputMap = tree.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+ 	    KeyStroke key = KeyStroke.getKeyStrokeForEvent(event);
+
+ 	    if (inputMap != null && inputMap.get(key) != null) {
+ 		return true;
+ 	    }
+ 	    return false;
+!!!2912667.java!!!	propertyChange(inout event : PropertyChangeEvent) : void
+            if (event.getSource() == treeSelectionModel) {
+		treeSelectionModel.resetRowSelection();
+            }
+	    else if(event.getSource() == tree) {
+		String              changeName = event.getPropertyName();
+
+		if (changeName == JTree.LEAD_SELECTION_PATH_PROPERTY) {
+		    if (!ignoreLAChange) {
+			updateLeadRow();
+			repaintPath((TreePath)event.getOldValue());
+			repaintPath((TreePath)event.getNewValue());
+		    }
+		}
+		else if (changeName == JTree.ANCHOR_SELECTION_PATH_PROPERTY) {
+		    if (!ignoreLAChange) {
+			repaintPath((TreePath)event.getOldValue());
+			repaintPath((TreePath)event.getNewValue());
+		    }
+		}
+		if(changeName == JTree.CELL_RENDERER_PROPERTY) {
+		    setCellRenderer((TreeCellRenderer)event.getNewValue());
+		    redoTheLayout();
+		}
+		else if(changeName == JTree.TREE_MODEL_PROPERTY) {
+		    setModel((TreeModel)event.getNewValue());
+		}
+		else if(changeName == JTree.ROOT_VISIBLE_PROPERTY) {
+		    setRootVisible(((Boolean)event.getNewValue()).
+				   booleanValue());
+		}
+		else if(changeName == JTree.SHOWS_ROOT_HANDLES_PROPERTY) {
+		    setShowsRootHandles(((Boolean)event.getNewValue()).
+					booleanValue());
+		}
+		else if(changeName == JTree.ROW_HEIGHT_PROPERTY) {
+		    setRowHeight(((Integer)event.getNewValue()).
+				 intValue());
+		}
+		else if(changeName == JTree.CELL_EDITOR_PROPERTY) {
+		    setCellEditor((TreeCellEditor)event.getNewValue());
+		}
+		else if(changeName == JTree.EDITABLE_PROPERTY) {
+		    setEditable(((Boolean)event.getNewValue()).booleanValue());
+		}
+		else if(changeName == JTree.LARGE_MODEL_PROPERTY) {
+		    setLargeModel(tree.isLargeModel());
+		}
+		else if(changeName == JTree.SELECTION_MODEL_PROPERTY) {
+		    setSelectionModel(tree.getSelectionModel());
+		}
+		else if(changeName == "font") {
+		    completeEditing();
+		    if(treeState != null)
+			treeState.invalidateSizes();
+		    updateSize();
+		}
+		else if (changeName == "componentOrientation") {
+		    if (tree != null) {
+			leftToRight = BasicGraphicsUtils.isLeftToRight(tree);
+			redoTheLayout();
+			tree.treeDidChange();
+
+			InputMap km = getInputMap(JComponent.WHEN_FOCUSED);
+			SwingUtilities.replaceUIInputMap(tree,
+						JComponent.WHEN_FOCUSED, km);
+		    }
+                } else if ("transferHandler" == changeName) {
+                    DropTarget dropTarget = tree.getDropTarget();
+                    if (dropTarget instanceof UIResource) {
+                        if (defaultDropTargetListener == null) {
+                            defaultDropTargetListener = new TreeDropTargetListener();
+                        }
+                        try {
+                            dropTarget.addDropTargetListener(defaultDropTargetListener);
+                        } catch (TooManyListenersException tmle) {
+                            // should not happen... swing drop target is multicast
+                        }
+                    }
+		}
+	    }
+!!!2913179.java!!!	mousePressed(inout e : MouseEvent) : void
+	    if (! e.isConsumed()) {
+		handleSelection(e);
+		selectedOnPress = true;
+	    } else {
+		selectedOnPress = false;
+	    }
+!!!2913307.java!!!	handleSelection(inout e : MouseEvent) : void
+	    if(tree != null && tree.isEnabled()) {
+                if (isEditing(tree) && tree.getInvokesStopCellEditing() &&
+                                       !stopEditing(tree)) {
+                    return;
+                }
+
+                SwingUtilities2.adjustFocus(tree);
+
+		TreePath     path = getClosestPathForLocation(tree, e.getX(),
+							      e.getY());
+
+                handleSelectionImpl(e, path);
+            }
+!!!2913435.java!!!	handleSelectionImpl(inout e : MouseEvent, inout path : TreePath) : void
+            if(path != null) {
+		Rectangle       bounds = getPathBounds(tree, path);
+
+		if(e.getY() > (bounds.y + bounds.height)) {
+		    return;
+		}
+
+		// Preferably checkForClickInExpandControl could take
+		// the Event to do this it self!
+		if(SwingUtilities.isLeftMouseButton(e))
+                    checkForClickInExpandControl(path, e.getX(), e.getY());
+		    
+		int x = e.getX();
+		    
+		// Perhaps they clicked the cell itself. If so,
+		// select it.
+		if (x > bounds.x && x <= (bounds.x + bounds.width)) {
+                    if ((DRAG_FIX && tree.getDragEnabled())
+                             || !startEditing(path, e)) {
+
+		        selectPathForEvent(path, e);
+		    }
+		}
+	    }
+!!!2913819.java!!!	mouseReleased(inout e : MouseEvent) : void
+	    if ((! e.isConsumed()) && (! selectedOnPress)) {
+		handleSelection(e);
+	    }
+!!!2913947.java!!!	focusGained(inout e : FocusEvent) : void
+	    if(tree != null) {
+		Rectangle                 pBounds;
+
+		pBounds = getPathBounds(tree, tree.getLeadSelectionPath());
+		if(pBounds != null)
+		    tree.repaint(pBounds);
+		pBounds = getPathBounds(tree, getLeadSelectionPath());
+		if(pBounds != null)
+		    tree.repaint(pBounds);
+	    }
+!!!2914075.java!!!	focusLost(inout e : FocusEvent) : void
+	    focusGained(e);
+!!!2914203.java!!!	editingStopped(inout e : ChangeEvent) : void
+	    completeEditing(false, false, true);
+!!!2914331.java!!!	editingCanceled(inout e : ChangeEvent) : void
+	    completeEditing(false, false, false);
+!!!2914459.java!!!	valueChanged(inout event : TreeSelectionEvent) : void
+	    // Stop editing
+	    completeEditing();
+	    // Make sure all the paths are visible, if necessary.
+            // PENDING: This should be tweaked when isAdjusting is added
+	    if(tree.getExpandsSelectedPaths() && treeSelectionModel != null) {
+		TreePath[]           paths = treeSelectionModel
+		                         .getSelectionPaths();
+
+		if(paths != null) {
+		    for(int counter = paths.length - 1; counter >= 0;
+			counter--) {
+                        TreePath path = paths[counter].getParentPath();
+                        boolean expand = true;
+
+                        while (path != null) {
+                            // Indicates this path isn't valid anymore,
+                            // we shouldn't attempt to expand it then.
+                            if (treeModel.isLeaf(path.getLastPathComponent())){
+                                expand = false;
+                                path = null;
+                            }
+                            else {
+                                path = path.getParentPath();
+                            }
+                        }
+                        if (expand) {
+                            tree.makeVisible(paths[counter]);
+                        }
+		    }
+		}
+	    }
+
+	    TreePath oldLead = getLeadSelectionPath();
+	    lastSelectedRow = tree.getMinSelectionRow();
+	    TreePath lead = tree.getSelectionModel().getLeadSelectionPath();
+	    setAnchorSelectionPath(lead);
+	    setLeadSelectionPath(lead);
+
+	    TreePath[]       changedPaths = event.getPaths();
+	    Rectangle        nodeBounds;
+	    Rectangle        visRect = tree.getVisibleRect();
+	    boolean          paintPaths = true;
+	    int              nWidth = tree.getWidth();
+
+	    if(changedPaths != null) {
+		int              counter, maxCounter = changedPaths.length;
+
+		if(maxCounter > 4) {
+		    tree.repaint();
+		    paintPaths = false;
+		}
+		else {
+		    for (counter = 0; counter < maxCounter; counter++) {
+			nodeBounds = getPathBounds(tree,
+						   changedPaths[counter]);
+			if(nodeBounds != null &&
+			   visRect.intersects(nodeBounds))
+			    tree.repaint(0, nodeBounds.y, nWidth,
+					 nodeBounds.height);
+		    }
+		}
+	    }
+	    if(paintPaths) {
+		nodeBounds = getPathBounds(tree, oldLead);
+		if(nodeBounds != null && visRect.intersects(nodeBounds))
+		    tree.repaint(0, nodeBounds.y, nWidth, nodeBounds.height);
+		nodeBounds = getPathBounds(tree, lead);
+		if(nodeBounds != null && visRect.intersects(nodeBounds))
+		    tree.repaint(0, nodeBounds.y, nWidth, nodeBounds.height);
+	    }
+!!!2914587.java!!!	treeExpanded(inout event : TreeExpansionEvent) : void
+	    if(event != null && tree != null) {
+		TreePath      path = event.getPath();
+
+		updateExpandedDescendants(path);
+	    }
+!!!2914715.java!!!	treeCollapsed(inout event : TreeExpansionEvent) : void
+	    if(event != null && tree != null) {
+		TreePath        path = event.getPath();
+
+		completeEditing();
+		if(path != null && tree.isVisible(path)) {
+		    treeState.setExpandedState(path, false);
+		    updateLeadRow();
+		    updateSize();
+		}
+	    }
+!!!2914843.java!!!	treeNodesChanged(inout e : TreeModelEvent) : void
+	    if(treeState != null && e != null) {
+		treeState.treeNodesChanged(e);
+
+		TreePath       pPath = e.getTreePath().getParentPath();
+
+		if(pPath == null || treeState.isExpanded(pPath))
+		    updateSize();
+	    }
+!!!2914971.java!!!	treeNodesInserted(inout e : TreeModelEvent) : void
+	    if(treeState != null && e != null) {
+		treeState.treeNodesInserted(e);
+
+		updateLeadRow();
+
+		TreePath       path = e.getTreePath();
+
+		if(treeState.isExpanded(path)) {
+		    updateSize();
+		}
+		else {
+		    // PENDING(sky): Need a method in TreeModelEvent
+		    // that can return the count, getChildIndices allocs
+		    // a new array!
+		    int[]      indices = e.getChildIndices();
+		    int        childCount = treeModel.getChildCount
+			                    (path.getLastPathComponent());
+
+		    if(indices != null && (childCount - indices.length) == 0)
+			updateSize();
+		}
+	    }
+!!!2915099.java!!!	treeNodesRemoved(inout e : TreeModelEvent) : void
+	    if(treeState != null && e != null) {
+		treeState.treeNodesRemoved(e);
+
+		updateLeadRow();
+
+		TreePath       path = e.getTreePath();
+
+		if(treeState.isExpanded(path) ||
+		   treeModel.getChildCount(path.getLastPathComponent()) == 0)
+		    updateSize();
+	    }
+!!!2915227.java!!!	treeStructureChanged(inout e : TreeModelEvent) : void
+	    if(treeState != null && e != null) {
+		treeState.treeStructureChanged(e);
+
+		updateLeadRow();
+
+		TreePath       pPath = e.getTreePath();
+
+                if (pPath != null) {
+                    pPath = pPath.getParentPath();
+                }
+                if(pPath == null || treeState.isExpanded(pPath))
+                    updateSize();
+	    }

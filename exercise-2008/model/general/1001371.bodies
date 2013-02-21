@@ -1,0 +1,44 @@
+class AtomicReferenceArray
+!!!7992347.java!!!	rawIndex(in i : int) : long
+        if (i < 0 || i >= array.length)
+            throw new IndexOutOfBoundsException("index " + i);
+        return base + i * scale;
+!!!7992475.java!!!	AtomicReferenceArray(in length : int)
+        array = new Object[length];
+        // must perform at least one volatile write to conform to JMM
+        if (length > 0) 
+            unsafe.putObjectVolatile(array, rawIndex(0), null);
+!!!7992603.java!!!	AtomicReferenceArray(inout array : E)
+        if (array == null) 
+            throw new NullPointerException();
+        int length = array.length;
+        this.array = new Object[length];
+        if (length > 0) {
+            int last = length-1;
+            for (int i = 0; i < last; ++i)
+                this.array[i] = array[i];
+            // Do the last write as volatile
+            E e = array[last];
+            unsafe.putObjectVolatile(this.array, rawIndex(last), e);
+        }
+!!!7992731.java!!!	length() : int
+        return array.length;
+!!!7992859.java!!!	get(in i : int) : E
+        return (E) unsafe.getObjectVolatile(array, rawIndex(i));
+!!!7992987.java!!!	set(in i : int, inout newValue : E) : void
+        unsafe.putObjectVolatile(array, rawIndex(i), newValue);
+!!!7993115.java!!!	getAndSet(in i : int, inout newValue : E) : E
+        while (true) {
+            E current = get(i);
+            if (compareAndSet(i, current, newValue))
+                return current;
+        }
+!!!7993243.java!!!	compareAndSet(in i : int, inout expect : E, inout update : E) : boolean
+        return unsafe.compareAndSwapObject(array, rawIndex(i), 
+                                         expect, update);
+!!!7993371.java!!!	weakCompareAndSet(in i : int, inout expect : E, inout update : E) : boolean
+        return compareAndSet(i, expect, update);
+!!!7993499.java!!!	toString() : String
+        if (array.length > 0) // force volatile read
+            get(0);
+        return Arrays.toString(array);

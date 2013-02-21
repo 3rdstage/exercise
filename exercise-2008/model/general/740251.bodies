@@ -1,0 +1,482 @@
+class AbstractDateTimeDV
+!!!5061915.java!!!	getAllowedFacets() : short
+        return ( XSSimpleTypeDecl.FACET_PATTERN | XSSimpleTypeDecl.FACET_WHITESPACE | XSSimpleTypeDecl.FACET_ENUMERATION |XSSimpleTypeDecl.FACET_MAXINCLUSIVE |XSSimpleTypeDecl.FACET_MININCLUSIVE | XSSimpleTypeDecl.FACET_MAXEXCLUSIVE  | XSSimpleTypeDecl.FACET_MINEXCLUSIVE  );
+!!!5062043.java!!!	compare(inout value1 : Object, inout value2 : Object) : int
+        return compareDates(((DateTimeData)value1).data,
+                            ((DateTimeData)value2).data, true);
+!!!5062171.java!!!	compareDates(in date1 : int, in date2 : int, inout strict : boolean) : short
+        if ( date1[utc]==date2[utc] ) {
+            return compareOrder(date1, date2);
+        }
+        short c1, c2;
+        
+        int[] tempDate = new int[TOTAL_SIZE];
+        int[] timeZone = new int[2];
+
+        if ( date1[utc]=='Z' ) {
+
+            //compare date1<=date1<=(date2 with time zone -14)
+            //
+            cloneDate(date2, tempDate); //clones date1 value to global temporary storage: fTempDate
+            timeZone[hh]=14;
+            timeZone[mm]=0;
+            tempDate[utc]='+';
+            normalize(tempDate, timeZone);
+            c1 = compareOrder(date1, tempDate);
+            if (c1 == LESS_THAN)
+                return c1;
+
+            //compare date1>=(date2 with time zone +14)
+            //
+            cloneDate(date2, tempDate); //clones date1 value to global temporary storage: tempDate
+            timeZone[hh]=14;
+            timeZone[mm]=0;
+            tempDate[utc]='-';
+            normalize(tempDate, timeZone);
+            c2 = compareOrder(date1, tempDate);
+            if (c2 == GREATER_THAN)
+                return c2;
+
+            return INDETERMINATE;
+        }
+        else if ( date2[utc]=='Z' ) {
+
+            //compare (date1 with time zone -14)<=date2
+            //
+            cloneDate(date1, tempDate); //clones date1 value to global temporary storage: tempDate
+            timeZone[hh]=14;
+            timeZone[mm]=0;
+            tempDate[utc]='-';
+            if (DEBUG) {
+               System.out.println("tempDate=" + dateToString(tempDate));
+            }
+            normalize(tempDate, timeZone);
+            c1 = compareOrder(tempDate, date2);
+            if (DEBUG) {
+                System.out.println("date=" + dateToString(date2));
+                System.out.println("tempDate=" + dateToString(tempDate));
+            }
+            if (c1 == LESS_THAN)
+                return c1;
+
+            //compare (date1 with time zone +14)<=date2
+            //
+            cloneDate(date1, tempDate); //clones date1 value to global temporary storage: tempDate
+            timeZone[hh]=14;
+            timeZone[mm]=0;
+            tempDate[utc]='+';
+            normalize(tempDate, timeZone);
+            c2 = compareOrder(tempDate, date2);
+            if (DEBUG) {
+               System.out.println("tempDate=" + dateToString(tempDate));
+            }
+            if (c2 == GREATER_THAN)
+                return c2;
+
+            return INDETERMINATE;
+        }
+        return INDETERMINATE;
+
+!!!5062299.java!!!	compareOrder(in date1 : int, in date2 : int) : short
+
+        for ( int i=0;i<TOTAL_SIZE;i++ ) {
+            if ( date1[i]<date2[i] ) {
+                return -1;
+            }
+            else if ( date1[i]>date2[i] ) {
+                return 1;
+            }
+        }
+        return 0;
+!!!5062427.java!!!	getTime(in buffer : String, in start : int, in end : int, in data : int, in timeZone : int) : void
+
+        int stop = start+2;
+
+        //get hours (hh)
+        data[h]=parseInt(buffer, start,stop);
+
+        //get minutes (mm)
+
+        if (buffer.charAt(stop++)!=':') {
+                throw new RuntimeException("Error in parsing time zone" );
+        }
+        start = stop;
+        stop = stop+2;
+        data[m]=parseInt(buffer, start,stop);
+
+        //get seconds (ss)
+        if (buffer.charAt(stop++)!=':') {
+                throw new RuntimeException("Error in parsing time zone" );
+        }
+        start = stop;
+        stop = stop+2;
+        data[s]=parseInt(buffer, start,stop);
+
+        if (stop == end)
+            return;
+        
+        //get miliseconds (ms)
+        start = stop;
+        int milisec = buffer.charAt(start) == '.' ? start : -1;
+
+        //find UTC sign if any
+        int sign = findUTCSign(buffer, start, end);
+
+        //parse miliseconds
+        if ( milisec != -1 ) {
+            // The end of millisecond part is between . and
+            // either the end of the UTC sign
+            start = sign < 0 ? end : sign;
+            data[ms]=parseInt(buffer, milisec+1, start);
+        }
+
+        //parse UTC time zone (hh:mm)
+        if ( sign>0 ) {
+            if (start != sign)
+                throw new RuntimeException("Error in parsing time zone" );
+            getTimeZone(buffer, data, sign, end, timeZone);
+        }
+        else if (start != end) {
+            throw new RuntimeException("Error in parsing time zone" );
+        }
+!!!5062555.java!!!	getDate(in buffer : String, in start : int, in end : int, in date : int) : int
+
+        start = getYearMonth(buffer, start, end, date);
+
+        if (buffer.charAt(start++) !='-') {
+            throw new RuntimeException("CCYY-MM must be followed by '-' sign");
+        }
+        int stop = start + 2;
+        date[D]=parseInt(buffer, start, stop);
+        return stop;
+!!!5062683.java!!!	getYearMonth(in buffer : String, in start : int, in end : int, in date : int) : int
+
+        if ( buffer.charAt(0)=='-' ) {
+            // REVISIT: date starts with preceding '-' sign
+            //          do we have to do anything with it?
+            //
+            start++;
+        }
+        int i = indexOf(buffer, start, end, '-');
+        if ( i==-1 ) throw new RuntimeException("Year separator is missing or misplaced");
+        int length = i-start;
+        if (length<4) {
+            throw new RuntimeException("Year must have 'CCYY' format");
+        }
+        else if (length > 4 && buffer.charAt(start)=='0'){
+            throw new RuntimeException("Leading zeros are required if the year value would otherwise have fewer than four digits; otherwise they are forbidden");
+        }
+        date[CY]= parseIntYear(buffer, i);
+        if (buffer.charAt(i)!='-') {
+            throw new RuntimeException("CCYY must be followed by '-' sign");
+        }
+        start = ++i;
+        i = start +2;
+        date[M]=parseInt(buffer, start, i);
+        return i; //fStart points right after the MONTH
+!!!5062811.java!!!	parseTimeZone(in buffer : String, in start : int, in end : int, in date : int, in timeZone : int) : void
+
+        //fStart points right after the date
+
+        if ( start<end ) {
+            int sign = findUTCSign(buffer, start, end);
+            if ( sign<0 ) {
+                throw new RuntimeException ("Error in month parsing");
+            }
+            else {
+                getTimeZone(buffer, date, sign, end, timeZone);
+            }
+        }
+!!!5062939.java!!!	getTimeZone(in buffer : String, in data : int, in sign : int, in end : int, in timeZone : int) : void
+        data[utc]=buffer.charAt(sign);
+
+        if ( buffer.charAt(sign) == 'Z' ) {
+            if (end>(++sign)) {
+                throw new RuntimeException("Error in parsing time zone");
+            }
+            return;
+        }
+        if ( sign<=(end-6) ) {
+
+            //parse [hh]
+            int stop = ++sign+2;
+            timeZone[hh]=parseInt(buffer, sign, stop);
+            if (buffer.charAt(stop++)!=':') {
+                throw new RuntimeException("Error in parsing time zone" );
+            }
+
+            //parse [ss]
+            timeZone[mm]=parseInt(buffer, stop, stop+2);
+
+            if ( stop+2!=end ) {
+                throw new RuntimeException("Error in parsing time zone");
+            }
+
+        }
+        else {
+            throw new RuntimeException("Error in parsing time zone");
+        }
+        if ( DEBUG ) {
+            System.out.println("time[hh]="+timeZone[hh] + " time[mm]=" +timeZone[mm]);
+        }
+!!!5063067.java!!!	indexOf(in buffer : String, in start : int, in end : int, in ch : char) : int
+        for ( int i=start;i<end;i++ ) {
+            if ( buffer.charAt(i) == ch ) {
+                return i;
+            }
+        }
+        return -1;
+!!!5063195.java!!!	validateDateTime(in data : int, in timeZone : int) : void
+
+        //REVISIT: should we throw an exception for not valid dates
+        //          or reporting an error message should be sufficient?
+        if ( data[CY]==0 ) {
+            throw new RuntimeException("The year \"0000\" is an illegal year value");
+
+        }
+
+        if ( data[M]<1 || data[M]>12 ) {
+            throw new RuntimeException("The month must have values 1 to 12");
+
+        }
+
+        //validate days
+        if ( data[D]>maxDayInMonthFor(data[CY], data[M]) || data[D]<1 ) {
+            throw new RuntimeException("The day must have values 1 to 31");
+        }
+
+        //validate hours
+        if ( data[h]>23 || data[h]<0 ) {
+            if (data[h] == 24 && data[m] == 0 && data[s] == 0 && data[ms] == 0) {
+                data[h] = 0;
+                if (++data[D] > maxDayInMonthFor(data[CY], data[M])) {
+                    data[D] = 1;
+                    if (++data[M] > 12) {
+                        data[M] = 1;
+                        if (++data[CY] == 0)
+                            data[CY] = 1;
+                    }
+                }
+            }
+            else {
+                throw new RuntimeException("Hour must have values 0-23, unless 24:00:00");
+            }
+        }
+
+        //validate
+        if ( data[m]>59 || data[m]<0 ) {
+            throw new RuntimeException("Minute must have values 0-59");
+        }
+
+        //validate
+        if ( data[s]>60 || data[s]<0 ) {
+            throw new RuntimeException("Second must have values 0-60");
+
+        }
+
+        //validate
+        if ( timeZone[hh]>14 || timeZone[hh]<-14 ) {
+            throw new RuntimeException("Time zone should have range -14..+14");
+        }
+
+        //validate
+        if ( timeZone[mm]>59 || timeZone[mm]<-59 ) {
+            throw new RuntimeException("Minute must have values 0-59");
+        }
+!!!5063323.java!!!	findUTCSign(in buffer : String, in start : int, in end : int) : int
+        int c;
+        for ( int i=start;i<end;i++ ) {
+            c=buffer.charAt(i);
+            if ( c == 'Z' || c=='+' || c=='-' ) {
+                return i;
+            }
+
+        }
+        return -1;
+!!!5063451.java!!!	parseInt(in buffer : String, in start : int, in end : int) : int
+        //REVISIT: more testing on this parsing needs to be done.
+        int radix=10;
+        int result = 0;
+        int digit=0;
+        int limit = -Integer.MAX_VALUE;
+        int multmin = limit / radix;
+        int i = start;
+        do {
+            digit = getDigit(buffer.charAt(i));
+            if ( digit < 0 ) throw new NumberFormatException("'"+buffer.toString()+"' has wrong format");
+            if ( result < multmin ) throw new NumberFormatException("'"+buffer.toString()+"' has wrong format");
+            result *= radix;
+            if ( result < limit + digit ) throw new NumberFormatException("'"+buffer.toString()+"' has wrong format");
+            result -= digit;
+
+        }while ( ++i < end );
+        return -result;
+!!!5063579.java!!!	parseIntYear(in buffer : String, in end : int) : int
+        int radix=10;
+        int result = 0;
+        boolean negative = false;
+        int i=0;
+        int limit;
+        int multmin;
+        int digit=0;
+
+        if (buffer.charAt(0) == '-'){
+            negative = true;
+            limit = Integer.MIN_VALUE;
+            i++;
+
+        }
+        else{
+            limit = -Integer.MAX_VALUE;
+        }
+        multmin = limit / radix;
+        while (i < end)
+        {
+            digit = getDigit(buffer.charAt(i++));
+            if (digit < 0) throw new NumberFormatException("'"+buffer.toString()+"' has wrong format");
+            if (result < multmin) throw new NumberFormatException("'"+buffer.toString()+"' has wrong format");
+            result *= radix;
+            if (result < limit + digit) throw new NumberFormatException("'"+buffer.toString()+"' has wrong format");
+            result -= digit;
+        }
+
+        if (negative)
+        {
+            if (i > 1) return result;
+            else throw new NumberFormatException("'"+buffer.toString()+"' has wrong format");
+        }
+        return -result;
+
+!!!5063707.java!!!	normalize(in date : int, in timeZone : int) : void
+
+        // REVISIT: we have common code in addDuration() for durations
+        //          should consider reorganizing it.
+        //
+
+        //add minutes (from time zone)
+        int negate = 1;
+        if (date[utc]=='+') {
+            negate = -1;
+        }
+        if ( DEBUG ) {
+            System.out.println("==>date[m]"+date[m]);
+            System.out.println("==>timeZone[mm]" +timeZone[mm]);
+        }
+        int temp = date[m] + negate*timeZone[mm];
+        int carry = fQuotient (temp, 60);
+        date[m]= mod(temp, 60, carry);
+
+        if ( DEBUG ) {
+            System.out.println("==>carry: " + carry);
+        }
+        //add hours
+        temp = date[h] + negate*timeZone[hh] + carry;
+        carry = fQuotient(temp, 24);
+        date[h]=mod(temp, 24, carry);
+        if ( DEBUG ) {
+            System.out.println("==>date[h]"+date[h]);
+            System.out.println("==>carry: " + carry);
+        }
+
+        date[D]=date[D]+carry;
+
+        while ( true ) {
+            temp=maxDayInMonthFor(date[CY], date[M]);
+            if (date[D]<1) {
+                date[D] = date[D] + maxDayInMonthFor(date[CY], date[M]-1);
+                carry=-1;
+            }
+            else if ( date[D]>temp ) {
+                date[D]=date[D]-temp;
+                carry=1;
+            }
+            else {
+                break;
+            }
+            temp=date[M]+carry;
+            date[M]=modulo(temp, 1, 13);
+            date[CY]=date[CY]+fQuotient(temp, 1, 13);
+        }
+        date[utc]='Z';
+!!!5063835.java!!!	resetDateObj(in data : int) : void
+        for ( int i=0;i<TOTAL_SIZE;i++ ) {
+            data[i]=0;
+        }
+!!!5063963.java!!!	maxDayInMonthFor(in year : int, in month : int) : int
+        //validate days
+        if ( month==4 || month==6 || month==9 || month==11 ) {
+            return 30;
+        }
+        else if ( month==2 ) {
+            if ( isLeapYear(year) ) {
+                return 29;
+            }
+            else {
+                return 28;
+            }
+        }
+        else {
+            return 31;
+        }
+!!!5064091.java!!!	isLeapYear(in year : int) : boolean
+
+        //REVISIT: should we take care about Julian calendar?
+        return((year%4 == 0) && ((year%100 != 0) || (year%400 == 0)));
+!!!5064219.java!!!	mod(in a : int, in b : int, in quotient : int) : int
+        //modulo(a, b) = a - fQuotient(a,b)*b
+        return (a - quotient*b) ;
+!!!5064347.java!!!	fQuotient(in a : int, in b : int) : int
+
+        //fQuotient(a, b) = the greatest integer less than or equal to a/b
+        return (int)Math.floor((float)a/b);
+!!!5064475.java!!!	modulo(in temp : int, in low : int, in high : int) : int
+        //modulo(a - low, high - low) + low
+        int a = temp - low;
+        int b = high - low;
+        return (mod (a, b, fQuotient(a, b)) + low) ;
+!!!5064603.java!!!	fQuotient(in temp : int, in low : int, in high : int) : int
+        //fQuotient(a - low, high - low)
+
+        return fQuotient(temp - low, high - low);
+!!!5064731.java!!!	dateToString(in date : int) : String
+        StringBuffer message = new StringBuffer(25);
+        append(message, date[CY], 4);
+        message.append('-');
+        append(message, date[M], 2);
+        message.append('-');
+        append(message, date[D], 2);
+        message.append('T');
+        append(message, date[h], 2);
+        message.append(':');
+        append(message, date[m], 2);
+        message.append(':');
+        append(message, date[s], 2);
+        message.append('.');
+        message.append(date[ms]);
+        append(message, (char)date[utc], 0);
+        return message.toString();
+!!!5064859.java!!!	append(inout message : StringBuffer, in value : int, in nch : int) : void
+        if (value < 0) {
+            message.append('-');
+            value = -value;
+        }
+        if (nch == 4) {
+            if (value < 10)
+                message.append("000");
+            else if (value < 100)
+                message.append("00");
+            else if (value < 1000)
+                message.append("0");
+            message.append(value);
+        }
+        else if (nch == 2) {
+            if (value < 10)
+                message.append('0');
+            message.append(value);
+        }
+        else {
+            if (value != 0)
+                message.append((char)value);
+        }
+!!!5064987.java!!!	cloneDate(in finalValue : int, in tempDate : int) : void
+        System.arraycopy(finalValue, 0, tempDate, 0, TOTAL_SIZE);

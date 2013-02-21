@@ -1,0 +1,115 @@
+class JApplet
+!!!8903835.java!!!	JApplet()
+        super();
+	// Check the timerQ and restart if necessary.
+	TimerQueue q = TimerQueue.sharedInstance();
+	if(q != null) {
+	    synchronized(q) {
+		if(!q.running)
+		    q.start();
+	    }
+	}
+
+	/* Workaround for bug 4155072.  The shared double buffer image
+	 * may hang on to a reference to this applet; unfortunately 
+	 * Image.getGraphics() will continue to call JApplet.getForeground()
+	 * and getBackground() even after this applet has been destroyed.
+	 * So we ensure that these properties are non-null here.
+	 */
+	setForeground(Color.black);
+	setBackground(Color.white);
+
+        setLocale( JComponent.getDefaultLocale() );
+        setLayout(new BorderLayout());
+        setRootPane(createRootPane());
+        setRootPaneCheckingEnabled(true);
+	
+  	setFocusTraversalPolicyProvider(true);
+        sun.awt.SunToolkit.checkAndSetPolicy(this, true);
+	
+        enableEvents(AWTEvent.KEY_EVENT_MASK);
+!!!8903963.java!!!	createRootPane() : JRootPane
+        JRootPane rp = new JRootPane();
+        // NOTE: this uses setOpaque vs LookAndFeel.installProperty as there
+        // is NO reason for the RootPane not to be opaque. For painting to
+        // work the contentPane must be opaque, therefor the RootPane can
+        // also be opaque.
+        rp.setOpaque(true);
+        return rp;
+!!!8904091.java!!!	update(inout g : Graphics) : void
+        paint(g);
+!!!8904219.java!!!	setJMenuBar(inout menuBar : JMenuBar) : void
+        getRootPane().setMenuBar(menuBar);
+!!!8904347.java!!!	getJMenuBar() : JMenuBar
+        return getRootPane().getMenuBar();
+!!!8904475.java!!!	isRootPaneCheckingEnabled() : boolean
+        return rootPaneCheckingEnabled;
+!!!8904603.java!!!	setRootPaneCheckingEnabled(inout enabled : boolean) : void
+        rootPaneCheckingEnabled = enabled;
+!!!8904731.java!!!	addImpl(inout comp : Component, inout constraints : Object, in index : int) : void
+        if(isRootPaneCheckingEnabled()) {
+            getContentPane().add(comp, constraints, index);
+        }
+        else {
+            super.addImpl(comp, constraints, index);
+        }
+!!!8904859.java!!!	remove(inout comp : Component) : void
+	if (comp == rootPane) {
+	    super.remove(comp);
+	} else {
+	    getContentPane().remove(comp);
+	}
+!!!8904987.java!!!	setLayout(inout manager : LayoutManager) : void
+        if(isRootPaneCheckingEnabled()) {
+            getContentPane().setLayout(manager);
+        }
+        else {
+            super.setLayout(manager);
+        }
+!!!8905115.java!!!	getRootPane() : JRootPane
+ 
+        return rootPane; 
+!!!8905243.java!!!	setRootPane(inout root : JRootPane) : void
+        if(rootPane != null) {
+            remove(rootPane);
+        }
+        rootPane = root;
+        if(rootPane != null) {
+            boolean checkingEnabled = isRootPaneCheckingEnabled();
+            try {
+                setRootPaneCheckingEnabled(false);
+                add(rootPane, BorderLayout.CENTER);
+            }
+            finally {
+                setRootPaneCheckingEnabled(checkingEnabled);
+            }
+        }
+!!!8905371.java!!!	getContentPane() : Container
+ 
+        return getRootPane().getContentPane(); 
+!!!8905499.java!!!	setContentPane(inout contentPane : Container) : void
+        getRootPane().setContentPane(contentPane);
+!!!8905627.java!!!	getLayeredPane() : JLayeredPane
+ 
+        return getRootPane().getLayeredPane(); 
+!!!8905755.java!!!	setLayeredPane(inout layeredPane : JLayeredPane) : void
+        getRootPane().setLayeredPane(layeredPane);
+!!!8905883.java!!!	getGlassPane() : Component
+ 
+        return getRootPane().getGlassPane(); 
+!!!8906011.java!!!	setGlassPane(inout glassPane : Component) : void
+        getRootPane().setGlassPane(glassPane);
+!!!8906139.java!!!	paramString() : String
+	String rootPaneString = (rootPane != null ?
+				 rootPane.toString() : "");
+	String rootPaneCheckingEnabledString = (rootPaneCheckingEnabled ?
+						"true" : "false");
+
+	return super.paramString() +
+	",rootPane=" + rootPaneString +
+	",rootPaneCheckingEnabled=" + rootPaneCheckingEnabledString;
+!!!8906267.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJApplet();
+        }
+        return accessibleContext;

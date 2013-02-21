@@ -1,0 +1,53 @@
+class CipherAdapter
+!!!7622043.java!!!	CipherAdapter(inout cipher : Cipher)
+	    this.cipher = cipher;
+!!!7622171.java!!!	engineInitVerify(inout publicKey : PublicKey) : void
+	    cipher.init(Cipher.DECRYPT_MODE, publicKey);
+	    if (data == null) {
+		data = new ByteArrayOutputStream(128);
+	    } else {
+		data.reset();
+	    }
+!!!7622299.java!!!	engineInitSign(inout privateKey : PrivateKey) : void
+	    cipher.init(Cipher.ENCRYPT_MODE, privateKey);
+	    data = null;
+!!!7622427.java!!!	engineInitSign(inout privateKey : PrivateKey, inout random : SecureRandom) : void
+	    cipher.init(Cipher.ENCRYPT_MODE, privateKey, random);
+	    data = null;
+!!!7622555.java!!!	engineUpdate(in b : byte) : void
+	    engineUpdate(new byte[] {b}, 0, 1);
+!!!7622683.java!!!	engineUpdate(in b : byte, in off : int, in len : int) : void
+	    if (data != null) {
+		data.write(b, off, len);
+		return;
+	    }
+	    byte[] out = cipher.update(b, off, len);
+	    if ((out != null) && (out.length != 0)) {
+		throw new SignatureException
+		    ("Cipher unexpectedly returned data");
+	    }
+!!!7622811.java!!!	engineSign() : byte
+	    try {
+		return cipher.doFinal();
+	    } catch (IllegalBlockSizeException e) {
+		throw new SignatureException("doFinal() failed", e);
+	    } catch (BadPaddingException e) {
+		throw new SignatureException("doFinal() failed", e);
+	    }
+!!!7622939.java!!!	engineVerify(in sigBytes : byte) : boolean
+	    try {
+		byte[] out = cipher.doFinal(sigBytes);
+		byte[] dataBytes = data.toByteArray();
+		data.reset();
+		return Arrays.equals(out, dataBytes);
+	    } catch (BadPaddingException e) {
+		// e.g. wrong public key used
+		// return false rather than throwing exception
+		return false;
+	    } catch (IllegalBlockSizeException e) {
+		throw new SignatureException("doFinal() failed", e);
+	    }
+!!!7623067.java!!!	engineSetParameter(in param : String, inout value : Object) : void
+	    throw new InvalidParameterException("Parameters not supported");
+!!!7623195.java!!!	engineGetParameter(in param : String) : Object
+	    throw new InvalidParameterException("Parameters not supported");

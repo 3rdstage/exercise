@@ -1,0 +1,306 @@
+class MaskFormatter
+!!!9852827.java!!!	MaskFormatter()
+        setAllowsInvalid(false);
+        containsLiteralChars = true;
+        maskChars = EmptyMaskChars;
+        placeholder = ' ';
+!!!9852955.java!!!	MaskFormatter(in mask : String)
+        this();
+        setMask(mask);
+!!!9853083.java!!!	setMask(in mask : String) : void
+        this.mask = mask;
+        updateInternalMask();
+!!!9853211.java!!!	getMask() : String
+        return mask;
+!!!9853339.java!!!	setValidCharacters(in validCharacters : String) : void
+        this.validCharacters = validCharacters;
+!!!9853467.java!!!	getValidCharacters() : String
+        return validCharacters;
+!!!9853595.java!!!	setInvalidCharacters(in invalidCharacters : String) : void
+        this.invalidCharacters = invalidCharacters;
+!!!9853723.java!!!	getInvalidCharacters() : String
+        return invalidCharacters;
+!!!9853851.java!!!	setPlaceholder(in placeholder : String) : void
+        this.placeholderString = placeholder;
+!!!9853979.java!!!	getPlaceholder() : String
+        return placeholderString;
+!!!9854107.java!!!	setPlaceholderCharacter(in placeholder : char) : void
+        this.placeholder = placeholder;
+!!!9854235.java!!!	getPlaceholderCharacter() : char
+        return placeholder;
+!!!9854363.java!!!	setValueContainsLiteralCharacters(inout containsLiteralChars : boolean) : void
+        this.containsLiteralChars = containsLiteralChars;
+!!!9854491.java!!!	getValueContainsLiteralCharacters() : boolean
+        return containsLiteralChars;
+!!!9854619.java!!!	stringToValue(in value : String) : Object
+        return stringToValue(value, true);
+!!!9854747.java!!!	valueToString(inout value : Object) : String
+        String sValue = (value == null) ? "" : value.toString();
+        StringBuffer result = new StringBuffer();
+        String placeholder = getPlaceholder();
+        int[] valueCounter = { 0 };
+
+        append(result, sValue, valueCounter, placeholder, maskChars);
+        return result.toString();
+!!!9854875.java!!!	install(inout ftf : JFormattedTextField) : void
+        super.install(ftf);
+        // valueToString doesn't throw, but stringToValue does, need to
+        // update the editValid state appropriately
+        if (ftf != null) {
+            Object value = ftf.getValue();
+
+            try {
+                stringToValue(valueToString(value));
+            } catch (ParseException pe) {
+                setEditValid(false);
+            }
+        }
+!!!9855003.java!!!	stringToValue(in value : String, inout completeMatch : boolean) : Object
+        int errorOffset = -1;
+
+        if ((errorOffset = getInvalidOffset(value, completeMatch)) == -1) {
+            if (!getValueContainsLiteralCharacters()) {
+                value = stripLiteralChars(value);
+            }
+            return super.stringToValue(value);
+        }
+        throw new ParseException("stringToValue passed invalid value",
+                                 errorOffset);
+!!!9855131.java!!!	getInvalidOffset(in string : String, inout completeMatch : boolean) : int
+        int iLength = string.length();
+
+        if (iLength != getMaxLength()) {
+            // trivially false
+            return iLength;
+        }
+        for (int counter = 0, max = string.length(); counter < max; counter++){
+            char aChar = string.charAt(counter);
+
+            if (!isValidCharacter(counter, aChar) &&
+                (completeMatch || !isPlaceholder(counter, aChar))) {
+                return counter;
+            }
+        }
+        return -1;
+!!!9855259.java!!!	append(inout result : StringBuffer, in value : String, in index : int, in placeholder : String, inout mask : MaskCharacter) : void
+        for (int counter = 0, maxCounter = mask.length;
+             counter < maxCounter; counter++) {
+            mask[counter].append(result, value, index, placeholder);
+        }
+!!!9855387.java!!!	updateInternalMask() : void
+        String mask = getMask();
+        ArrayList fixed = new ArrayList();
+        ArrayList temp = fixed;
+
+        if (mask != null) {
+            for (int counter = 0, maxCounter = mask.length();
+                 counter < maxCounter; counter++) {
+                char maskChar = mask.charAt(counter);
+
+                switch (maskChar) {
+                case DIGIT_KEY:
+                    temp.add(new DigitMaskCharacter());
+                    break;
+                case LITERAL_KEY:
+                    if (++counter < maxCounter) {
+                        maskChar = mask.charAt(counter);
+                        temp.add(new LiteralCharacter(maskChar));
+                    }
+                    // else: Could actually throw if else
+                    break;
+                case UPPERCASE_KEY:
+                    temp.add(new UpperCaseCharacter());
+                    break;
+                case LOWERCASE_KEY:
+                    temp.add(new LowerCaseCharacter());
+                    break;
+                case ALPHA_NUMERIC_KEY:
+                    temp.add(new AlphaNumericCharacter());
+                    break;
+                case CHARACTER_KEY:
+                    temp.add(new CharCharacter());
+                    break;
+                case ANYTHING_KEY:
+                    temp.add(new MaskCharacter());
+                    break;
+                case HEX_KEY:
+                    temp.add(new HexCharacter());
+                    break;
+                default:
+                    temp.add(new LiteralCharacter(maskChar));
+                    break;
+                }
+            }
+        }
+        if (fixed.size() == 0) {
+            maskChars = EmptyMaskChars;
+        }
+        else {
+            maskChars = new MaskCharacter[fixed.size()];
+            fixed.toArray(maskChars);
+        }
+!!!9855515.java!!!	getMaskCharacter(in index : int) : MaskCharacter
+        if (index >= maskChars.length) {
+            return null;
+        }
+        return maskChars[index];
+!!!9855643.java!!!	isPlaceholder(in index : int, in aChar : char) : boolean
+        return (getPlaceholderCharacter() == aChar);
+!!!9855771.java!!!	isValidCharacter(in index : int, in aChar : char) : boolean
+        return getMaskCharacter(index).isValidCharacter(aChar);
+!!!9855899.java!!!	isLiteral(in index : int) : boolean
+        return getMaskCharacter(index).isLiteral();
+!!!9856027.java!!!	getMaxLength() : int
+        return maskChars.length;
+!!!9856155.java!!!	getLiteral(in index : int) : char
+        return getMaskCharacter(index).getChar((char)0);
+!!!9856283.java!!!	getCharacter(in index : int, in aChar : char) : char
+        return getMaskCharacter(index).getChar(aChar);
+!!!9856411.java!!!	stripLiteralChars(in string : String) : String
+        StringBuffer sb = null;
+        int last = 0;
+
+        for (int counter = 0, max = string.length(); counter < max; counter++){
+            if (isLiteral(counter)) {
+                if (sb == null) {
+                    sb = new StringBuffer();
+                    if (counter > 0) {
+                        sb.append(string.substring(0, counter));
+                    }
+                    last = counter + 1;
+                }
+                else if (last != counter) {
+                    sb.append(string.substring(last, counter));
+                }
+                last = counter + 1;
+            }
+        }
+        if (sb == null) {
+            // Assume the mask isn't all literals.
+            return string;
+        }
+        else if (last != string.length()) {
+            if (sb == null) {
+                return string.substring(last);
+            }
+            sb.append(string.substring(last));
+        }
+        return sb.toString();
+!!!9856539.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+        try {
+            updateInternalMask();
+        } catch (ParseException pe) {
+            // assert();
+        }
+!!!9856667.java!!!	isNavigatable(in offset : int) : boolean
+        if (!getAllowsInvalid()) {
+            return (offset < getMaxLength() && !isLiteral(offset));
+        }
+        return true;
+!!!9856795.java!!!	isValidEdit(inout rh : ReplaceHolder) : boolean
+        if (!getAllowsInvalid()) {
+            String newString = getReplaceString(rh.offset, rh.length, rh.text);
+
+            try {
+                rh.value = stringToValue(newString, false);
+
+                return true;
+            } catch (ParseException pe) {
+                return false;
+            }
+        }
+        return true;
+!!!9856923.java!!!	canReplace(inout rh : ReplaceHolder) : boolean
+        // This method is rather long, but much of the burden is in
+        // maintaining a String and swapping to a StringBuffer only if
+        // absolutely necessary.
+        if (!getAllowsInvalid()) {
+            StringBuffer replace = null;
+            String text = rh.text;
+            int tl = (text != null) ? text.length() : 0;
+
+            if (tl == 0 && rh.length == 1 && getFormattedTextField().
+                              getSelectionStart() != rh.offset) {
+                // Backspace, adjust to actually delete next non-literal.
+                while (rh.offset > 0 && isLiteral(rh.offset)) {
+                    rh.offset--;
+                }
+            }
+            int max = Math.min(getMaxLength() - rh.offset,
+                               Math.max(tl, rh.length));
+            for (int counter = 0, textIndex = 0; counter < max; counter++) {
+                if (textIndex < tl && isValidCharacter(rh.offset + counter,
+                                                   text.charAt(textIndex))) {
+                    char aChar = text.charAt(textIndex);
+                    if (aChar != getCharacter(rh.offset + counter, aChar)) {
+                        if (replace == null) {
+                            replace = new StringBuffer();
+                            if (textIndex > 0) {
+                                replace.append(text.substring(0, textIndex));
+                            }
+                        }
+                    }
+                    if (replace != null) {
+                        replace.append(getCharacter(rh.offset + counter,
+                                                    aChar));
+                    }
+                    textIndex++;
+                }
+                else if (isLiteral(rh.offset + counter)) {
+                    if (replace != null) {
+                        replace.append(getLiteral(rh.offset + counter));
+                        if (textIndex < tl) {
+                            max = Math.min(max + 1, getMaxLength() -
+                                           rh.offset);
+                        }
+                    }
+                    else if (textIndex > 0) {
+                        replace = new StringBuffer(max);
+                        replace.append(text.substring(0, textIndex));
+                        replace.append(getLiteral(rh.offset + counter));
+                        if (textIndex < tl) {
+                            // Evaluate the character in text again.
+                            max = Math.min(max + 1, getMaxLength() -
+                                           rh.offset);
+                        }
+                        else if (rh.cursorPosition == -1) {
+                            rh.cursorPosition = rh.offset + counter;
+                        }
+                    }
+                    else {
+                        rh.offset++;
+                        rh.length--;
+                        counter--;
+			max--;
+                    }
+                }
+                else if (textIndex >= tl) {
+                    // placeholder
+                    if (replace == null) {
+                        replace = new StringBuffer();
+                        if (text != null) {
+                            replace.append(text);
+                        }
+                    }
+                    replace.append(getPlaceholderCharacter());
+                    if (tl > 0 && rh.cursorPosition == -1) {
+                        rh.cursorPosition = rh.offset + counter;
+                    }
+                }
+                else {
+                    // Bogus character.
+                    return false;
+                }
+            }
+            if (replace != null) {
+                rh.text = replace.toString();
+            }
+            else if (text != null && rh.offset + tl > getMaxLength()) {
+                rh.text = text.substring(0, getMaxLength() - rh.offset);
+            }
+            if (getOverwriteMode() && rh.text != null) {
+                rh.length = rh.text.length();
+            }
+        }
+        return super.canReplace(rh);

@@ -1,0 +1,81 @@
+class KerberosPrincipal
+!!!8665371.java!!!	KerberosPrincipal(in name : String)
+
+	PrincipalName krb5Principal = null;
+
+	try {
+	    // Appends the default realm if it is missing
+	    krb5Principal = new PrincipalName(name, KRB_NT_PRINCIPAL);
+	} catch (KrbException e) {
+	    throw new IllegalArgumentException(e.getMessage());
+	}
+	nameType = KRB_NT_PRINCIPAL;  // default name type
+	fullName = krb5Principal.toString();
+	realm = krb5Principal.getRealmString();
+!!!8665499.java!!!	KerberosPrincipal(in name : String, in nameType : int)
+
+	PrincipalName krb5Principal = null;
+
+	try {
+	    // Appends the default realm if it is missing
+	    krb5Principal  = new PrincipalName(name,nameType);
+	} catch (KrbException e) {
+	    throw new IllegalArgumentException(e.getMessage());
+	}
+	 
+	this.nameType = nameType;
+	fullName = krb5Principal.toString();
+	realm = krb5Principal.getRealmString();
+!!!8665627.java!!!	getRealm() : String
+	return realm;
+!!!8665755.java!!!	hashCode() : int
+	return getName().hashCode();
+!!!8665883.java!!!	equals(inout other : Object) : boolean
+
+	if (other == this)
+	    return true;
+
+	if (! (other instanceof KerberosPrincipal)) {
+	    return false;
+	} else {
+	    String myFullName = getName();
+	    String otherFullName = ((KerberosPrincipal) other).getName();
+	    if (nameType == ((KerberosPrincipal)other).nameType && 
+		myFullName.equals(otherFullName)) {
+		 return true;
+	    }
+	} 
+	return false;
+!!!8666011.java!!!	writeObject(inout oos : ObjectOutputStream) : void
+
+	PrincipalName krb5Principal = null;
+	try {
+	    krb5Principal  = new PrincipalName(fullName,nameType);
+	    oos.writeObject(krb5Principal.asn1Encode());
+	    oos.writeObject(krb5Principal.getRealm().asn1Encode());
+	} catch (Exception e) {
+	    IOException ioe = new IOException(e.getMessage());
+	    ioe.initCause(e);
+	    throw ioe; 
+	}
+!!!8666139.java!!!	readObject(inout ois : ObjectInputStream) : void
+	byte[] asn1EncPrincipal = (byte [])ois.readObject();
+	byte[] encRealm = (byte [])ois.readObject();
+	try {
+	   PrincipalName krb5Principal = new PrincipalName(new 
+						DerValue(asn1EncPrincipal));
+	   realm = (new Realm(new DerValue(encRealm))).toString();
+	   fullName = krb5Principal.toString() + NAME_REALM_SEPARATOR +
+			 realm.toString(); 
+	   nameType = krb5Principal.getNameType();
+	} catch (Exception e) {
+	    IOException ioe = new IOException(e.getMessage());
+	    ioe.initCause(e);
+	    throw ioe; 
+	}
+!!!8666267.java!!!	getName() : String
+	return fullName;
+!!!8666395.java!!!	getNameType() : int
+	return nameType;
+!!!8666523.java!!!	toString() : String
+	return getName();

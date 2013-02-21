@@ -1,0 +1,144 @@
+class ActivationGroup
+!!!7527835.java!!!	ActivationGroup(inout groupID : ActivationGroupID)
+	// call super constructor to export the object
+	super();
+	this.groupID = groupID;
+!!!7527963.java!!!	inactiveObject(inout id : ActivationID) : boolean
+	getMonitor().inactiveObject(id);
+	return true;
+!!!7528219.java!!!	createGroup(inout id : ActivationGroupID, in desc : ActivationGroupDesc, in incarnation : long) : ActivationGroup
+	SecurityManager security = System.getSecurityManager();
+	if (security != null)
+	    security.checkSetFactory();
+	    
+	if (currGroup != null)
+	    throw new ActivationException("group already exists");
+	
+	if (canCreate == false)
+	    throw new ActivationException("group deactivated and " +
+					  "cannot be recreated");
+
+	try {
+	    // load group's class
+	    String groupClassName = desc.getClassName();
+
+	    /*
+	     * Fix for 4252236: resolution of the default
+	     * activation group implementation name should be
+	     * delayed until now.
+	     */
+	    if (groupClassName == null) {
+		groupClassName = sun.rmi.server.ActivationGroupImpl.class.getName();
+	    }
+		
+	    final String className = groupClassName;
+		
+	    /*
+	     * Fix for 4170955: Because the default group
+	     * implementation is a sun.* class, the group class
+	     * needs to be loaded in a privileged block of code.  
+	     */
+	    Class cl;
+	    try {
+		cl = (Class) java.security.AccessController.
+		    doPrivileged(new PrivilegedExceptionAction() {
+			public Object run() throws ClassNotFoundException, 
+			    MalformedURLException 
+			    {
+				return RMIClassLoader.
+				    loadClass(desc.getLocation(), className);
+			    }
+		    });
+	    } catch (PrivilegedActionException pae) {
+		throw new ActivationException("Could not load default group " + 
+					      "implementation class", 
+					      pae.getException());
+	    }
+		
+	    // create group
+	    Constructor constructor = cl.getConstructor(groupConstrParams);
+	    Object[] params = new Object[] { id, desc.getData() };
+
+	    Object obj = constructor.newInstance(params);
+	    if (obj instanceof ActivationGroup) {
+		ActivationGroup newGroup = (ActivationGroup) obj;
+		currSystem = id.getSystem();
+		newGroup.incarnation = incarnation;
+		newGroup.monitor =
+		    currSystem.activeGroup(id, newGroup, incarnation);
+		currGroup = newGroup;
+		currGroupID = id;
+		canCreate = false;
+	    } else {
+		throw new ActivationException("group not correct class: " +
+					      obj.getClass().getName());
+	    }
+	} catch (java.lang.reflect.InvocationTargetException e) {
+		e.getTargetException().printStackTrace();
+		throw new ActivationException("exception in group constructor",
+					      e.getTargetException());
+		
+	} catch (ActivationException e) {
+	    throw e;
+	    
+	} catch (Exception e) {
+	    throw new ActivationException("exception creating group", e);
+	}
+	
+	return currGroup;
+!!!7528347.java!!!	currentGroupID() : ActivationGroupID
+	return currGroupID;
+!!!7528475.java!!!	internalCurrentGroupID() : ActivationGroupID
+	if (currGroupID == null)
+	    throw new ActivationException("nonexistent group");
+
+	return currGroupID;
+!!!7528603.java!!!	setSystem(inout system : ActivationSystem) : void
+	SecurityManager security = System.getSecurityManager();
+	if (security != null)
+	    security.checkSetFactory();
+	
+	if (currSystem != null)
+	    throw new ActivationException("activation system already set");
+
+	currSystem = system;
+!!!7528731.java!!!	getSystem() : ActivationSystem
+	if (currSystem == null) {
+	    try {
+		int port;
+		port = ((Integer)java.security.AccessController.doPrivileged(
+                    new GetIntegerAction("java.rmi.activation.port",
+					 ActivationSystem.SYSTEM_PORT))).intValue();
+		currSystem = (ActivationSystem)
+		    Naming.lookup("//:" + port +
+				  "/java.rmi.activation.ActivationSystem");
+	    } catch (Exception e) {
+		throw new ActivationException(
+		    "unable to obtain ActivationSystem", e);
+	    }
+	}
+	return currSystem;
+!!!7528859.java!!!	activeObject(inout id : ActivationID, inout mobj : MarshalledObject) : void
+	getMonitor().activeObject(id, mobj);
+!!!7528987.java!!!	inactiveGroup() : void
+	try {
+	    getMonitor().inactiveGroup(groupID, incarnation);
+	} finally {
+	    destroyGroup();
+	}
+!!!7529115.java!!!	getMonitor() : ActivationMonitor
+	synchronized (ActivationGroup.class) {
+	    if (monitor != null) {
+		return monitor;
+	    }
+	}
+	throw new RemoteException("monitor not received");
+!!!7529243.java!!!	destroyGroup() : void
+	currGroup = null;
+	currGroupID = null;
+	// NOTE: don't set currSystem to null since it may be needed
+!!!7529371.java!!!	currentGroup() : ActivationGroup
+	if (currGroup == null) {
+	    throw new ActivationException("group is not active");
+	}
+	return currGroup;

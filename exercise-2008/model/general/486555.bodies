@@ -1,0 +1,115 @@
+class JWindow
+!!!3002779.java!!!	JWindow()
+        this((Frame)null);
+!!!3002907.java!!!	JWindow(inout gc : GraphicsConfiguration)
+        this(null, gc);
+        super.setFocusableWindowState(false);
+!!!3003035.java!!!	JWindow(inout owner : Frame)
+        super(owner == null? SwingUtilities.getSharedOwnerFrame() : owner);
+	if (owner == null) {
+	    WindowListener ownerShutdownListener =
+		(WindowListener)SwingUtilities.getSharedOwnerFrameShutdownListener();
+ 	    addWindowListener(ownerShutdownListener);
+	}
+        windowInit();
+!!!3003163.java!!!	JWindow(inout owner : Window)
+        super(owner == null ? (Window)SwingUtilities.getSharedOwnerFrame() :
+              owner);
+	if (owner == null) {
+	    WindowListener ownerShutdownListener =
+		(WindowListener)SwingUtilities.getSharedOwnerFrameShutdownListener();
+ 	    addWindowListener(ownerShutdownListener);
+	}
+        windowInit();
+!!!3003291.java!!!	JWindow(inout owner : Window, inout gc : GraphicsConfiguration)
+        super(owner == null ? (Window)SwingUtilities.getSharedOwnerFrame() :
+              owner, gc);
+	if (owner == null) {
+	    WindowListener ownerShutdownListener =
+		(WindowListener)SwingUtilities.getSharedOwnerFrameShutdownListener();
+ 	    addWindowListener(ownerShutdownListener);
+	}
+        windowInit();
+!!!3003419.java!!!	windowInit() : void
+        setLocale( JComponent.getDefaultLocale() );
+        setRootPane(createRootPane());
+        setRootPaneCheckingEnabled(true);
+        sun.awt.SunToolkit.checkAndSetPolicy(this, true);
+!!!3003547.java!!!	createRootPane() : JRootPane
+        JRootPane rp = new JRootPane();
+        // NOTE: this uses setOpaque vs LookAndFeel.installProperty as there
+        // is NO reason for the RootPane not to be opaque. For painting to
+        // work the contentPane must be opaque, therefor the RootPane can
+        // also be opaque.
+        rp.setOpaque(true);
+        return rp;
+!!!3003675.java!!!	isRootPaneCheckingEnabled() : boolean
+        return rootPaneCheckingEnabled;
+!!!3003803.java!!!	update(inout g : Graphics) : void
+        paint(g);
+!!!3003931.java!!!	setRootPaneCheckingEnabled(inout enabled : boolean) : void
+        rootPaneCheckingEnabled = enabled;
+!!!3004059.java!!!	addImpl(inout comp : Component, inout constraints : Object, in index : int) : void
+        if(isRootPaneCheckingEnabled()) {
+            getContentPane().add(comp, constraints, index);
+        }
+        else {
+            super.addImpl(comp, constraints, index);
+        }
+!!!3004187.java!!!	remove(inout comp : Component) : void
+	if (comp == rootPane) {
+	    super.remove(comp);
+	} else {
+	    getContentPane().remove(comp);
+	}
+!!!3004315.java!!!	setLayout(inout manager : LayoutManager) : void
+        if(isRootPaneCheckingEnabled()) {
+            getContentPane().setLayout(manager);
+        }
+        else {
+            super.setLayout(manager);
+        }
+!!!3004443.java!!!	getRootPane() : JRootPane
+ 
+        return rootPane; 
+!!!3004571.java!!!	setRootPane(inout root : JRootPane) : void
+        if(rootPane != null) {
+            remove(rootPane);
+        }
+        rootPane = root;
+        if(rootPane != null) {
+            boolean checkingEnabled = isRootPaneCheckingEnabled();
+            try {
+                setRootPaneCheckingEnabled(false);
+                add(rootPane, BorderLayout.CENTER);
+            }
+            finally {
+                setRootPaneCheckingEnabled(checkingEnabled);
+            }
+        }
+!!!3004699.java!!!	getContentPane() : Container
+ 
+        return getRootPane().getContentPane(); 
+!!!3004827.java!!!	setContentPane(inout contentPane : Container) : void
+        getRootPane().setContentPane(contentPane);
+!!!3004955.java!!!	getLayeredPane() : JLayeredPane
+ 
+        return getRootPane().getLayeredPane(); 
+!!!3005083.java!!!	setLayeredPane(inout layeredPane : JLayeredPane) : void
+        getRootPane().setLayeredPane(layeredPane);
+!!!3005211.java!!!	getGlassPane() : Component
+ 
+        return getRootPane().getGlassPane(); 
+!!!3005339.java!!!	setGlassPane(inout glassPane : Component) : void
+        getRootPane().setGlassPane(glassPane);
+!!!3005467.java!!!	paramString() : String
+        String rootPaneCheckingEnabledString = (rootPaneCheckingEnabled ?
+						"true" : "false");
+
+        return super.paramString() +
+	",rootPaneCheckingEnabled=" + rootPaneCheckingEnabledString;
+!!!3005595.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJWindow();
+        }
+        return accessibleContext;

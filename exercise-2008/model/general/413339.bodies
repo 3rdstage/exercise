@@ -1,0 +1,39 @@
+class ButtonActionPropertyChangeListener
+!!!2436251.java!!!	ButtonActionPropertyChangeListener(inout b : AbstractButton, inout a : Action)
+	    super(b, a);
+!!!2436379.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+	    
+	    String propertyName = e.getPropertyName();
+	    AbstractButton button = (AbstractButton)getTarget();
+	    if (button == null) {   //WeakRef GC'ed in 1.2
+		Action action = (Action)e.getSource();
+		action.removePropertyChangeListener(this);
+		} else {
+		    if (e.getPropertyName().equals(Action.NAME)) {
+			Boolean hide = (Boolean)button.getClientProperty("hideActionText");
+			if (hide == null || hide == Boolean.FALSE) {
+			    String text = (String) e.getNewValue();
+			    button.setText(text);
+			    button.repaint();
+			}
+		    } else if (e.getPropertyName().equals(Action.SHORT_DESCRIPTION)) {
+			String text = (String) e.getNewValue();
+			button.setToolTipText(text);
+		    } else if (propertyName.equals("enabled")) {
+			Boolean enabledState = (Boolean) e.getNewValue();
+			button.setEnabled(enabledState.booleanValue());
+			button.repaint();
+		    } else if (e.getPropertyName().equals(Action.SMALL_ICON)) {
+			Icon icon = (Icon) e.getNewValue();
+			button.setIcon(icon);
+			button.invalidate();
+			button.repaint();
+		    } else if (e.getPropertyName().equals(Action.MNEMONIC_KEY)) {
+			Integer mn = (Integer) e.getNewValue();
+			button.setMnemonic(mn.intValue());
+			button.invalidate();
+			button.repaint();
+		    } else if (e.getPropertyName().equals(Action.ACTION_COMMAND_KEY)) {
+                        button.setActionCommand((String)e.getNewValue());
+                    }
+		}

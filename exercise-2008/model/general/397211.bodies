@@ -1,0 +1,89 @@
+class PixmapStyle
+!!!2332571.java!!!	PixmapStyle(inout style : DefaultSynthStyle)
+        super(style);
+        if (style instanceof PixmapStyle) {
+            this.info = ((PixmapStyle)style).info;
+        }
+!!!2332699.java!!!	PixmapStyle(inout states : StateInfo, inout classSpecificValues : CircularIdentityList, inout font : Font, in xThickness : int, in yThickness : int, inout icons : GTKStockIconInfo, inout info : Info)
+        super(states, classSpecificValues, font, xThickness, yThickness, icons);
+        this.info = info;
+!!!2332827.java!!!	addTo(inout s : DefaultSynthStyle) : DefaultSynthStyle
+        if (!(s instanceof PixmapStyle)) {
+            s = new PixmapStyle(s);
+        }
+        PixmapStyle style = (PixmapStyle)super.addTo(s);
+        if (info != null) {
+            if (style.info == null) {
+                style.info = info;
+            }
+            else {
+                // Place the more specific first.
+                Info[] merged = new Info[style.info.length + info.length];
+                System.arraycopy(info, 0, merged, 0, info.length);
+                System.arraycopy(style.info, 0, merged, info.length,
+                                 style.info.length);
+                style.info = merged;
+            }
+        }
+        return style;
+!!!2332955.java!!!	clone() : Object
+        PixmapStyle style = (PixmapStyle)super.clone();
+
+        // Info is immutable, no need to clone it.
+        style.info = this.info;
+        return style;
+!!!2333083.java!!!	getEngine(inout context : SynthContext) : GTKEngine
+        return PIXMAP_ENGINE;
+!!!2333211.java!!!	getInfo(in function : String, in detail : String, in componentState : int, in shadow : int, in orientation : int, in gapSide : int, in arrowDirection : int) : Info
+        if (info != null) {
+            for (int counter = 0, max = info.length; counter < max;counter++) {
+                if (info[counter].getFunction() == function && info[counter].
+                              getMatchCount(detail, componentState, shadow,
+                              orientation, gapSide, arrowDirection) != -1) {
+                    return info[counter];
+                }
+            }
+        }
+        return null;
+!!!2333339.java!!!	getMaxMatchCount(in componentState : int, in shadow : int, in orientation : int, in gapSide : int, in arrowDirection : int, in detail : String) : int
+        int count = 0;
+
+        if (detail != null) {
+            count++;
+        }
+        if (componentState != UNDEFINED) {
+            count++;
+        }
+        if (shadow != UNDEFINED) {
+            count++;
+        }
+        if (orientation != UNDEFINED) {
+            count++;
+        }
+        if (gapSide != UNDEFINED) {
+            count++;
+        }
+        if (arrowDirection != UNDEFINED) {
+            count++;
+        }
+        return count;
+!!!2337307.java!!!	toString() : String
+        if (info == null) {
+            return super.toString();
+        } else {
+            StringBuffer buf = new StringBuffer(super.toString());
+            
+            if (buf.length() > 0) {
+                buf.append('\n');
+            }
+
+            buf.append("*** Pixmap Engine Info ***\n");
+            for (int i = 0; i < info.length; i++) {
+                buf.append(info[i].toString()).append('\n');
+            }
+
+            // remove last newline
+            buf.deleteCharAt(buf.length() - 1);
+            
+            return buf.toString();
+        }

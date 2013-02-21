@@ -1,0 +1,79 @@
+class OptInfo
+!!!6489243.java!!!	OptInfo(inout frc : FontRenderContext, in chars : char, inout font : Font, inout metrics : CoreMetrics, inout attrs : Map)
+            this.frc = frc;
+            this.chars = chars;
+            this.font = font;
+            this.metrics = metrics;
+            this.attrs = attrs;
+
+	    if (attrs != null) {
+		this.attrs = new HashMap(attrs); // sigh, need to clone since might change...
+	    }
+
+            this.advance = MAGIC_ADVANCE;
+!!!6489371.java!!!	createTextLine() : TextLine
+            return TextLine.fastCreateTextLine(frc, chars, font, metrics, attrs);
+!!!6489499.java!!!	getAdvance() : float
+            if (advance == MAGIC_ADVANCE) {
+                AdvanceCache adv = AdvanceCache.get(font, frc);
+                advance = adv.getAdvance(chars, 0, chars.length); // we pretested the chars array so no exception here
+            }
+            return advance;
+!!!6489627.java!!!	getCoreMetrics() : CoreMetrics
+            return metrics;
+!!!6489755.java!!!	getLogicalBounds() : Rectangle2D
+            return new Rectangle2D.Float(0, -metrics.ascent, getAdvance(), metrics.height);
+!!!6489883.java!!!	handleDraw(inout g2d : Graphics2D, in x : float, in y : float) : void
+            if (str == null) {
+                str = new String(chars, 0, chars.length);
+            }
+            g2d.drawString(str, x , y);
+!!!6490011.java!!!	handleGetCharVisualBounds(in index : int) : Rectangle2D
+            // not used
+            throw new InternalError();
+!!!6490139.java!!!	handleGetVisualBounds() : Rectangle2D
+	    AdvanceCache adv = AdvanceCache.get(font, frc);
+	    return adv.getVisualBounds(chars, 0, chars.length);
+!!!6490267.java!!!	handleGetOutline(in x : float, in y : float) : Shape
+            // not used
+            throw new InternalError();
+!!!6490395.java!!!	draw(inout g2d : Graphics2D, in x : float, in y : float) : boolean
+            // If the frc differs from the graphics frc, we punt to TextLayout because the
+            // metrics might be different...
+            if (g2d.getFontRenderContext().equals(frc)) {
+                Font oldFont = g2d.getFont();
+                g2d.setFont(font);
+                    
+                getDecoration().drawTextAndDecorations(this, g2d, x, y);
+
+                g2d.setFont(oldFont);
+
+                return true;
+            }
+            return false;
+!!!6490523.java!!!	getVisualBounds() : Rectangle2D
+	    if (vb == null) {
+		vb = getDecoration().getVisualBounds(this);
+	    }
+	    return (Rectangle2D)vb.clone();
+!!!6490651.java!!!	getDecoration() : Decoration
+	    if (decoration == null) {
+		if (attrs == null) {
+		    decoration = Decoration.getDecoration(null);
+		} else {
+		    decoration = Decoration.getDecoration(StyledParagraph.addInputMethodAttrs(attrs));
+		}
+	    }
+	    return decoration;
+!!!6490779.java!!!	create(inout frc : FontRenderContext, in chars : char, inout font : Font, inout metrics : CoreMetrics, inout attrs : Map) : OptInfo
+            // Preflight text to make sure advance cache supports it, otherwise it would throw an exception.
+            // We also need to preflight to make sure we don't require layout.  If we limit optimizations to
+            // latin-1 we handle both cases.  We could add an additional check for Japanese since currently
+            // it doesn't require layout and the advance cache would be simple, but right now we don't.
+
+            if (!font.isTransformed() && AdvanceCache.supportsText(chars)) {
+		if (attrs == null || attrs.get(TextAttribute.CHAR_REPLACEMENT) == null) {
+		    return new OptInfo(frc, chars, font, metrics, attrs);
+		}
+            }
+            return null;

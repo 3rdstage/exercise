@@ -1,0 +1,74 @@
+class Oid
+!!!10118427.java!!!	Oid(in strOid : String)
+
+        try {
+	    oid = new ObjectIdentifier(strOid);
+	    derEncoding = null;
+        } catch (Exception e) {
+            throw new GSSException(GSSException.FAILURE, 
+                          "Improperly formatted Object Identifier String - "
+                          + strOid);  
+	}
+!!!10118555.java!!!	Oid(inout derOid : InputStream)
+	try {
+	    DerValue derVal = new DerValue(derOid);
+	    derEncoding = derVal.toByteArray();
+	    oid = derVal.getOID();
+	} catch (IOException e) {
+            throw new GSSException(GSSException.FAILURE, 
+                          "Improperly formatted ASN.1 DER encoding for Oid");
+	}
+!!!10118683.java!!!	Oid(in data : byte)
+	try {
+	    DerValue derVal = new DerValue(data);
+	    derEncoding = derVal.toByteArray();
+	    oid = derVal.getOID();
+	} catch (IOException e) {
+            throw new GSSException(GSSException.FAILURE, 
+                          "Improperly formatted ASN.1 DER encoding for Oid");
+	}
+!!!10118811.java!!!	getInstance(in strOid : String) : Oid
+        Oid retVal = null;
+        try {
+            retVal =  new Oid(strOid); 
+        } catch (GSSException e) {
+            // squelch it!
+        }
+        return retVal;
+!!!10118939.java!!!	toString() : String
+	return oid.toString();
+!!!10119067.java!!!	equals(inout other : Object) : boolean
+
+        //check if both reference the same object
+        if (this == other)
+            return (true);
+
+	if (other instanceof Oid)
+	    return this.oid.equals(((Oid) other).oid);
+	else if (other instanceof ObjectIdentifier)
+	    return this.oid.equals(other);
+	else
+	    return false;
+!!!10119195.java!!!	getDER() : byte
+    
+        if (derEncoding == null) {
+	    DerOutputStream dout = new DerOutputStream();
+	    try {
+		dout.putOID(oid);
+	    } catch (IOException e) {
+		throw new GSSException(GSSException.FAILURE, e.getMessage());
+	    }
+	    derEncoding = dout.toByteArray();
+	}
+
+        return derEncoding;
+!!!10119323.java!!!	containedIn(inout oids : Oid) : boolean
+    
+        for (int i = 0; i < oids.length; i++) {
+            if (oids[i].equals(this))
+                return (true);
+        }
+    
+        return (false);
+!!!10119451.java!!!	hashCode() : int
+	return oid.hashCode();

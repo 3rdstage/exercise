@@ -1,0 +1,102 @@
+class DefaultDocumentEvent
+!!!2570139.java!!!	DefaultDocumentEvent(in offs : int, in len : int, inout type : EventType)
+	    super();
+	    offset = offs;
+	    length = len;
+	    this.type = type;
+!!!2570267.java!!!	toString() : String
+	    return edits.toString();
+!!!2570395.java!!!	addEdit(inout anEdit : UndoableEdit) : boolean
+	    // if the number of changes gets too great, start using
+	    // a hashtable for to locate the change for a given element.
+	    if ((changeLookup == null) && (edits.size() > 10)) {
+		changeLookup = new Hashtable();
+		int n = edits.size();
+		for (int i = 0; i < n; i++) {
+		    Object o = edits.elementAt(i);
+		    if (o instanceof DocumentEvent.ElementChange) {
+			DocumentEvent.ElementChange ec = (DocumentEvent.ElementChange) o;
+			changeLookup.put(ec.getElement(), ec);
+		    }
+		}
+	    }
+
+	    // if we have a hashtable... add the entry if it's 
+	    // an ElementChange.
+	    if ((changeLookup != null) && (anEdit instanceof DocumentEvent.ElementChange)) {
+		DocumentEvent.ElementChange ec = (DocumentEvent.ElementChange) anEdit;
+		changeLookup.put(ec.getElement(), ec);
+	    }
+	    return super.addEdit(anEdit);
+!!!2570523.java!!!	redo() : void
+	    writeLock();
+	    try {
+		// change the state
+		super.redo();
+		// fire a DocumentEvent to notify the view(s)
+                UndoRedoDocumentEvent ev = new UndoRedoDocumentEvent(this, false);
+		if (type == DocumentEvent.EventType.INSERT) {
+		    fireInsertUpdate(ev);
+		} else if (type == DocumentEvent.EventType.REMOVE) {
+		    fireRemoveUpdate(ev);
+		} else {
+		    fireChangedUpdate(ev);
+		}
+	    } finally {
+		writeUnlock();
+	    }
+!!!2570651.java!!!	undo() : void
+	    writeLock();
+	    try {
+		// change the state
+		super.undo();
+		// fire a DocumentEvent to notify the view(s)
+                UndoRedoDocumentEvent ev = new UndoRedoDocumentEvent(this, true);
+		if (type == DocumentEvent.EventType.REMOVE) {
+		    fireInsertUpdate(ev);
+		} else if (type == DocumentEvent.EventType.INSERT) {
+		    fireRemoveUpdate(ev);
+		} else {
+		    fireChangedUpdate(ev);
+		}
+	    } finally {
+		writeUnlock();
+	    }
+!!!2570779.java!!!	isSignificant() : boolean
+	    return true;
+!!!2570907.java!!!	getPresentationName() : String
+	    DocumentEvent.EventType type = getType();
+	    if(type == DocumentEvent.EventType.INSERT)
+		return UIManager.getString("AbstractDocument.additionText");
+	    if(type == DocumentEvent.EventType.REMOVE)
+		return UIManager.getString("AbstractDocument.deletionText");
+	    return UIManager.getString("AbstractDocument.styleChangeText");
+!!!2571035.java!!!	getUndoPresentationName() : String
+	    return UIManager.getString("AbstractDocument.undoText") + " " +
+                getPresentationName();
+!!!2571163.java!!!	getRedoPresentationName() : String
+	    return UIManager.getString("AbstractDocument.redoText") + " " +
+                getPresentationName();
+!!!2571291.java!!!	getType() : EventType
+	    return type;
+!!!2571419.java!!!	getOffset() : int
+	    return offset;
+!!!2571547.java!!!	getLength() : int
+	    return length;
+!!!2571675.java!!!	getDocument() : Document
+	    return AbstractDocument.this;
+!!!2571803.java!!!	getChange(inout elem : Element) : ElementChange
+	    if (changeLookup != null) {
+		return (DocumentEvent.ElementChange) changeLookup.get(elem);
+	    }
+	    int n = edits.size();
+	    for (int i = 0; i < n; i++) {
+		Object o = edits.elementAt(i);
+		if (o instanceof DocumentEvent.ElementChange) {
+		    DocumentEvent.ElementChange c = (DocumentEvent.ElementChange) o;
+		    if (elem.equals(c.getElement())) {
+			return c;
+		    }
+		}
+	    }
+	    return null;

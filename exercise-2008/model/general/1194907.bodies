@@ -1,0 +1,26 @@
+class SegmentCache
+!!!9859995.java!!!	getSharedInstance() : SegmentCache
+        return sharedCache;
+!!!9860123.java!!!	getSharedSegment() : Segment
+        return getSharedInstance().getSegment();
+!!!9860251.java!!!	releaseSharedSegment(inout segment : Segment) : void
+        getSharedInstance().releaseSegment(segment);
+!!!9860379.java!!!	SegmentCache()
+        segments = new ArrayList(11);
+!!!9860507.java!!!	getSegment() : Segment
+        synchronized(this) {
+            int size = segments.size();
+
+            if (size > 0) {
+                return (Segment)segments.remove(size - 1);
+            }
+        }
+        return new CachedSegment();
+!!!9860635.java!!!	releaseSegment(inout segment : Segment) : void
+        if (segment instanceof CachedSegment) {
+            synchronized(this) {
+                segment.array = null;
+                segment.count = 0;
+                segments.add(segment);
+            }
+        }

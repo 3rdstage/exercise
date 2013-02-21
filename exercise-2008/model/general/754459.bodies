@@ -1,0 +1,92 @@
+class XSParticleDecl
+!!!5238683.java!!!	makeClone() : XSParticleDecl
+        XSParticleDecl particle = new XSParticleDecl();
+        particle.fType = fType;
+        particle.fMinOccurs = fMinOccurs;
+        particle.fMaxOccurs = fMaxOccurs;
+        particle.fDescription = fDescription;
+        particle.fValue = fValue;
+        return particle;
+!!!5238811.java!!!	emptiable() : boolean
+        return minEffectiveTotalRange() == 0;
+!!!5238939.java!!!	isEmpty() : boolean
+        if (fType == PARTICLE_EMPTY)
+             return true;
+        if (fType == PARTICLE_ELEMENT || fType == PARTICLE_WILDCARD)
+            return false; 
+
+        return ((XSModelGroupImpl)fValue).isEmpty();
+!!!5239067.java!!!	minEffectiveTotalRange() : int
+        if (fType == XSParticleDecl.PARTICLE_EMPTY) {
+            return 0;
+        }
+        if (fType == PARTICLE_MODELGROUP) {
+            return ((XSModelGroupImpl)fValue).minEffectiveTotalRange() * fMinOccurs;
+        }
+        return fMinOccurs;
+!!!5239195.java!!!	maxEffectiveTotalRange() : int
+        if (fType == XSParticleDecl.PARTICLE_EMPTY) {
+            return 0;
+        }
+        if (fType == PARTICLE_MODELGROUP) {
+            int max = ((XSModelGroupImpl)fValue).maxEffectiveTotalRange();
+            if (max == SchemaSymbols.OCCURRENCE_UNBOUNDED)
+                return SchemaSymbols.OCCURRENCE_UNBOUNDED;
+            if (max != 0 && fMaxOccurs == SchemaSymbols.OCCURRENCE_UNBOUNDED)
+                return SchemaSymbols.OCCURRENCE_UNBOUNDED;
+            return max * fMaxOccurs;
+        }
+        return fMaxOccurs;
+!!!5239323.java!!!	toString() : String
+        if (fDescription == null) {
+            StringBuffer buffer = new StringBuffer();
+            appendParticle(buffer);
+            if (!(fMinOccurs == 0 && fMaxOccurs == 0 ||
+                  fMinOccurs == 1 && fMaxOccurs == 1)) {
+                buffer.append("{" + fMinOccurs);
+                if (fMaxOccurs == SchemaSymbols.OCCURRENCE_UNBOUNDED)
+                    buffer.append("-UNBOUNDED");
+                else if (fMinOccurs != fMaxOccurs)
+                    buffer.append("-" + fMaxOccurs);
+                buffer.append("}");
+            }
+            fDescription = buffer.toString();
+        }
+        return fDescription;
+!!!5239451.java!!!	appendParticle(inout buffer : StringBuffer) : void
+        switch (fType) {
+        case PARTICLE_EMPTY:
+            buffer.append("EMPTY");
+            break;
+        case PARTICLE_ELEMENT:
+        case PARTICLE_WILDCARD:
+            buffer.append('(');
+            buffer.append(fValue.toString());
+            buffer.append(')');
+            break;
+        case PARTICLE_MODELGROUP:
+            buffer.append(fValue.toString());
+            break;
+        }
+!!!5239579.java!!!	reset() : void
+        fType = PARTICLE_EMPTY;
+        fValue = null;
+        fMinOccurs = 1;
+        fMaxOccurs = 1;
+        fDescription = null;
+!!!5239707.java!!!	getType() : short
+        return XSConstants.PARTICLE;
+!!!5239835.java!!!	getName() : String
+        return null;
+!!!5239963.java!!!	getNamespace() : String
+        return null;
+!!!5240091.java!!!	getMinOccurs() : int
+        return fMinOccurs;
+!!!5240219.java!!!	getMaxOccursUnbounded() : boolean
+        return fMaxOccurs == SchemaSymbols.OCCURRENCE_UNBOUNDED;
+!!!5240347.java!!!	getMaxOccurs() : int
+        return fMaxOccurs;
+!!!5240475.java!!!	getTerm() : XSTerm
+        return fValue;
+!!!5240603.java!!!	getNamespaceItem() : XSNamespaceItem
+		return null;

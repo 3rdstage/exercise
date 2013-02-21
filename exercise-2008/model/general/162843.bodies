@@ -1,0 +1,267 @@
+class PrintStream
+!!!6885403.java!!!	PrintStream(inout out : OutputStream)
+	this(out, false);
+!!!6885531.java!!!	PrintStream(inout autoFlush : boolean, inout out : OutputStream)
+	super(out);
+	if (out == null)
+	    throw new NullPointerException("Null output stream");
+	this.autoFlush = autoFlush;
+!!!6885659.java!!!	init(inout osw : OutputStreamWriter) : void
+	this.charOut = osw;
+	this.textOut = new BufferedWriter(osw);
+!!!6885787.java!!!	PrintStream(inout out : OutputStream, inout autoFlush : boolean)
+	this(autoFlush, out);
+	init(new OutputStreamWriter(this));
+!!!6885915.java!!!	PrintStream(inout out : OutputStream, inout autoFlush : boolean, in encoding : String)
+	this(autoFlush, out);
+	init(new OutputStreamWriter(this, encoding));
+!!!6886043.java!!!	PrintStream(in fileName : String)
+	this(false, new FileOutputStream(fileName));
+	init(new OutputStreamWriter(this));
+!!!6886171.java!!!	PrintStream(in fileName : String, in csn : String)
+	this(false, new FileOutputStream(fileName));
+	init(new OutputStreamWriter(this, csn));
+!!!6886299.java!!!	PrintStream(inout file : File)
+	this(false, new FileOutputStream(file));
+	init(new OutputStreamWriter(this));
+!!!6886427.java!!!	PrintStream(inout file : File, in csn : String)
+	this(false, new FileOutputStream(file));
+	init(new OutputStreamWriter(this, csn));
+!!!6886555.java!!!	ensureOpen() : void
+	if (out == null)
+	    throw new IOException("Stream closed");
+!!!6886683.java!!!	flush() : void
+	synchronized (this) {
+	    try {
+		ensureOpen();
+		out.flush();
+	    }
+	    catch (IOException x) {
+		trouble = true;
+	    }
+	}
+!!!6886811.java!!!	close() : void
+	synchronized (this) {
+	    if (! closing) {
+		closing = true;
+		try {
+		    textOut.close();
+		    out.close();
+		}
+		catch (IOException x) {
+		    trouble = true;
+		}
+		textOut = null;
+		charOut = null;
+		out = null;
+	    }
+	}
+!!!6886939.java!!!	checkError() : boolean
+	if (out != null)
+	    flush();
+	return trouble;
+!!!6887067.java!!!	setError() : void
+	trouble = true;
+	try {
+	    throw new IOException();
+	} catch (IOException x) {
+	}
+!!!6887195.java!!!	write(in b : int) : void
+	try {
+	    synchronized (this) {
+		ensureOpen();
+		out.write(b);
+		if ((b == '\n') && autoFlush)
+		    out.flush();
+	    }
+	}
+	catch (InterruptedIOException x) {
+	    Thread.currentThread().interrupt();
+	}
+	catch (IOException x) {
+	    trouble = true;
+	}
+!!!6887323.java!!!	write(in buf : byte, in off : int, in len : int) : void
+	try {
+	    synchronized (this) {
+		ensureOpen();
+		out.write(buf, off, len);
+		if (autoFlush)
+		    out.flush();
+	    }
+	}
+	catch (InterruptedIOException x) {
+	    Thread.currentThread().interrupt();
+	}
+	catch (IOException x) {
+	    trouble = true;
+	}
+!!!6887451.java!!!	write(in buf : char) : void
+	try {
+	    synchronized (this) {
+		ensureOpen();
+		textOut.write(buf);
+		textOut.flushBuffer();
+		charOut.flushBuffer();
+		if (autoFlush) {
+		    for (int i = 0; i < buf.length; i++)
+			if (buf[i] == '\n')
+			    out.flush();
+		}
+	    }
+	}
+	catch (InterruptedIOException x) {
+	    Thread.currentThread().interrupt();
+	}
+	catch (IOException x) {
+	    trouble = true;
+	}
+!!!6887579.java!!!	write(in s : String) : void
+	try {
+	    synchronized (this) {
+		ensureOpen();
+		textOut.write(s);
+		textOut.flushBuffer();
+		charOut.flushBuffer();
+		if (autoFlush && (s.indexOf('\n') >= 0))
+		    out.flush();
+	    }
+	}
+	catch (InterruptedIOException x) {
+	    Thread.currentThread().interrupt();
+	}
+	catch (IOException x) {
+	    trouble = true;
+	}
+!!!6887707.java!!!	newLine() : void
+	try {
+	    synchronized (this) {
+		ensureOpen();
+		textOut.newLine();
+		textOut.flushBuffer();
+		charOut.flushBuffer();
+		if (autoFlush)
+		    out.flush();
+	    }
+	}
+	catch (InterruptedIOException x) {
+	    Thread.currentThread().interrupt();
+	}
+	catch (IOException x) {
+	    trouble = true;
+	}
+!!!6887835.java!!!	print(inout b : boolean) : void
+	write(b ? "true" : "false");
+!!!6887963.java!!!	print(in c : char) : void
+	write(String.valueOf(c));
+!!!6888091.java!!!	print(in i : int) : void
+	write(String.valueOf(i));
+!!!6888219.java!!!	print(in l : long) : void
+	write(String.valueOf(l));
+!!!6888347.java!!!	print(in f : float) : void
+	write(String.valueOf(f));
+!!!6888475.java!!!	print(in d : double) : void
+	write(String.valueOf(d));
+!!!6888603.java!!!	print(in s : char) : void
+	write(s);
+!!!6888731.java!!!	print(in s : String) : void
+	if (s == null) {
+	    s = "null";
+	}
+	write(s);
+!!!6888859.java!!!	print(inout obj : Object) : void
+	write(String.valueOf(obj));
+!!!6888987.java!!!	println() : void
+	newLine();
+!!!6889115.java!!!	println(inout x : boolean) : void
+	synchronized (this) {
+	    print(x);
+	    newLine();
+	}
+!!!6889243.java!!!	println(in x : char) : void
+	synchronized (this) {
+	    print(x);
+	    newLine();
+	}
+!!!6889371.java!!!	println(in x : int) : void
+	synchronized (this) {
+	    print(x);
+	    newLine();
+	}
+!!!6889499.java!!!	println(in x : long) : void
+	synchronized (this) {
+	    print(x);
+	    newLine();
+	}
+!!!6889627.java!!!	println(in x : float) : void
+	synchronized (this) {
+	    print(x);
+	    newLine();
+	}
+!!!6889755.java!!!	println(in x : double) : void
+	synchronized (this) {
+	    print(x);
+	    newLine();
+	}
+!!!6889883.java!!!	println(in x : char) : void
+	synchronized (this) {
+	    print(x);
+	    newLine();
+	}
+!!!6890011.java!!!	println(in x : String) : void
+	synchronized (this) {
+	    print(x);
+	    newLine();
+	}
+!!!6890139.java!!!	println(inout x : Object) : void
+	synchronized (this) {
+	    print(x);
+	    newLine();
+	}
+!!!6890267.java!!!	printf(in format : String, inout args : Object) : PrintStream
+	return format(format, args);
+!!!6890395.java!!!	printf(inout l : Locale, in format : String, inout args : Object) : PrintStream
+	return format(l, format, args);
+!!!6890523.java!!!	format(in format : String, inout args : Object) : PrintStream
+	try {
+	    synchronized (this) {
+		ensureOpen();
+		if ((formatter == null)
+		    || (formatter.locale() != Locale.getDefault()))
+		    formatter = new Formatter((Appendable) this);
+		formatter.format(Locale.getDefault(), format, args);
+	    }
+	} catch (InterruptedIOException x) {
+	    Thread.currentThread().interrupt();
+	} catch (IOException x) {
+	    trouble = true;
+	}
+	return this;
+!!!6890651.java!!!	format(inout l : Locale, in format : String, inout args : Object) : PrintStream
+	try {
+	    synchronized (this) {
+		ensureOpen();
+		if ((formatter == null)
+		    || (formatter.locale() != l))
+		    formatter = new Formatter(this, l);
+		formatter.format(l, format, args);
+	    }
+	} catch (InterruptedIOException x) {
+	    Thread.currentThread().interrupt();
+	} catch (IOException x) {
+	    trouble = true;
+	}
+	return this;
+!!!6890779.java!!!	append(inout csq : CharSequence) : PrintStream
+	if (csq == null)
+	    print("null");
+	else
+	    print(csq.toString());
+    	return this;
+!!!6890907.java!!!	append(inout csq : CharSequence, in start : int, in end : int) : PrintStream
+	CharSequence cs = (csq == null ? "null" : csq);
+	write(cs.subSequence(start, end).toString());
+    	return this;
+!!!6891035.java!!!	append(in c : char) : PrintStream
+	print(c);
+	return this;

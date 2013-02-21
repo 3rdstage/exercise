@@ -1,0 +1,939 @@
+class DefaultKeyboardFocusManager
+!!!6223771.java!!!	getOwningFrameDialog(inout window : Window) : Window
+        while (window != null && !(window instanceof Frame ||
+                                   window instanceof Dialog)) {
+            window = (Window)window.getParent();
+        }
+        return window;
+!!!6223899.java!!!	restoreFocus(inout fe : FocusEvent, inout newFocusedWindow : Window) : void
+        Component realOppositeComponent = this.realOppositeComponent;
+        Component vetoedComponent = fe.getComponent();
+        if (newFocusedWindow != null && restoreFocus(newFocusedWindow, 
+                                                     vetoedComponent, false))
+        {
+        } else if (realOppositeComponent != null &&
+                   restoreFocus(realOppositeComponent, false)) {
+        } else if (fe.getOppositeComponent() != null &&
+                   restoreFocus(fe.getOppositeComponent(), false)) {
+        } else {
+            clearGlobalFocusOwner();
+        }
+!!!6224027.java!!!	restoreFocus(inout we : WindowEvent) : void
+        Window realOppositeWindow = this.realOppositeWindow;
+        if (realOppositeWindow != null && restoreFocus(realOppositeWindow,
+                                                       null, false)) {
+        } else if (we.getOppositeWindow() != null &&
+                   restoreFocus(we.getOppositeWindow(), null, false)) {
+        } else {
+            clearGlobalFocusOwner();
+        }
+!!!6224155.java!!!	restoreFocus(inout aWindow : Window, inout vetoedComponent : Component, inout clearOnFailure : boolean) : boolean
+        Component toFocus =
+            KeyboardFocusManager.getMostRecentFocusOwner(aWindow);
+        if (toFocus != null && toFocus != vetoedComponent && restoreFocus(toFocus, false)) {
+            return true;
+        } else if (clearOnFailure) {
+            clearGlobalFocusOwner();
+            return true;
+        } else {
+            return false;
+        }
+!!!6224283.java!!!	restoreFocus(inout toFocus : Component, inout clearOnFailure : boolean) : boolean
+        if (toFocus.isShowing() && toFocus.isFocusable() &&
+            toFocus.requestFocus(false)) {
+            return true;
+        } else if (toFocus.nextFocusHelper()) {
+            return true;
+        } else if (clearOnFailure) {
+            clearGlobalFocusOwner();
+            return true;
+        } else {
+            return false;
+        }
+!!!6225307.java!!!	sendMessage(inout target : Component, inout e : AWTEvent) : boolean
+        e.isPosted = true;
+        AppContext myAppContext = AppContext.getAppContext();
+        final AppContext targetAppContext = target.appContext;
+        final SentEvent se =
+            new DefaultKeyboardFocusManagerSentEvent(e, myAppContext);
+
+        if (myAppContext == targetAppContext) {
+            se.dispatch();
+        } else {
+            if (targetAppContext.isDisposed()) {
+                return false;
+            }
+            SunToolkit.postEvent(targetAppContext, se);
+            if (EventQueue.isDispatchThread()) {
+                EventDispatchThread edt = (EventDispatchThread)
+                    Thread.currentThread();
+                edt.pumpEvents(SentEvent.ID, new Conditional() {
+                        public boolean evaluate() {
+                            return !se.dispatched && !targetAppContext.isDisposed();
+                        }
+                    });
+            } else {
+                synchronized (se) {
+                    while (!se.dispatched && !targetAppContext.isDisposed()) {
+                        try {
+                            se.wait(1000);
+                        } catch (InterruptedException ie) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return se.dispatched;
+!!!6225435.java!!!	dispatchEvent(inout e : AWTEvent) : boolean
+        if (focusLog.isLoggable(Level.FINE) && (e instanceof WindowEvent || e instanceof FocusEvent)) focusLog.fine("" + e);
+        switch (e.getID()) {
+            case WindowEvent.WINDOW_GAINED_FOCUS: {
+                WindowEvent we = (WindowEvent)e;
+                Window oldFocusedWindow = getGlobalFocusedWindow();
+                Window newFocusedWindow = we.getWindow();
+                if (newFocusedWindow == oldFocusedWindow) {
+                    break;
+                }
+
+                // If there exists a current focused window, then notify it
+                // that it has lost focus.
+                if (oldFocusedWindow != null) {
+                    boolean isEventDispatched = 
+                        sendMessage(oldFocusedWindow,
+                                new WindowEvent(oldFocusedWindow,
+                                                WindowEvent.WINDOW_LOST_FOCUS,
+                                                newFocusedWindow));
+                    // Failed to dispatch, clear by ourselfves
+                    if (!isEventDispatched) {
+                        setGlobalFocusOwner(null);
+                        setGlobalFocusedWindow(null);
+                    }
+                }
+
+                // Because the native libraries do not post WINDOW_ACTIVATED
+                // events, we need to synthesize one if the active Window
+                // changed.
+                Window newActiveWindow =
+                    getOwningFrameDialog(newFocusedWindow);
+                Window currentActiveWindow = getGlobalActiveWindow();
+                if (newActiveWindow != currentActiveWindow) {
+                    sendMessage(newActiveWindow,
+                                new WindowEvent(newActiveWindow,
+                                                WindowEvent.WINDOW_ACTIVATED,
+                                                currentActiveWindow));
+                    if (newActiveWindow != getGlobalActiveWindow()) {
+                        // Activation change was rejected. Unlikely, but
+                        // possible.
+                        restoreFocus(we);
+                        break;
+                    }
+                }
+
+                setGlobalFocusedWindow(newFocusedWindow);
+
+                if (newFocusedWindow != getGlobalFocusedWindow()) {
+                    // Focus change was rejected. Will happen if
+                    // newFocusedWindow is not a focusable Window.
+                    restoreFocus(we);
+                    break;
+                }
+
+                setNativeFocusedWindow(newFocusedWindow);
+                // Restore focus to the Component which last held it. We do
+                // this here so that client code can override our choice in
+                // a WINDOW_GAINED_FOCUS handler.
+                //
+                // Make sure that the focus change request doesn't change the
+                // focused Window in case we are no longer the focused Window
+                // when the request is handled.
+                if (inSendMessage == 0) {
+                    // Identify which Component should initially gain focus 
+                    // in the Window.
+                    //
+                    // * If we're in SendMessage, then this is a synthetic
+                    //   WINDOW_GAINED_FOCUS message which was generated by a
+                    //   the FOCUS_GAINED handler. Allow the Component to 
+                    //   which the FOCUS_GAINED message was targeted to 
+                    //   receive the focus.
+                    // * Otherwise, look up the correct Component here. 
+                    //   We don't use Window.getMostRecentFocusOwner because
+                    //   window is focused now and 'null' will be returned
+
+
+                    // Calculating of most recent focus owner and focus 
+                    // request should be synchronized on KeyboardFocusManager.class
+                    // to prevent from thread race when user will request
+                    // focus between calculation and our request.
+                    // But if focus transfer is synchronous, this synchronization
+                    // may cause deadlock, thus we don't synchronize this block.
+                    Component toFocus = KeyboardFocusManager.
+                        getMostRecentFocusOwner(newFocusedWindow);
+                    if ((toFocus == null) && 
+                        newFocusedWindow.isFocusableWindow()) 
+                    {
+                        toFocus = newFocusedWindow.getFocusTraversalPolicy().
+                            getInitialComponent(newFocusedWindow);
+                    }
+                    Component tempLost = null;
+                    synchronized(KeyboardFocusManager.class) {
+                        tempLost = newFocusedWindow.setTemporaryLostComponent(null);
+                    }
+
+                    // The component which last has the focus when this window was focused
+                    // should receive focus first
+                    if (focusLog.isLoggable(Level.FINER)) {
+                        focusLog.log(Level.FINER, "tempLost {0}, toFocus {1}", 
+                                     new Object[]{tempLost, toFocus});
+                    }
+                    setInActivation(true);
+                    if (tempLost != null) {
+                        tempLost.requestFocusInWindow();
+                    }
+
+                    if (toFocus != null && toFocus != tempLost) {
+                        // If there is a component which requested focus when this window
+                        // was inactive it expects to receive focus after activation.
+                        toFocus.requestFocusInWindow();
+                    }
+                    setInActivation(false);
+                }
+
+                Window realOppositeWindow = this.realOppositeWindow;
+                if (realOppositeWindow != we.getOppositeWindow()) {
+                    we = new WindowEvent(newFocusedWindow,
+                                         WindowEvent.WINDOW_GAINED_FOCUS,
+                                         realOppositeWindow);
+                }
+                return typeAheadAssertions(newFocusedWindow, we);
+            }
+
+            case WindowEvent.WINDOW_ACTIVATED: {
+                WindowEvent we = (WindowEvent)e;
+                Window oldActiveWindow = getGlobalActiveWindow();
+                Window newActiveWindow = we.getWindow();
+                if (oldActiveWindow == newActiveWindow) {
+                    break;
+                }
+
+                // If there exists a current active window, then notify it that
+                // it has lost activation.
+                if (oldActiveWindow != null) {
+                    boolean isEventDispatched = 
+                        sendMessage(oldActiveWindow,
+                                new WindowEvent(oldActiveWindow,
+                                                WindowEvent.WINDOW_DEACTIVATED,
+                                                newActiveWindow));
+                    // Failed to dispatch, clear by ourselfves
+                    if (!isEventDispatched) {
+                        setGlobalActiveWindow(null);
+                    }
+                    if (getGlobalActiveWindow() != null) {
+                        // Activation change was rejected. Unlikely, but
+                        // possible.
+                        break;
+                    }
+                }
+
+                setGlobalActiveWindow(newActiveWindow);
+
+                if (newActiveWindow != getGlobalActiveWindow()) {
+                    // Activation change was rejected. Unlikely, but
+                    // possible.
+                    break;
+                }
+
+                return typeAheadAssertions(newActiveWindow, we);
+            }
+
+            case FocusEvent.FOCUS_GAINED: {
+                FocusEvent fe = (FocusEvent)e;
+                Component oldFocusOwner = getGlobalFocusOwner();
+                Component newFocusOwner = fe.getComponent();
+                if (oldFocusOwner == newFocusOwner) {
+                    if (focusLog.isLoggable(Level.FINE)) focusLog.log(Level.FINE, "Skipping {0} because focus owner is the same",
+                                                                        new Object[] {e});
+                    // We can't just drop the event - there could be
+                    // type-ahead markers associated with it.
+                    dequeueKeyEvents(-1, newFocusOwner);
+                    break;
+                }
+
+                // If there exists a current focus owner, then notify it that
+                // it has lost focus.
+                if (oldFocusOwner != null) {
+                    boolean isEventDispatched =
+                        sendMessage(oldFocusOwner,
+                                    new FocusEvent(oldFocusOwner,
+                                                   FocusEvent.FOCUS_LOST,
+                                                   fe.isTemporary(),
+                                                   newFocusOwner));
+                    // Failed to dispatch, clear by ourselfves
+                    if (!isEventDispatched) {
+                        setGlobalFocusOwner(null);
+                        if (!fe.isTemporary()) {
+                            setGlobalPermanentFocusOwner(null);
+                        }
+                    }
+                }
+
+                // Because the native windowing system has a different notion
+                // of the current focus and activation states, it is possible
+                // that a Component outside of the focused Window receives a
+                // FOCUS_GAINED event. We synthesize a WINDOW_GAINED_FOCUS
+                // event in that case.
+                Component newFocusedWindow = newFocusOwner;
+                while (newFocusedWindow != null &&
+                       !(newFocusedWindow instanceof Window)) {
+                    newFocusedWindow = newFocusedWindow.parent;
+                }
+                Window currentFocusedWindow = getGlobalFocusedWindow();
+                if (newFocusedWindow != null &&
+                    newFocusedWindow != currentFocusedWindow)
+                {
+                    sendMessage(newFocusedWindow,
+                                new WindowEvent((Window)newFocusedWindow,
+                                        WindowEvent.WINDOW_GAINED_FOCUS,
+                                                currentFocusedWindow));
+                    if (newFocusedWindow != getGlobalFocusedWindow()) {
+                        // Focus change was rejected. Will happen if
+                        // newFocusedWindow is not a focusable Window.
+
+                        // Need to recover type-ahead, but don't bother
+                        // restoring focus. That was done by the
+                        // WINDOW_GAINED_FOCUS handler
+                        dequeueKeyEvents(-1, newFocusOwner);
+                        break;
+                    }
+                }
+
+                setGlobalFocusOwner(newFocusOwner);
+
+                if (newFocusOwner != getGlobalFocusOwner()) {
+                    // Focus change was rejected. Will happen if
+                    // newFocusOwner is not focus traversable.
+                    dequeueKeyEvents(-1, newFocusOwner);
+                    if (! disableRestoreFocus ){
+                       restoreFocus(fe, (Window)newFocusedWindow);
+                    }
+                    break;
+                }
+
+                if (!fe.isTemporary()) {
+                    setGlobalPermanentFocusOwner(newFocusOwner);
+
+                    if (newFocusOwner != getGlobalPermanentFocusOwner()) {
+                        // Focus change was rejected. Unlikely, but possible.
+                        dequeueKeyEvents(-1, newFocusOwner);
+                        if (! disableRestoreFocus ){
+                            restoreFocus(fe, (Window)newFocusedWindow);
+                        }	
+                        break;
+                    }
+                }
+
+                setNativeFocusOwner(getHeavyweight(newFocusOwner));
+
+                Component realOppositeComponent = this.realOppositeComponent;
+                if (realOppositeComponent != null &&
+                    realOppositeComponent != fe.getOppositeComponent()) {
+                    fe = new FocusEvent(newFocusOwner,
+                                        FocusEvent.FOCUS_GAINED,
+                                        fe.isTemporary(),
+                                        realOppositeComponent);
+                    ((AWTEvent) fe).isPosted = true;
+                }
+                return typeAheadAssertions(newFocusOwner, fe);
+            }
+
+            case FocusEvent.FOCUS_LOST: {
+                FocusEvent fe = (FocusEvent)e;
+                Component currentFocusOwner = getGlobalFocusOwner();
+                if (currentFocusOwner == null) {
+                    if (focusLog.isLoggable(Level.FINE)) focusLog.log(Level.FINE, "Skipping {0} because focus owner is null",
+                                                                        new Object[] {e});
+                    break;
+                }
+                // Ignore cases where a Component loses focus to itself.
+                // If we make a mistake because of retargeting, then the
+                // FOCUS_GAINED handler will correct it.
+                if (currentFocusOwner == fe.getOppositeComponent()) {
+                    if (focusLog.isLoggable(Level.FINE)) focusLog.log(Level.FINE, "Skipping {0} because current focus owner is equal to opposite",
+                                                                      new Object[] {e});
+                    break;
+                }
+
+                setGlobalFocusOwner(null);
+
+                if (getGlobalFocusOwner() != null) {
+                    // Focus change was rejected. Unlikely, but possible.
+                    restoreFocus(currentFocusOwner, true);
+                    break;
+                }
+
+                if (!fe.isTemporary()) {
+                    setGlobalPermanentFocusOwner(null);
+
+                    if (getGlobalPermanentFocusOwner() != null) {
+                        // Focus change was rejected. Unlikely, but possible.
+                        restoreFocus(currentFocusOwner, true);
+                        break;
+                    }
+                } else {
+                    Window owningWindow = currentFocusOwner.getContainingWindow();
+                    if (owningWindow != null) {
+                        owningWindow.setTemporaryLostComponent(currentFocusOwner);
+                    }
+                }
+
+                setNativeFocusOwner(null);
+
+                fe.setSource(currentFocusOwner);
+
+                realOppositeComponent = (fe.getOppositeComponent() != null)
+                    ? currentFocusOwner : null;
+
+                return typeAheadAssertions(currentFocusOwner, fe);
+            }
+
+            case WindowEvent.WINDOW_DEACTIVATED: {
+                WindowEvent we = (WindowEvent)e;
+                Window currentActiveWindow = getGlobalActiveWindow();
+                if (currentActiveWindow == null) {
+                    break;
+                }
+
+                if (currentActiveWindow != e.getSource()) {
+                    // The event is lost in time.
+                    // Allow listeners to precess the event but do not 
+                    // change any global states
+                    break;
+                }
+
+                setGlobalActiveWindow(null);
+                if (getGlobalActiveWindow() != null) {
+                    // Activation change was rejected. Unlikely, but possible.
+                    break;
+                }
+
+                we.setSource(currentActiveWindow);
+                return typeAheadAssertions(currentActiveWindow, we);
+            }
+
+            case WindowEvent.WINDOW_LOST_FOCUS: {
+                WindowEvent we = (WindowEvent)e;
+                Window currentFocusedWindow = getGlobalFocusedWindow();
+                Window losingFocusWindow = we.getWindow();
+                Window activeWindow = getGlobalActiveWindow();
+                Window oppositeWindow = we.getOppositeWindow();
+                if (focusLog.isLoggable(Level.FINE)) focusLog.log(Level.FINE, "Active {0}, Current focused {1}, losing focus {2} opposite {3}", 
+                                                                  new Object[] {activeWindow, currentFocusedWindow, 
+                                                                                losingFocusWindow, oppositeWindow});
+                if (currentFocusedWindow == null) {
+                    break;
+                }
+
+                // Special case -- if the native windowing system posts an
+                // event claiming that the active Window has lost focus to the
+                // focused Window, then discard the event. This is an artifact
+                // of the native windowing system not knowing which Window is
+                // really focused.
+                if (inSendMessage == 0 && losingFocusWindow == activeWindow &&
+                    oppositeWindow == currentFocusedWindow)
+                {
+                    break;
+                }
+
+                Component currentFocusOwner = getGlobalFocusOwner();
+                if (currentFocusOwner != null) {
+                    // The focus owner should always receive a FOCUS_LOST event
+                    // before the Window is defocused.
+                    Component oppositeComp = null;
+                    if (oppositeWindow != null) {
+                        oppositeComp = oppositeWindow.getTemporaryLostComponent();
+                        if (oppositeComp == null) {
+                            oppositeComp = oppositeWindow.getMostRecentFocusOwner();
+                        }
+                    }
+                    if (oppositeComp == null) {
+                        oppositeComp = oppositeWindow;
+                    }
+                    sendMessage(currentFocusOwner,
+                                new FocusEvent(currentFocusOwner,
+                                               FocusEvent.FOCUS_LOST,
+                                               true,
+                                               oppositeComp));
+                }
+
+                setGlobalFocusedWindow(null);
+                if (getGlobalFocusedWindow() != null) {
+                    // Focus change was rejected. Unlikely, but possible.
+                    restoreFocus(currentFocusedWindow, null, true);
+                    break;
+                }
+                setNativeFocusedWindow(null);
+
+                we.setSource(currentFocusedWindow);
+                realOppositeWindow = (oppositeWindow != null)
+                    ? currentFocusedWindow
+                    : null;
+                typeAheadAssertions(currentFocusedWindow, we);
+
+                if (oppositeWindow == null) {
+                    // Then we need to deactive the active Window as well.
+                    // No need to synthesize in other cases, because
+                    // WINDOW_ACTIVATED will handle it if necessary.
+                    sendMessage(activeWindow,
+                                new WindowEvent(activeWindow,
+                                                WindowEvent.WINDOW_DEACTIVATED,
+                                                null));
+                    if (getGlobalActiveWindow() != null) {
+                        // Activation change was rejected. Unlikely,
+                        // but possible.
+                        restoreFocus(currentFocusedWindow, null, true);
+                    }
+                }
+                break;
+            }
+
+            case KeyEvent.KEY_TYPED:
+            case KeyEvent.KEY_PRESSED:
+            case KeyEvent.KEY_RELEASED:
+                return typeAheadAssertions(null, e);
+
+            default:
+                return false;
+        }
+
+        return true;
+!!!6225563.java!!!	dispatchKeyEvent(inout e : KeyEvent) : boolean
+        Component focusOwner = (((AWTEvent)e).isPosted) ? getFocusOwner() : e.getComponent();
+
+        if (focusOwner != null && focusOwner.isShowing() &&
+            focusOwner.isFocusable() && focusOwner.isEnabled()) {
+            if (!e.isConsumed()) {
+                Component comp = e.getComponent();
+                if (comp != null && comp.isEnabled()) {
+                    redispatchEvent(comp, e);
+                }
+            }
+        }
+        boolean stopPostProcessing = false;
+        java.util.List processors = getKeyEventPostProcessors();
+        if (processors != null) {
+            for (java.util.Iterator iter = processors.iterator();
+                 !stopPostProcessing && iter.hasNext(); )
+            {
+                stopPostProcessing = (((KeyEventPostProcessor)(iter.next())).
+                            postProcessKeyEvent(e));
+            }
+        }
+        if (!stopPostProcessing) {
+            postProcessKeyEvent(e);
+        }
+
+        // Allow the peer to process KeyEvent
+        Component source = e.getComponent();
+        ComponentPeer peer = source.getPeer();
+
+        if (peer == null || peer instanceof LightweightPeer) {
+            // if focus owner is lightweight then its native container 
+            // processes event
+            Container target = source.getNativeContainer();
+            if (target != null) {
+                peer = target.getPeer();
+            }
+        }
+        if (peer != null) {
+            peer.handleEvent(e);
+        }
+
+        return true;
+!!!6225691.java!!!	postProcessKeyEvent(inout e : KeyEvent) : boolean
+        if (!e.isConsumed()) {
+            Component target = e.getComponent();
+            Container p = (Container)
+                (target instanceof Container ? target : target.getParent());
+            if (p != null) {
+                p.postProcessKeyEvent(e);
+            }
+        }
+        return true;
+!!!6225819.java!!!	pumpApprovedKeyEvents() : void
+        KeyEvent ke;
+        do {
+            ke = null;
+            synchronized (this) {
+                if (enqueuedKeyEvents.size() != 0) {
+                    ke = (KeyEvent)enqueuedKeyEvents.getFirst();
+                    if (typeAheadMarkers.size() != 0) {
+                        TypeAheadMarker marker = (TypeAheadMarker)
+                            typeAheadMarkers.getFirst();
+                        if (ke.getWhen() > marker.after) {
+                            ke = null;
+                        }
+                    }
+                    if (ke != null) {
+                        focusLog.log(Level.FINER, "Pumping approved event {0}", new Object[] {ke});
+                        enqueuedKeyEvents.removeFirst();
+                    }
+                }
+            }
+            if (ke != null) {
+                preDispatchKeyEvent(ke);
+            }
+        } while (ke != null);
+!!!6225947.java!!!	dumpMarkers() : void
+        if (focusLog.isLoggable(Level.FINEST)) {
+            focusLog.log(Level.FINEST, ">>> Markers dump, time: {0}", System.currentTimeMillis());
+            synchronized (this) {
+                if (typeAheadMarkers.size() != 0) {
+                    Iterator iter = typeAheadMarkers.iterator();
+                    while (iter.hasNext()) {
+                        TypeAheadMarker marker = (TypeAheadMarker)iter.next();
+                        focusLog.log(Level.FINEST, "    {0}", marker);
+                    }
+                }
+            }
+        }
+!!!6226075.java!!!	typeAheadAssertions(inout target : Component, inout e : AWTEvent) : boolean
+
+        // Clear any pending events here as well as in the FOCUS_GAINED
+        // handler. We need this call here in case a marker was removed in
+        // response to a call to dequeueKeyEvents.
+        pumpApprovedKeyEvents();
+
+        switch (e.getID()) {
+            case KeyEvent.KEY_TYPED:
+            case KeyEvent.KEY_PRESSED:
+            case KeyEvent.KEY_RELEASED: {
+                KeyEvent ke = (KeyEvent)e;
+                synchronized (this) {
+                    if (e.isPosted && typeAheadMarkers.size() != 0) {
+                        TypeAheadMarker marker = (TypeAheadMarker)
+                            typeAheadMarkers.getFirst();
+                        if (ke.getWhen() > marker.after) {
+                            focusLog.log(Level.FINER, "Storing event {0} because of marker {1}", new Object[] {ke, marker});
+                            enqueuedKeyEvents.addLast(ke);
+                            return true;
+                        }
+                    }
+                }
+
+                // KeyEvent was posted before focus change request
+                return preDispatchKeyEvent(ke);
+            }
+
+            case FocusEvent.FOCUS_GAINED:
+                focusLog.log(Level.FINEST, "Markers before FOCUS_GAINED on {0}", new Object[] {target});
+                dumpMarkers();
+                // Search the marker list for the first marker tied to
+                // the Component which just gained focus. Then remove
+                // that marker, any markers which immediately follow
+                // and are tied to the same component, and all markers
+                // that preceed it. This handles the case where
+                // multiple focus requests were made for the same
+                // Component in a row and when we lost some of the
+                // earlier requests. Since FOCUS_GAINED events will
+                // not be generated for these additional requests, we
+                // need to clear those markers too.
+                synchronized (this) {
+                    boolean found = false;
+                    if (hasMarker(target)) {
+                        for (Iterator iter = typeAheadMarkers.iterator();
+                             iter.hasNext(); )
+                        {
+                            if (((TypeAheadMarker)iter.next()).untilFocused ==
+                                target)
+                            {
+                                found = true;
+                            } else if (found) {
+                                break;
+                            }
+                            iter.remove();
+                        }
+                    } else {
+                        // Exception condition - event without marker
+                        focusLog.log(Level.FINER, "Event without marker {0}", e);
+                    }
+                }
+                focusLog.log(Level.FINEST, "Markers after FOCUS_GAINED");
+                dumpMarkers();
+
+                redispatchEvent(target, e);
+
+                // Now, dispatch any pending KeyEvents which have been
+                // released because of the FOCUS_GAINED event so that we don't
+                // have to wait for another event to be posted to the queue.
+                pumpApprovedKeyEvents();
+                return true;
+
+            default:
+                redispatchEvent(target, e);
+                return true;
+        }
+!!!6226203.java!!!	hasMarker(inout comp : Component) : boolean
+        for (Iterator iter = typeAheadMarkers.iterator(); iter.hasNext(); ) {
+            if (((TypeAheadMarker)iter.next()).untilFocused == comp) {
+                return true;
+            }
+        }
+        return false;
+!!!6226331.java!!!	clearMarkers() : void
+        synchronized(this) {
+            typeAheadMarkers.clear();
+        }
+!!!6226459.java!!!	preDispatchKeyEvent(inout ke : KeyEvent) : boolean
+        if (((AWTEvent) ke).isPosted) {
+            Component focusOwner = getFocusOwner();
+            ke.setSource(((focusOwner != null) ? focusOwner : getFocusedWindow()));
+        }
+        if (ke.getSource() == null) {
+            return true;
+        }
+
+        // Explicitly set the current event and most recent timestamp here in
+        // addition to the call in Component.dispatchEventImpl. Because
+        // KeyEvents can be delivered in response to a FOCUS_GAINED event, the
+        // current timestamp may be incorrect. We need to set it here so that
+        // KeyEventDispatchers will use the correct time.
+        EventQueue.setCurrentEventAndMostRecentTime(ke);
+
+        /**
+         * Fix for 4495473.
+         * This fix allows to correctly dispatch events when native
+         * event proxying mechanism is active.
+         * If it is active we should redispatch key events after
+         * we detected its correct target.
+         */
+        if (KeyboardFocusManager.isProxyActive(ke)) {
+            Component source = (Component)ke.getSource();
+            Container target = source.getNativeContainer();
+            if (target != null) {
+                ComponentPeer peer = target.getPeer();
+                if (peer != null) {
+                    peer.handleEvent(ke);
+                    /**
+                     * Fix for 4478780 - consume event after it was dispatched by peer.
+                     */
+                    ke.consume();
+                }
+            }
+            return true;
+        }
+
+        java.util.List dispatchers = getKeyEventDispatchers();
+        if (dispatchers != null) {
+            for (java.util.Iterator iter = dispatchers.iterator();
+                 iter.hasNext(); )
+             {
+                 if (((KeyEventDispatcher)(iter.next())).
+                     dispatchKeyEvent(ke))
+                 {
+                     return true;
+                 }
+             }
+        }
+        return dispatchKeyEvent(ke);
+!!!6226587.java!!!	consumeTraversalKey(inout e : KeyEvent) : void
+        e.consume();
+        consumeNextKeyTyped = (e.getID() == KeyEvent.KEY_PRESSED) && 
+                              !e.isActionKey();
+!!!6226715.java!!!	consumeProcessedKeyEvent(inout e : KeyEvent) : boolean
+        if ((e.getID() == KeyEvent.KEY_TYPED) && consumeNextKeyTyped) {
+            e.consume();
+            consumeNextKeyTyped = false;
+            return true;
+        }
+        return false;
+!!!6226843.java!!!	processKeyEvent(inout focusedComponent : Component, inout e : KeyEvent) : void
+        // consume processed event if needed
+        if (consumeProcessedKeyEvent(e)) {
+            return;
+        }
+
+        // KEY_TYPED events cannot be focus traversal keys
+        if (e.getID() == KeyEvent.KEY_TYPED) {
+            return;
+        }
+
+        if (focusedComponent.getFocusTraversalKeysEnabled() &&
+            !e.isConsumed())
+        {
+            AWTKeyStroke stroke = AWTKeyStroke.getAWTKeyStrokeForEvent(e),
+                oppStroke = AWTKeyStroke.getAWTKeyStroke(stroke.getKeyCode(),
+                                                 stroke.getModifiers(),
+                                                 !stroke.isOnKeyRelease());
+            Set toTest;
+            boolean contains, containsOpp;
+
+            toTest = focusedComponent.getFocusTraversalKeys(
+                KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS);
+            contains = toTest.contains(stroke);
+            containsOpp = toTest.contains(oppStroke);
+
+            if (contains || containsOpp) {
+                consumeTraversalKey(e);
+                if (contains) {
+                    focusNextComponent(focusedComponent);
+                }
+                return;
+            }
+
+            toTest = focusedComponent.getFocusTraversalKeys(
+                KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS);
+            contains = toTest.contains(stroke);
+            containsOpp = toTest.contains(oppStroke);
+
+            if (contains || containsOpp) {
+                consumeTraversalKey(e);
+                if (contains) {
+                    focusPreviousComponent(focusedComponent);
+                }
+                return;
+            }
+
+            toTest = focusedComponent.getFocusTraversalKeys(
+                KeyboardFocusManager.UP_CYCLE_TRAVERSAL_KEYS);
+            contains = toTest.contains(stroke);
+            containsOpp = toTest.contains(oppStroke);
+
+            if (contains || containsOpp) {
+                consumeTraversalKey(e);
+                if (contains) {
+                    upFocusCycle(focusedComponent);
+                }
+                return;
+            }
+
+            if (!((focusedComponent instanceof Container) &&
+                  ((Container)focusedComponent).isFocusCycleRoot())) {
+                return;
+            }
+
+            toTest = focusedComponent.getFocusTraversalKeys(
+                KeyboardFocusManager.DOWN_CYCLE_TRAVERSAL_KEYS);
+            contains = toTest.contains(stroke);
+            containsOpp = toTest.contains(oppStroke);
+
+            if (contains || containsOpp) {
+                consumeTraversalKey(e);
+                if (contains) {
+                    downFocusCycle((Container)focusedComponent);
+                }
+            }
+        }
+!!!6226971.java!!!	enqueueKeyEvents(in after : long, inout untilFocused : Component) : void
+        if (untilFocused == null) {
+            return;
+        }
+        
+        focusLog.log(Level.FINER, "Enqueue at {0} for {1}",
+                     new Object[] {after, untilFocused});
+
+        int insertionIndex = 0,
+            i = typeAheadMarkers.size();
+        ListIterator iter = typeAheadMarkers.listIterator(i);
+
+        for (; i > 0; i--) {
+            TypeAheadMarker marker = (TypeAheadMarker)iter.previous();
+            if (marker.after <= after) {
+                insertionIndex = i;
+                break;
+            }
+        }
+
+        typeAheadMarkers.add(insertionIndex,
+                             new TypeAheadMarker(after, untilFocused));
+!!!6227099.java!!!	dequeueKeyEvents(in after : long, inout untilFocused : Component) : void
+        if (untilFocused == null) {
+            return;
+        }
+
+        focusLog.log(Level.FINER, "Dequeue at {0} for {1}",
+                     new Object[] {after, untilFocused});
+
+        TypeAheadMarker marker;
+        ListIterator iter = typeAheadMarkers.listIterator
+            ((after >= 0) ? typeAheadMarkers.size() : 0);
+
+        if (after < 0) {
+            while (iter.hasNext()) {
+                marker = (TypeAheadMarker)iter.next();
+                if (marker.untilFocused == untilFocused)
+                {
+                    iter.remove();
+                    return;
+                }
+            }
+        } else {
+            while (iter.hasPrevious()) {
+                marker = (TypeAheadMarker)iter.previous();
+                if (marker.untilFocused == untilFocused &&
+                    marker.after == after)
+                {
+                    iter.remove();
+                    return;
+                }
+            }
+        }
+!!!6227227.java!!!	discardKeyEvents(inout comp : Component) : void
+        if (comp == null) {
+            return;
+        }
+
+        long start = -1;
+
+        for (Iterator iter = typeAheadMarkers.iterator(); iter.hasNext(); ) {
+            TypeAheadMarker marker = (TypeAheadMarker)iter.next();
+            Component toTest = marker.untilFocused;
+            boolean match = (toTest == comp);
+            while (!match && toTest != null && !(toTest instanceof Window)) {
+                toTest = toTest.getParent();
+                match = (toTest == comp);
+            }
+            if (match) {
+                if (start < 0) {
+                    start = marker.after;
+                }
+                iter.remove();
+            } else if (start >= 0) {
+                purgeStampedEvents(start, marker.after);
+                start = -1;
+            }
+        }
+
+        purgeStampedEvents(start, -1);
+!!!6227355.java!!!	purgeStampedEvents(in start : long, in end : long) : void
+        if (start < 0) {
+            return;
+        }
+
+        for (Iterator iter = enqueuedKeyEvents.iterator(); iter.hasNext(); ) {
+            KeyEvent ke = (KeyEvent)iter.next();
+            long time = ke.getWhen();
+
+            if (start < time && (end < 0 || time <= end)) {
+                iter.remove();
+            }
+
+            if (end >= 0 && time > end) {
+                break;
+            }
+        }
+!!!6227483.java!!!	focusPreviousComponent(inout aComponent : Component) : void
+        if (aComponent != null) {
+            aComponent.transferFocusBackward();
+        }
+!!!6227611.java!!!	focusNextComponent(inout aComponent : Component) : void
+        if (aComponent != null) {
+            aComponent.transferFocus();
+        }
+!!!6227739.java!!!	upFocusCycle(inout aComponent : Component) : void
+        if (aComponent != null) {
+            aComponent.transferFocusUpCycle();
+        }
+!!!6227867.java!!!	downFocusCycle(inout aContainer : Container) : void
+        if (aContainer != null && aContainer.isFocusCycleRoot()) {
+            aContainer.transferFocusDownCycle();
+        }

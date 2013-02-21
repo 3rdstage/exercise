@@ -1,0 +1,152 @@
+class PageFormat
+!!!6732315.java!!!	PageFormat()
+	mPaper = new Paper();
+!!!6732443.java!!!	clone() : Object
+	PageFormat newPage;
+
+	try {
+	    newPage = (PageFormat) super.clone();
+	    newPage.mPaper = (Paper)mPaper.clone();
+
+	} catch (CloneNotSupportedException e) {
+	    e.printStackTrace();
+	    newPage = null;	// should never happen.
+	}
+
+	return newPage;
+!!!6732571.java!!!	getWidth() : double
+	double width;
+	int orientation = getOrientation();
+
+        if (orientation == PORTRAIT) {
+            width = mPaper.getWidth();
+        } else {
+            width = mPaper.getHeight();
+        }
+
+        return width;
+!!!6732699.java!!!	getHeight() : double
+        double height;
+	int orientation = getOrientation();
+
+        if (orientation == PORTRAIT) {
+            height = mPaper.getHeight();
+        } else {
+            height = mPaper.getWidth();
+        }
+
+        return height;
+!!!6732827.java!!!	getImageableX() : double
+        double x;
+
+	switch (getOrientation()) {
+
+	case LANDSCAPE:
+	    x = mPaper.getHeight()
+		- (mPaper.getImageableY() + mPaper.getImageableHeight());
+	    break;
+
+	case PORTRAIT:
+	    x = mPaper.getImageableX();
+	    break;
+
+	case REVERSE_LANDSCAPE:
+	    x = mPaper.getImageableY();
+	    break;
+
+	default:
+	    /* This should never happen since it signifies that the
+	     * PageFormat is in an invalid orientation.
+	     */
+	    throw new InternalError("unrecognized orientation");
+
+	}
+
+        return x;
+!!!6732955.java!!!	getImageableY() : double
+        double y;
+
+	switch (getOrientation()) {
+
+	case LANDSCAPE:
+	    y = mPaper.getImageableX();
+	    break;
+
+	case PORTRAIT:
+	    y = mPaper.getImageableY();
+	    break;
+
+	case REVERSE_LANDSCAPE:
+	    y = mPaper.getWidth()
+		- (mPaper.getImageableX() + mPaper.getImageableWidth());
+	    break;
+
+	default:
+	    /* This should never happen since it signifies that the
+	     * PageFormat is in an invalid orientation.
+	     */
+	    throw new InternalError("unrecognized orientation");
+
+	}
+
+        return y;
+!!!6733083.java!!!	getImageableWidth() : double
+        double width;
+
+        if (getOrientation() == PORTRAIT) {
+            width = mPaper.getImageableWidth();
+        } else {
+            width = mPaper.getImageableHeight();
+        }
+
+        return width;
+!!!6733211.java!!!	getImageableHeight() : double
+        double height;
+
+        if (getOrientation() == PORTRAIT) {
+            height = mPaper.getImageableHeight();
+        } else {
+            height = mPaper.getImageableWidth();
+        }
+
+        return height;
+!!!6733339.java!!!	getPaper() : Paper
+	return (Paper)mPaper.clone();
+!!!6733467.java!!!	setPaper(inout paper : Paper) : void
+         mPaper = (Paper)paper.clone();
+!!!6733595.java!!!	setOrientation(in orientation : int) : void
+	if (0 <= orientation && orientation <= REVERSE_LANDSCAPE) {
+	    mOrientation = orientation;
+	} else {
+	    throw new IllegalArgumentException();
+	}
+!!!6733723.java!!!	getOrientation() : int
+	return mOrientation;
+!!!6733851.java!!!	getMatrix() : double
+        double[] matrix = new double[6];
+
+	switch (mOrientation) {
+
+	case LANDSCAPE:
+            matrix[0] =  0;     matrix[1] = -1;
+            matrix[2] =  1;     matrix[3] =  0;
+            matrix[4] =  0;     matrix[5] =  mPaper.getHeight();
+	    break;
+
+	case PORTRAIT:
+            matrix[0] =  1;     matrix[1] =  0;
+            matrix[2] =  0;     matrix[3] =  1;
+            matrix[4] =  0;     matrix[5] =  0;
+	    break;
+
+	case REVERSE_LANDSCAPE:
+            matrix[0] =  0;			matrix[1] =  1;
+            matrix[2] = -1;			matrix[3] =  0;
+            matrix[4] =  mPaper.getWidth();     matrix[5] =  0;
+	    break;
+
+	default:
+	    throw new IllegalArgumentException();
+	}
+
+	return matrix;

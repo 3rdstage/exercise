@@ -1,0 +1,194 @@
+class PriorityBlockingQueue
+!!!7946395.java!!!	PriorityBlockingQueue()
+        q = new PriorityQueue<E>();
+!!!7946523.java!!!	PriorityBlockingQueue(in initialCapacity : int)
+        q = new PriorityQueue<E>(initialCapacity, null);
+!!!7946651.java!!!	PriorityBlockingQueue(in initialCapacity : int, inout comparator : Comparator)
+        q = new PriorityQueue<E>(initialCapacity, comparator);
+!!!7946779.java!!!	PriorityBlockingQueue(inout c : Collection)
+        q = new PriorityQueue<E>(c);
+!!!7946907.java!!!	add(inout o : E) : boolean
+        return super.add(o);
+!!!7947035.java!!!	comparator() : Comparator
+        return q.comparator();
+!!!7947163.java!!!	offer(inout o : E) : boolean
+        if (o == null) throw new NullPointerException();
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            boolean ok = q.offer(o);
+            assert ok;
+            notEmpty.signal();
+            return true;
+        } finally {
+            lock.unlock();
+        }
+!!!7947291.java!!!	put(inout o : E) : void
+        offer(o); // never need to block
+!!!7947419.java!!!	offer(inout o : E, in timeout : long, inout unit : TimeUnit) : boolean
+        return offer(o); // never need to block
+!!!7947547.java!!!	take() : E
+        final ReentrantLock lock = this.lock;
+        lock.lockInterruptibly();
+        try {
+            try {
+                while (q.size() == 0)
+                    notEmpty.await();
+            } catch (InterruptedException ie) {
+                notEmpty.signal(); // propagate to non-interrupted thread
+                throw ie;
+            }
+            E x = q.poll();
+            assert x != null;
+            return x;
+        } finally {
+            lock.unlock();
+        }
+!!!7947675.java!!!	poll() : E
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return q.poll();
+        } finally {
+            lock.unlock();
+        }
+!!!7947803.java!!!	poll(in timeout : long, inout unit : TimeUnit) : E
+        long nanos = unit.toNanos(timeout);
+        final ReentrantLock lock = this.lock;
+        lock.lockInterruptibly();
+        try {
+            for (;;) {
+                E x = q.poll();
+                if (x != null)
+                    return x;
+                if (nanos <= 0)
+                    return null;
+                try {
+                    nanos = notEmpty.awaitNanos(nanos);
+                } catch (InterruptedException ie) {
+                    notEmpty.signal(); // propagate to non-interrupted thread
+                    throw ie;
+                }
+            }
+        } finally {
+            lock.unlock();
+        }
+!!!7947931.java!!!	peek() : E
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return q.peek();
+        } finally {
+            lock.unlock();
+        }
+!!!7948059.java!!!	size() : int
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return q.size();
+        } finally {
+            lock.unlock();
+        }
+!!!7948187.java!!!	remainingCapacity() : int
+        return Integer.MAX_VALUE;
+!!!7948315.java!!!	remove(inout o : Object) : boolean
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return q.remove(o);
+        } finally {
+            lock.unlock();
+        }
+!!!7948443.java!!!	contains(inout o : Object) : boolean
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return q.contains(o);
+        } finally {
+            lock.unlock();
+        }
+!!!7948571.java!!!	toArray() : Object
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return q.toArray();
+        } finally {
+            lock.unlock();
+        }
+!!!7948699.java!!!	toString() : String
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return q.toString();
+        } finally {
+            lock.unlock();
+        }
+!!!7948827.java!!!	drainTo(inout c : Collection) : int
+        if (c == null)
+            throw new NullPointerException();
+        if (c == this)
+            throw new IllegalArgumentException();
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            int n = 0;
+            E e;
+            while ( (e = q.poll()) != null) {
+                c.add(e);
+                ++n;
+            }
+            return n;
+        } finally {
+            lock.unlock();
+        }
+!!!7948955.java!!!	drainTo(inout c : Collection, in maxElements : int) : int
+        if (c == null)
+            throw new NullPointerException();
+        if (c == this)
+            throw new IllegalArgumentException();
+        if (maxElements <= 0)
+            return 0;
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            int n = 0;
+            E e;
+            while (n < maxElements && (e = q.poll()) != null) {
+                c.add(e);
+                ++n;
+            }
+            return n;
+        } finally {
+            lock.unlock();
+        }
+!!!7949083.java!!!	clear() : void
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            q.clear();
+        } finally {
+            lock.unlock();
+        }
+!!!7949211.java!!!	toArray(inout a : T) : T
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return q.toArray(a);
+        } finally {
+            lock.unlock();
+        }
+!!!7949339.java!!!	iterator() : Iterator
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return new Itr(q.iterator());
+        } finally {
+            lock.unlock();
+        }
+!!!7949979.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        lock.lock();
+        try {
+            s.defaultWriteObject();
+        } finally {
+            lock.unlock();
+        }

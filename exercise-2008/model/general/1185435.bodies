@@ -1,0 +1,95 @@
+class SynthSeparatorUI
+!!!9725339.java!!!	createUI(inout c : JComponent) : ComponentUI
+        return new SynthSeparatorUI();
+!!!9725467.java!!!	installUI(inout c : JComponent) : void
+        installDefaults((JSeparator)c);
+        installListeners((JSeparator)c);
+!!!9725595.java!!!	uninstallDefaults(inout c : JComponent) : void
+        uninstallListeners((JSeparator)c);
+        uninstallDefaults((JSeparator)c);
+!!!9725723.java!!!	installDefaults(inout c : JSeparator) : void
+        updateStyle(c);
+!!!9725851.java!!!	updateStyle(inout sep : JSeparator) : void
+        SynthContext context = getContext(sep, ENABLED);
+        SynthStyle oldStyle = style;
+
+        style = SynthLookAndFeel.updateStyle(context, this);
+
+        if (style != oldStyle) {
+            if (sep instanceof JToolBar.Separator) {
+                Dimension size = ((JToolBar.Separator)sep).getSeparatorSize();
+                if (size == null || size instanceof UIResource) {
+                    size = (DimensionUIResource)style.get(
+                                      context, "ToolBar.separatorSize");
+                    if (size == null) {
+                        size = new DimensionUIResource(10, 10);
+                    }
+                    ((JToolBar.Separator)sep).setSeparatorSize(size);
+                }
+            }
+        }
+
+        context.dispose();
+!!!9725979.java!!!	uninstallDefaults(inout c : JSeparator) : void
+        SynthContext context = getContext(c, ENABLED);
+
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+!!!9726107.java!!!	installListeners(inout c : JSeparator) : void
+        c.addPropertyChangeListener(this);
+!!!9726235.java!!!	uninstallListeners(inout c : JSeparator) : void
+        c.removePropertyChangeListener(this);
+!!!9726363.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintSeparatorBackground(context,
+                          g, 0, 0, c.getWidth(), c.getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9726491.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9726619.java!!!	paint(inout context : SynthContext, inout g : Graphics) : void
+        JSeparator separator = (JSeparator)context.getComponent();
+        context.getPainter().paintSeparatorForeground(context, g, 0, 0,
+                             separator.getWidth(), separator.getHeight(),
+                             separator.getOrientation());
+!!!9726747.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        context.getPainter().paintSeparatorBorder(context, g, x, y, w, h);
+!!!9726875.java!!!	getPreferredSize(inout c : JComponent) : Dimension
+        SynthContext context = getContext(c);
+
+        int thickness = style.getInt(context, "Separator.thickness", 2);
+        Insets insets = c.getInsets();
+        Dimension size;
+
+        if (((JSeparator)c).getOrientation() == JSeparator.VERTICAL) {
+            size = new Dimension(insets.left + insets.right + thickness,
+                                 insets.top + insets.bottom);
+        } else {
+            size = new Dimension(insets.left + insets.right,
+                                 insets.top + insets.bottom + thickness);
+        }
+        context.dispose();
+        return size;
+!!!9727003.java!!!	getMinimumSize(inout c : JComponent) : Dimension
+        return getPreferredSize(c);
+!!!9727131.java!!!	getMaximumSize(inout c : JComponent) : Dimension
+        return new Dimension(Short.MAX_VALUE, Short.MAX_VALUE);
+!!!9727259.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9727387.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c,
+                    SynthLookAndFeel.getRegion(c), style, state);
+!!!9727515.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9727643.java!!!	getComponentState(inout c : JComponent) : int
+        return SynthLookAndFeel.getComponentState(c);
+!!!9727771.java!!!	propertyChange(inout evt : PropertyChangeEvent) : void
+        if (SynthLookAndFeel.shouldUpdateStyle(evt)) {
+            updateStyle((JSeparator)evt.getSource());
+        }

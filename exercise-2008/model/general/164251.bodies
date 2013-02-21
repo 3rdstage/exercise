@@ -1,0 +1,121 @@
+class Throwable
+!!!828571.java!!!	Throwable()
+        fillInStackTrace();
+!!!828699.java!!!	Throwable(in message : String)
+        fillInStackTrace();
+        detailMessage = message;
+!!!828827.java!!!	Throwable(in message : String, inout cause : Throwable)
+        fillInStackTrace();
+        detailMessage = message;
+        this.cause = cause;
+!!!828955.java!!!	Throwable(inout cause : Throwable)
+        fillInStackTrace();
+        detailMessage = (cause==null ? null : cause.toString());
+        this.cause = cause;
+!!!829083.java!!!	getMessage() : String
+        return detailMessage;
+!!!829211.java!!!	getLocalizedMessage() : String
+        return getMessage();
+!!!829339.java!!!	getCause() : Throwable
+        return (cause==this ? null : cause);
+!!!829467.java!!!	initCause(inout cause : Throwable) : Throwable
+        if (this.cause != this)
+            throw new IllegalStateException("Can't overwrite cause");
+        if (cause == this)
+            throw new IllegalArgumentException("Self-causation not permitted");
+        this.cause = cause;
+        return this;
+!!!829595.java!!!	toString() : String
+        String s = getClass().getName();
+        String message = getLocalizedMessage();
+        return (message != null) ? (s + ": " + message) : s;
+!!!829723.java!!!	printStackTrace() : void
+ 
+        printStackTrace(System.err);
+!!!829851.java!!!	printStackTrace(inout s : PrintStream) : void
+        synchronized (s) {
+            s.println(this);
+            StackTraceElement[] trace = getOurStackTrace();
+            for (int i=0; i < trace.length; i++)
+                s.println("\tat " + trace[i]);
+
+            Throwable ourCause = getCause();
+            if (ourCause != null)
+                ourCause.printStackTraceAsCause(s, trace);
+        }
+!!!829979.java!!!	printStackTraceAsCause(inout s : PrintStream, inout causedTrace : StackTraceElement) : void
+        // assert Thread.holdsLock(s);
+
+        // Compute number of frames in common between this and caused
+        StackTraceElement[] trace = getOurStackTrace();
+        int m = trace.length-1, n = causedTrace.length-1;
+        while (m >= 0 && n >=0 && trace[m].equals(causedTrace[n])) {
+            m--; n--;
+        }
+        int framesInCommon = trace.length - 1 - m;
+
+        s.println("Caused by: " + this);
+        for (int i=0; i <= m; i++)
+            s.println("\tat " + trace[i]);
+        if (framesInCommon != 0)
+            s.println("\t... " + framesInCommon + " more");
+
+        // Recurse if we have a cause
+        Throwable ourCause = getCause();
+        if (ourCause != null)
+            ourCause.printStackTraceAsCause(s, trace);
+!!!830107.java!!!	printStackTrace(inout s : PrintWriter) : void
+ 
+        synchronized (s) {
+            s.println(this);
+            StackTraceElement[] trace = getOurStackTrace();
+            for (int i=0; i < trace.length; i++)
+                s.println("\tat " + trace[i]);
+
+            Throwable ourCause = getCause();
+            if (ourCause != null)
+                ourCause.printStackTraceAsCause(s, trace);
+        }
+!!!830235.java!!!	printStackTraceAsCause(inout s : PrintWriter, inout causedTrace : StackTraceElement) : void
+        // assert Thread.holdsLock(s);
+
+        // Compute number of frames in common between this and caused
+        StackTraceElement[] trace = getOurStackTrace();
+        int m = trace.length-1, n = causedTrace.length-1;
+        while (m >= 0 && n >=0 && trace[m].equals(causedTrace[n])) {
+            m--; n--;
+        }
+        int framesInCommon = trace.length - 1 - m;
+
+        s.println("Caused by: " + this);
+        for (int i=0; i <= m; i++)
+            s.println("\tat " + trace[i]);
+        if (framesInCommon != 0)
+            s.println("\t... " + framesInCommon + " more");
+
+        // Recurse if we have a cause
+        Throwable ourCause = getCause();
+        if (ourCause != null)
+            ourCause.printStackTraceAsCause(s, trace);
+!!!830491.java!!!	getStackTrace() : StackTraceElement
+        return (StackTraceElement[]) getOurStackTrace().clone();
+!!!830619.java!!!	getOurStackTrace() : StackTraceElement
+        // Initialize stack trace if this is the first call to this method
+        if (stackTrace == null) {
+            int depth = getStackTraceDepth();
+            stackTrace = new StackTraceElement[depth];
+            for (int i=0; i < depth; i++)
+                stackTrace[i] = getStackTraceElement(i);
+        }
+        return stackTrace;
+!!!830747.java!!!	setStackTrace(inout stackTrace : StackTraceElement) : void
+        StackTraceElement[] defensiveCopy =
+            (StackTraceElement[]) stackTrace.clone();
+        for (int i = 0; i < defensiveCopy.length; i++)
+            if (defensiveCopy[i] == null)
+                throw new NullPointerException("stackTrace[" + i + "]");
+
+        this.stackTrace = defensiveCopy;
+!!!831131.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        getOurStackTrace();  // Ensure that stackTrace field is initialized.
+        s.defaultWriteObject();

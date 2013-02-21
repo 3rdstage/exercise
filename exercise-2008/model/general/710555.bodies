@@ -1,0 +1,166 @@
+class TextImpl
+!!!4818715.java!!!	TextImpl(inout ownerDoc : CoreDocumentImpl, in data : String)
+        super(ownerDoc, data);
+!!!4818843.java!!!	setValues(inout ownerDoc : CoreDocumentImpl, in data : String) : void
+
+        flags=0;
+        nextSibling = null;
+        previousSibling=null;
+        setOwnerDocument(ownerDoc);
+        super.data = data;
+!!!4818971.java!!!	getNodeType() : short
+        return Node.TEXT_NODE;
+!!!4819099.java!!!	getNodeName() : String
+        return "#text";
+!!!4819227.java!!!	setIgnorableWhitespace(inout ignore : boolean) : void
+
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+        isIgnorableWhitespace(ignore);
+
+!!!4819355.java!!!	isElementContentWhitespace() : boolean
+        // REVISIT: is this implemenation correct?
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+        return internalIsIgnorableWhitespace();
+!!!4819483.java!!!	getWholeText() : String
+        
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+        if (nextSibling == null) {
+            return data;
+        }
+        if (fBufferStr == null){
+            fBufferStr = new StringBuffer();
+        }
+        else {
+            fBufferStr.setLength(0);
+        }
+        if (data != null && data.length() != 0) {
+            fBufferStr.append(data);
+        }
+        getWholeText(nextSibling, fBufferStr);
+        return fBufferStr.toString();
+    
+!!!4819611.java!!!	getWholeText(inout node : Node, inout buffer : StringBuffer) : boolean
+        String text;
+        while (node != null) {
+            short type = node.getNodeType();
+            if (type == Node.ENTITY_REFERENCE_NODE) {
+                if (getWholeText(node.getFirstChild(), buffer)){
+                    return true;
+                }
+            }
+            else if (type == Node.TEXT_NODE || 
+                     type == Node.CDATA_SECTION_NODE) {
+                ((NodeImpl)node).getTextContent(buffer);
+            }
+            else {
+                return true; 
+            }
+
+            node = node.getNextSibling();
+        }
+        return false;
+!!!4819739.java!!!	replaceWholeText(in content : String) : Text
+
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+
+        // make sure we can make the replacement
+        if (!canModify(nextSibling)) {
+            throw new DOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR, 
+                DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "NO_MODIFICATION_ALLOWED_ERR", null));
+        }
+
+        Node parent = this.getParentNode();
+        if (content == null || content.length() == 0) {
+            // remove current node
+            if (parent !=null) { // check if node in the tree 
+                parent.removeChild(this);
+                return null;
+            }
+        }
+        Text currentNode = null;
+    	if (isReadOnly()){
+            Text newNode = this.ownerDocument().createTextNode(content);
+            if (parent !=null) { // check if node in the tree                
+                parent.insertBefore(newNode, this);
+                parent.removeChild(this);
+                currentNode = newNode;
+            } else {
+                return newNode;
+            }
+        }  else {
+            this.setData(content);
+            currentNode = this;
+        }
+        Node sibling =  currentNode.getNextSibling();
+        while ( sibling !=null) {
+            parent.removeChild(sibling);
+            sibling = currentNode.getNextSibling();
+        }
+
+        return currentNode;
+!!!4819867.java!!!	canModify(inout node : Node) : boolean
+        while (node != null) {
+            short type = node.getNodeType();
+            if (type == Node.ENTITY_REFERENCE_NODE) {
+                if (!canModify(node.getFirstChild())){
+                    return false;
+                }
+            }
+            else if (type != Node.TEXT_NODE && 
+                     type != Node.CDATA_SECTION_NODE) {
+                return false;
+            }
+
+            node = node.getNextSibling();
+        }
+        return true;
+!!!4819995.java!!!	isIgnorableWhitespace() : boolean
+
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+        return internalIsIgnorableWhitespace();
+
+!!!4820123.java!!!	splitText(in offset : int) : Text
+
+    	if (isReadOnly()) {
+            throw new DOMException(
+    		DOMException.NO_MODIFICATION_ALLOWED_ERR, 
+                DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "NO_MODIFICATION_ALLOWED_ERR", null));
+        }
+
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+    	if (offset < 0 || offset > data.length() ) {
+            throw new DOMException(DOMException.INDEX_SIZE_ERR, 
+                DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "INDEX_SIZE_ERR", null));
+        }
+    		
+        // split text into two separate nodes
+    	Text newText =
+            getOwnerDocument().createTextNode(data.substring(offset));
+    	setNodeValue(data.substring(0, offset));
+
+        // insert new text node
+        Node parentNode = getParentNode();
+    	if (parentNode != null) {
+    		parentNode.insertBefore(newText, nextSibling);
+        }
+
+    	return newText;
+
+!!!4820251.java!!!	replaceData(in value : String) : void
+        data = value;
+!!!4820379.java!!!	removeData() : String
+        String olddata=data;
+        data = "";
+        return olddata;

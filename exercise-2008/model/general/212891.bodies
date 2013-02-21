@@ -1,0 +1,124 @@
+class ORBInitInfoImpl
+!!!767387.java!!!	ORBInitInfoImpl(inout orb : ORB, in args : String, in orbId : String, inout codecFactory : CodecFactory)
+	this.orb = orb;
+
+	wrapper = InterceptorsSystemException.get( orb,
+	    CORBALogDomains.RPC_PROTOCOL ) ;
+	orbutilWrapper = ORBUtilSystemException.get( orb,
+	    CORBALogDomains.RPC_PROTOCOL ) ;
+	omgWrapper = OMGSystemException.get( orb,
+	    CORBALogDomains.RPC_PROTOCOL ) ;
+
+	this.args = args;
+	this.orbId = orbId;
+	this.codecFactory = codecFactory;
+!!!767515.java!!!	getORB() : ORB
+	return orb ;
+!!!767643.java!!!	setStage(in stage : int) : void
+	this.stage = stage;
+!!!767771.java!!!	checkStage() : void
+	if( stage == STAGE_CLOSED ) {
+	    throw wrapper.orbinitinfoInvalid() ;
+	}
+!!!767899.java!!!	arguments() : String
+	checkStage();
+	return args;
+!!!768027.java!!!	orb_id() : String
+	checkStage();
+	return orbId;
+!!!768155.java!!!	codec_factory() : CodecFactory
+	checkStage();
+	return codecFactory;
+!!!768283.java!!!	register_initial_reference(in id : String, inout obj : Object) : void
+	checkStage();
+	if( id == null ) nullParam();
+
+	// As per CORBA 3.0 section 21.8.1, 
+	// if null is passed as the obj parameter,
+	// throw BAD_PARAM with minor code OMGSystemException.RIR_WITH_NULL_OBJECT.
+	// Though the spec is talking about IDL null, we will address both
+	// Java null and IDL null:
+	// Note: Local Objects can never be nil!
+	if( obj == null ) {
+	    throw omgWrapper.rirWithNullObject() ;
+	}
+
+	// This check was made to determine that the objref is a 
+	// non-local objref that is fully
+	// initialized: this was called only for its side-effects of
+	// possibly throwing exceptions.  However, registering
+	// local objects should be permitted!
+	// XXX/Revisit?
+	// IOR ior = ORBUtility.getIOR( obj ) ;
+
+	// Delegate to ORB.  If ORB version throws InvalidName, convert to
+	// equivalent Portable Interceptors InvalidName.
+	try {
+	    orb.register_initial_reference( id, obj );
+	} catch( org.omg.CORBA.ORBPackage.InvalidName e ) {
+	    InvalidName exc = new InvalidName( e.getMessage() );
+	    exc.initCause( e ) ;
+	    throw exc ;
+	}
+!!!768411.java!!!	resolve_initial_references(in id : String) : Object
+	checkStage();
+	if( id == null ) nullParam();
+
+	if( stage == STAGE_PRE_INIT ) {
+	    // Initializer is not allowed to invoke this method during 
+	    // this stage.
+
+	    // _REVISIT_ Spec issue: What exception should really be 
+	    // thrown here?
+	    throw wrapper.rirInvalidPreInit() ;
+	}
+
+	org.omg.CORBA.Object objRef = null;
+	
+	try {
+	    objRef = orb.resolve_initial_references( id );
+        }
+	catch( org.omg.CORBA.ORBPackage.InvalidName e ) {
+	    // Convert PIDL to IDL exception:
+	    throw new InvalidName();
+	}
+
+	return objRef;
+!!!768539.java!!!	add_client_request_interceptor_with_policy(inout interceptor : ClientRequestInterceptor, inout policies : Policy) : void
+	// XXX ignore policies for now
+	add_client_request_interceptor( interceptor ) ;
+!!!768667.java!!!	add_client_request_interceptor(inout interceptor : ClientRequestInterceptor) : void
+	checkStage();
+	if( interceptor == null ) nullParam();
+
+	orb.getPIHandler().register_interceptor( interceptor, 
+	    InterceptorList.INTERCEPTOR_TYPE_CLIENT );
+!!!768795.java!!!	add_server_request_interceptor_with_policy(inout interceptor : ServerRequestInterceptor, inout policies : Policy) : void
+	// XXX ignore policies for now
+	add_server_request_interceptor( interceptor ) ;
+!!!768923.java!!!	add_server_request_interceptor(inout interceptor : ServerRequestInterceptor) : void
+	checkStage();
+	if( interceptor == null ) nullParam();
+	
+	orb.getPIHandler().register_interceptor( interceptor, 
+	    InterceptorList.INTERCEPTOR_TYPE_SERVER );
+!!!769051.java!!!	add_ior_interceptor_with_policy(inout interceptor : IORInterceptor, inout policies : Policy) : void
+	// XXX ignore policies for now
+	add_ior_interceptor( interceptor ) ;
+!!!769179.java!!!	add_ior_interceptor(inout interceptor : IORInterceptor) : void
+	checkStage();
+	if( interceptor == null ) nullParam();
+
+	orb.getPIHandler().register_interceptor( interceptor, 
+	    InterceptorList.INTERCEPTOR_TYPE_IOR );
+!!!769307.java!!!	allocate_slot_id() : int
+	checkStage();
+
+        return ((PICurrent)orb.getPIHandler().getPICurrent()).allocateSlotId( );
+
+!!!769435.java!!!	register_policy_factory(in type : int, inout policy_factory : PolicyFactory) : void
+	checkStage();
+	if( policy_factory == null ) nullParam();
+        orb.getPIHandler().registerPolicyFactory( type, policy_factory );
+!!!769563.java!!!	nullParam() : void
+	throw orbutilWrapper.nullParam() ;

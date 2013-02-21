@@ -1,0 +1,144 @@
+class StyleInfo
+!!!2074523.java!!!	StyleInfo(in name : String)
+            this.name = name;
+!!!2074651.java!!!	initStocksIfNecessary() : void
+            if (stocks == null) {
+                stocks = new ArrayList();
+                // for stock icons defined in this style
+                stocks.add(new HashMap());
+            }
+!!!2074779.java!!!	addStockItem(in id : String, inout sources : GTKIconSource) : void
+            initStocksIfNecessary();
+            
+            GTKStyle.GTKStockIconInfo iconInfo = new GTKStyle.GTKStockIconInfo(id, sources);
+            
+            HashMap map = (HashMap)stocks.get(0);
+            map.put(id, iconInfo);                
+!!!2074907.java!!!	addProperty(in klass : String, in prop : String, inout value : Object) : void
+            if (props == null) {
+                props = new CircularIdentityList();
+            }
+            
+            CircularIdentityList subList = (CircularIdentityList)props.get(klass);
+            
+            if (subList == null) {
+                subList = new CircularIdentityList();
+                props.set(klass, subList);
+            }
+            
+            subList.set(prop, value);
+!!!2075035.java!!!	copyDataFrom(inout other : StyleInfo) : void
+            for (int i = 0; i < NUM_STATES; i++) {
+                fg[i] = other.fg[i];
+                bg[i] = other.bg[i];
+                text[i] = other.text[i];
+                base[i] = other.base[i];
+                bgPixmapName[i] = other.bgPixmapName[i];
+            }
+
+            xThickness = other.xThickness;
+            yThickness = other.yThickness;
+            font = other.font;
+            
+            if (other.stocks != null) {
+                initStocksIfNecessary();
+                stocks.addAll(other.stocks);
+            }
+            
+            if (props == null) {
+                props = GTKStyle.cloneClassSpecificValues(other.props);
+            } else {
+                GTKStyle.addClassSpecificValues(other.props, props);
+            }
+!!!2075163.java!!!	toGTKStyle() : GTKStyle
+            if (cachedStyle != null) {
+                return cachedStyle;
+            }
+            
+            ArrayList stateInfos = new ArrayList();
+            
+            for (int i = 0; i < NUM_STATES; i++) {
+                Color[] colors = null;
+
+                if (fg[i] != null
+                        || bg[i] != null
+                        || text[i] != null
+                        || base[i] != null) {
+                    colors = new Color[GTKColorType.MAX_COUNT];
+                    colors[GTKColorType.FOREGROUND.getID()] = fg[i];
+                    colors[GTKColorType.BACKGROUND.getID()] = bg[i];
+                    colors[GTKColorType.TEXT_FOREGROUND.getID()] = text[i];
+                    colors[GTKColorType.TEXT_BACKGROUND.getID()] = base[i];
+                }
+                
+                if (colors != null || bgPixmapName[i] != null) {
+                    GTKStyle.GTKStateInfo stateInfo =
+                        new GTKStyle.GTKStateInfo(toSynthState(i),
+                                                  null, colors, bgPixmapName[i]);
+                    stateInfos.add(stateInfo);
+                }
+            }
+            
+            GTKStyle.GTKStateInfo[] infoArray = null;
+            if (stateInfos.size() != 0) {
+                infoArray = new GTKStyle.GTKStateInfo[stateInfos.size()];
+                infoArray = (GTKStyle.GTKStateInfo[])stateInfos.toArray(infoArray);
+            }
+
+            GTKStyle.GTKStockIconInfo[] stockArray = stocksToArray();
+
+            // if this style has engine information, delegate the creation
+            if (engineInfo != null) {
+                cachedStyle = engineInfo.constructGTKStyle(infoArray,
+                                                           props,
+                                                           font,
+                                                           xThickness,
+                                                           yThickness,
+                                                           stockArray);
+            // otherwise, create a regular GTKStyle
+            } else if (infoArray != null
+                           || stockArray != null
+                           || props != null
+                           || font != null
+                           || xThickness != GTKStyle.UNDEFINED_THICKNESS
+                           || yThickness != GTKStyle.UNDEFINED_THICKNESS) {
+                cachedStyle = new GTKStyle(infoArray,
+                                           props,
+                                           font,
+                                           xThickness,
+                                           yThickness,
+                                           stockArray);
+            } else {
+                cachedStyle = EMPTY_STYLE;
+            }
+
+            return cachedStyle;
+!!!2075291.java!!!	stocksToArray() : GTKStockIconInfo
+            if (stocks == null) {
+                return null;
+            }
+            
+            ArrayList tmpList = new ArrayList();
+            
+            HashMap[] maps = new HashMap[stocks.size()];
+            maps = (HashMap[])stocks.toArray(maps);
+            
+            for (int i = 0; i < maps.length; i++) {
+                tmpList.addAll(maps[i].values());
+            }
+            
+            GTKStyle.GTKStockIconInfo[] retVal = new GTKStyle.GTKStockIconInfo[tmpList.size()];
+            retVal = (GTKStyle.GTKStockIconInfo[])tmpList.toArray(retVal);
+            
+            return retVal;
+!!!2075419.java!!!	toSynthState(in ourState : int) : int
+            switch(ourState) {
+                case NORMAL: return SynthConstants.ENABLED;
+                case PRELIGHT: return SynthConstants.MOUSE_OVER;
+                case ACTIVE: return SynthConstants.PRESSED;
+                case INSENSITIVE: return SynthConstants.DISABLED;
+                case SELECTED: return SynthConstants.SELECTED;
+            }
+            
+            // should not happen
+            return SynthConstants.ENABLED;

@@ -1,0 +1,100 @@
+class ValidatorImpl
+!!!5425947.java!!!	ValidatorImpl(inout _handler : ValidatorHandlerImpl)
+        this.handler = _handler;
+!!!5426075.java!!!	getResourceResolver() : LSResourceResolver
+        return handler.getResourceResolver();
+!!!5426203.java!!!	getErrorHandler() : ErrorHandler
+        return handler.getErrorHandler();
+!!!5426331.java!!!	setResourceResolver(inout resolver : LSResourceResolver) : void
+        handler.setResourceResolver(resolver);
+!!!5426459.java!!!	setErrorHandler(inout errorHandler : ErrorHandler) : void
+        handler.setErrorHandler(errorHandler);
+!!!5426587.java!!!	validate(inout source : Source, inout result : Result) : void
+        if( source instanceof DOMSource ) {
+            if( result!=null && !(result instanceof DOMResult) )
+                throw new IllegalArgumentException(result.getClass().getName());
+            process( (DOMSource)source, (DOMResult)result );
+            return;
+        }
+        if( source instanceof SAXSource ) {
+            if( result!=null && !(result instanceof SAXResult) )
+                throw new IllegalArgumentException(result.getClass().getName());
+            process( (SAXSource)source, (SAXResult)result );
+            return;
+        }
+        if( source instanceof StreamSource ) {
+            if( result!=null )
+                throw new IllegalArgumentException(result.getClass().getName());
+            StreamSource ss = (StreamSource)source;
+            InputSource is = new InputSource();
+            is.setByteStream(ss.getInputStream());
+            is.setCharacterStream(ss.getReader());
+            is.setPublicId(ss.getPublicId());
+            is.setSystemId(ss.getSystemId());
+            process( new SAXSource(is), null );
+            return;
+        }
+        throw new IllegalArgumentException(source.getClass().getName());
+!!!5426715.java!!!	process(inout source : SAXSource, inout result : SAXResult) : void
+        if( result!=null ) {
+            handler.setContentHandler(result.getHandler());
+        }
+        
+        try {
+            XMLReader reader = source.getXMLReader();
+            if( reader==null ) {
+                // create one now
+                SAXParserFactory spf = SAXParserFactory.newInstance();
+                spf.setNamespaceAware(true);
+                try {
+                    reader = spf.newSAXParser().getXMLReader();
+                } catch( Exception e ) {
+                    // this is impossible, but better safe than sorry
+                    throw new FactoryConfigurationError(e);
+                }
+            }
+            
+            reader.setErrorHandler(errorForwarder);
+            reader.setEntityResolver(resolutionForwarder);
+            reader.setContentHandler(handler);
+            
+            InputSource is = source.getInputSource();
+            reader.parse(is);
+        } finally {
+            // release the reference to user's handler ASAP
+            handler.setContentHandler(null);
+        }
+!!!5426843.java!!!	process(inout source : DOMSource, inout result : DOMResult) : void
+        if( identityTransformer1==null ) {
+            try {
+                SAXTransformerFactory tf = (SAXTransformerFactory)SAXTransformerFactory.newInstance();
+                identityTransformer1 = tf.newTransformer();
+                identityTransformer2 = tf.newTransformerHandler();
+            } catch (TransformerConfigurationException e) {
+                // this is impossible, but again better safe than sorry
+                throw new TransformerFactoryConfigurationError(e);
+            }
+        }
+
+        if( result!=null ) {
+            handler.setContentHandler(identityTransformer2);
+            identityTransformer2.setResult(result);
+        }
+        
+        try {
+            identityTransformer1.transform( source, new SAXResult(handler) );
+        } catch (TransformerException e) {
+            if( e.getException() instanceof SAXException )
+                throw (SAXException)e.getException();
+            throw new SAXException(e);
+        } finally {
+            handler.setContentHandler(null);
+        }
+!!!5426971.java!!!	reset() : void
+        handler.reset();
+        
+        // I don't think this is necessary, but I don't think it hurts either.
+        // so reset just for the kick.
+        if(identityTransformer1!=null) {
+            identityTransformer1.reset();
+        }

@@ -1,0 +1,42 @@
+class SingleNodeCounter
+!!!4694939.java!!!	SingleNodeCounter(inout translet : Translet, inout document : DOM, inout iterator : DTMAxisIterator)
+	super(translet, document, iterator);
+!!!4695067.java!!!	setStartNode(in node : int) : NodeCounter
+	_node = node;
+	_nodeType = _document.getExpandedTypeID(node);
+	_countSiblings = _document.getAxisIterator(PRECEDINGSIBLING);
+	return this;
+!!!4695195.java!!!	getCounter() : String
+	int result;
+	if (_value != Integer.MIN_VALUE) {
+	    result = _value;
+	}
+	else {
+	    int next = _node;
+	    result = 0;
+	    if (!matchesCount(next)) {
+		while ((next = _document.getParent(next)) > END) {
+		    if (matchesCount(next)) {
+			break;		// found target
+		    }
+		    if (matchesFrom(next)) {
+			next = END;
+			break;		// no target found
+		    }
+		}
+	    }
+
+	    if (next != END) {
+		_countSiblings.setStartNode(next);
+		do {
+		    if (matchesCount(next)) result++;
+		} while ((next = _countSiblings.next()) != END);
+	    }
+	    else {
+		// If no target found then pass the empty list
+		return formatNumbers(EmptyArray);
+	    }
+	}
+	return formatNumbers(result);
+!!!4695323.java!!!	getDefaultNodeCounter(inout translet : Translet, inout document : DOM, inout iterator : DTMAxisIterator) : NodeCounter
+	return new DefaultSingleNodeCounter(translet, document, iterator);

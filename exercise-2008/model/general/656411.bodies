@@ -1,0 +1,52 @@
+class AbsoluteLocationPath
+!!!4348315.java!!!	AbsoluteLocationPath()
+	_path = null;
+!!!4348443.java!!!	AbsoluteLocationPath(inout path : Expression)
+	_path = path;
+	if (path != null) {
+	    _path.setParent(this);
+	}
+!!!4348571.java!!!	setParser(inout parser : Parser) : void
+	super.setParser(parser);
+	if (_path != null) {
+	    _path.setParser(parser);
+	}
+!!!4348699.java!!!	getPath() : Expression
+	return(_path);
+!!!4348827.java!!!	toString() : String
+	return "AbsoluteLocationPath(" +
+	    (_path != null ? _path.toString() : "null") + ')';
+!!!4348955.java!!!	typeCheck(inout stable : SymbolTable) : Type
+	if (_path != null) {
+	    final Type ptype = _path.typeCheck(stable);
+	    if (ptype instanceof NodeType) {		// promote to node-set
+		_path = new CastExpr(_path, Type.NodeSet);
+	    }
+	}
+	return _type = Type.NodeSet;	
+!!!4349083.java!!!	translate(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	final ConstantPoolGen cpg = classGen.getConstantPool();
+	final InstructionList il = methodGen.getInstructionList();
+	if (_path != null) {
+	    final int initAI = cpg.addMethodref(ABSOLUTE_ITERATOR,
+						"<init>",
+						"("
+						+ NODE_ITERATOR_SIG
+						+ ")V");
+	    // Create new AbsoluteIterator
+	    il.append(new NEW(cpg.addClass(ABSOLUTE_ITERATOR)));
+	    il.append(DUP);
+
+	    // Compile relative path iterator(s)
+	    _path.translate(classGen, methodGen);
+
+	    // Initialize AbsoluteIterator with iterator from the stack
+	    il.append(new INVOKESPECIAL(initAI));
+	}
+	else {
+	    final int gitr = cpg.addInterfaceMethodref(DOM_INTF,
+						       "getIterator",
+						       "()"+NODE_ITERATOR_SIG);
+	    il.append(methodGen.loadDOM());
+	    il.append(new INVOKEINTERFACE(gitr, 1));
+	}

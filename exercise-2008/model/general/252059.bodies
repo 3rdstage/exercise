@@ -1,0 +1,95 @@
+class ServantManagerImpl
+!!!1296155.java!!!	ServantManagerImpl(inout orb : ORB, inout logDir : File, inout aNameService : NameService)
+	this.logDir = logDir;
+	this.orb    = orb;
+	// initialize the counter database
+	counterDb   = new CounterDB(logDir);
+	contexts    = new Hashtable();
+	theNameService = aNameService;
+!!!1296283.java!!!	preinvoke(in oid : byte, inout adapter : POA, in operation : String, inout cookie : CookieHolder) : Servant
+
+	String objKey = new String(oid);
+
+	Servant servant = (Servant) contexts.get(objKey);
+
+	if (servant == null)
+	{
+		 servant =  readInContext(objKey);
+	}
+
+	return servant;
+!!!1296411.java!!!	postinvoke(in oid : byte, inout adapter : POA, in operation : String, inout cookie : Object, inout servant : Servant) : void
+	// nada
+!!!1296539.java!!!	readInContext(in objKey : String) : NamingContextImpl
+	NamingContextImpl context = (NamingContextImpl) contexts.get(objKey);
+	if( context != null )
+	{
+		// Returning Context from Cache
+		return context;
+	}	
+
+	File contextFile = new File(logDir, objKey);
+	if (contextFile.exists()) {
+	    try {
+		FileInputStream fis = new FileInputStream(contextFile);
+		ObjectInputStream ois = new ObjectInputStream(fis);
+		context = (NamingContextImpl) ois.readObject();
+		context.setORB( orb );
+		context.setServantManagerImpl( this );
+		context.setRootNameService( theNameService );
+		ois.close();
+	    } catch (Exception ex) {
+	    }
+	}
+
+	if (context != null)
+	{
+		contexts.put(objKey, context);
+	}
+	return context;
+!!!1296667.java!!!	addContext(in objKey : String, inout context : NamingContextImpl) : NamingContextImpl
+	File contextFile =  new File(logDir, objKey);
+
+	if (contextFile.exists()) 
+	{
+	    context = readInContext(objKey);
+	}
+	else {
+	    try {
+		FileOutputStream fos = new FileOutputStream(contextFile);
+		ObjectOutputStream oos = new ObjectOutputStream(fos);
+		oos.writeObject(context);
+		oos.close();
+	    } catch (Exception ex) {
+	    }
+	}
+	try
+	{
+		contexts.remove( objKey );
+	}
+	catch( Exception e)
+	{
+	}
+	contexts.put(objKey, context);
+
+	return context;
+!!!1296795.java!!!	updateContext(in objKey : String, inout context : NamingContextImpl) : void
+	File contextFile =  new File(logDir, objKey);
+	if (contextFile.exists()) 
+	{
+		contextFile.delete( );
+		contextFile =  new File(logDir, objKey);
+	}
+		
+        try {
+		FileOutputStream fos = new FileOutputStream(contextFile);
+		ObjectOutputStream oos = new ObjectOutputStream(fos);
+		oos.writeObject(context);
+		oos.close();
+	    } catch (Exception ex) {
+		ex.printStackTrace( );
+	    }
+!!!1296923.java!!!	getRootObjectKey() : String
+	return objKeyPrefix + CounterDB.rootCounter;
+!!!1297051.java!!!	getNewObjectKey() : String
+	return objKeyPrefix + counterDb.getNextCounter();

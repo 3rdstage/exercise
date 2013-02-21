@@ -1,0 +1,65 @@
+class ConstantValue
+!!!3617819.java!!!	ConstantValue(inout c : ConstantValue)
+    this(c.getNameIndex(), c.getLength(), c.getConstantValueIndex(),
+	 c.getConstantPool());
+!!!3617947.java!!!	ConstantValue(in name_index : int, in length : int, inout file : DataInputStream, inout constant_pool : ConstantPool)
+    this(name_index, length, (int)file.readUnsignedShort(), constant_pool);
+!!!3618075.java!!!	ConstantValue(in name_index : int, in length : int, in constantvalue_index : int, inout constant_pool : ConstantPool)
+    super(Constants.ATTR_CONSTANT_VALUE, name_index, length, constant_pool);
+    this.constantvalue_index = constantvalue_index;
+!!!3618203.java!!!	accept(inout v : Visitor) : void
+    v.visitConstantValue(this);
+!!!3618331.java!!!	dump(inout file : DataOutputStream) : void
+    super.dump(file);
+    file.writeShort(constantvalue_index);
+!!!3618459.java!!!	getConstantValueIndex() : int
+ return constantvalue_index;
+!!!3618587.java!!!	setConstantValueIndex(in constantvalue_index : int) : void
+    this.constantvalue_index = constantvalue_index;
+!!!3618715.java!!!	toString() : String
+    Constant c = constant_pool.getConstant(constantvalue_index);
+	
+    String   buf;
+    int    i;
+
+    // Print constant to string depending on its type
+    switch(c.getTag()) {
+    case Constants.CONSTANT_Long:    buf = "" + ((ConstantLong)c).getBytes();    break;
+    case Constants.CONSTANT_Float:   buf = "" + ((ConstantFloat)c).getBytes();   break;
+    case Constants.CONSTANT_Double:  buf = "" + ((ConstantDouble)c).getBytes();  break;
+    case Constants.CONSTANT_Integer: buf = "" + ((ConstantInteger)c).getBytes(); break;
+    case Constants.CONSTANT_String:  
+      i   = ((ConstantString)c).getStringIndex();
+      c   = constant_pool.getConstant(i, Constants.CONSTANT_Utf8);
+      buf = "\"" + convertString(((ConstantUtf8)c).getBytes()) + "\"";
+      break;
+    default: throw new InternalError("Type of ConstValue invalid: " + c);
+    }
+
+    return buf;
+!!!3618843.java!!!	convertString(in label : String) : String
+    char[]       ch  = label.toCharArray();
+    StringBuffer buf = new StringBuffer();
+
+    for(int i=0; i < ch.length; i++) {
+      switch(ch[i]) {
+      case '\n':
+	buf.append("\\n"); break;
+      case '\r':
+	buf.append("\\r"); break;
+      case '\"':
+	buf.append("\\\""); break;
+      case '\'':
+	buf.append("\\'"); break;
+      case '\\':
+	buf.append("\\\\"); break;
+      default:
+	buf.append(ch[i]); break;
+      }
+    }
+
+    return buf.toString();
+!!!3618971.java!!!	copy(inout constant_pool : ConstantPool) : Attribute
+    ConstantValue c = (ConstantValue)clone();
+    c.constant_pool = constant_pool;
+    return c;

@@ -1,0 +1,111 @@
+class NotificationBroadcasterSupport
+!!!8251291.java!!!	addNotificationListener(inout listener : NotificationListener, inout filter : NotificationFilter, inout handback : Object) : void
+
+        if (listener == null) {
+            throw new IllegalArgumentException ("Listener can't be null") ;
+        }
+
+	/* Adding a new listener takes O(n) time where n is the number
+	   of existing listeners.  If you have a very large number of
+	   listeners performance could degrade.  That's a fairly
+	   surprising configuration, and it is hard to avoid this
+	   behaviour while still retaining the property that the
+	   listenerList is not synchronized while notifications are
+	   being sent through it.  If this becomes a problem, a
+	   possible solution would be a multiple-readers single-writer
+	   setup, so any number of sendNotification() calls could run
+	   concurrently but they would exclude an
+	   add/removeNotificationListener.  A simpler but less
+	   efficient solution would be to clone the listener list
+	   every time a notification is sent.  */
+	synchronized (lock) {
+	    List newList = new ArrayList(listenerList.size() + 1);
+	    newList.addAll(listenerList);
+	    newList.add(new ListenerInfo(listener, filter, handback));
+	    listenerList = newList;
+	}
+!!!8251419.java!!!	removeNotificationListener(inout listener : NotificationListener) : void
+
+	synchronized (lock) {
+	    List newList = new ArrayList(listenerList);
+	    /* We scan the list of listeners in reverse order because
+	       in forward order we would have to repeat the loop with
+	       the same index after a remove.  */
+	    for (int i=newList.size()-1; i>=0; i--) {
+		ListenerInfo li = (ListenerInfo)newList.get(i);
+
+		if (li.listener == listener)
+		    newList.remove(i);
+	    }
+	    if (newList.size() == listenerList.size())
+		throw new ListenerNotFoundException("Listener not registered");
+	    listenerList = newList;
+	}
+!!!8251547.java!!!	removeNotificationListener(inout listener : NotificationListener, inout filter : NotificationFilter, inout handback : Object) : void
+
+	boolean found = false;
+
+	synchronized (lock) {
+	    List newList = new ArrayList(listenerList);
+	    final int size = newList.size();
+	    for (int i = 0; i < size; i++) {
+		ListenerInfo li = (ListenerInfo) newList.get(i);
+
+		if (li.listener == listener) {
+		    found = true;
+		    if (li.filter == filter
+			&& li.handback == handback) {
+			newList.remove(i);
+			listenerList = newList;
+			return;
+		    }
+		}
+	    }
+	}
+
+	if (found) {
+	    /* We found this listener, but not with the given filter
+	     * and handback.  A more informative exception message may
+	     * make debugging easier.  */
+	    throw new ListenerNotFoundException("Listener not registered " +
+						"with this filter and " +
+						"handback");
+	} else {
+	    throw new ListenerNotFoundException("Listener not registered");
+	}
+!!!8251675.java!!!	getNotificationInfo() : MBeanNotificationInfo
+        return new MBeanNotificationInfo[0];
+!!!8251803.java!!!	sendNotification(inout notification : Notification) : void
+
+	if (notification == null) {
+	    return;
+	}
+        
+	List currentList;
+	synchronized (lock) {
+	    currentList = listenerList;
+	}
+
+	final int size = currentList.size();
+	for (int i = 0; i < size; i++) {
+	    ListenerInfo li = (ListenerInfo) currentList.get(i);
+
+	    if (li.filter == null
+		|| li.filter.isNotificationEnabled(notification)) {
+		try {
+		    this.handleNotification(li.listener, notification,
+					    li.handback);
+		} catch (Exception e) {
+		    trace("sendNotification",
+			  "exception from listener: " + e);
+		}
+	    }
+	}
+!!!8251931.java!!!	handleNotification(inout listener : NotificationListener, inout notif : Notification, inout handback : Object) : void
+	listener.handleNotification(notif, handback);
+!!!8252059.java!!!	trace(in method : String, in message : String) : void
+	if (Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_MISC)) {
+	    Trace.send(Trace.LEVEL_TRACE, Trace.INFO_MISC,
+		       NotificationBroadcasterSupport.class.getName(),
+		       method, message);
+	}

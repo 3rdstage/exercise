@@ -1,0 +1,116 @@
+class Host
+!!!3505307.java!!!	Host(in id : int)
+        super(id);
+!!!3505435.java!!!	Host(inout p : Parser, in id : int)
+        super(p, id);
+!!!3505819.java!!!	buildAclEntries(inout owner : PrincipalImpl, inout acl : AclImpl) : void
+        // Create a principal
+        //
+        PrincipalImpl p=null;
+        try {
+            p = createAssociatedPrincipal();
+        } catch(UnknownHostException e) {
+            if (isDebugOn()) {
+                debug("buildAclEntries", "Cannot create ACL entry for " + e.getMessage());
+            }
+	    throw new IllegalArgumentException("Cannot create ACL entry for " + e.getMessage());
+        }
+
+        // Create an AclEntry
+        //
+        AclEntryImpl entry= null;
+        try {
+            entry = new AclEntryImpl(p);
+            // Add permission
+            //
+            registerPermission(entry);
+            acl.addEntry(owner, entry);
+        } catch(UnknownHostException e) {
+            if (isDebugOn()) {
+                debug("buildAclEntries", "Cannot create ACL entry for " + e.getMessage());
+            }
+            return;
+        } catch(NotOwnerException a) {
+            if (isDebugOn()) {
+                debug("buildAclEntries", "Not owner of ACL " + a.getMessage());
+            }
+            return;
+        }
+!!!3505947.java!!!	registerPermission(inout entry : AclEntryImpl) : void
+        JDMHost host= (JDMHost) jjtGetParent(); 
+        JDMManagers manager= (JDMManagers) host.jjtGetParent();
+        JDMAclItem acl= (JDMAclItem) manager.jjtGetParent();
+        JDMAccess access= (JDMAccess) acl.getAccess();
+        access.putPermission(entry);
+        JDMCommunities comm= (JDMCommunities) acl.getCommunities();
+        comm.buildCommunities(entry);
+!!!3506075.java!!!	buildTrapEntries(inout dest : Hashtable) : void
+        
+        JDMHostTrap host= (JDMHostTrap) jjtGetParent(); 
+        JDMTrapInterestedHost hosts= (JDMTrapInterestedHost) host.jjtGetParent();
+        JDMTrapItem trap = (JDMTrapItem) hosts.jjtGetParent();
+        JDMTrapCommunity community = (JDMTrapCommunity) trap.getCommunity();
+        String comm = community.getCommunity();
+	
+        InetAddress add = null;
+        try {
+            add = java.net.InetAddress.getByName(getHname());
+        } catch(UnknownHostException e) {
+            if (isDebugOn()) {
+                debug("buildTrapEntries", "Cannot create TRAP entry for " + e.getMessage());
+            }
+            return;
+        }
+	
+        Vector list = null;
+        if (dest.containsKey(add)){
+            list = (Vector) dest.get(add);
+            if (!list.contains(comm)){
+                list.addElement(comm);
+            }
+        } else {
+            list = new Vector();
+            list.addElement(comm);
+            dest.put(add,list);
+        }
+!!!3506203.java!!!	buildInformEntries(inout dest : Hashtable) : void
+    
+        JDMHostInform host= (JDMHostInform) jjtGetParent(); 
+        JDMInformInterestedHost hosts= (JDMInformInterestedHost) host.jjtGetParent();
+        JDMInformItem inform = (JDMInformItem) hosts.jjtGetParent();
+        JDMInformCommunity community = (JDMInformCommunity) inform.getCommunity();
+        String comm = community.getCommunity();
+	
+        InetAddress add = null;
+        try {
+            add = java.net.InetAddress.getByName(getHname());
+        } catch(UnknownHostException e) {
+            if (isDebugOn()) {
+                debug("buildInformEntries", "Cannot create INFORM entry for " + e.getMessage());
+            }
+            return;
+        }
+	
+        Vector list = null;
+        if (dest.containsKey(add)){
+            list = (Vector) dest.get(add);
+            if (!list.contains(comm)){
+                list.addElement(comm);
+            }
+        } else {
+            list = new Vector();
+            list.addElement(comm);
+            dest.put(add,list);
+        }
+!!!3506331.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_SNMP);
+!!!3506459.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_SNMP, clz, func, info);
+!!!3506587.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!3506715.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_SNMP);
+!!!3506843.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_SNMP, clz, func, info);
+!!!3506971.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);

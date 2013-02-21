@@ -1,0 +1,1408 @@
+class Arrays
+!!!166555.java!!!	sort(in a : long) : void
+	sort1(a, 0, a.length);
+!!!166683.java!!!	sort(in a : long, in fromIndex : int, in toIndex : int) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+	sort1(a, fromIndex, toIndex-fromIndex);
+!!!166811.java!!!	sort(in a : int) : void
+	sort1(a, 0, a.length);
+!!!166939.java!!!	sort(in a : int, in fromIndex : int, in toIndex : int) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+	sort1(a, fromIndex, toIndex-fromIndex);
+!!!167067.java!!!	sort(in a : short) : void
+	sort1(a, 0, a.length);
+!!!167195.java!!!	sort(in a : short, in fromIndex : int, in toIndex : int) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+	sort1(a, fromIndex, toIndex-fromIndex);
+!!!167323.java!!!	sort(in a : char) : void
+	sort1(a, 0, a.length);
+!!!167451.java!!!	sort(in a : char, in fromIndex : int, in toIndex : int) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+	sort1(a, fromIndex, toIndex-fromIndex);
+!!!167579.java!!!	sort(in a : byte) : void
+	sort1(a, 0, a.length);
+!!!167707.java!!!	sort(in a : byte, in fromIndex : int, in toIndex : int) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+	sort1(a, fromIndex, toIndex-fromIndex);
+!!!167835.java!!!	sort(in a : double) : void
+	sort2(a, 0, a.length);
+!!!167963.java!!!	sort(in a : double, in fromIndex : int, in toIndex : int) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+	sort2(a, fromIndex, toIndex);
+!!!168091.java!!!	sort(in a : float) : void
+	sort2(a, 0, a.length);
+!!!168219.java!!!	sort(in a : float, in fromIndex : int, in toIndex : int) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+	sort2(a, fromIndex, toIndex);
+!!!168347.java!!!	sort2(in a : double, in fromIndex : int, in toIndex : int) : void
+        final long NEG_ZERO_BITS = Double.doubleToLongBits(-0.0d);
+        /*
+         * The sort is done in three phases to avoid the expense of using
+         * NaN and -0.0 aware comparisons during the main sort.
+         */
+
+        /*
+         * Preprocessing phase:  Move any NaN's to end of array, count the
+         * number of -0.0's, and turn them into 0.0's. 
+         */
+        int numNegZeros = 0;
+        int i = fromIndex, n = toIndex;
+        while(i < n) {
+            if (a[i] != a[i]) {
+		double swap = a[i];
+                a[i] = a[--n];
+                a[n] = swap;
+            } else {
+                if (a[i]==0 && Double.doubleToLongBits(a[i])==NEG_ZERO_BITS) {
+                    a[i] = 0.0d;
+                    numNegZeros++;
+                }
+                i++;
+            }
+        }
+
+        // Main sort phase: quicksort everything but the NaN's
+	sort1(a, fromIndex, n-fromIndex);
+
+        // Postprocessing phase: change 0.0's to -0.0's as required
+        if (numNegZeros != 0) {
+            int j = binarySearch(a, 0.0d, fromIndex, n-1); // posn of ANY zero
+            do {
+                j--;
+            } while (j>=0 && a[j]==0.0d);
+
+            // j is now one less than the index of the FIRST zero
+            for (int k=0; k<numNegZeros; k++)
+                a[++j] = -0.0d;
+        }
+!!!168475.java!!!	sort2(in a : float, in fromIndex : int, in toIndex : int) : void
+        final int NEG_ZERO_BITS = Float.floatToIntBits(-0.0f);
+        /*
+         * The sort is done in three phases to avoid the expense of using
+         * NaN and -0.0 aware comparisons during the main sort.
+         */
+
+        /*
+         * Preprocessing phase:  Move any NaN's to end of array, count the
+         * number of -0.0's, and turn them into 0.0's. 
+         */
+        int numNegZeros = 0;
+        int i = fromIndex, n = toIndex;
+        while(i < n) {
+            if (a[i] != a[i]) {
+		float swap = a[i];
+                a[i] = a[--n];
+                a[n] = swap;
+            } else {
+                if (a[i]==0 && Float.floatToIntBits(a[i])==NEG_ZERO_BITS) {
+                    a[i] = 0.0f;
+                    numNegZeros++;
+                }
+                i++;
+            }
+        }
+
+        // Main sort phase: quicksort everything but the NaN's
+	sort1(a, fromIndex, n-fromIndex);
+
+        // Postprocessing phase: change 0.0's to -0.0's as required
+        if (numNegZeros != 0) {
+            int j = binarySearch(a, 0.0f, fromIndex, n-1); // posn of ANY zero
+            do {
+                j--;
+            } while (j>=0 && a[j]==0.0f);
+
+            // j is now one less than the index of the FIRST zero
+            for (int k=0; k<numNegZeros; k++)
+                a[++j] = -0.0f;
+        }
+!!!168603.java!!!	sort1(in x : long, in off : int, in len : int) : void
+	// Insertion sort on smallest arrays
+	if (len < 7) {
+	    for (int i=off; i<len+off; i++)
+		for (int j=i; j>off && x[j-1]>x[j]; j--)
+		    swap(x, j, j-1);
+	    return;
+	}
+
+	// Choose a partition element, v
+	int m = off + (len >> 1);       // Small arrays, middle element
+	if (len > 7) {
+	    int l = off;
+	    int n = off + len - 1;
+	    if (len > 40) {        // Big arrays, pseudomedian of 9
+		int s = len/8;
+		l = med3(x, l,     l+s, l+2*s);
+		m = med3(x, m-s,   m,   m+s);
+		n = med3(x, n-2*s, n-s, n);
+	    }
+	    m = med3(x, l, m, n); // Mid-size, med of 3
+	}
+	long v = x[m];
+
+	// Establish Invariant: v* (<v)* (>v)* v*
+	int a = off, b = a, c = off + len - 1, d = c;
+	while(true) {
+	    while (b <= c && x[b] <= v) {
+		if (x[b] == v)
+		    swap(x, a++, b);
+		b++;
+	    }
+	    while (c >= b && x[c] >= v) {
+		if (x[c] == v)
+		    swap(x, c, d--);
+		c--;
+	    }
+	    if (b > c)
+		break;
+	    swap(x, b++, c--);
+	}
+
+	// Swap partition elements back to middle
+	int s, n = off + len;
+	s = Math.min(a-off, b-a  );  vecswap(x, off, b-s, s);
+	s = Math.min(d-c,   n-d-1);  vecswap(x, b,   n-s, s);
+
+	// Recursively sort non-partition-elements
+	if ((s = b-a) > 1)
+	    sort1(x, off, s);
+	if ((s = d-c) > 1)
+	    sort1(x, n-s, s);
+!!!168731.java!!!	swap(in x : long, in a : int, in b : int) : void
+	long t = x[a];
+	x[a] = x[b];
+	x[b] = t;
+!!!168859.java!!!	vecswap(in x : long, in a : int, in b : int, in n : int) : void
+	for (int i=0; i<n; i++, a++, b++)
+	    swap(x, a, b);
+!!!168987.java!!!	med3(in x : long, in a : int, in b : int, in c : int) : int
+	return (x[a] < x[b] ?
+		(x[b] < x[c] ? b : x[a] < x[c] ? c : a) :
+		(x[b] > x[c] ? b : x[a] > x[c] ? c : a));
+!!!169115.java!!!	sort1(in x : int, in off : int, in len : int) : void
+	// Insertion sort on smallest arrays
+	if (len < 7) {
+	    for (int i=off; i<len+off; i++)
+		for (int j=i; j>off && x[j-1]>x[j]; j--)
+		    swap(x, j, j-1);
+	    return;
+	}
+
+	// Choose a partition element, v
+	int m = off + (len >> 1);       // Small arrays, middle element
+	if (len > 7) {
+	    int l = off;
+	    int n = off + len - 1;
+	    if (len > 40) {        // Big arrays, pseudomedian of 9
+		int s = len/8;
+		l = med3(x, l,     l+s, l+2*s);
+		m = med3(x, m-s,   m,   m+s);
+		n = med3(x, n-2*s, n-s, n);
+	    }
+	    m = med3(x, l, m, n); // Mid-size, med of 3
+	}
+	int v = x[m];
+
+	// Establish Invariant: v* (<v)* (>v)* v*
+	int a = off, b = a, c = off + len - 1, d = c;
+	while(true) {
+	    while (b <= c && x[b] <= v) {
+		if (x[b] == v)
+		    swap(x, a++, b);
+		b++;
+	    }
+	    while (c >= b && x[c] >= v) {
+		if (x[c] == v)
+		    swap(x, c, d--);
+		c--;
+	    }
+	    if (b > c)
+		break;
+	    swap(x, b++, c--);
+	}
+
+	// Swap partition elements back to middle
+	int s, n = off + len;
+	s = Math.min(a-off, b-a  );  vecswap(x, off, b-s, s);
+	s = Math.min(d-c,   n-d-1);  vecswap(x, b,   n-s, s);
+
+	// Recursively sort non-partition-elements
+	if ((s = b-a) > 1)
+	    sort1(x, off, s);
+	if ((s = d-c) > 1)
+	    sort1(x, n-s, s);
+!!!169243.java!!!	swap(in x : int, in a : int, in b : int) : void
+	int t = x[a];
+	x[a] = x[b];
+	x[b] = t;
+!!!169371.java!!!	vecswap(in x : int, in a : int, in b : int, in n : int) : void
+	for (int i=0; i<n; i++, a++, b++)
+	    swap(x, a, b);
+!!!169499.java!!!	med3(in x : int, in a : int, in b : int, in c : int) : int
+	return (x[a] < x[b] ?
+		(x[b] < x[c] ? b : x[a] < x[c] ? c : a) :
+		(x[b] > x[c] ? b : x[a] > x[c] ? c : a));
+!!!169627.java!!!	sort1(in x : short, in off : int, in len : int) : void
+	// Insertion sort on smallest arrays
+	if (len < 7) {
+	    for (int i=off; i<len+off; i++)
+		for (int j=i; j>off && x[j-1]>x[j]; j--)
+		    swap(x, j, j-1);
+	    return;
+	}
+
+	// Choose a partition element, v
+	int m = off + (len >> 1);       // Small arrays, middle element
+	if (len > 7) {
+	    int l = off;
+	    int n = off + len - 1;
+	    if (len > 40) {        // Big arrays, pseudomedian of 9
+		int s = len/8;
+		l = med3(x, l,     l+s, l+2*s);
+		m = med3(x, m-s,   m,   m+s);
+		n = med3(x, n-2*s, n-s, n);
+	    }
+	    m = med3(x, l, m, n); // Mid-size, med of 3
+	}
+	short v = x[m];
+
+	// Establish Invariant: v* (<v)* (>v)* v*
+	int a = off, b = a, c = off + len - 1, d = c;
+	while(true) {
+	    while (b <= c && x[b] <= v) {
+		if (x[b] == v)
+		    swap(x, a++, b);
+		b++;
+	    }
+	    while (c >= b && x[c] >= v) {
+		if (x[c] == v)
+		    swap(x, c, d--);
+		c--;
+	    }
+	    if (b > c)
+		break;
+	    swap(x, b++, c--);
+	}
+
+	// Swap partition elements back to middle
+	int s, n = off + len;
+	s = Math.min(a-off, b-a  );  vecswap(x, off, b-s, s);
+	s = Math.min(d-c,   n-d-1);  vecswap(x, b,   n-s, s);
+
+	// Recursively sort non-partition-elements
+	if ((s = b-a) > 1)
+	    sort1(x, off, s);
+	if ((s = d-c) > 1)
+	    sort1(x, n-s, s);
+!!!169755.java!!!	swap(in x : short, in a : int, in b : int) : void
+	short t = x[a];
+	x[a] = x[b];
+	x[b] = t;
+!!!169883.java!!!	vecswap(in x : short, in a : int, in b : int, in n : int) : void
+	for (int i=0; i<n; i++, a++, b++)
+	    swap(x, a, b);
+!!!170011.java!!!	med3(in x : short, in a : int, in b : int, in c : int) : int
+	return (x[a] < x[b] ?
+		(x[b] < x[c] ? b : x[a] < x[c] ? c : a) :
+		(x[b] > x[c] ? b : x[a] > x[c] ? c : a));
+!!!170139.java!!!	sort1(in x : char, in off : int, in len : int) : void
+	// Insertion sort on smallest arrays
+	if (len < 7) {
+	    for (int i=off; i<len+off; i++)
+		for (int j=i; j>off && x[j-1]>x[j]; j--)
+		    swap(x, j, j-1);
+	    return;
+	}
+
+	// Choose a partition element, v
+	int m = off + (len >> 1);       // Small arrays, middle element
+	if (len > 7) {
+	    int l = off;
+	    int n = off + len - 1;
+	    if (len > 40) {        // Big arrays, pseudomedian of 9
+		int s = len/8;
+		l = med3(x, l,     l+s, l+2*s);
+		m = med3(x, m-s,   m,   m+s);
+		n = med3(x, n-2*s, n-s, n);
+	    }
+	    m = med3(x, l, m, n); // Mid-size, med of 3
+	}
+	char v = x[m];
+
+	// Establish Invariant: v* (<v)* (>v)* v*
+	int a = off, b = a, c = off + len - 1, d = c;
+	while(true) {
+	    while (b <= c && x[b] <= v) {
+		if (x[b] == v)
+		    swap(x, a++, b);
+		b++;
+	    }
+	    while (c >= b && x[c] >= v) {
+		if (x[c] == v)
+		    swap(x, c, d--);
+		c--;
+	    }
+	    if (b > c)
+		break;
+	    swap(x, b++, c--);
+	}
+
+	// Swap partition elements back to middle
+	int s, n = off + len;
+	s = Math.min(a-off, b-a  );  vecswap(x, off, b-s, s);
+	s = Math.min(d-c,   n-d-1);  vecswap(x, b,   n-s, s);
+
+	// Recursively sort non-partition-elements
+	if ((s = b-a) > 1)
+	    sort1(x, off, s);
+	if ((s = d-c) > 1)
+	    sort1(x, n-s, s);
+!!!170267.java!!!	swap(in x : char, in a : int, in b : int) : void
+	char t = x[a];
+	x[a] = x[b];
+	x[b] = t;
+!!!170395.java!!!	vecswap(in x : char, in a : int, in b : int, in n : int) : void
+	for (int i=0; i<n; i++, a++, b++)
+	    swap(x, a, b);
+!!!170523.java!!!	med3(in x : char, in a : int, in b : int, in c : int) : int
+	return (x[a] < x[b] ?
+		(x[b] < x[c] ? b : x[a] < x[c] ? c : a) :
+		(x[b] > x[c] ? b : x[a] > x[c] ? c : a));
+!!!170651.java!!!	sort1(in x : byte, in off : int, in len : int) : void
+	// Insertion sort on smallest arrays
+	if (len < 7) {
+	    for (int i=off; i<len+off; i++)
+		for (int j=i; j>off && x[j-1]>x[j]; j--)
+		    swap(x, j, j-1);
+	    return;
+	}
+
+	// Choose a partition element, v
+	int m = off + (len >> 1);       // Small arrays, middle element
+	if (len > 7) {
+	    int l = off;
+	    int n = off + len - 1;
+	    if (len > 40) {        // Big arrays, pseudomedian of 9
+		int s = len/8;
+		l = med3(x, l,     l+s, l+2*s);
+		m = med3(x, m-s,   m,   m+s);
+		n = med3(x, n-2*s, n-s, n);
+	    }
+	    m = med3(x, l, m, n); // Mid-size, med of 3
+	}
+	byte v = x[m];
+
+	// Establish Invariant: v* (<v)* (>v)* v*
+	int a = off, b = a, c = off + len - 1, d = c;
+	while(true) {
+	    while (b <= c && x[b] <= v) {
+		if (x[b] == v)
+		    swap(x, a++, b);
+		b++;
+	    }
+	    while (c >= b && x[c] >= v) {
+		if (x[c] == v)
+		    swap(x, c, d--);
+		c--;
+	    }
+	    if (b > c)
+		break;
+	    swap(x, b++, c--);
+	}
+
+	// Swap partition elements back to middle
+	int s, n = off + len;
+	s = Math.min(a-off, b-a  );  vecswap(x, off, b-s, s);
+	s = Math.min(d-c,   n-d-1);  vecswap(x, b,   n-s, s);
+
+	// Recursively sort non-partition-elements
+	if ((s = b-a) > 1)
+	    sort1(x, off, s);
+	if ((s = d-c) > 1)
+	    sort1(x, n-s, s);
+!!!170779.java!!!	swap(in x : byte, in a : int, in b : int) : void
+	byte t = x[a];
+	x[a] = x[b];
+	x[b] = t;
+!!!170907.java!!!	vecswap(in x : byte, in a : int, in b : int, in n : int) : void
+	for (int i=0; i<n; i++, a++, b++)
+	    swap(x, a, b);
+!!!171035.java!!!	med3(in x : byte, in a : int, in b : int, in c : int) : int
+	return (x[a] < x[b] ?
+		(x[b] < x[c] ? b : x[a] < x[c] ? c : a) :
+		(x[b] > x[c] ? b : x[a] > x[c] ? c : a));
+!!!171163.java!!!	sort1(in x : double, in off : int, in len : int) : void
+	// Insertion sort on smallest arrays
+	if (len < 7) {
+	    for (int i=off; i<len+off; i++)
+		for (int j=i; j>off && x[j-1]>x[j]; j--)
+		    swap(x, j, j-1);
+	    return;
+	}
+
+	// Choose a partition element, v
+	int m = off + (len >> 1);       // Small arrays, middle element
+	if (len > 7) {
+	    int l = off;
+	    int n = off + len - 1;
+	    if (len > 40) {        // Big arrays, pseudomedian of 9
+		int s = len/8;
+		l = med3(x, l,     l+s, l+2*s);
+		m = med3(x, m-s,   m,   m+s);
+		n = med3(x, n-2*s, n-s, n);
+	    }
+	    m = med3(x, l, m, n); // Mid-size, med of 3
+	}
+	double v = x[m];
+
+	// Establish Invariant: v* (<v)* (>v)* v*
+	int a = off, b = a, c = off + len - 1, d = c;
+	while(true) {
+	    while (b <= c && x[b] <= v) {
+		if (x[b] == v)
+		    swap(x, a++, b);
+		b++;
+	    }
+	    while (c >= b && x[c] >= v) {
+		if (x[c] == v)
+		    swap(x, c, d--);
+		c--;
+	    }
+	    if (b > c)
+		break;
+	    swap(x, b++, c--);
+	}
+
+	// Swap partition elements back to middle
+	int s, n = off + len;
+	s = Math.min(a-off, b-a  );  vecswap(x, off, b-s, s);
+	s = Math.min(d-c,   n-d-1);  vecswap(x, b,   n-s, s);
+
+	// Recursively sort non-partition-elements
+	if ((s = b-a) > 1)
+	    sort1(x, off, s);
+	if ((s = d-c) > 1)
+	    sort1(x, n-s, s);
+!!!171291.java!!!	swap(in x : double, in a : int, in b : int) : void
+	double t = x[a];
+	x[a] = x[b];
+	x[b] = t;
+!!!171419.java!!!	vecswap(in x : double, in a : int, in b : int, in n : int) : void
+	for (int i=0; i<n; i++, a++, b++)
+	    swap(x, a, b);
+!!!171547.java!!!	med3(in x : double, in a : int, in b : int, in c : int) : int
+	return (x[a] < x[b] ?
+		(x[b] < x[c] ? b : x[a] < x[c] ? c : a) :
+		(x[b] > x[c] ? b : x[a] > x[c] ? c : a));
+!!!171675.java!!!	sort1(in x : float, in off : int, in len : int) : void
+	// Insertion sort on smallest arrays
+	if (len < 7) {
+	    for (int i=off; i<len+off; i++)
+		for (int j=i; j>off && x[j-1]>x[j]; j--)
+		    swap(x, j, j-1);
+	    return;
+	}
+
+	// Choose a partition element, v
+	int m = off + (len >> 1);       // Small arrays, middle element
+	if (len > 7) {
+	    int l = off;
+	    int n = off + len - 1;
+	    if (len > 40) {        // Big arrays, pseudomedian of 9
+		int s = len/8;
+		l = med3(x, l,     l+s, l+2*s);
+		m = med3(x, m-s,   m,   m+s);
+		n = med3(x, n-2*s, n-s, n);
+	    }
+	    m = med3(x, l, m, n); // Mid-size, med of 3
+	}
+	float v = x[m];
+
+	// Establish Invariant: v* (<v)* (>v)* v*
+	int a = off, b = a, c = off + len - 1, d = c;
+	while(true) {
+	    while (b <= c && x[b] <= v) {
+		if (x[b] == v)
+		    swap(x, a++, b);
+		b++;
+	    }
+	    while (c >= b && x[c] >= v) {
+		if (x[c] == v)
+		    swap(x, c, d--);
+		c--;
+	    }
+	    if (b > c)
+		break;
+	    swap(x, b++, c--);
+	}
+
+	// Swap partition elements back to middle
+	int s, n = off + len;
+	s = Math.min(a-off, b-a  );  vecswap(x, off, b-s, s);
+	s = Math.min(d-c,   n-d-1);  vecswap(x, b,   n-s, s);
+
+	// Recursively sort non-partition-elements
+	if ((s = b-a) > 1)
+	    sort1(x, off, s);
+	if ((s = d-c) > 1)
+	    sort1(x, n-s, s);
+!!!171803.java!!!	swap(in x : float, in a : int, in b : int) : void
+	float t = x[a];
+	x[a] = x[b];
+	x[b] = t;
+!!!171931.java!!!	vecswap(in x : float, in a : int, in b : int, in n : int) : void
+	for (int i=0; i<n; i++, a++, b++)
+	    swap(x, a, b);
+!!!172059.java!!!	med3(in x : float, in a : int, in b : int, in c : int) : int
+	return (x[a] < x[b] ?
+		(x[b] < x[c] ? b : x[a] < x[c] ? c : a) :
+		(x[b] > x[c] ? b : x[a] > x[c] ? c : a));
+!!!172187.java!!!	sort(inout a : Object) : void
+        Object[] aux = (Object[])a.clone();
+        mergeSort(aux, a, 0, a.length, 0);
+!!!172315.java!!!	sort(inout a : Object, in fromIndex : int, in toIndex : int) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+	Object[] aux = cloneSubarray(a, fromIndex, toIndex);
+        mergeSort(aux, a, fromIndex, toIndex, -fromIndex);
+!!!172443.java!!!	cloneSubarray(inout a : T, in from : int, in to : int) : T
+        int n = to - from;
+	T[] result = (T[])Array.newInstance(a.getClass().getComponentType(), n);
+        System.arraycopy(a, from, result, 0, n);
+        return result;
+!!!172571.java!!!	mergeSort(inout src : Object, inout dest : Object, in low : int, in high : int, in off : int) : void
+	int length = high - low;
+
+	// Insertion sort on smallest arrays
+        if (length < INSERTIONSORT_THRESHOLD) {
+            for (int i=low; i<high; i++)
+                for (int j=i; j>low &&
+			 ((Comparable) dest[j-1]).compareTo(dest[j])>0; j--)
+                    swap(dest, j, j-1);
+            return;
+        }
+
+        // Recursively sort halves of dest into src
+        int destLow  = low;
+        int destHigh = high;
+        low  += off;
+        high += off;
+        int mid = (low + high) >> 1;
+        mergeSort(dest, src, low, mid, -off);
+        mergeSort(dest, src, mid, high, -off);
+
+        // If list is already sorted, just copy from src to dest.  This is an
+        // optimization that results in faster sorts for nearly ordered lists.
+        if (((Comparable)src[mid-1]).compareTo(src[mid]) <= 0) {
+            System.arraycopy(src, low, dest, destLow, length);
+            return;
+        }
+
+        // Merge sorted halves (now in src) into dest
+        for(int i = destLow, p = low, q = mid; i < destHigh; i++) {
+            if (q >= high || p < mid && ((Comparable)src[p]).compareTo(src[q])<=0)
+                dest[i] = src[p++];
+            else
+                dest[i] = src[q++];
+        }
+!!!172699.java!!!	swap(inout x : Object, in a : int, in b : int) : void
+	Object t = x[a];
+	x[a] = x[b];
+	x[b] = t;
+!!!172827.java!!!	sort(inout a : T, inout c : Comparator) : void
+	T[] aux = (T[])a.clone();
+        if (c==null)
+            mergeSort(aux, a, 0, a.length, 0);
+        else
+            mergeSort(aux, a, 0, a.length, 0, c);
+!!!172955.java!!!	sort(inout a : T, in fromIndex : int, in toIndex : int, inout c : Comparator) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+	T[] aux = (T[])cloneSubarray(a, fromIndex, toIndex);
+        if (c==null)
+            mergeSort(aux, a, fromIndex, toIndex, -fromIndex);
+        else
+            mergeSort(aux, a, fromIndex, toIndex, -fromIndex, c);
+!!!173083.java!!!	mergeSort(inout src : Object, inout dest : Object, in low : int, in high : int, in off : int, inout c : Comparator) : void
+	int length = high - low;
+
+	// Insertion sort on smallest arrays
+	if (length < INSERTIONSORT_THRESHOLD) {
+	    for (int i=low; i<high; i++)
+		for (int j=i; j>low && c.compare(dest[j-1], dest[j])>0; j--)
+		    swap(dest, j, j-1);
+	    return;
+	}
+
+        // Recursively sort halves of dest into src
+        int destLow  = low;
+        int destHigh = high;
+        low  += off;
+        high += off;
+        int mid = (low + high) >> 1;
+        mergeSort(dest, src, low, mid, -off, c);
+        mergeSort(dest, src, mid, high, -off, c);
+
+        // If list is already sorted, just copy from src to dest.  This is an
+        // optimization that results in faster sorts for nearly ordered lists.
+        if (c.compare(src[mid-1], src[mid]) <= 0) {
+           System.arraycopy(src, low, dest, destLow, length);
+           return;
+        }
+
+        // Merge sorted halves (now in src) into dest
+        for(int i = destLow, p = low, q = mid; i < destHigh; i++) {
+            if (q >= high || p < mid && c.compare(src[p], src[q]) <= 0)
+                dest[i] = src[p++];
+            else
+                dest[i] = src[q++];
+        }
+!!!173211.java!!!	rangeCheck(in arrayLen : int, in fromIndex : int, in toIndex : int) : void
+        if (fromIndex > toIndex)
+            throw new IllegalArgumentException("fromIndex(" + fromIndex +
+                       ") > toIndex(" + toIndex+")");
+        if (fromIndex < 0)
+            throw new ArrayIndexOutOfBoundsException(fromIndex);
+        if (toIndex > arrayLen)
+            throw new ArrayIndexOutOfBoundsException(toIndex);
+!!!173339.java!!!	binarySearch(in a : long, in key : long) : int
+	int low = 0;
+	int high = a.length-1;
+
+	while (low <= high) {
+	    int mid = (low + high) >> 1;
+	    long midVal = a[mid];
+
+	    if (midVal < key)
+		low = mid + 1;
+	    else if (midVal > key)
+		high = mid - 1;
+	    else
+		return mid; // key found
+	}
+	return -(low + 1);  // key not found.
+!!!173467.java!!!	binarySearch(in a : int, in key : int) : int
+	int low = 0;
+	int high = a.length-1;
+
+	while (low <= high) {
+	    int mid = (low + high) >> 1;
+	    int midVal = a[mid];
+
+	    if (midVal < key)
+		low = mid + 1;
+	    else if (midVal > key)
+		high = mid - 1;
+	    else
+		return mid; // key found
+	}
+	return -(low + 1);  // key not found.
+!!!173595.java!!!	binarySearch(in a : short, in key : short) : int
+	int low = 0;
+	int high = a.length-1;
+
+	while (low <= high) {
+	    int mid = (low + high) >> 1;
+	    short midVal = a[mid];
+
+	    if (midVal < key)
+		low = mid + 1;
+	    else if (midVal > key)
+		high = mid - 1;
+	    else
+		return mid; // key found
+	}
+	return -(low + 1);  // key not found.
+!!!173723.java!!!	binarySearch(in a : char, in key : char) : int
+	int low = 0;
+	int high = a.length-1;
+
+	while (low <= high) {
+	    int mid = (low + high) >> 1;
+	    char midVal = a[mid];
+
+	    if (midVal < key)
+		low = mid + 1;
+	    else if (midVal > key)
+		high = mid - 1;
+	    else
+		return mid; // key found
+	}
+	return -(low + 1);  // key not found.
+!!!173851.java!!!	binarySearch(in a : byte, in key : byte) : int
+	int low = 0;
+	int high = a.length-1;
+
+	while (low <= high) {
+	    int mid = (low + high) >> 1;
+	    byte midVal = a[mid];
+
+	    if (midVal < key)
+		low = mid + 1;
+	    else if (midVal > key)
+		high = mid - 1;
+	    else
+		return mid; // key found
+	}
+	return -(low + 1);  // key not found.
+!!!173979.java!!!	binarySearch(in a : double, in key : double) : int
+        return binarySearch(a, key, 0, a.length-1);
+!!!174107.java!!!	binarySearch(in a : double, in key : double, in low : int, in high : int) : int
+	while (low <= high) {
+	    int mid = (low + high) >> 1;
+	    double midVal = a[mid];
+
+            int cmp;
+            if (midVal < key) {
+                cmp = -1;   // Neither val is NaN, thisVal is smaller
+            } else if (midVal > key) {
+                cmp = 1;    // Neither val is NaN, thisVal is larger
+            } else {
+                long midBits = Double.doubleToLongBits(midVal);
+                long keyBits = Double.doubleToLongBits(key);
+                cmp = (midBits == keyBits ?  0 : // Values are equal
+                       (midBits < keyBits ? -1 : // (-0.0, 0.0) or (!NaN, NaN)
+                        1));                     // (0.0, -0.0) or (NaN, !NaN)
+            }
+
+	    if (cmp < 0)
+		low = mid + 1;
+	    else if (cmp > 0)
+		high = mid - 1;
+	    else
+		return mid; // key found
+	}
+	return -(low + 1);  // key not found.
+!!!174235.java!!!	binarySearch(in a : float, in key : float) : int
+        return binarySearch(a, key, 0, a.length-1);
+!!!174363.java!!!	binarySearch(in a : float, in key : float, in low : int, in high : int) : int
+	while (low <= high) {
+	    int mid = (low + high) >> 1;
+	    float midVal = a[mid];
+
+            int cmp;
+            if (midVal < key) {
+                cmp = -1;   // Neither val is NaN, thisVal is smaller
+            } else if (midVal > key) {
+                cmp = 1;    // Neither val is NaN, thisVal is larger
+            } else {
+                int midBits = Float.floatToIntBits(midVal);
+                int keyBits = Float.floatToIntBits(key);
+                cmp = (midBits == keyBits ?  0 : // Values are equal
+                       (midBits < keyBits ? -1 : // (-0.0, 0.0) or (!NaN, NaN)
+                        1));                     // (0.0, -0.0) or (NaN, !NaN)
+            }
+
+	    if (cmp < 0)
+		low = mid + 1;
+	    else if (cmp > 0)
+		high = mid - 1;
+	    else
+		return mid; // key found
+	}
+	return -(low + 1);  // key not found.
+!!!174491.java!!!	binarySearch(inout a : Object, inout key : Object) : int
+	int low = 0;
+	int high = a.length-1;
+
+	while (low <= high) {
+	    int mid = (low + high) >> 1;
+	    Comparable midVal = (Comparable)a[mid];
+	    int cmp = midVal.compareTo(key);
+
+	    if (cmp < 0)
+		low = mid + 1;
+	    else if (cmp > 0)
+		high = mid - 1;
+	    else
+		return mid; // key found
+	}
+	return -(low + 1);  // key not found.
+!!!174619.java!!!	binarySearch(inout a : T, inout key : T, inout c : Comparator) : int
+        if (c==null) {
+            return binarySearch(a, key);
+	}
+
+	int low = 0;
+	int high = a.length-1;
+
+	while (low <= high) {
+	    int mid = (low + high) >> 1;
+	    T midVal = a[mid];
+	    int cmp = c.compare(midVal, key);
+
+	    if (cmp < 0)
+		low = mid + 1;
+	    else if (cmp > 0)
+		high = mid - 1;
+	    else
+		return mid; // key found
+	}
+	return -(low + 1);  // key not found.
+!!!174747.java!!!	equals(in a : long, in a2 : long) : boolean
+        if (a==a2)
+            return true;
+        if (a==null || a2==null)
+            return false;
+
+        int length = a.length;
+        if (a2.length != length)
+            return false;
+
+        for (int i=0; i<length; i++)
+            if (a[i] != a2[i])
+                return false;
+
+        return true;
+!!!174875.java!!!	equals(in a : int, in a2 : int) : boolean
+        if (a==a2)
+            return true;
+        if (a==null || a2==null)
+            return false;
+
+        int length = a.length;
+        if (a2.length != length)
+            return false;
+
+        for (int i=0; i<length; i++)
+            if (a[i] != a2[i])
+                return false;
+
+        return true;
+!!!175003.java!!!	equals(in a : short, in a2 : short) : boolean
+        if (a==a2)
+            return true;
+        if (a==null || a2==null)
+            return false;
+
+        int length = a.length;
+        if (a2.length != length)
+            return false;
+
+        for (int i=0; i<length; i++)
+            if (a[i] != a2[i])
+                return false;
+
+        return true;
+!!!175131.java!!!	equals(in a : char, in a2 : char) : boolean
+        if (a==a2)
+            return true;
+        if (a==null || a2==null)
+            return false;
+
+        int length = a.length;
+        if (a2.length != length)
+            return false;
+
+        for (int i=0; i<length; i++)
+            if (a[i] != a2[i])
+                return false;
+
+        return true;
+!!!175259.java!!!	equals(in a : byte, in a2 : byte) : boolean
+        if (a==a2)
+            return true;
+        if (a==null || a2==null)
+            return false;
+
+        int length = a.length;
+        if (a2.length != length)
+            return false;
+
+        for (int i=0; i<length; i++)
+            if (a[i] != a2[i])
+                return false;
+
+        return true;
+!!!175387.java!!!	equals(inout a : boolean, inout a2 : boolean) : boolean
+        if (a==a2)
+            return true;
+        if (a==null || a2==null)
+            return false;
+
+        int length = a.length;
+        if (a2.length != length)
+            return false;
+
+        for (int i=0; i<length; i++)
+            if (a[i] != a2[i])
+                return false;
+
+        return true;
+!!!175515.java!!!	equals(in a : double, in a2 : double) : boolean
+        if (a==a2)
+            return true;
+        if (a==null || a2==null)
+            return false;
+
+        int length = a.length;
+        if (a2.length != length)
+            return false;
+
+        for (int i=0; i<length; i++)
+	    if (Double.doubleToLongBits(a[i])!=Double.doubleToLongBits(a2[i]))
+                return false;
+
+        return true;
+!!!175643.java!!!	equals(in a : float, in a2 : float) : boolean
+        if (a==a2)
+            return true;
+        if (a==null || a2==null)
+            return false;
+
+        int length = a.length;
+        if (a2.length != length)
+            return false;
+
+        for (int i=0; i<length; i++)
+	    if (Float.floatToIntBits(a[i])!=Float.floatToIntBits(a2[i]))
+                return false;
+
+        return true;
+!!!175771.java!!!	equals(inout a : Object, inout a2 : Object) : boolean
+        if (a==a2)
+            return true;
+        if (a==null || a2==null)
+            return false;
+
+        int length = a.length;
+        if (a2.length != length)
+            return false;
+
+        for (int i=0; i<length; i++) {
+            Object o1 = a[i];
+            Object o2 = a2[i];
+            if (!(o1==null ? o2==null : o1.equals(o2)))
+                return false;
+        }
+
+        return true;
+!!!175899.java!!!	fill(in a : long, in val : long) : void
+        fill(a, 0, a.length, val);
+!!!176027.java!!!	fill(in a : long, in fromIndex : int, in toIndex : int, in val : long) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+        for (int i=fromIndex; i<toIndex; i++)
+            a[i] = val;
+!!!176155.java!!!	fill(in a : int, in val : int) : void
+        fill(a, 0, a.length, val);
+!!!176283.java!!!	fill(in a : int, in fromIndex : int, in toIndex : int, in val : int) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+        for (int i=fromIndex; i<toIndex; i++)
+            a[i] = val;
+!!!176411.java!!!	fill(in a : short, in val : short) : void
+        fill(a, 0, a.length, val);
+!!!176539.java!!!	fill(in a : short, in fromIndex : int, in toIndex : int, in val : short) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+        for (int i=fromIndex; i<toIndex; i++)
+            a[i] = val;
+!!!176667.java!!!	fill(in a : char, in val : char) : void
+        fill(a, 0, a.length, val);
+!!!176795.java!!!	fill(in a : char, in fromIndex : int, in toIndex : int, in val : char) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+        for (int i=fromIndex; i<toIndex; i++)
+            a[i] = val;
+!!!176923.java!!!	fill(in a : byte, in val : byte) : void
+        fill(a, 0, a.length, val);
+!!!177051.java!!!	fill(in a : byte, in fromIndex : int, in toIndex : int, in val : byte) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+        for (int i=fromIndex; i<toIndex; i++)
+            a[i] = val;
+!!!177179.java!!!	fill(inout a : boolean, inout val : boolean) : void
+        fill(a, 0, a.length, val);
+!!!177307.java!!!	fill(inout a : boolean, in fromIndex : int, in toIndex : int, inout val : boolean) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+        for (int i=fromIndex; i<toIndex; i++)
+            a[i] = val;
+!!!177435.java!!!	fill(in a : double, in val : double) : void
+        fill(a, 0, a.length, val);
+!!!177563.java!!!	fill(in a : double, in fromIndex : int, in toIndex : int, in val : double) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+        for (int i=fromIndex; i<toIndex; i++)
+            a[i] = val;
+!!!177691.java!!!	fill(in a : float, in val : float) : void
+        fill(a, 0, a.length, val);
+!!!177819.java!!!	fill(in a : float, in fromIndex : int, in toIndex : int, in val : float) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+        for (int i=fromIndex; i<toIndex; i++)
+            a[i] = val;
+!!!177947.java!!!	fill(inout a : Object, inout val : Object) : void
+        Arrays.fill(a, 0, a.length, val);
+!!!178075.java!!!	fill(inout a : Object, in fromIndex : int, in toIndex : int, inout val : Object) : void
+        rangeCheck(a.length, fromIndex, toIndex);
+        for (int i=fromIndex; i<toIndex; i++)
+            a[i] = val;
+!!!178203.java!!!	asList(inout  : T...a) : List
+	return new ArrayList<T>(a);
+!!!179227.java!!!	hashCode(in a : long) : int
+        if (a == null)
+            return 0;
+ 
+        int result = 1;
+        for (long element : a) {
+            int elementHash = (int)(element ^ (element >>> 32));
+            result = 31 * result + elementHash;
+        }
+ 
+        return result;
+!!!179355.java!!!	hashCode(in a : int) : int
+        if (a == null)
+            return 0;
+ 
+        int result = 1;
+        for (int element : a)
+            result = 31 * result + element;
+ 
+        return result;
+!!!179483.java!!!	hashCode(in a : short) : int
+        if (a == null)
+            return 0;
+ 
+        int result = 1;
+        for (short element : a)
+            result = 31 * result + element;
+ 
+        return result;
+!!!179611.java!!!	hashCode(in a : char) : int
+        if (a == null)
+            return 0;
+ 
+        int result = 1;
+        for (char element : a)
+            result = 31 * result + element;
+ 
+        return result;
+!!!179739.java!!!	hashCode(in a : byte) : int
+        if (a == null)
+            return 0;
+ 
+        int result = 1;
+        for (byte element : a)
+            result = 31 * result + element;
+ 
+        return result;
+!!!179867.java!!!	hashCode(inout a : boolean) : int
+        if (a == null)
+            return 0;
+ 
+        int result = 1;
+        for (boolean element : a)
+            result = 31 * result + (element ? 1231 : 1237);
+ 
+        return result;
+!!!179995.java!!!	hashCode(in a : float) : int
+        if (a == null)
+            return 0;
+ 
+        int result = 1;
+        for (float element : a)
+            result = 31 * result + Float.floatToIntBits(element);
+ 
+        return result;
+!!!180123.java!!!	hashCode(in a : double) : int
+        if (a == null)
+            return 0;
+ 
+        int result = 1;
+        for (double element : a) {
+            long bits = Double.doubleToLongBits(element);
+            result = 31 * result + (int)(bits ^ (bits >>> 32));
+        }
+        return result;
+!!!180251.java!!!	hashCode(inout a : Object) : int
+        if (a == null)
+            return 0;
+ 
+        int result = 1;
+ 
+        for (Object element : a)
+            result = 31 * result + (element == null ? 0 : element.hashCode());
+ 
+        return result;
+!!!180379.java!!!	deepHashCode(inout a : Object) : int
+        if (a == null)
+            return 0;
+ 
+        int result = 1;
+ 
+        for (Object element : a) {
+            int elementHash = 0;
+            if (element instanceof Object[])
+                elementHash = deepHashCode((Object[]) element);
+            else if (element instanceof byte[])
+                elementHash = hashCode((byte[]) element);
+            else if (element instanceof short[])
+                elementHash = hashCode((short[]) element);
+            else if (element instanceof int[])
+                elementHash = hashCode((int[]) element);
+            else if (element instanceof long[])
+                elementHash = hashCode((long[]) element);
+            else if (element instanceof char[])
+                elementHash = hashCode((char[]) element);
+            else if (element instanceof float[])
+                elementHash = hashCode((float[]) element);
+            else if (element instanceof double[])
+                elementHash = hashCode((double[]) element);
+            else if (element instanceof boolean[])
+                elementHash = hashCode((boolean[]) element);
+            else if (element != null)
+                elementHash = element.hashCode();
+ 
+            result = 31 * result + elementHash;
+        }
+ 
+        return result;
+!!!180507.java!!!	deepEquals(inout a1 : Object, inout a2 : Object) : boolean
+        if (a1 == a2)
+            return true;
+        if (a1 == null || a2==null)
+            return false;
+        int length = a1.length;
+        if (a2.length != length)
+            return false;
+ 
+        for (int i = 0; i < length; i++) {
+            Object e1 = a1[i];
+            Object e2 = a2[i];
+ 
+            if (e1 == e2)
+                continue;
+            if (e1 == null)
+                return false;
+ 
+            // Figure out whether the two elements are equal
+            boolean eq;
+            if (e1 instanceof Object[] && e2 instanceof Object[])
+                eq = deepEquals ((Object[]) e1, (Object[]) e2);
+            else if (e1 instanceof byte[] && e2 instanceof byte[])
+                eq = equals((byte[]) e1, (byte[]) e2);
+            else if (e1 instanceof short[] && e2 instanceof short[])
+                eq = equals((short[]) e1, (short[]) e2);
+            else if (e1 instanceof int[] && e2 instanceof int[])
+                eq = equals((int[]) e1, (int[]) e2);
+            else if (e1 instanceof long[] && e2 instanceof long[])
+                eq = equals((long[]) e1, (long[]) e2);
+            else if (e1 instanceof char[] && e2 instanceof char[])
+                eq = equals((char[]) e1, (char[]) e2);
+            else if (e1 instanceof float[] && e2 instanceof float[])
+                eq = equals((float[]) e1, (float[]) e2);
+            else if (e1 instanceof double[] && e2 instanceof double[])
+                eq = equals((double[]) e1, (double[]) e2);
+            else if (e1 instanceof boolean[] && e2 instanceof boolean[])
+                eq = equals((boolean[]) e1, (boolean[]) e2);
+            else
+                eq = e1.equals(e2);
+ 
+            if (!eq)
+                return false;
+        }
+        return true;
+!!!180635.java!!!	toString(in a : long) : String
+        if (a == null)
+            return "null";
+        if (a.length == 0)
+            return "[]";
+ 
+        StringBuilder buf = new StringBuilder();
+        buf.append('[');
+        buf.append(a[0]);
+ 
+        for (int i = 1; i < a.length; i++) {
+            buf.append(", ");
+            buf.append(a[i]);
+        }
+ 
+        buf.append("]");
+        return buf.toString();
+!!!180763.java!!!	toString(in a : int) : String
+        if (a == null)
+            return "null";
+        if (a.length == 0)
+            return "[]";
+ 
+        StringBuilder buf = new StringBuilder();
+        buf.append('[');
+        buf.append(a[0]);
+ 
+        for (int i = 1; i < a.length; i++) {
+            buf.append(", ");
+            buf.append(a[i]);
+        }
+ 
+        buf.append("]");
+        return buf.toString();
+!!!180891.java!!!	toString(in a : short) : String
+        if (a == null)
+            return "null";
+        if (a.length == 0)
+            return "[]";
+ 
+        StringBuilder buf = new StringBuilder();
+        buf.append('[');
+        buf.append(a[0]);
+ 
+        for (int i = 1; i < a.length; i++) {
+            buf.append(", ");
+            buf.append(a[i]);
+        }
+ 
+        buf.append("]");
+        return buf.toString();
+!!!181019.java!!!	toString(in a : char) : String
+        if (a == null)
+            return "null";
+        if (a.length == 0)
+            return "[]";
+ 
+        StringBuilder buf = new StringBuilder();
+        buf.append('[');
+        buf.append(a[0]);
+ 
+        for (int i = 1; i < a.length; i++) {
+            buf.append(", ");
+            buf.append(a[i]);
+        }
+ 
+        buf.append("]");
+        return buf.toString();
+!!!181147.java!!!	toString(in a : byte) : String
+        if (a == null)
+            return "null";
+        if (a.length == 0)
+            return "[]";
+ 
+        StringBuilder buf = new StringBuilder();
+        buf.append('[');
+        buf.append(a[0]);
+ 
+        for (int i = 1; i < a.length; i++) {
+            buf.append(", ");
+            buf.append(a[i]);
+        }
+ 
+        buf.append("]");
+        return buf.toString();
+!!!181275.java!!!	toString(inout a : boolean) : String
+        if (a == null)
+            return "null";
+        if (a.length == 0)
+            return "[]";
+ 
+        StringBuilder buf = new StringBuilder();
+        buf.append('[');
+        buf.append(a[0]);
+ 
+        for (int i = 1; i < a.length; i++) {
+            buf.append(", ");
+            buf.append(a[i]);
+        }
+ 
+        buf.append("]");
+        return buf.toString();
+!!!181403.java!!!	toString(in a : float) : String
+        if (a == null)
+            return "null";
+        if (a.length == 0)
+            return "[]";
+ 
+        StringBuilder buf = new StringBuilder();
+        buf.append('[');
+        buf.append(a[0]);
+ 
+        for (int i = 1; i < a.length; i++) {
+            buf.append(", ");
+            buf.append(a[i]);
+        }
+ 
+        buf.append("]");
+        return buf.toString();
+!!!181531.java!!!	toString(in a : double) : String
+        if (a == null)
+            return "null";
+        if (a.length == 0)
+            return "[]";
+ 
+        StringBuilder buf = new StringBuilder();
+        buf.append('[');
+        buf.append(a[0]);
+ 
+        for (int i = 1; i < a.length; i++) {
+            buf.append(", ");
+            buf.append(a[i]);
+        }
+ 
+        buf.append("]");
+        return buf.toString();
+!!!181659.java!!!	toString(inout a : Object) : String
+        if (a == null)
+            return "null";
+        if (a.length == 0)
+            return "[]";
+ 
+        StringBuilder buf = new StringBuilder();
+ 
+        for (int i = 0; i < a.length; i++) {
+            if (i == 0)
+                buf.append('[');
+            else
+                buf.append(", ");
+ 
+            buf.append(String.valueOf(a[i]));
+        }
+ 
+        buf.append("]");
+        return buf.toString();
+!!!181787.java!!!	deepToString(inout a : Object) : String
+        if (a == null)
+            return "null";
+
+        int bufLen = 20 * a.length;
+        if (a.length != 0 && bufLen <= 0)
+            bufLen = Integer.MAX_VALUE;
+        StringBuilder buf = new StringBuilder(bufLen);
+        deepToString(a, buf, new HashSet());
+        return buf.toString();
+!!!181915.java!!!	deepToString(inout a : Object, inout buf : StringBuilder, inout dejaVu : Set) : void
+        if (a == null) {
+            buf.append("null");
+            return;
+        }
+        dejaVu.add(a);
+        buf.append('[');
+        for (int i = 0; i < a.length; i++) {
+            if (i != 0)
+                buf.append(", ");
+
+            Object element = a[i];
+            if (element == null) {
+                buf.append("null");
+            } else {
+                Class eClass = element.getClass();
+
+                if (eClass.isArray()) {
+                    if (eClass == byte[].class)
+                        buf.append(toString((byte[]) element));
+                    else if (eClass == short[].class)
+                        buf.append(toString((short[]) element));
+                    else if (eClass == int[].class)
+                        buf.append(toString((int[]) element));
+                    else if (eClass == long[].class)
+                        buf.append(toString((long[]) element));
+                    else if (eClass == char[].class)
+                        buf.append(toString((char[]) element));
+                    else if (eClass == float[].class)
+                        buf.append(toString((float[]) element));
+                    else if (eClass == double[].class)
+                        buf.append(toString((double[]) element));
+                    else if (eClass == boolean[].class)
+                        buf.append(toString((boolean[]) element));
+                    else { // element is an array of object references
+                        if (dejaVu.contains(element))
+                            buf.append("[...]");
+                        else
+                            deepToString((Object[])element, buf, dejaVu);
+                    }
+                } else {  // element is non-null and not an array
+                    buf.append(element.toString());
+                }
+            }
+        }
+        buf.append("]");
+        dejaVu.remove(a);

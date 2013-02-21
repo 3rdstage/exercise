@@ -1,0 +1,257 @@
+class JMenuItem
+!!!8911387.java!!!	JMenuItem()
+        this(null, (Icon)null);
+!!!8911515.java!!!	JMenuItem(inout icon : Icon)
+        this(null, icon);
+!!!8911643.java!!!	JMenuItem(in text : String)
+        this(text, (Icon)null);
+!!!8911771.java!!!	JMenuItem(inout a : Action)
+        this();
+	setAction(a);
+!!!8911899.java!!!	JMenuItem(in text : String, inout icon : Icon)
+        setModel(new DefaultButtonModel());
+        init(text, icon);
+        initFocusability();
+!!!8912027.java!!!	JMenuItem(in text : String, in mnemonic : int)
+        setModel(new DefaultButtonModel());
+        init(text, null);
+        setMnemonic(mnemonic);
+        initFocusability();
+!!!8912155.java!!!	initFocusability() : void
+	setFocusable(false);
+!!!8912283.java!!!	init(in text : String, inout icon : Icon) : void
+        if(text != null) {
+            setText(text);
+        }
+        
+        if(icon != null) {
+            setIcon(icon);
+        }
+        
+        // Listen for Focus events
+        addFocusListener(new MenuItemFocusListener());
+        setUIProperty("borderPainted", Boolean.FALSE);
+        setFocusPainted(false);
+        setHorizontalTextPosition(JButton.TRAILING);
+        setHorizontalAlignment(JButton.LEADING);
+	updateUI();
+!!!8912667.java!!!	setUI(inout ui : MenuItemUI) : void
+        super.setUI(ui);
+!!!8912795.java!!!	updateUI() : void
+        setUI((MenuItemUI)UIManager.getUI(this));
+!!!8912923.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!8913051.java!!!	setArmed(inout b : boolean) : void
+        ButtonModel model = (ButtonModel) getModel();
+
+        boolean oldValue = model.isArmed();
+        if(model.isArmed() != b) {
+            model.setArmed(b);
+        }
+!!!8913179.java!!!	isArmed() : boolean
+        ButtonModel model = (ButtonModel) getModel();
+        return model.isArmed();
+!!!8913307.java!!!	setEnabled(inout b : boolean) : void
+        // Make sure we aren't armed!
+        if (b == false)
+            setArmed(false);
+        super.setEnabled(b);
+!!!8913435.java!!!	alwaysOnTop() : boolean
+        // Fix for bug #4482165
+        if (SwingUtilities.getAncestorOfClass(JInternalFrame.class, this) !=
+                null) {
+            return false;
+        }
+	return true;
+!!!8913563.java!!!	setAccelerator(inout keyStroke : KeyStroke) : void
+	KeyStroke oldAccelerator = accelerator;
+        this.accelerator = keyStroke;
+	firePropertyChange("accelerator", oldAccelerator, accelerator);
+!!!8913691.java!!!	getAccelerator() : KeyStroke
+        return this.accelerator;
+!!!8913819.java!!!	configurePropertiesFromAction(inout a : Action) : void
+        super.configurePropertiesFromAction(a);
+        KeyStroke ks = (a==null) ? null :
+            (KeyStroke)a.getValue(Action.ACCELERATOR_KEY);
+        setAccelerator(ks==null ? null : ks);
+!!!8913947.java!!!	createActionPropertyChangeListener(inout a : Action) : PropertyChangeListener
+        return new MenuItemPropertyChangeListener(this, a);
+!!!8914331.java!!!	processMouseEvent(inout e : MouseEvent, inout path : MenuElement, inout manager : MenuSelectionManager) : void
+	processMenuDragMouseEvent(
+		 new MenuDragMouseEvent(e.getComponent(), e.getID(),
+					e.getWhen(),
+					e.getModifiers(), e.getX(), e.getY(),
+					e.getClickCount(), e.isPopupTrigger(),
+					path, manager));
+!!!8914459.java!!!	processKeyEvent(inout e : KeyEvent, inout path : MenuElement, inout manager : MenuSelectionManager) : void
+	if (DEBUG) {
+	    System.out.println("in JMenuItem.processKeyEvent/3 for " + getText() + 
+				   "  " + KeyStroke.getKeyStrokeForEvent(e));
+	}
+        MenuKeyEvent mke = new MenuKeyEvent(e.getComponent(), e.getID(),
+					     e.getWhen(), e.getModifiers(),
+					     e.getKeyCode(), e.getKeyChar(),
+					     path, manager);
+        processMenuKeyEvent(mke);	
+    
+        if (mke.isConsumed())  {
+            e.consume();
+        }
+!!!8914587.java!!!	processMenuDragMouseEvent(inout e : MenuDragMouseEvent) : void
+	switch (e.getID()) {
+	case MouseEvent.MOUSE_ENTERED:
+	    isMouseDragged = false; fireMenuDragMouseEntered(e); break;
+	case MouseEvent.MOUSE_EXITED:
+	    isMouseDragged = false; fireMenuDragMouseExited(e); break;
+	case MouseEvent.MOUSE_DRAGGED:
+	    isMouseDragged = true; fireMenuDragMouseDragged(e); break;
+	case MouseEvent.MOUSE_RELEASED:
+	    if(isMouseDragged) fireMenuDragMouseReleased(e); break;
+	default: 
+	    break;
+	}
+!!!8914715.java!!!	processMenuKeyEvent(inout e : MenuKeyEvent) : void
+	if (DEBUG) {
+	    System.out.println("in JMenuItem.processMenuKeyEvent for " + getText()+ 
+				   "  " + KeyStroke.getKeyStrokeForEvent(e));
+	}
+	switch (e.getID()) {
+	case KeyEvent.KEY_PRESSED:
+	    fireMenuKeyPressed(e); break;
+	case KeyEvent.KEY_RELEASED:
+	    fireMenuKeyReleased(e); break;
+	case KeyEvent.KEY_TYPED:
+	    fireMenuKeyTyped(e); break;
+	default: 
+	    break;
+	}
+!!!8914843.java!!!	fireMenuDragMouseEntered(inout event : MenuDragMouseEvent) : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==MenuDragMouseListener.class) {
+                // Lazily create the event:
+                ((MenuDragMouseListener)listeners[i+1]).menuDragMouseEntered(event);
+            }          
+        }
+!!!8914971.java!!!	fireMenuDragMouseExited(inout event : MenuDragMouseEvent) : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==MenuDragMouseListener.class) {
+                // Lazily create the event:
+                ((MenuDragMouseListener)listeners[i+1]).menuDragMouseExited(event);
+            }          
+        }
+!!!8915099.java!!!	fireMenuDragMouseDragged(inout event : MenuDragMouseEvent) : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==MenuDragMouseListener.class) {
+                // Lazily create the event:
+                ((MenuDragMouseListener)listeners[i+1]).menuDragMouseDragged(event);
+            }          
+        }
+!!!8915227.java!!!	fireMenuDragMouseReleased(inout event : MenuDragMouseEvent) : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==MenuDragMouseListener.class) {
+                // Lazily create the event:
+                ((MenuDragMouseListener)listeners[i+1]).menuDragMouseReleased(event);
+            }          
+        }
+!!!8915355.java!!!	fireMenuKeyPressed(inout event : MenuKeyEvent) : void
+	if (DEBUG) {
+	    System.out.println("in JMenuItem.fireMenuKeyPressed for " + getText()+ 
+				   "  " + KeyStroke.getKeyStrokeForEvent(event));
+	}
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==MenuKeyListener.class) {
+                // Lazily create the event:
+                ((MenuKeyListener)listeners[i+1]).menuKeyPressed(event);
+            }          
+        }
+!!!8915483.java!!!	fireMenuKeyReleased(inout event : MenuKeyEvent) : void
+	if (DEBUG) {
+	    System.out.println("in JMenuItem.fireMenuKeyReleased for " + getText()+ 
+				   "  " + KeyStroke.getKeyStrokeForEvent(event));
+	}
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==MenuKeyListener.class) {
+                // Lazily create the event:
+                ((MenuKeyListener)listeners[i+1]).menuKeyReleased(event);
+            }          
+        }
+!!!8915611.java!!!	fireMenuKeyTyped(inout event : MenuKeyEvent) : void
+	if (DEBUG) {
+	    System.out.println("in JMenuItem.fireMenuKeyTyped for " + getText()+ 
+				   "  " + KeyStroke.getKeyStrokeForEvent(event));
+	}
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==MenuKeyListener.class) {
+                // Lazily create the event:
+                ((MenuKeyListener)listeners[i+1]).menuKeyTyped(event);
+            }          
+        }
+!!!8915739.java!!!	menuSelectionChanged(inout isIncluded : boolean) : void
+        setArmed(isIncluded);
+!!!8915867.java!!!	getSubElements() : MenuElement
+        return new MenuElement[0];
+!!!8915995.java!!!	getComponent() : Component
+        return this;
+!!!8916123.java!!!	addMenuDragMouseListener(inout l : MenuDragMouseListener) : void
+        listenerList.add(MenuDragMouseListener.class, l);
+!!!8916251.java!!!	removeMenuDragMouseListener(inout l : MenuDragMouseListener) : void
+        listenerList.remove(MenuDragMouseListener.class, l);
+!!!8916379.java!!!	getMenuDragMouseListeners() : MenuDragMouseListener
+        return (MenuDragMouseListener[])listenerList.getListeners(
+                MenuDragMouseListener.class);
+!!!8916507.java!!!	addMenuKeyListener(inout l : MenuKeyListener) : void
+        listenerList.add(MenuKeyListener.class, l);
+!!!8916635.java!!!	removeMenuKeyListener(inout l : MenuKeyListener) : void
+        listenerList.remove(MenuKeyListener.class, l);
+!!!8916763.java!!!	getMenuKeyListeners() : MenuKeyListener
+        return (MenuKeyListener[])listenerList.getListeners(
+                MenuKeyListener.class);
+!!!8916891.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+	if (getUIClassID().equals(uiClassID)) {
+	    updateUI();
+	}
+!!!8917019.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!8917147.java!!!	paramString() : String
+	return super.paramString();
+!!!8917275.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJMenuItem();
+        }
+        return accessibleContext;

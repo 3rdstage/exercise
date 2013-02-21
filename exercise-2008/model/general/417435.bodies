@@ -1,0 +1,336 @@
+class View
+!!!2501915.java!!!	View(inout elem : Element)
+	this.elem = elem;
+!!!2502043.java!!!	getParent() : View
+	return parent;
+!!!2502171.java!!!	isVisible() : boolean
+	return true;
+!!!2502427.java!!!	getMinimumSpan(in axis : int) : float
+	int w = getResizeWeight(axis);
+	if (w == 0) {
+	    // can't resize
+	    return getPreferredSpan(axis);
+	}
+	return 0;
+!!!2502555.java!!!	getMaximumSpan(in axis : int) : float
+	int w = getResizeWeight(axis);
+	if (w == 0) {
+	    // can't resize
+	    return getPreferredSpan(axis);
+	}
+	return Integer.MAX_VALUE;
+!!!2502683.java!!!	preferenceChanged(inout child : View, inout width : boolean, inout height : boolean) : void
+	View parent = getParent();
+	if (parent != null) {
+	    parent.preferenceChanged(this, width, height);
+	}
+!!!2502811.java!!!	getAlignment(in axis : int) : float
+	return 0.5f;
+!!!2503067.java!!!	setParent(inout parent : View) : void
+        // if the parent is null then propogate down the view tree
+        if (parent == null) {
+            for (int i = 0; i < getViewCount(); i++) {
+		if (getView(i).getParent() == this) {
+		    // in FlowView.java view might be referenced 
+		    // from two super-views as a child. see logicalView
+		    getView(i).setParent(null);
+		}
+            }
+        }
+        this.parent = parent;
+!!!2503195.java!!!	getViewCount() : int
+	return 0;
+!!!2503323.java!!!	getView(in n : int) : View
+	return null;
+!!!2503451.java!!!	removeAll() : void
+	replace(0, getViewCount(), null);
+!!!2503579.java!!!	remove(in i : int) : void
+	replace(i, 1, null);
+!!!2503707.java!!!	insert(in offs : int, inout v : View) : void
+	View[] one = new View[1];
+	one[0] = v;
+	replace(offs, 0, one);
+!!!2503835.java!!!	append(inout v : View) : void
+	View[] one = new View[1];
+	one[0] = v;
+	replace(getViewCount(), 0, one);
+!!!2504091.java!!!	getViewIndex(in pos : int, inout b : Bias) : int
+	return -1;
+!!!2504219.java!!!	getChildAllocation(in index : int, inout a : Shape) : Shape
+	return null;
+!!!2504347.java!!!	getNextVisualPositionFrom(in pos : int, inout b : Bias, inout a : Shape, in direction : int, inout biasRet : Bias) : int
+
+	biasRet[0] = Position.Bias.Forward;
+	switch (direction) {
+	case NORTH:
+	case SOUTH:
+	{
+	    if (pos == -1) {
+		pos = (direction == NORTH) ? Math.max(0, getEndOffset() - 1) :
+		    getStartOffset();
+		break;
+	    }
+	    JTextComponent target = (JTextComponent) getContainer();
+	    Caret c = (target != null) ? target.getCaret() : null;
+	    // YECK! Ideally, the x location from the magic caret position
+	    // would be passed in.
+	    Point mcp;
+	    if (c != null) {
+		mcp = c.getMagicCaretPosition();
+	    }
+	    else {
+		mcp = null;
+	    }
+	    int x;
+	    if (mcp == null) {
+		Rectangle loc = target.modelToView(pos);
+		x = (loc == null) ? 0 : loc.x;
+	    }
+	    else {
+		x = mcp.x;
+	    }
+	    if (direction == NORTH) {
+		pos = Utilities.getPositionAbove(target, pos, x);
+	    }
+	    else {
+		pos = Utilities.getPositionBelow(target, pos, x);
+	    }
+	}
+	    break;
+	case WEST:
+	    if(pos == -1) {
+		pos = Math.max(0, getEndOffset() - 1);
+	    }
+	    else {
+		pos = Math.max(0, pos - 1);
+	    }
+	    break;
+	case EAST:
+	    if(pos == -1) {
+		pos = getStartOffset();
+	    }
+	    else {
+		pos = Math.min(pos + 1, getDocument().getLength());
+	    }
+	    break;
+	default:
+	    throw new IllegalArgumentException("Bad direction: " + direction);
+	}
+	return pos;
+!!!2504603.java!!!	modelToView(in p0 : int, inout b0 : Bias, in p1 : int, inout b1 : Bias, inout a : Shape) : Shape
+	Shape s0 = modelToView(p0, a, b0);
+	Shape s1;
+	if (p1 == getEndOffset()) {
+	    try {
+		s1 = modelToView(p1, a, b1);
+	    } catch (BadLocationException ble) {
+		s1 = null;
+	    }
+	    if (s1 == null) {
+		// Assume extends left to right.
+		Rectangle alloc = (a instanceof Rectangle) ? (Rectangle)a :
+		                  a.getBounds();
+		s1 = new Rectangle(alloc.x + alloc.width - 1, alloc.y,
+				   1, alloc.height);
+	    }
+	}
+	else {
+	    s1 = modelToView(p1, a, b1);
+	}
+	Rectangle r0 = s0.getBounds();
+	Rectangle r1 = (s1 instanceof Rectangle) ? (Rectangle) s1 :
+	                                           s1.getBounds();
+	if (r0.y != r1.y) {
+	    // If it spans lines, force it to be the width of the view.
+	    Rectangle alloc = (a instanceof Rectangle) ? (Rectangle)a :
+		              a.getBounds();
+	    r0.x = alloc.x;
+	    r0.width = alloc.width;
+	}
+	r0.add(r1);
+	return r0;
+!!!2504859.java!!!	insertUpdate(inout e : DocumentEvent, inout a : Shape, inout f : ViewFactory) : void
+	if (getViewCount() > 0) {
+	    Element elem = getElement();
+	    DocumentEvent.ElementChange ec = e.getChange(elem);
+	    if (ec != null) {
+		if (! updateChildren(ec, e, f)) {
+		    // don't consider the element changes they
+		    // are for a view further down.
+		    ec = null;
+		}
+	    }
+	    forwardUpdate(ec, e, a, f);
+	    updateLayout(ec, e, a);
+	}
+!!!2504987.java!!!	removeUpdate(inout e : DocumentEvent, inout a : Shape, inout f : ViewFactory) : void
+	if (getViewCount() > 0) {
+	    Element elem = getElement();
+	    DocumentEvent.ElementChange ec = e.getChange(elem);
+	    if (ec != null) {
+		if (! updateChildren(ec, e, f)) {
+		    // don't consider the element changes they
+		    // are for a view further down.
+		    ec = null;
+		}
+	    }
+	    forwardUpdate(ec, e, a, f);
+	    updateLayout(ec, e, a);
+	}
+!!!2505115.java!!!	changedUpdate(inout e : DocumentEvent, inout a : Shape, inout f : ViewFactory) : void
+	if (getViewCount() > 0) {
+	    Element elem = getElement();
+	    DocumentEvent.ElementChange ec = e.getChange(elem);
+	    if (ec != null) {
+		if (! updateChildren(ec, e, f)) {
+		    // don't consider the element changes they
+		    // are for a view further down.
+		    ec = null;
+		}
+	    }
+	    forwardUpdate(ec, e, a, f);
+	    updateLayout(ec, e, a);
+	}
+!!!2505243.java!!!	getDocument() : Document
+	return elem.getDocument();
+!!!2505371.java!!!	getStartOffset() : int
+	return elem.getStartOffset();
+!!!2505499.java!!!	getEndOffset() : int
+	return elem.getEndOffset();
+!!!2505627.java!!!	getElement() : Element
+	return elem;
+!!!2505755.java!!!	getGraphics() : Graphics
+	// PENDING(prinz) this is a temporary implementation
+	Component c = getContainer();
+	return c.getGraphics();
+!!!2505883.java!!!	getAttributes() : AttributeSet
+	return elem.getAttributes();
+!!!2506011.java!!!	breakView(in axis : int, in offset : int, in pos : float, in len : float) : View
+	return this;
+!!!2506139.java!!!	createFragment(in p0 : int, in p1 : int) : View
+	return this;
+!!!2506267.java!!!	getBreakWeight(in axis : int, in pos : float, in len : float) : int
+	if (len > getPreferredSpan(axis)) {
+	    return GoodBreakWeight;
+	}
+	return BadBreakWeight;
+!!!2506395.java!!!	getResizeWeight(in axis : int) : int
+	return 0;
+!!!2506651.java!!!	getContainer() : Container
+	View v = getParent();
+	return (v != null) ? v.getContainer() : null;
+!!!2506779.java!!!	getViewFactory() : ViewFactory
+	View v = getParent();
+	return (v != null) ? v.getViewFactory() : null;
+!!!2506907.java!!!	getToolTipText(in x : float, in y : float, inout allocation : Shape) : String
+	int viewIndex = getViewIndex(x, y, allocation);
+        if (viewIndex >= 0) {
+            allocation = getChildAllocation(viewIndex, allocation);
+            Rectangle rect = (allocation instanceof Rectangle) ?
+                             (Rectangle)allocation : allocation.getBounds();
+            if (rect.contains(x, y)) {
+                return getView(viewIndex).getToolTipText(x, y, allocation);
+            }
+        }
+        return null;
+!!!2507035.java!!!	getViewIndex(in x : float, in y : float, inout allocation : Shape) : int
+	for (int counter = getViewCount() - 1; counter >= 0; counter--) {
+	    Shape childAllocation = getChildAllocation(counter, allocation);
+
+            if (childAllocation != null) {
+                Rectangle rect = (childAllocation instanceof Rectangle) ?
+		         (Rectangle)childAllocation : allocation.getBounds();
+
+                if (rect.contains(x, y)) {
+                    return counter;
+                }
+            }
+	}
+	return -1;
+!!!2507163.java!!!	updateChildren(inout ec : ElementChange, inout e : DocumentEvent, inout f : ViewFactory) : boolean
+	Element[] removedElems = ec.getChildrenRemoved();
+	Element[] addedElems = ec.getChildrenAdded();
+	View[] added = null;
+	if (addedElems != null) {
+	    added = new View[addedElems.length];
+	    for (int i = 0; i < addedElems.length; i++) {
+		added[i] = f.create(addedElems[i]);
+	    }
+	}
+	int nremoved = 0;
+	int index = ec.getIndex();
+	if (removedElems != null) {
+	    nremoved = removedElems.length;
+	}
+	replace(index, nremoved, added);
+	return true;
+!!!2507291.java!!!	forwardUpdate(inout ec : ElementChange, inout e : DocumentEvent, inout a : Shape, inout f : ViewFactory) : void
+	Element elem = getElement();
+	int pos = e.getOffset();
+	int index0 = getViewIndex(pos, Position.Bias.Forward);
+	if (index0 == -1 && e.getType() == DocumentEvent.EventType.REMOVE &&
+	    pos >= getEndOffset()) {
+	    // Event beyond our offsets. We may have represented this, that is
+	    // the remove may have removed one of our child Elements that
+	    // represented this, so, we should foward to last element.
+	    index0 = getViewCount() - 1;
+	}
+	int index1 = index0;
+	View v = (index0 >= 0) ? getView(index0) : null;
+	if (v != null) {
+	    if ((v.getStartOffset() == pos) && (pos > 0)) {
+		// If v is at a boundary, forward the event to the previous
+		// view too.
+		index0 = Math.max(index0 - 1, 0);
+	    }
+	}
+	if (e.getType() != DocumentEvent.EventType.REMOVE) {
+	    index1 = getViewIndex(pos + e.getLength(), Position.Bias.Forward);
+	    if (index1 < 0) {
+		index1 = getViewCount() - 1;
+	    }
+	}
+	int hole0 = index1 + 1;
+	int hole1 = hole0;
+	Element[] addedElems = (ec != null) ? ec.getChildrenAdded() : null;
+	if ((addedElems != null) && (addedElems.length > 0)) {
+	    hole0 = ec.getIndex();
+	    hole1 = hole0 + addedElems.length - 1;
+	}
+
+	// forward to any view not in the forwarding hole 
+	// formed by added elements (i.e. they will be updated
+	// by initialization.
+	index0 = Math.max(index0, 0);
+	for (int i = index0; i <= index1; i++) {
+	    if (! ((i >= hole0) && (i <= hole1))) {
+		v = getView(i);
+		if (v != null) {
+		    Shape childAlloc = getChildAllocation(i, a);
+		    forwardUpdateToView(v, e, childAlloc, f);
+		}
+	    }
+	}
+!!!2507419.java!!!	forwardUpdateToView(inout v : View, inout e : DocumentEvent, inout a : Shape, inout f : ViewFactory) : void
+	DocumentEvent.EventType type = e.getType();
+	if (type == DocumentEvent.EventType.INSERT) {
+	    v.insertUpdate(e, a, f);
+	} else if (type == DocumentEvent.EventType.REMOVE) {
+	    v.removeUpdate(e, a, f);
+	} else {
+	    v.changedUpdate(e, a, f);
+	}
+!!!2507547.java!!!	updateLayout(inout ec : ElementChange, inout e : DocumentEvent, inout a : Shape) : void
+	if ((ec != null) && (a != null)) {
+	    // should damage more intelligently
+	    preferenceChanged(null, true, true);
+	    Container host = getContainer();
+	    if (host != null) {
+		host.repaint();
+	    }
+	}
+!!!2507675.java!!!	modelToView(in pos : int, inout a : Shape) : Shape
+	return modelToView(pos, a, Position.Bias.Forward);
+!!!2507803.java!!!	viewToModel(in x : float, in y : float, inout a : Shape) : int
+	sharedBiasReturn[0] = Position.Bias.Forward;
+	return viewToModel(x, y, a, sharedBiasReturn);

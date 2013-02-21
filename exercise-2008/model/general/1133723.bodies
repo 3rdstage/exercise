@@ -1,0 +1,141 @@
+class SystemEventQueueUtilities
+!!!9294363.java!!!	getRootTable() : Map
+	Map rt = (Map)AppContext.getAppContext().get(rootTableKey);
+	if (rt == null) {
+	    synchronized (rootTableKey) {
+		rt = (Map)AppContext.getAppContext().get(rootTableKey);
+		if (rt == null) {
+		    rt = Collections.synchronizedMap(new WeakHashMap(4));
+		    AppContext.getAppContext().put(rootTableKey, rt);
+		}
+	    }
+	}
+	return rt;
+!!!9295003.java!!!	queueComponentWorkRequest(inout root : Component) : void
+	ComponentWorkRequest req = (ComponentWorkRequest)(getRootTable().get(root));
+	boolean newWorkRequest = (req == null);
+	if (newWorkRequest) {
+	    req = new ComponentWorkRequest(root);
+	}
+
+	/* At this point the ComponentWorkRequest may be accessible from
+	 * an event dispatching thread so before updating it further
+	 * we synchronize access to it.
+	 */
+	synchronized(req) {
+	    if (newWorkRequest) {
+		getRootTable().put(root, req);
+	    }
+	    if (!req.isPending) {
+		SwingUtilities.invokeLater(req);
+		req.isPending = true;
+	    }
+	}
+!!!9295131.java!!!	addRunnableCanvas(inout rootPane : JRootPane) : void
+	synchronized (classLock) {
+	    /* If we have access to the system event queue, we don't bother
+	     * with a RunnableCanvas
+	     */
+	    if (SystemEventQueue.get(rootPane) != null) {
+		return;
+	    }
+
+	    JLayeredPane layeredPane = rootPane.getLayeredPane();
+	    if (layeredPane != null) {
+		RunnableCanvas rc = new RunnableCanvas(rootPane);
+		layeredPane.add(rc);
+	    }
+	}
+!!!9295259.java!!!	removeRunnableCanvas(inout rootPane : JRootPane) : void
+	synchronized (classLock) {
+	    // We don't use SwingUtilities.getRoot, as it has different
+	    // behavior then the RepaintManager call to add the initial root.
+	    Component root = null;
+	    for (Component c = rootPane; c != null; c = c.getParent()) {
+		if ((c instanceof Window) ||
+		    (c instanceof  java.applet.Applet)) {
+		    root = c;
+		    break;
+		}
+	    }
+	    if (root != null) {
+		getRootTable().remove(root);
+	    }
+	    RunnableCanvas.remove(rootPane);
+	}
+!!!9295387.java!!!	postRunnable(inout doRun : Runnable, inout lock : Object) : Exception
+	EventQueue systemEventQueue = SystemEventQueue.get();
+
+	RunnableEvent event = new RunnableEvent(doRun, lock);
+	if (systemEventQueue != null) {
+	    systemEventQueue.postEvent(event);
+	}
+	else {
+	    postRunnableCanvasEvent(event);
+	}
+	return event.exception;
+!!!9295515.java!!!	restartTimerQueueThread() : void
+	synchronized (classLock) {
+	    if (SystemEventQueue.get() == null) {
+		Runnable restarter = new TimerQueueRestart();
+		RunnableEvent event = new RunnableEvent(restarter, null);
+		RunnableCanvas.postRunnableEventToAll(event);
+	    }
+	}
+!!!9295899.java!!!	processRunnableEvent(inout runnableEvent : RunnableEvent) : void
+	Object lock = runnableEvent.lock;
+	if (lock == null) {
+	    runnableEvent.doRun.run();
+	}
+	else {
+	    synchronized(lock) {
+		try {
+		    runnableEvent.doRun.run();
+		}
+		catch (Exception e) {
+		    runnableEvent.exception = e;
+		}
+		finally {
+		    if (runnableEvent.lock != null) {
+			runnableEvent.lock.notify();
+		    }
+		}
+	    }
+	}
+!!!9296283.java!!!	postRunnableCanvasEvent(inout e : RunnableEvent) : void
+	synchronized (classLock) {
+	    RunnableCanvas runnableCanvas = RunnableCanvas.lookup(e);
+
+	    if (runnableCanvas == null) {
+
+		/* If this is a ComponentWorkRequest and we were unable to
+		 * queue it, then clear the pending flag.
+		 */
+		if (e.doRun instanceof ComponentWorkRequest) {
+		    ComponentWorkRequest req = (ComponentWorkRequest)e.doRun;
+		    synchronized(req) {
+			req.isPending = false;
+		    }
+		}
+
+		/* If this is a Timer event let it know that it didn't fire.
+		 */
+		if(e.doRun instanceof Timer.DoPostEvent) {
+		    ((Timer.DoPostEvent)e.doRun).getTimer().cancelEvent();
+		}
+
+		/* We are unable to queue this event on a system event queue.  Make
+		 * sure that any code that's waiting for the runnable to finish
+		 * doesn't hang.
+		 */
+		if (e.lock != null) {
+		    e.lock.notify();
+		}
+		return;
+	    }
+
+	    runnableCanvas.addRunnableEvent(e);
+	    runnableCanvas.repaint();
+	}
+!!!9296411.java!!!	getThreadGroupSafely() : ThreadGroup
+	return new Thread().getThreadGroup();

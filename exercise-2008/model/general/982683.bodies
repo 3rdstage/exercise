@@ -1,0 +1,283 @@
+class DriverManager
+!!!7750427.java!!!	getLogWriter() : PrintWriter
+	synchronized (logSync) {
+	    return logWriter;
+	}
+!!!7750555.java!!!	setLogWriter(inout out : PrintWriter) : void
+
+	SecurityManager sec = System.getSecurityManager();
+	if (sec != null) {
+	    sec.checkPermission(SET_LOG_PERMISSION);
+	}
+	synchronized (logSync) {
+	    logStream = null;
+	    logWriter = out;
+	}
+!!!7750683.java!!!	getConnection(in url : String, inout info : Properties) : Connection
+  
+        // Gets the classloader of the code that called this method, may 
+	// be null.
+	ClassLoader callerCL = DriverManager.getCallerClassLoader();
+
+        return (getConnection(url, info, callerCL));
+!!!7750811.java!!!	getConnection(in url : String, in user : String, in password : String) : Connection
+        java.util.Properties info = new java.util.Properties();
+
+        // Gets the classloader of the code that called this method, may 
+	// be null.
+	ClassLoader callerCL = DriverManager.getCallerClassLoader();
+
+	if (user != null) {
+	    info.put("user", user);
+	}
+	if (password != null) {
+	    info.put("password", password);
+	}
+
+        return (getConnection(url, info, callerCL));
+!!!7750939.java!!!	getConnection(in url : String) : Connection
+
+        java.util.Properties info = new java.util.Properties();
+
+        // Gets the classloader of the code that called this method, may 
+	// be null.
+	ClassLoader callerCL = DriverManager.getCallerClassLoader();
+
+        return (getConnection(url, info, callerCL));
+!!!7751067.java!!!	getDriver(in url : String) : Driver
+        println("DriverManager.getDriver(\"" + url + "\")");
+
+        if (!initialized) {
+            initialize();
+        }
+
+        // Gets the classloader of the code that called this method, may 
+	// be null.
+	ClassLoader callerCL = DriverManager.getCallerClassLoader();
+
+        // Walk through the loaded drivers attempting to locate someone
+	// who understands the given URL.
+        for (int i = 0; i < drivers.size(); i++) {
+            DriverInfo di = (DriverInfo)drivers.elementAt(i);
+	    // If the caller does not have permission to load the driver then 
+	    // skip it.
+            if ( getCallerClass(callerCL, di.driverClassName ) != 
+		 di.driverClass ) {
+                println("    skipping: " + di);
+                continue;
+            }
+            try {
+                println("    trying " + di);
+		if (di.driver.acceptsURL(url)) {
+		    // Success!
+                    println("getDriver returning " + di);
+                    return (di.driver);
+                }
+            } catch (SQLException ex) {
+		// Drop through and try the next driver.
+            }
+        }
+
+        println("getDriver: no suitable driver");
+        throw new SQLException("No suitable driver", "08001");
+!!!7751195.java!!!	registerDriver(inout driver : Driver) : void
+	if (!initialized) {
+	    initialize();
+	}
+      
+	DriverInfo di = new DriverInfo();
+	di.driver = driver;
+	di.driverClass = driver.getClass();
+	di.driverClassName = di.driverClass.getName();
+	drivers.addElement(di);
+	println("registerDriver: " + di);
+!!!7751323.java!!!	deregisterDriver(inout driver : Driver) : void
+	// Gets the classloader of the code that called this method, may 
+	// be null.
+	ClassLoader callerCL = DriverManager.getCallerClassLoader();
+	println("DriverManager.deregisterDriver: " + driver);
+      
+	// Walk through the loaded drivers.
+	int i;
+	DriverInfo di = null;
+	for (i = 0; i < drivers.size(); i++) {
+	    di = (DriverInfo)drivers.elementAt(i);
+	    if (di.driver == driver) {
+		break;
+	    }
+	}
+	// If we can't find the driver just return.
+	if (i >= drivers.size()) {
+	    println("    couldn't find driver to unload");
+	    return;
+	}
+      
+	// If the caller does not have permission to load the driver then 
+	// throw a security exception.
+	if ( getCallerClass(callerCL, di.driverClassName ) != di.driverClass ) {
+	    throw new SecurityException();
+	}
+      
+	// Remove the driver.  Other entries in drivers get shuffled down.
+	drivers.removeElementAt(i);
+      
+!!!7751451.java!!!	getDrivers() : Enumeration
+        java.util.Vector result = new java.util.Vector();
+
+        if (!initialized) {
+            initialize();
+        }
+
+        // Gets the classloader of the code that called this method, may 
+	// be null.
+	ClassLoader callerCL = DriverManager.getCallerClassLoader();
+
+        // Walk through the loaded drivers.
+        for (int i = 0; i < drivers.size(); i++) {
+            DriverInfo di = (DriverInfo)drivers.elementAt(i);
+	    // If the caller does not have permission to load the driver then 
+	    // skip it.
+            if ( getCallerClass(callerCL, di.driverClassName ) != di.driverClass ) {
+                println("    skipping: " + di);
+                continue;
+            }
+            result.addElement(di.driver);
+        }
+
+        return (result.elements());
+!!!7751579.java!!!	setLoginTimeout(in seconds : int) : void
+ 
+        loginTimeout = seconds;
+!!!7751707.java!!!	getLoginTimeout() : int
+        return (loginTimeout);
+!!!7751835.java!!!	setLogStream(inout out : PrintStream) : void
+        
+        SecurityManager sec = System.getSecurityManager();
+        if (sec != null) {
+            sec.checkPermission(SET_LOG_PERMISSION);
+        }
+
+        logStream = out;
+	if ( out != null )
+	    logWriter = new java.io.PrintWriter(out);
+	else
+	    logWriter = null;
+!!!7751963.java!!!	getLogStream() : PrintStream
+        return logStream;
+!!!7752091.java!!!	println(in message : String) : void
+	synchronized (logSync) {
+	    if (logWriter != null) {
+		logWriter.println(message);
+		
+		// automatic flushing is never enabled, so we must do it ourselves
+		logWriter.flush();
+	    }
+	}
+!!!7752219.java!!!	getCallerClass(inout callerClassLoader : ClassLoader, in driverClassName : String) : Class
+	Class callerC = null;
+
+	try {
+	    callerC = Class.forName(driverClassName, true, callerClassLoader);
+	}
+	catch (Exception ex) {
+	    callerC = null;           // being very careful 
+	}
+
+	return callerC;
+!!!7752347.java!!!	loadInitialDrivers() : void
+        String drivers;
+        try {
+	    drivers = (String) java.security.AccessController.doPrivileged(
+		new sun.security.action.GetPropertyAction("jdbc.drivers"));
+        } catch (Exception ex) {
+            drivers = null;
+        }
+        println("DriverManager.initialize: jdbc.drivers = " + drivers);
+        if (drivers == null) {
+            return;
+        }
+        while (drivers.length() != 0) {
+            int x = drivers.indexOf(':');
+            String driver;
+            if (x < 0) {
+                driver = drivers;
+                drivers = "";
+            } else {
+                driver = drivers.substring(0, x);
+                drivers = drivers.substring(x+1);
+            }
+            if (driver.length() == 0) {
+                continue;
+            }
+            try {
+                println("DriverManager.Initialize: loading " + driver);
+                Class.forName(driver, true,
+			      ClassLoader.getSystemClassLoader());
+            } catch (Exception ex) {
+                println("DriverManager.Initialize: load failed: " + ex);
+            }
+        }
+!!!7752475.java!!!	getConnection(in url : String, inout info : Properties, inout callerCL : ClassLoader) : Connection
+	
+        /*
+	 * When callerCl is null, we should check the application's
+	 * (which is invoking this class indirectly)
+	 * classloader, so that the JDBC driver class outside rt.jar
+	 * can be loaded from here.
+	 */
+	if(callerCL == null) {
+	    callerCL = Thread.currentThread().getContextClassLoader();
+	}    
+	  
+	if(url == null) {
+	    throw new SQLException("The url cannot be null", "08001");
+	}
+    
+	println("DriverManager.getConnection(\"" + url + "\")");
+    
+	if (!initialized) {
+	    initialize();
+	}
+
+	// Walk through the loaded drivers attempting to make a connection.
+	// Remember the first exception that gets raised so we can reraise it.
+	SQLException reason = null;
+	for (int i = 0; i < drivers.size(); i++) {
+	    DriverInfo di = (DriverInfo)drivers.elementAt(i);
+      
+	    // If the caller does not have permission to load the driver then 
+	    // skip it.
+	    if ( getCallerClass(callerCL, di.driverClassName ) != di.driverClass ) {
+		println("    skipping: " + di);
+		continue;
+	    }
+	    try {
+		println("    trying " + di);
+		Connection result = di.driver.connect(url, info);
+		if (result != null) {
+		    // Success!
+		    println("getConnection returning " + di);
+		    return (result);
+		}
+	    } catch (SQLException ex) {
+		if (reason == null) {
+		    reason = ex;
+		}
+	    }
+	}
+    
+	// if we got here nobody could connect.
+	if (reason != null)    {
+	    println("getConnection failed: " + reason);
+	    throw reason;
+	}
+    
+	println("getConnection: no suitable driver");
+	throw new SQLException("No suitable driver", "08001");
+!!!7752603.java!!!	initialize() : void
+        if (initialized) {
+            return;
+        }
+        initialized = true;
+        loadInitialDrivers();
+        println("JDBC DriverManager initialized");

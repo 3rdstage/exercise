@@ -1,0 +1,399 @@
+class AccessibleJTextComponent
+!!!2709275.java!!!	AccessibleJTextComponent()
+            Document doc = JTextComponent.this.getDocument();
+            if (doc != null) {
+                doc.addDocumentListener(this);
+            }
+            JTextComponent.this.addCaretListener(this);
+            caretPos = getCaretPosition();
+
+            try {
+	        oldLocationOnScreen = getLocationOnScreen();
+            } catch (IllegalComponentStateException iae) {
+            }
+
+	    // Fire a ACCESSIBLE_VISIBLE_DATA_PROPERTY PropertyChangeEvent
+	    // when the text component moves (e.g., when scrolling).
+	    // Using an anonymous class since making AccessibleJTextComponent
+	    // implement ComponentListener would be an API change.
+	    JTextComponent.this.addComponentListener(new ComponentAdapter() {
+
+	        public void componentMoved(ComponentEvent e) {
+                    try {
+		        Point newLocationOnScreen = getLocationOnScreen();
+		        firePropertyChange(ACCESSIBLE_VISIBLE_DATA_PROPERTY,
+				           oldLocationOnScreen, 
+				           newLocationOnScreen);
+		    
+		        oldLocationOnScreen = newLocationOnScreen;
+                    } catch (IllegalComponentStateException iae) {
+                    }
+		}
+	    });
+!!!2709403.java!!!	caretUpdate(inout e : CaretEvent) : void
+            int dot = e.getDot();
+            int mark = e.getMark();
+            if (caretPos != dot) {
+                // the caret moved
+                firePropertyChange(ACCESSIBLE_CARET_PROPERTY,
+                    new Integer(caretPos), new Integer(dot));
+                caretPos = dot;
+
+                try {
+                    oldLocationOnScreen = getLocationOnScreen();
+                } catch (IllegalComponentStateException iae) {
+                }
+            }
+            if (mark != dot) {
+                // there is a selection
+                firePropertyChange(ACCESSIBLE_SELECTION_PROPERTY, null, 
+                    getSelectedText());
+            }
+!!!2709531.java!!!	insertUpdate(inout e : DocumentEvent) : void
+            final Integer pos = new Integer (e.getOffset());
+            if (SwingUtilities.isEventDispatchThread()) {
+                firePropertyChange(ACCESSIBLE_TEXT_PROPERTY, null, pos);
+            } else {
+                Runnable doFire = new Runnable() {
+                    public void run() {
+                        firePropertyChange(ACCESSIBLE_TEXT_PROPERTY, 
+                                           null, pos);
+                    }
+                };
+                SwingUtilities.invokeLater(doFire);
+            }
+!!!2709659.java!!!	removeUpdate(inout e : DocumentEvent) : void
+            final Integer pos = new Integer (e.getOffset());
+            if (SwingUtilities.isEventDispatchThread()) {
+                firePropertyChange(ACCESSIBLE_TEXT_PROPERTY, null, pos);
+            } else {
+                Runnable doFire = new Runnable() {
+                    public void run() {
+                        firePropertyChange(ACCESSIBLE_TEXT_PROPERTY, 
+                                           null, pos);
+                    }
+                };
+                SwingUtilities.invokeLater(doFire);
+            }
+!!!2709787.java!!!	changedUpdate(inout e : DocumentEvent) : void
+            final Integer pos = new Integer (e.getOffset());
+            if (SwingUtilities.isEventDispatchThread()) {
+                firePropertyChange(ACCESSIBLE_TEXT_PROPERTY, null, pos);
+            } else {
+                Runnable doFire = new Runnable() {
+                    public void run() {
+                        firePropertyChange(ACCESSIBLE_TEXT_PROPERTY, 
+                                           null, pos);
+                    }
+                };
+                SwingUtilities.invokeLater(doFire);
+            }
+!!!2709915.java!!!	getAccessibleStateSet() : AccessibleStateSet
+            AccessibleStateSet states = super.getAccessibleStateSet();
+            if (JTextComponent.this.isEditable()) {
+                states.add(AccessibleState.EDITABLE);
+            }
+            return states;
+!!!2710043.java!!!	getAccessibleRole() : AccessibleRole
+            return AccessibleRole.TEXT;
+!!!2710171.java!!!	getAccessibleText() : AccessibleText
+            return this;
+!!!2710299.java!!!	getIndexAtPoint(inout p : Point) : int
+            if (p == null) {
+                return -1;
+            }
+            return JTextComponent.this.viewToModel(p);
+!!!2710427.java!!!	getRootEditorRect() : Rectangle
+	        Rectangle alloc = JTextComponent.this.getBounds();
+	        if ((alloc.width > 0) && (alloc.height > 0)) {
+		        alloc.x = alloc.y = 0;
+		        Insets insets = JTextComponent.this.getInsets();
+		        alloc.x += insets.left;
+		        alloc.y += insets.top;
+		        alloc.width -= insets.left + insets.right;
+		        alloc.height -= insets.top + insets.bottom;
+		        return alloc;
+	        }
+	        return null;
+!!!2710555.java!!!	getCharacterBounds(in i : int) : Rectangle
+            if (i < 0 || i > model.getLength()-1) {
+                return null;
+            }
+	    TextUI ui = getUI();
+	    if (ui == null) {
+		return null;
+	    }
+	    Rectangle rect = null;
+	    Rectangle alloc = getRootEditorRect();
+	    if (alloc == null) {
+		return null;
+	    }
+            if (model instanceof AbstractDocument) {
+                ((AbstractDocument)model).readLock();
+            }
+            try {
+	        View rootView = ui.getRootView(JTextComponent.this);
+	        if (rootView != null) {
+	            rootView.setSize(alloc.width, alloc.height);
+
+	            Shape bounds = rootView.modelToView(i,
+			            Position.Bias.Forward, i+1, 
+			            Position.Bias.Backward, alloc);
+
+	            rect = (bounds instanceof Rectangle) ?
+	             (Rectangle)bounds : bounds.getBounds();
+
+		}
+            } catch (BadLocationException e) {
+            } finally {
+                if (model instanceof AbstractDocument) {
+                    ((AbstractDocument)model).readUnlock();
+                }
+            }
+	    return rect;
+!!!2710683.java!!!	getCharCount() : int
+            return model.getLength();
+!!!2710811.java!!!	getCaretPosition() : int
+            return JTextComponent.this.getCaretPosition();
+!!!2710939.java!!!	getCharacterAttribute(in i : int) : AttributeSet
+            Element e = null;
+            if (model instanceof AbstractDocument) {
+                ((AbstractDocument)model).readLock();
+            }
+            try {
+                for (e = model.getDefaultRootElement(); ! e.isLeaf(); ) {
+                    int index = e.getElementIndex(i);
+                    e = e.getElement(index);
+                }
+            } finally {
+                if (model instanceof AbstractDocument) {
+                    ((AbstractDocument)model).readUnlock();
+                }
+            }
+            return e.getAttributes();
+!!!2711067.java!!!	getSelectionStart() : int
+            return JTextComponent.this.getSelectionStart();
+!!!2711195.java!!!	getSelectionEnd() : int
+            return JTextComponent.this.getSelectionEnd();
+!!!2711323.java!!!	getSelectedText() : String
+            return JTextComponent.this.getSelectedText();
+!!!2714651.java!!!	getAtIndex(in part : int, in index : int) : String
+            return getAtIndex(part, index, 0);
+!!!2714779.java!!!	getAfterIndex(in part : int, in index : int) : String
+            return getAtIndex(part, index, 1);
+!!!2714907.java!!!	getBeforeIndex(in part : int, in index : int) : String
+            return getAtIndex(part, index, -1);
+!!!2715035.java!!!	getAtIndex(in part : int, in index : int, in direction : int) : String
+            if (model instanceof AbstractDocument) {
+                ((AbstractDocument)model).readLock();
+            }
+            try {
+                if (index < 0 || index >= model.getLength()) {
+                    return null;
+                }
+                switch (part) {
+                case AccessibleText.CHARACTER:
+                    if (index + direction < model.getLength() &&
+                        index + direction >= 0) {
+                        return model.getText(index + direction, 1);
+                    }
+                    break;
+
+
+                case AccessibleText.WORD:
+                case AccessibleText.SENTENCE:
+                    IndexedSegment seg = getSegmentAt(part, index);
+                    if (seg != null) {
+                        if (direction != 0) {
+                            int next;
+
+
+                            if (direction < 0) {
+                                next = seg.modelOffset - 1;
+                            }
+                            else {
+                                next = seg.modelOffset + direction * seg.count;
+                            }
+                            if (next >= 0 && next <= model.getLength()) {
+                                seg = getSegmentAt(part, next);
+                            }
+                            else {
+                                seg = null;
+                            }
+                        }
+                        if (seg != null) {
+                            return new String(seg.array, seg.offset,
+                                                  seg.count);
+                        }
+                    }
+                    break;
+
+
+                default:
+                    break;
+                }
+            } catch (BadLocationException e) {
+            } finally {
+                if (model instanceof AbstractDocument) {
+                    ((AbstractDocument)model).readUnlock();
+                }
+            }
+            return null;
+!!!2715163.java!!!	getParagraphElement(in index : int) : Element
+            if (model instanceof PlainDocument ) {
+                PlainDocument sdoc = (PlainDocument)model;
+                return sdoc.getParagraphElement(index);
+            } else if (model instanceof StyledDocument) {
+                StyledDocument sdoc = (StyledDocument)model;
+                return sdoc.getParagraphElement(index);
+            } else {
+                Element para = null;
+                for (para = model.getDefaultRootElement(); ! para.isLeaf(); ) {
+                    int pos = para.getElementIndex(index);
+                    para = para.getElement(pos);
+                }
+                if (para == null) {
+                    return null;
+                }
+                return para.getParentElement();
+            }
+!!!2715291.java!!!	getParagraphElementText(in index : int) : IndexedSegment
+            Element para = getParagraphElement(index);
+
+
+            if (para != null) {
+                IndexedSegment segment = new IndexedSegment();
+                try {
+                    int length = para.getEndOffset() - para.getStartOffset();
+                    model.getText(para.getStartOffset(), length, segment);
+                } catch (BadLocationException e) {
+                    return null;
+                }
+                segment.modelOffset = para.getStartOffset();
+                return segment;
+            }
+            return null;
+!!!2715419.java!!!	getSegmentAt(in part : int, in index : int) : IndexedSegment
+            IndexedSegment seg = getParagraphElementText(index);
+            if (seg == null) {
+                return null;
+            }
+            BreakIterator iterator;
+            switch (part) {
+            case AccessibleText.WORD:
+                iterator = BreakIterator.getWordInstance(getLocale());
+                break;
+            case AccessibleText.SENTENCE:
+                iterator = BreakIterator.getSentenceInstance(getLocale());
+                break;
+            default:
+                return null;
+            }
+            seg.first();
+            iterator.setText(seg);
+            int end = iterator.following(index - seg.modelOffset + seg.offset);
+            if (end == BreakIterator.DONE) {
+                return null;
+            }
+            if (end > seg.offset + seg.count) {
+                return null;
+            }
+            int begin = iterator.previous();
+            if (begin == BreakIterator.DONE ||
+                         begin >= seg.offset + seg.count) {
+                return null;
+            }
+            seg.modelOffset = seg.modelOffset + begin - seg.offset;
+            seg.offset = begin;
+            seg.count = end - begin;
+            return seg;
+!!!2715547.java!!!	getAccessibleEditableText() : AccessibleEditableText
+	    return this;
+!!!2715675.java!!!	setTextContents(in s : String) : void
+	    JTextComponent.this.setText(s);
+!!!2715803.java!!!	insertTextAtIndex(in index : int, in s : String) : void
+	    Document doc = JTextComponent.this.getDocument();
+	    if (doc != null) {
+		try {
+		    if (s != null && s.length() > 0) {
+			boolean composedTextSaved = saveComposedText(index);
+			doc.insertString(index, s, null);
+			if (composedTextSaved) {
+			    restoreComposedText();
+			}
+		    }
+		} catch (BadLocationException e) {
+	            UIManager.getLookAndFeel().provideErrorFeedback(JTextComponent.this);
+		}
+	    }
+!!!2715931.java!!!	getTextRange(in startIndex : int, in endIndex : int) : String
+	    String txt = null;
+	    int p0 = Math.min(startIndex, endIndex);
+	    int p1 = Math.max(startIndex, endIndex);
+	    if (p0 != p1) {
+		try {
+		    Document doc = JTextComponent.this.getDocument();
+		    txt = doc.getText(p0, p1 - p0);
+		} catch (BadLocationException e) {
+		    throw new IllegalArgumentException(e.getMessage());
+		}
+	    }
+	    return txt;
+!!!2716059.java!!!	delete(in startIndex : int, in endIndex : int) : void
+	    if (isEditable() && isEnabled()) {
+		try {
+		    int p0 = Math.min(startIndex, endIndex);
+		    int p1 = Math.max(startIndex, endIndex);
+		    if (p0 != p1) {
+			Document doc = getDocument();
+			doc.remove(p0, p1 - p0);
+		    }
+		} catch (BadLocationException e) {
+		}
+	    } else {
+		UIManager.getLookAndFeel().provideErrorFeedback(JTextComponent.this);
+	    }    
+!!!2716187.java!!!	cut(in startIndex : int, in endIndex : int) : void
+	    selectText(startIndex, endIndex);
+	    JTextComponent.this.cut();
+!!!2716315.java!!!	paste(in startIndex : int) : void
+	    setCaretPosition(startIndex);
+	    JTextComponent.this.paste();
+!!!2716443.java!!!	replaceText(in startIndex : int, in endIndex : int, in s : String) : void
+	    selectText(startIndex, endIndex);
+	    JTextComponent.this.replaceSelection(s);
+!!!2716571.java!!!	selectText(in startIndex : int, in endIndex : int) : void
+	    JTextComponent.this.select(startIndex, endIndex);
+!!!2716699.java!!!	setAttributes(in startIndex : int, in endIndex : int, inout as : AttributeSet) : void
+
+            // Fixes bug 4487492
+            Document doc = JTextComponent.this.getDocument();
+            if (doc != null && doc instanceof StyledDocument) {
+                StyledDocument sDoc = (StyledDocument)doc;
+                int offset = startIndex;
+                int length = endIndex - startIndex;
+                sDoc.setCharacterAttributes(offset, length, as, true);
+            }
+!!!2716827.java!!!	getAccessibleAction() : AccessibleAction
+	    return this;
+!!!2716955.java!!!	getAccessibleActionCount() : int
+	    Action [] actions = JTextComponent.this.getActions();
+	    return actions.length;
+!!!2717083.java!!!	getAccessibleActionDescription(in i : int) : String
+	    Action [] actions = JTextComponent.this.getActions();
+	    if (i < 0 || i >= actions.length) {
+		return null;
+	    }
+	    return (String)actions[i].getValue(Action.NAME);
+!!!2717211.java!!!	doAccessibleAction(in i : int) : boolean
+	    Action [] actions = JTextComponent.this.getActions();
+	    if (i < 0 || i >= actions.length) {
+		return false;
+	    }
+            ActionEvent ae =
+                new ActionEvent(JTextComponent.this,
+                                ActionEvent.ACTION_PERFORMED, null,
+                                EventQueue.getMostRecentEventTime(),
+                                getCurrentEventModifiers());
+	    actions[i].actionPerformed(ae);
+	    return true;

@@ -1,0 +1,28 @@
+class OldPOAObjectKeyTemplate
+!!!870811.java!!!	OldPOAObjectKeyTemplate(inout orb : ORB, in magic : int, in scid : int, inout is : InputStream)
+	this( orb, magic, scid, is.read_long(), is.read_long(), is.read_long() ) ;
+!!!870939.java!!!	OldPOAObjectKeyTemplate(inout orb : ORB, in magic : int, in scid : int, inout is : InputStream, inout osh : OctetSeqHolder)
+	this( orb, magic, scid, is ) ;
+	osh.value = readObjectKey( is ) ;
+!!!871067.java!!!	OldPOAObjectKeyTemplate(inout orb : ORB, in magic : int, in scid : int, in serverid : int, in orbid : int, in poaid : int)
+	super( orb, magic, scid, serverid,
+	    Integer.toString( orbid ), 
+	    new ObjectAdapterIdNumber( poaid ) ) ;
+!!!871195.java!!!	writeTemplate(inout os : OutputStream) : void
+	os.write_long( getMagic() ) ;
+	os.write_long( getSubcontractId() ) ;
+	os.write_long( getServerId() ) ;
+
+	int orbid = Integer.parseInt( getORBId() ) ;
+	os.write_long( orbid ) ;
+
+	ObjectAdapterIdNumber oaid = (ObjectAdapterIdNumber)(getObjectAdapterId()) ;
+	int poaid = oaid.getOldPOAId()  ;
+	os.write_long( poaid ) ;
+!!!871323.java!!!	getORBVersion() : ORBVersion
+	if (getMagic() == ObjectKeyFactoryImpl.JAVAMAGIC_OLD)
+	    return ORBVersionFactory.getOLD() ;
+	else if (getMagic() == ObjectKeyFactoryImpl.JAVAMAGIC_NEW)
+	    return ORBVersionFactory.getNEW() ;
+	else
+	    throw new INTERNAL() ;

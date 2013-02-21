@@ -1,0 +1,492 @@
+class Toolkit
+!!!6387483.java!!!	getMouseInfoPeer() : MouseInfoPeer
+        throw new UnsupportedOperationException("Not implemented");
+!!!6387611.java!!!	createComponent(inout target : Component) : LightweightPeer
+        if (lightweightMarker == null) {
+            lightweightMarker = new NullComponentPeer();
+        }
+        return lightweightMarker;
+!!!6388123.java!!!	isDynamicLayoutSet() : boolean
+        if (this != Toolkit.getDefaultToolkit()) {
+            return Toolkit.getDefaultToolkit().isDynamicLayoutSet();
+        } else {
+            return false;
+        }
+!!!6388251.java!!!	isDynamicLayoutActive() : boolean
+        if (this != Toolkit.getDefaultToolkit()) {
+            return Toolkit.getDefaultToolkit().isDynamicLayoutActive();
+        } else {
+            return false;
+        }
+!!!6388635.java!!!	getScreenInsets(inout gc : GraphicsConfiguration) : Insets
+        if (this != Toolkit.getDefaultToolkit()) {
+            return Toolkit.getDefaultToolkit().getScreenInsets(gc);
+        } else {
+            return new Insets(0, 0, 0, 0);
+        }
+!!!6389275.java!!!	initAssistiveTechnologies() : void
+
+	// Get accessibility properties 
+        final String sep = File.separator;
+        final Properties properties = new Properties();
+
+
+	atNames = (String)java.security.AccessController.doPrivileged(
+	    new java.security.PrivilegedAction() {
+	    public Object run() {
+
+		// Try loading the per-user accessibility properties file.
+		try {
+		    File propsFile = new File(
+		      System.getProperty("user.home") +
+		      sep + ".accessibility.properties");
+		    FileInputStream in =
+			new FileInputStream(propsFile);
+
+                    // Inputstream has been buffered in Properties class
+		    properties.load(in);
+		    in.close();
+		} catch (Exception e) {
+		    // Per-user accessibility properties file does not exist
+		}
+
+		// Try loading the system-wide accessibility properties
+		// file only if a per-user accessibility properties
+		// file does not exist or is empty.
+		if (properties.size() == 0) {
+		    try {
+			File propsFile = new File(
+			    System.getProperty("java.home") + sep + "lib" +
+			    sep + "accessibility.properties");
+			FileInputStream in =
+			    new FileInputStream(propsFile);
+			
+			// Inputstream has been buffered in Properties class
+			properties.load(in);
+			in.close();
+		    } catch (Exception e) {
+			// System-wide accessibility properties file does 
+			// not exist;
+		    }
+		}
+		
+		// Get whether a screen magnifier is present.  First check
+		// the system property and then check the properties file.
+		String magPresent = System.getProperty("javax.accessibility.screen_magnifier_present");
+		if (magPresent == null) {
+		    magPresent = properties.getProperty("screen_magnifier_present", null);
+		    if (magPresent != null) {
+			System.setProperty("javax.accessibility.screen_magnifier_present", magPresent);
+		    }
+		}
+
+		// Get the names of any assistive technolgies to load.  First 
+		// check the system property and then check the properties 
+		// file.
+		String classNames = System.getProperty("javax.accessibility.assistive_technologies");
+		if (classNames == null) {
+		    classNames = properties.getProperty("assistive_technologies", null);
+		    if (classNames != null) {
+			System.setProperty("javax.accessibility.assistive_technologies", classNames);
+		    }
+		}
+		return classNames;
+	    }
+	});
+!!!6389403.java!!!	loadAssistiveTechnologies() : void
+	// Load any assistive technologies
+        if (atNames != null) {
+	    ClassLoader cl = ClassLoader.getSystemClassLoader();
+            StringTokenizer parser = new StringTokenizer(atNames," ,");
+	    String atName;
+            while (parser.hasMoreTokens()) {
+		atName = parser.nextToken();
+                try {
+		    Class clazz;
+		    if (cl != null) {
+			clazz = cl.loadClass(atName);
+		    } else {
+			clazz = Class.forName(atName);
+		    }
+		    clazz.newInstance();
+                } catch (ClassNotFoundException e) {
+                    throw new AWTError("Assistive Technology not found: "
+			    + atName);
+                } catch (InstantiationException e) {
+                    throw new AWTError("Could not instantiate Assistive"
+			    + " Technology: " + atName);
+                } catch (IllegalAccessException e) {
+                    throw new AWTError("Could not access Assistive"
+			    + " Technology: " + atName);
+                } catch (Exception e) {
+                    throw new AWTError("Error trying to install Assistive"
+			    + " Technology: " + atName + " " + e);
+                }
+            }
+        }
+!!!6389531.java!!!	getDefaultToolkit() : Toolkit
+	if (toolkit == null) {
+	    try {
+		// We disable the JIT during toolkit initialization.  This
+		// tends to touch lots of classes that aren't needed again
+		// later and therefore JITing is counter-productiive.
+		java.lang.Compiler.disable();
+		
+	        java.security.AccessController.doPrivileged(
+			new java.security.PrivilegedAction() {
+		    public Object run() {
+		        String nm = null;
+			Class cls = null;
+		        try {
+                            String defaultToolkit;
+
+                            if (System.getProperty("os.name").equals("Linux")) { 
+                                defaultToolkit = "sun.awt.X11.XToolkit";
+                            }
+                            else { 
+                                defaultToolkit = "sun.awt.motif.MToolkit";
+                            }
+			    nm = System.getProperty("awt.toolkit",
+						defaultToolkit);
+			    try {
+			    	cls = Class.forName(nm);
+		            } catch (ClassNotFoundException e) {
+			    	ClassLoader cl = ClassLoader.getSystemClassLoader();
+                                if (cl != null) {
+			    	    try {
+                                        cls = cl.loadClass(nm);
+		            	    } catch (ClassNotFoundException ee) {
+			    		throw new AWTError("Toolkit not found: " + nm);
+				    }
+                                }
+	                    }
+                            if (cls != null) {
+				toolkit = (Toolkit)cls.newInstance();
+                                if (GraphicsEnvironment.isHeadless()) {
+                                    toolkit = new HeadlessToolkit(toolkit);
+                                }
+			    }
+		        } catch (InstantiationException e) {
+			    throw new AWTError("Could not instantiate Toolkit: " +
+					   nm);
+		        } catch (IllegalAccessException e) {
+			    throw new AWTError("Could not access Toolkit: " + nm);
+		        }
+		        return null;
+		    }
+	        });
+	        loadAssistiveTechnologies();
+	    } finally {
+		// Make sure to always re-enable the JIT.
+		java.lang.Compiler.enable();
+	    }
+	}
+	return toolkit;
+!!!6390555.java!!!	createImage(in imagedata : byte) : Image
+	return createImage(imagedata, 0, imagedata.length);
+!!!6390939.java!!!	getPrintJob(inout frame : Frame, in jobtitle : String, inout jobAttributes : JobAttributes, inout pageAttributes : PageAttributes) : PrintJob
+        // Override to add printing support with new job/page control classes
+
+        if (GraphicsEnvironment.isHeadless()) {
+            throw new IllegalArgumentException();
+        }
+
+	if (this != Toolkit.getDefaultToolkit()) {
+	    return Toolkit.getDefaultToolkit().getPrintJob(frame, jobtitle,
+							   jobAttributes,
+							   pageAttributes);
+	} else {
+	    return getPrintJob(frame, jobtitle, null);
+	}
+!!!6391323.java!!!	getSystemSelection() : Clipboard
+        if (this != Toolkit.getDefaultToolkit()) {
+            return Toolkit.getDefaultToolkit().getSystemSelection();
+        } else {
+            GraphicsEnvironment.checkHeadless();
+            return null;
+        }
+!!!6391451.java!!!	getMenuShortcutKeyMask() : int
+        return Event.CTRL_MASK;
+!!!6391579.java!!!	getLockingKeyState(in keyCode : int) : boolean
+        if (! (keyCode == KeyEvent.VK_CAPS_LOCK || keyCode == KeyEvent.VK_NUM_LOCK ||
+               keyCode == KeyEvent.VK_SCROLL_LOCK || keyCode == KeyEvent.VK_KANA_LOCK)) {
+            throw new IllegalArgumentException("invalid key for Toolkit.getLockingKeyState");
+        }
+        throw new UnsupportedOperationException("Toolkit.getLockingKeyState");
+!!!6391707.java!!!	setLockingKeyState(in keyCode : int, inout on : boolean) : void
+        if (! (keyCode == KeyEvent.VK_CAPS_LOCK || keyCode == KeyEvent.VK_NUM_LOCK ||
+               keyCode == KeyEvent.VK_SCROLL_LOCK || keyCode == KeyEvent.VK_KANA_LOCK)) {
+            throw new IllegalArgumentException("invalid key for Toolkit.setLockingKeyState");
+        }
+        throw new UnsupportedOperationException("Toolkit.setLockingKeyState");
+!!!6391835.java!!!	getNativeContainer(inout c : Component) : Container
+	return c.getNativeContainer();
+!!!6391963.java!!!	createCustomCursor(inout cursor : Image, inout hotSpot : Point, in name : String) : Cursor
+        // Override to implement custom cursor support.
+        if (this != Toolkit.getDefaultToolkit()) {
+	    return Toolkit.getDefaultToolkit().
+	        createCustomCursor(cursor, hotSpot, name);
+	} else {
+	    return new Cursor(Cursor.DEFAULT_CURSOR);
+	}
+!!!6392091.java!!!	getBestCursorSize(in preferredWidth : int, in preferredHeight : int) : Dimension
+        // Override to implement custom cursor support.
+        if (this != Toolkit.getDefaultToolkit()) {
+	    return Toolkit.getDefaultToolkit().
+	        getBestCursorSize(preferredWidth, preferredHeight);
+	} else {
+	    return new Dimension(0, 0);
+	}
+!!!6392219.java!!!	getMaximumCursorColors() : int
+        // Override to implement custom cursor support.
+        if (this != Toolkit.getDefaultToolkit()) {
+	    return Toolkit.getDefaultToolkit().getMaximumCursorColors();
+	} else {
+	    return 0;
+	}
+!!!6392347.java!!!	isFrameStateSupported(in state : int) : boolean
+        if (this != Toolkit.getDefaultToolkit()) {
+	    return Toolkit.getDefaultToolkit().
+		isFrameStateSupported(state);
+	} else {
+	    return (state == Frame.NORMAL); // others are not guaranteed
+	}
+!!!6392603.java!!!	loadLibraries() : void
+	if (!loaded) {
+	    java.security.AccessController.doPrivileged(
+			  new sun.security.action.LoadLibraryAction("awt"));
+	    loaded = true;
+        }
+!!!6392731.java!!!	getProperty(in key : String, in defaultValue : String) : String
+        if (resources != null) {
+	    try {
+	        return resources.getString(key);
+	    }
+	    catch (MissingResourceException e) {}
+        }
+
+	return defaultValue;
+!!!6392859.java!!!	getSystemEventQueue() : EventQueue
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+	  security.checkAwtEventQueueAccess();
+        }
+        return getSystemEventQueueImpl();
+!!!6393115.java!!!	getEventQueue() : EventQueue
+        return getDefaultToolkit().getSystemEventQueueImpl();
+!!!6393371.java!!!	createDragGestureRecognizer(inout abstractRecognizerClass : Class, inout ds : DragSource, inout c : Component, in srcActions : int, inout dgl : DragGestureListener) : T
+	return null;
+!!!6393499.java!!!	getDesktopProperty(in propertyName : String) : Object
+        // This is a workaround for headless toolkits.  It would be
+        // better to override this method but it is declared final.
+        // "this instanceof" syntax defeats polymorphism.
+        // --mm, 03/03/00
+        if (this instanceof HeadlessToolkit) {
+            return ((HeadlessToolkit)this).getUnderlyingToolkit()
+                .getDesktopProperty(propertyName);
+        }
+
+	if (desktopProperties.isEmpty()) {
+	    initializeDesktopProperties();
+	}
+
+        Object value;
+
+        // This property should never be cached
+        if (propertyName.equals("awt.dynamicLayoutSupported")) {
+            value = lazilyLoadDesktopProperty(propertyName);
+            return value;
+        }
+
+	value = desktopProperties.get(propertyName);
+
+	if (value == null) {
+	    value = lazilyLoadDesktopProperty(propertyName);
+
+	    if (value != null) {
+		setDesktopProperty(propertyName, value);
+	    }
+	}
+
+	return value;
+!!!6393627.java!!!	setDesktopProperty(in name : String, inout newValue : Object) : void
+        // This is a workaround for headless toolkits.  It would be
+        // better to override this method but it is declared final.
+        // "this instanceof" syntax defeats polymorphism.
+        // --mm, 03/03/00
+        if (this instanceof HeadlessToolkit) {
+            ((HeadlessToolkit)this).getUnderlyingToolkit()
+                .setDesktopProperty(name, newValue);
+            return;
+        }
+        Object oldValue;
+
+        synchronized (this) {
+            oldValue = desktopProperties.get(name);
+            desktopProperties.put(name, newValue);
+        }
+
+        desktopPropsSupport.firePropertyChange(name, oldValue, newValue);
+!!!6393755.java!!!	lazilyLoadDesktopProperty(in name : String) : Object
+	return null;
+!!!6394011.java!!!	addPropertyChangeListener(in name : String, inout pcl : PropertyChangeListener) : void
+	if (pcl == null) {
+	    return;
+	}
+	desktopPropsSupport.addPropertyChangeListener(name, pcl);
+!!!6394139.java!!!	removePropertyChangeListener(in name : String, inout pcl : PropertyChangeListener) : void
+	if (pcl == null) {
+	    return;
+	}
+	desktopPropsSupport.removePropertyChangeListener(name, pcl);
+!!!6394267.java!!!	getPropertyChangeListeners() : PropertyChangeListener
+        return desktopPropsSupport.getPropertyChangeListeners();
+!!!6394395.java!!!	getPropertyChangeListeners(in propertyName : String) : PropertyChangeListener
+        return desktopPropsSupport.getPropertyChangeListeners(propertyName);
+!!!6394523.java!!!	deProxyAWTEventListener(inout l : AWTEventListener) : AWTEventListener
+        AWTEventListener localL = l;
+
+        if (localL == null) {
+            return null;
+        }
+        // if user passed in a AWTEventListenerProxy object, extract
+        // the listener
+        if (l instanceof AWTEventListenerProxy) {
+            localL = (AWTEventListener)((AWTEventListenerProxy)l).getListener();
+        }
+        return localL;
+!!!6394651.java!!!	addAWTEventListener(inout listener : AWTEventListener, in eventMask : long) : void
+        AWTEventListener localL = deProxyAWTEventListener(listener); 
+
+        if (localL == null) {
+            return;
+        }
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+          security.checkPermission(SecurityConstants.ALL_AWT_EVENTS_PERMISSION);
+        }
+        synchronized (this) {
+            SelectiveAWTEventListener selectiveListener =
+            (SelectiveAWTEventListener)listener2SelectiveListener.get(localL);
+
+            if (selectiveListener == null) {
+                // Create a new selectiveListener.
+                selectiveListener = new SelectiveAWTEventListener(localL,
+                                                                 eventMask); 
+                listener2SelectiveListener.put(localL, selectiveListener);
+                eventListener = ToolkitEventMulticaster.add(eventListener,
+                                                            selectiveListener);
+            }
+            // OR the eventMask into the selectiveListener's event mask.
+            selectiveListener.orEventMasks(eventMask);
+            
+            enabledOnToolkitMask |= eventMask;
+            
+            long mask = eventMask;
+            for (int i=0; i<LONG_BITS; i++) {
+                // If no bits are set, break out of loop.
+                if (mask == 0) {
+                    break;
+                }
+                if ((mask & 1L) != 0) {  // Always test bit 0.
+                    calls[i]++;
+                }
+                mask >>>= 1;  // Right shift, fill with zeros on left.
+            }
+        }
+!!!6394779.java!!!	removeAWTEventListener(inout listener : AWTEventListener) : void
+        AWTEventListener localL = deProxyAWTEventListener(listener);
+
+        if (listener == null) {
+            return;
+        }
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+            security.checkPermission(SecurityConstants.ALL_AWT_EVENTS_PERMISSION);
+        }
+
+        synchronized (this) {
+            SelectiveAWTEventListener selectiveListener =
+            (SelectiveAWTEventListener)listener2SelectiveListener.get(localL);
+
+            if (selectiveListener != null) {
+                listener2SelectiveListener.remove(localL);
+                int[] listenerCalls = selectiveListener.getCalls();
+                for (int i=0; i<LONG_BITS; i++) {
+                    calls[i] -= listenerCalls[i];
+                    assert calls[i] >= 0: "Negative Listeners count";
+                    
+                    if (calls[i] == 0) {
+                        enabledOnToolkitMask &= ~(1L<<i);
+                    }
+                }
+            }
+            eventListener = ToolkitEventMulticaster.remove(eventListener,
+            (selectiveListener == null) ? localL : selectiveListener);
+        }
+!!!6394907.java!!!	enabledOnToolkit(in eventMask : long) : boolean
+        return (enabledOnToolkitMask & eventMask) != 0;
+!!!6395035.java!!!	countAWTEventListeners(in eventMask : long) : int
+        if (dbg.on) {
+            dbg.assertion(eventMask != 0);
+        }
+
+        int ci = 0;
+        for (; eventMask != 0; eventMask >>>= 1, ci++) {
+        }
+        ci--;
+        return calls[ci];
+!!!6395163.java!!!	getAWTEventListeners() : AWTEventListener
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+	    security.checkPermission(SecurityConstants.ALL_AWT_EVENTS_PERMISSION);
+        }
+        synchronized (this) {
+            EventListener[] la = ToolkitEventMulticaster.getListeners(eventListener,AWTEventListener.class); 
+
+            AWTEventListener[] ret = new AWTEventListener[la.length];
+            for (int i = 0; i < la.length; i++) { 
+                SelectiveAWTEventListener sael = (SelectiveAWTEventListener)la[i]; 
+                AWTEventListener tempL = sael.getListener(); 
+                //assert tempL is not an AWTEventListenerProxy - we should 
+                // have weeded them all out 
+                // don't want to wrap a proxy inside a proxy 
+                ret[i] = new AWTEventListenerProxy(sael.getEventMask(), tempL); 
+            } 
+            return ret; 
+        }
+!!!6395291.java!!!	getAWTEventListeners(in eventMask : long) : AWTEventListener
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+	    security.checkPermission(SecurityConstants.ALL_AWT_EVENTS_PERMISSION);
+        }
+        synchronized (this) {
+            EventListener[] la = ToolkitEventMulticaster.getListeners(eventListener,AWTEventListener.class);
+
+            java.util.List list = new ArrayList(la.length);
+
+            for (int i = 0; i < la.length; i++) {
+                SelectiveAWTEventListener sael = (SelectiveAWTEventListener)la[i];
+                if ((sael.getEventMask() & eventMask) == eventMask) {
+                    //AWTEventListener tempL = sael.getListener();
+                    list.add(new AWTEventListenerProxy(sael.getEventMask(),
+                                                       sael.getListener()));
+                }
+            }
+            return (AWTEventListener[])list.toArray(new AWTEventListener[0]);
+        }
+!!!6395419.java!!!	notifyAWTEventListeners(inout theEvent : AWTEvent) : void
+        // This is a workaround for headless toolkits.  It would be
+        // better to override this method but it is declared package private.
+        // "this instanceof" syntax defeats polymorphism.
+        // --mm, 03/03/00
+        if (this instanceof HeadlessToolkit) {
+            ((HeadlessToolkit)this).getUnderlyingToolkit()
+                .notifyAWTEventListeners(theEvent);
+            return;
+        }
+
+	AWTEventListener eventListener = this.eventListener;
+        if (eventListener != null) {
+	    eventListener.eventDispatched(theEvent);
+        }

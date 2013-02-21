@@ -1,0 +1,99 @@
+class BasicAttributes
+!!!8498331.java!!!	BasicAttributes(inout ignoreCase : boolean)
+	this.ignoreCase = ignoreCase;
+!!!8498459.java!!!	BasicAttributes(in attrID : String, inout val : Object)
+	this();
+	this.put(new BasicAttribute(attrID, val));
+!!!8498587.java!!!	BasicAttributes(in attrID : String, inout val : Object, inout ignoreCase : boolean)
+	this(ignoreCase);
+	this.put(new BasicAttribute(attrID, val));
+!!!8498715.java!!!	clone() : Object
+	BasicAttributes attrset;
+	try {
+	    attrset = (BasicAttributes)super.clone();
+	} catch (CloneNotSupportedException e) {
+	    attrset = new BasicAttributes(ignoreCase);
+	}
+	attrset.attrs = (Hashtable)attrs.clone();
+	return attrset;
+!!!8498843.java!!!	isCaseIgnored() : boolean
+	return ignoreCase;
+!!!8498971.java!!!	size() : int
+	return attrs.size();
+!!!8499099.java!!!	get(in attrID : String) : Attribute
+	Attribute attr = (Attribute) attrs.get(
+		ignoreCase ? attrID.toLowerCase() : attrID);
+	return (attr);
+!!!8499227.java!!!	getAll() : NamingEnumeration
+	return new AttrEnumImpl();
+!!!8499355.java!!!	getIDs() : NamingEnumeration
+	return new IDEnumImpl();
+!!!8499483.java!!!	put(in attrID : String, inout val : Object) : Attribute
+	return (Attribute)this.put(new BasicAttribute(attrID, val));
+!!!8499611.java!!!	put(inout attr : Attribute) : Attribute
+	String id = attr.getID();
+	if (ignoreCase) {
+	    id = id.toLowerCase();
+	}
+	return (Attribute)attrs.put(id, attr);
+!!!8499739.java!!!	remove(in attrID : String) : Attribute
+	String id = (ignoreCase ? attrID.toLowerCase() : attrID);
+	return (Attribute)attrs.remove(id);
+!!!8499867.java!!!	toString() : String
+	if (attrs.size() == 0) {
+	    return("No attributes");
+	} else {
+	    return attrs.toString();
+	}
+!!!8499995.java!!!	equals(inout obj : Object) : boolean
+	if ((obj != null) && (obj instanceof Attributes)) {
+	    Attributes target = (Attributes)obj;
+	    
+	    // Check case first
+	    if (ignoreCase != target.isCaseIgnored()) {
+		return false;
+	    }
+
+	    if (size() == target.size()) {
+		Attribute their, mine;
+		try {
+		    NamingEnumeration theirs = target.getAll();
+		    while (theirs.hasMore()) {
+			their = (Attribute)theirs.next();
+			mine = get(their.getID());
+			if (!their.equals(mine)) {
+			    return false;
+			}
+		    }
+		} catch (NamingException e) {
+		    return false;
+		}
+		return true;
+	    }
+	}
+	return false;
+!!!8500123.java!!!	hashCode() : int
+	int hash = (ignoreCase ? 1 : 0);
+	try {
+	    NamingEnumeration all = getAll();
+	    while (all.hasMore()) {
+		hash += all.next().hashCode();
+	    }
+	} catch (NamingException e) {}
+	return hash;
+!!!8500251.java!!!	writeObject(inout s : ObjectOutputStream) : void
+	s.defaultWriteObject();	// write out the ignoreCase flag
+	s.writeInt(attrs.size());
+	Enumeration attrEnum = attrs.elements();
+	while (attrEnum.hasMoreElements()) {
+	    s.writeObject(attrEnum.nextElement());
+	}
+!!!8500379.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();	// read in the ignoreCase flag
+	int n = s.readInt();	// number of attributes
+	attrs = (n >= 1)
+	    ? new Hashtable(n * 2)
+	    : new Hashtable(2);	// can't have initial size of 0 (grrr...)
+	while (--n >= 0) {
+	    put((Attribute)s.readObject());
+	}

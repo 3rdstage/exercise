@@ -1,0 +1,336 @@
+class RepositorySupport
+!!!3216155.java!!!	isTraceOn() : boolean
+	return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_MBEANSERVER);
+!!!3216283.java!!!	trace(in clz : String, in func : String, in info : String) : void
+	Trace.send(Trace.LEVEL_TRACE, Trace.INFO_MBEANSERVER, clz, func, 
+		   info);
+!!!3216411.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!3216539.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_MBEANSERVER);
+!!!3216667.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_MBEANSERVER, clz, func, 
+		   info);
+!!!3216795.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);
+!!!3217307.java!!!	addAllMatching(in moiTb : Hashtable, in result : Set, in pattern : ObjectNamePattern) : void
+	synchronized (moiTb) {
+	    for (Enumeration e = moiTb.elements(); e.hasMoreElements();) {   
+		final NamedObject no = (NamedObject) e.nextElement();
+                final ObjectName on = no.getName();
+
+		// if all couples (property, value) are contained 
+		if (pattern.matchKeys(on)) result.add(no);
+	    }
+	}
+!!!3217435.java!!!	addNewDomMoi(in object : Object, in dom : String, in name : ObjectName) : void
+	final Hashtable moiTb= new Hashtable();
+	domainTb.put(dom, moiTb);
+	moiTb.put(name.getCanonicalKeyPropertyListString(), 
+		  new NamedObject(name, object));
+	nbElements++;
+!!!3217563.java!!!	wildmatch(in s : char, in p : char, in si : int, in pi : int) : boolean
+        char c;
+	// Be careful: this is dangerous: it works because wildmatch
+	// is protected by a synchronized block on domainTb
+        _slen = s.length;
+        _plen = p.length;
+	// end of comment.
+
+        while (pi < _plen) {            // While still string
+            c = p[pi++];
+            if (c == '?') {
+                if (++si > _slen) return false;
+            } else if (c == '*') {        // Wildcard
+                if (pi >= _plen) return true;
+                do {
+                    if (wildmatch(s,p,si,pi)) return true;
+                } while (++si < _slen);
+                return false;
+            } else {
+                if (si >= _slen || c != s[si++]) return false;
+            }
+        }
+        return (si == _slen);
+!!!3217691.java!!!	retrieveNamedObject(inout name : ObjectName) : NamedObject
+
+        // No patterns inside reposit
+	if (name.isPattern() == true) return null;
+
+	// Extract the domain name.       
+	String dom= name.getDomain().intern();
+
+        // Default domain case
+	if (dom.length() == 0) {
+            dom = domain;
+        }
+
+        Object tmp_object = domainTb.get(dom);
+	if (tmp_object == null) {
+            return null; // No domain containing registered object names
+        }
+
+        // If name exists in repository, we will get it now 
+	Hashtable moiTb= (Hashtable) tmp_object;
+            
+        Object o = moiTb.get(name.getCanonicalKeyPropertyListString());
+        if (o != null ) {
+            return (NamedObject) o;
+        }
+        else return null;
+!!!3217819.java!!!	RepositorySupport(in domain : String)
+	domainTb= new Hashtable(5);
+        
+	if (domain != null && domain.length() != 0) 
+	    this.domain = domain;
+	else 
+	    this.domain = ServiceName.DOMAIN;
+
+        // Creates an new hastable for the default domain
+	domainTb.put(this.domain.intern(), new Hashtable());
+
+	// ------------------------------ 
+	// ------------------------------
+!!!3217947.java!!!	setConfigParameters(inout configParameters : ArrayList) : void
+	return;
+!!!3218075.java!!!	getDomains() : String
+	final ArrayList result;
+	synchronized(domainTb) {
+	    // Temporary list
+	    result = new ArrayList(domainTb.size());
+
+	    // Loop over all domains
+	    for (Enumeration e = domainTb.keys();e.hasMoreElements();) {
+		// key = domain name
+		final String key = (String)e.nextElement();
+		if (key == null) continue;
+
+		// If no MBean in domain continue
+		final Hashtable t = (Hashtable)domainTb.get(key);
+		if (t == null || t.size()==0) continue;
+
+		// Some MBean are registered => add to result.
+		result.add(key);
+	    }
+	}
+
+	// Make an array from result.
+	return (String[]) result.toArray(new String[result.size()]); 
+	
+!!!3218203.java!!!	isFiltering() : boolean
+	// Let the MBeanServer perform the filtering !     
+	return false;
+!!!3218331.java!!!	addMBean(in object : Object, inout name : ObjectName) : void
+	
+	if (isTraceOn()) {
+	    trace("addMBean", "name=" + name);
+	}  
+
+	// Extract the domain name. 
+	String dom = name.getDomain().intern();     
+	boolean to_default_domain = false;
+
+        // Set domain to default if domain is empty and not already set
+	if (dom.length() == 0) {
+
+	     try {
+                name = new ObjectName(domain + name.toString());
+
+            } catch (MalformedObjectNameException e) {
+
+                if (isDebugOn()) {
+                    debug("addMBean",
+			  "Unexpected MalformedObjectNameException");
+                }
+            }
+	}
+	
+	// Do we have default domain ?
+	if (dom == domain) {
+	    to_default_domain = true;
+	    dom = domain;
+	} else {
+	    to_default_domain = false;
+	}
+
+	// ------------------------------ 
+	// ------------------------------
+
+	// Validate name for an object     
+	if (name.isPattern() == true) {
+	    throw new RuntimeOperationsException(
+	     new IllegalArgumentException("Repository: cannot add mbean for pattern name " + name.toString()));
+	}
+
+        // Domain cannot be JMImplementation if entry does not exists
+        if ( !to_default_domain &&
+             dom.equals("JMImplementation") &&
+             domainTb.containsKey("JMImplementation")) {
+
+		throw new RuntimeOperationsException(
+		  new IllegalArgumentException(
+                      "Repository: domain name cannot be JMImplementation"));
+	    }	         
+
+	// If domain not already exists, add it to the hash table
+	final Hashtable moiTb= (Hashtable) domainTb.get(dom);
+	if (moiTb == null) {
+	    addNewDomMoi(object, dom, name);
+	    return;
+	}
+        else {
+            // Add instance if not already present
+            String cstr = name.getCanonicalKeyPropertyListString();
+            Object elmt= moiTb.get(cstr);
+            if (elmt != null) {
+                throw new InstanceAlreadyExistsException(name.toString());
+            } else {
+                nbElements++;
+                moiTb.put(cstr, new NamedObject(name, object));
+            }
+        }
+!!!3218459.java!!!	contains(inout name : ObjectName) : boolean
+	
+	if (isTraceOn()) {
+	    trace("contains", "name=" + name);
+	}  
+	return (retrieveNamedObject(name) != null);
+!!!3218587.java!!!	retrieve(inout name : ObjectName) : Object
+	
+	// ------------------------------ 
+	// ------------------------------
+	if (isTraceOn()) {
+	    trace("retrieve", "name=" + name);
+	}
+
+        // Calls internal retrieve method to get the named object
+        NamedObject no = retrieveNamedObject(name);
+        if (no == null) return null;
+        else return no.getObject();
+
+!!!3218715.java!!!	query(inout pattern : ObjectName, inout query : QueryExp) : Set
+	
+	// ------------------------------ 
+	// ------------------------------
+        ObjectNamePattern on_pattern = null; // intermediate Object name pattern for performance
+	final HashSet result = new HashSet();
+	
+	// The following filter cases are considered :
+	// null, "", "*:*"" :  names in all domains
+	// ":*" : names in defaultDomain
+	// "domain:*" : names in the specified domain
+	// "domain:[key=value], *"
+	
+        // Surely one of the most frequent case ... query on the whole world
+        ObjectName name = null;
+        if (pattern == null ||
+            pattern.getCanonicalName().length() == 0 ||
+            pattern.equals(_WholeWordQueryObjectName))
+           name = _WholeWordQueryObjectName;
+        else name = pattern;
+	
+	// If pattern is not a pattern, retrieve this mbean !
+	if (!name.isPattern()) {       
+		final NamedObject no = retrieveNamedObject(name);
+		if (no != null) result.add(no);
+	    return result;
+	}
+	
+	// all  names in all domains
+	if  (name == _WholeWordQueryObjectName) {   
+	    synchronized(domainTb) {
+		for(final Enumeration e = domainTb.elements(); 
+		    e.hasMoreElements();) {	
+		    final Hashtable moiTb = (Hashtable) e.nextElement();
+                    result.addAll(moiTb.values());
+		}
+	    }
+	    return result;
+	}
+
+        String canonical_key_property_list_string = name.getCanonicalKeyPropertyListString();
+
+	// all names in default domain
+	//
+	// DF: fix 4618986 - take into account the case where the 
+	//     property list is not empty.
+	//
+	if (name.getDomain().length() == 0) {
+	    final Hashtable moiTb = (Hashtable) domainTb.get(domain);
+	    if  (canonical_key_property_list_string.length() == 0) {
+                result.addAll(moiTb.values());
+	    } else {
+                if (on_pattern == null) 
+		    on_pattern = new ObjectNamePattern(name);
+		addAllMatching(moiTb,result,on_pattern);
+	    }
+	    return result;
+	}
+	
+	// Pattern matching in the domain name (*, ?)
+        synchronized (domainTb) {
+            char[] dom2Match = name.getDomain().toCharArray();
+            String nextDomain;
+            char [] theDom;
+            for (final Enumeration enumi = domainTb.keys(); enumi.hasMoreElements();) {
+                nextDomain = (String) enumi.nextElement();
+                theDom = nextDomain.toCharArray();
+
+                if (wildmatch(theDom, dom2Match, 0, 0)) {
+                    final Hashtable moiTb = 
+			(Hashtable) domainTb.get(nextDomain);
+
+                    if (canonical_key_property_list_string.length() == 0)
+                        result.addAll(moiTb.values());
+                    else {
+                        if (on_pattern == null) 
+			    on_pattern = new ObjectNamePattern(name);
+                        addAllMatching(moiTb,result,on_pattern);
+                    }
+                }
+            }
+        }
+	return result;
+!!!3218843.java!!!	remove(in name : ObjectName) : void
+
+        // Debugging stuff
+	if (isTraceOn()) {
+	    trace("remove", "name=" + name);
+	}  
+
+	// Extract domain name.       
+	String dom= name.getDomain().intern();
+
+        // Default domain case
+	if (dom.length() == 0) dom = domain;
+
+        // Find the domain subtable
+        Object tmp_object =  domainTb.get(dom);
+	if (tmp_object == null) {
+	    throw new InstanceNotFoundException(name.toString());
+	}
+
+        // Remove the corresponding element
+	Hashtable moiTb= (Hashtable) tmp_object;
+	if (moiTb.remove(name.getCanonicalKeyPropertyListString()) == null) {
+	    throw new InstanceNotFoundException(name.toString());
+	}
+
+        // We removed it !
+	nbElements--;
+        
+        // No more object for this domain, we remove this domain hashtable
+        if (moiTb.isEmpty()) {
+            domainTb.remove(dom);
+
+            // set a new default domain table (always present)
+            // need to reinstantiate a hashtable because of possible
+            // big buckets array size inside table, never cleared, 
+	    // thus the new !
+            if (dom == domain) 
+		domainTb.put(domain, new Hashtable());
+        }
+!!!3218971.java!!!	getCount() : Integer
+	return new Integer(nbElements);
+!!!3219099.java!!!	getDefaultDomain() : String
+	return domain;

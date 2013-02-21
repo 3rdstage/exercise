@@ -1,0 +1,168 @@
+class DateFormatSymbols
+!!!7821083.java!!!	DateFormatSymbols()
+        initializeData(Locale.getDefault());
+!!!7821211.java!!!	DateFormatSymbols(inout locale : Locale)
+        initializeData(locale);
+!!!7821339.java!!!	getEras() : String
+        return duplicate(eras);
+!!!7821467.java!!!	setEras(in newEras : String) : void
+        eras = duplicate(newEras);
+!!!7821595.java!!!	getMonths() : String
+        return duplicate(months);
+!!!7821723.java!!!	setMonths(in newMonths : String) : void
+        months = duplicate(newMonths);
+!!!7821851.java!!!	getShortMonths() : String
+        return duplicate(shortMonths);
+!!!7821979.java!!!	setShortMonths(in newShortMonths : String) : void
+        shortMonths = duplicate(newShortMonths);
+!!!7822107.java!!!	getWeekdays() : String
+        return duplicate(weekdays);
+!!!7822235.java!!!	setWeekdays(in newWeekdays : String) : void
+        weekdays = duplicate(newWeekdays);
+!!!7822363.java!!!	getShortWeekdays() : String
+        return duplicate(shortWeekdays);
+!!!7822491.java!!!	setShortWeekdays(in newShortWeekdays : String) : void
+        shortWeekdays = duplicate(newShortWeekdays);
+!!!7822619.java!!!	getAmPmStrings() : String
+        return duplicate(ampms);
+!!!7822747.java!!!	setAmPmStrings(in newAmpms : String) : void
+        ampms = duplicate(newAmpms);
+!!!7822875.java!!!	getZoneStrings() : String
+        String[][] aCopy = new String[zoneStrings.length][];
+        for (int i = 0; i < zoneStrings.length; ++i)
+            aCopy[i] = duplicate(zoneStrings[i]);
+        return aCopy;
+!!!7823003.java!!!	setZoneStrings(in newZoneStrings : String) : void
+        String[][] aCopy = new String[newZoneStrings.length][];
+        for (int i = 0; i < newZoneStrings.length; ++i)
+            aCopy[i] = duplicate(newZoneStrings[i]);
+        zoneStrings = aCopy;
+!!!7823131.java!!!	getLocalPatternChars() : String
+        return new String(localPatternChars);
+!!!7823259.java!!!	setLocalPatternChars(in newLocalPatternChars : String) : void
+        localPatternChars = new String(newLocalPatternChars);
+!!!7823387.java!!!	clone() : Object
+        try
+        {
+            DateFormatSymbols other = (DateFormatSymbols)super.clone();
+            copyMembers(this, other);
+            return other;
+        } catch (CloneNotSupportedException e) {
+            throw new InternalError();
+        }
+!!!7823515.java!!!	hashCode() : int
+        int hashcode = 0;
+        for (int index = 0; index < this.zoneStrings[0].length; ++index)
+            hashcode ^= this.zoneStrings[0][index].hashCode();
+        return hashcode;
+!!!7823643.java!!!	equals(inout obj : Object) : boolean
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        DateFormatSymbols that = (DateFormatSymbols) obj;
+        return (Utility.arrayEquals(eras, that.eras)
+                && Utility.arrayEquals(months, that.months)
+                && Utility.arrayEquals(shortMonths, that.shortMonths)
+                && Utility.arrayEquals(weekdays, that.weekdays)
+                && Utility.arrayEquals(shortWeekdays, that.shortWeekdays)
+                && Utility.arrayEquals(ampms, that.ampms)
+                && Utility.arrayEquals(zoneStrings, that.zoneStrings)
+                && Utility.arrayEquals(localPatternChars,
+                                       that.localPatternChars));
+!!!7823771.java!!!	cacheLookup(inout desiredLocale : Locale) : ResourceBundle
+    ResourceBundle[] rbs = new ResourceBundle[2];
+    SoftReference[] data
+        = (SoftReference[])cachedLocaleData.get(desiredLocale);
+    if (data == null) {
+        rbs[0] = LocaleData.getLocaleElements(desiredLocale);
+        rbs[1] = LocaleData.getDateFormatZoneData(desiredLocale);
+        data = new SoftReference[] { new SoftReference(rbs[0]),
+                         new SoftReference(rbs[1]) };
+        cachedLocaleData.put(desiredLocale, data);
+    } else {
+        ResourceBundle r;
+        if ((r = (ResourceBundle)data[0].get()) == null) {
+        r = LocaleData.getLocaleElements(desiredLocale);
+        data[0] = new SoftReference(r);
+        }
+        rbs[0] = r;
+        if ((r = (ResourceBundle)data[1].get()) == null) {
+        r = LocaleData.getDateFormatZoneData(desiredLocale);
+        data[1] = new SoftReference(r);
+        }
+        rbs[1] = r;
+    }
+    return rbs;
+!!!7823899.java!!!	loadZoneStrings(inout desiredLocale : Locale, inout rsrc : ResourceBundle) : String
+    String[][] zones;
+    SoftReference data = (SoftReference)cachedZoneData.get(desiredLocale);
+    if (data == null || ((zones = (String[][])data.get()) == null)) {
+        Vector vec = new Vector();
+        Enumeration keys = rsrc.getKeys();
+        while(keys.hasMoreElements()) {
+        String key = (String)keys.nextElement();
+        if (!key.equals("localPatternChars") &&
+            !key.equals("zoneStrings")) {
+            vec.add(rsrc.getObject(key));
+        }
+        }
+        zones = new String[vec.size()][];
+        vec.toArray(zones);
+        data = new SoftReference(zones);
+        cachedZoneData.put(desiredLocale, data);
+    }
+    return zones;
+!!!7824027.java!!!	initializeData(inout desiredLocale : Locale) : void
+    int i;
+    ResourceBundle[] rbs = cacheLookup(desiredLocale);
+    ResourceBundle resource = rbs[0];
+    ResourceBundle zoneResource = rbs[1];
+
+    // FIXME: cache only ResourceBundle. Hence every time, will do
+    // getObject(). This won't be necessary if the Resource itself
+    // is cached.
+    eras = (String[])resource.getObject("Eras");
+        months = resource.getStringArray("MonthNames");
+        shortMonths = resource.getStringArray("MonthAbbreviations");
+        String[] lWeekdays = resource.getStringArray("DayNames");
+        weekdays = new String[8];
+        weekdays[0] = "";  // 1-based
+        for (i=0; i<lWeekdays.length; i++)
+            weekdays[i+1] = lWeekdays[i];
+        String[] sWeekdays = resource.getStringArray("DayAbbreviations");
+        shortWeekdays = new String[8];
+        shortWeekdays[0] = "";  // 1-based
+        for (i=0; i<sWeekdays.length; i++)
+            shortWeekdays[i+1] = sWeekdays[i];
+        ampms = resource.getStringArray("AmPmMarkers");
+    zoneStrings = (String[][])loadZoneStrings(desiredLocale,
+                          zoneResource);
+        localPatternChars
+            = (String) zoneResource.getObject("localPatternChars");
+!!!7824155.java!!!	getZoneIndex(in ID : String) : int
+        for (int index=0; index<zoneStrings.length; index++)
+        {
+            if (ID.equalsIgnoreCase(zoneStrings[index][0])) return index;
+        }
+
+        return -1;
+!!!7824283.java!!!	duplicate(in srcArray : String) : String
+        String[] dstArray = new String[srcArray.length];
+        System.arraycopy(srcArray, 0, dstArray, 0, srcArray.length);
+        return dstArray;
+!!!7824411.java!!!	copyMembers(inout src : DateFormatSymbols, inout dst : DateFormatSymbols) : void
+        dst.eras = duplicate(src.eras);
+        dst.months = duplicate(src.months);
+        dst.shortMonths = duplicate(src.shortMonths);
+        dst.weekdays = duplicate(src.weekdays);
+        dst.shortWeekdays = duplicate(src.shortWeekdays);
+        dst.ampms = duplicate(src.ampms);
+        for (int i = 0; i < dst.zoneStrings.length; ++i)
+            dst.zoneStrings[i] = duplicate(src.zoneStrings[i]);
+        dst.localPatternChars = new String (src.localPatternChars);
+!!!7824539.java!!!	equals(in current : String, in other : String) : boolean
+        int count = current.length;
+
+        for (int i = 0; i < count; ++i)
+            if (!current[i].equals(other[i]))
+                return false;
+        return true;

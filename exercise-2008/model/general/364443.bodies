@@ -1,0 +1,72 @@
+class GTKStockIconInfo
+!!!2086939.java!!!	GTKStockIconInfo(in key : String, inout sources : GTKIconSource)
+            this.key = key.intern();
+            this.sources = sources;
+            Arrays.sort(this.sources);
+!!!2087067.java!!!	getKey() : String
+            return key;
+!!!2087195.java!!!	getBestIconSource(in direction : int, in state : int, in size : int) : GTKIconSource
+            for (int i = 0; i < sources.length; i++) {
+                GTKIconSource src = sources[i];
+                
+                if ((src.direction == UNDEFINED || src.direction == direction)
+                        && (src.state == UNDEFINED || src.state == state)
+                        && (src.size == UNDEFINED || src.size == size)) {
+                    return src;
+                }
+            }
+            
+            return null;
+!!!2087323.java!!!	toString() : String
+            StringBuffer buf = new StringBuffer("STOCK ICON " + key + ":\n");
+            
+            for (int i = 0; i < sources.length; i++) {
+                buf.append("    ").append(sources[i].toString()).append('\n');
+            }
+            
+            // remove last newline
+            buf.deleteCharAt(buf.length() - 1);
+            
+            return buf.toString();
+!!!2087451.java!!!	getIconType(in size : String) : int
+            if (size == null) {
+                return UNDEFINED;
+            }
+            if (ICON_TYPE_MAP == null) {
+                initIconTypeMap();
+            }
+            Integer n = ICON_TYPE_MAP.get(size);
+            return n != null ? n.intValue() : UNDEFINED;
+!!!2087579.java!!!	initIconTypeMap() : void
+            ICON_TYPE_MAP = new HashMap<String,Integer>();
+            ICON_TYPE_MAP.put("gtk-menu", new Integer(1));
+            ICON_TYPE_MAP.put("gtk-small-toolbar", new Integer(2));
+            ICON_TYPE_MAP.put("gtk-large-toolbar", new Integer(3));
+            ICON_TYPE_MAP.put("gtk-button", new Integer(4));
+            ICON_TYPE_MAP.put("gtk-dnd", new Integer(5));
+            ICON_TYPE_MAP.put("gtk-dialog", new Integer(6));
+!!!2087707.java!!!	getIconSize(in type : int) : Dimension
+            Dimension[] iconSizes = getIconSizesMap();
+            return type >= 0 && type < iconSizes.length ?
+                iconSizes[type] : null;  
+!!!2087835.java!!!	setIconSize(in type : int, in w : int, in h : int) : void
+            Dimension[] iconSizes = getIconSizesMap();
+            if (type >= 0 && type < iconSizes.length) {
+                iconSizes[type] = new Dimension(w, h);
+            }
+!!!2087963.java!!!	getIconSizesMap() : Dimension
+            AppContext appContext = AppContext.getAppContext(); 
+            Dimension[] iconSizes = (Dimension[])appContext.get(ICON_SIZE_KEY); 
+
+            if (iconSizes == null) { 
+                iconSizes = new Dimension[7];
+                iconSizes[0] = null;                  // GTK_ICON_SIZE_INVALID
+                iconSizes[1] = new Dimension(16, 16); // GTK_ICON_SIZE_MENU
+                iconSizes[2] = new Dimension(18, 18); // GTK_ICON_SIZE_SMALL_TOOLBAR
+                iconSizes[3] = new Dimension(24, 24); // GTK_ICON_SIZE_LARGE_TOOLBAR
+                iconSizes[4] = new Dimension(20, 20); // GTK_ICON_SIZE_BUTTON
+                iconSizes[5] = new Dimension(32, 32); // GTK_ICON_SIZE_DND
+                iconSizes[6] = new Dimension(48, 48); // GTK_ICON_SIZE_DIALOG
+                appContext.put(ICON_SIZE_KEY, iconSizes);
+            }
+            return iconSizes;

@@ -1,0 +1,57 @@
+class SymbolHash
+!!!5506971.java!!!	SymbolHash()
+        fBuckets = new Entry[fTableSize];
+!!!5507099.java!!!	SymbolHash(in size : int)
+        fTableSize = size;
+        fBuckets = new Entry[fTableSize];
+!!!5507227.java!!!	put(inout key : Object, inout value : Object) : void
+        int bucket = (key.hashCode() & 0x7FFFFFFF) % fTableSize;
+        Entry entry = search(key, bucket);
+
+        // replace old value
+        if (entry != null) {
+            entry.value = value;
+        }
+        // create new entry
+        else {
+            entry = new Entry(key, value, fBuckets[bucket]);
+            fBuckets[bucket] = entry;
+            fNum++;
+        }
+!!!5507355.java!!!	get(inout key : Object) : Object
+        int bucket = (key.hashCode() & 0x7FFFFFFF) % fTableSize;
+        Entry entry = search(key, bucket);
+        if (entry != null) {
+            return entry.value;
+        }
+        return null;
+!!!5507483.java!!!	getLength() : int
+        return fNum;
+!!!5507611.java!!!	getValues(inout elements : Object, in from : int) : int
+        for (int i=0, j=0; i<fTableSize && j<fNum; i++) {
+            for (Entry entry = fBuckets[i]; entry != null; entry = entry.next) {
+                elements[from+j] = entry.value;
+                j++;
+            }
+        }
+        return fNum;
+!!!5507739.java!!!	makeClone() : SymbolHash
+        SymbolHash newTable = new SymbolHash(fTableSize);
+        newTable.fNum = fNum;
+        for (int i = 0; i < fTableSize; i++) {
+            if (fBuckets[i] != null)
+                newTable.fBuckets[i] = fBuckets[i].makeClone();
+        }
+        return newTable;
+!!!5507867.java!!!	clear() : void
+        for (int i=0; i<fTableSize; i++) {
+            fBuckets[i] = null;
+        }
+        fNum = 0;
+!!!5507995.java!!!	search(inout key : Object, in bucket : int) : Entry
+        // search for identical key
+        for (Entry entry = fBuckets[bucket]; entry != null; entry = entry.next) {
+            if (key.equals(entry.key))
+                return entry;
+        }
+        return null;

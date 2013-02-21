@@ -1,0 +1,119 @@
+class JDesktopPane
+!!!8928283.java!!!	JDesktopPane()
+        setFocusCycleRoot(true);
+
+        setFocusTraversalPolicy(new LayoutFocusTraversalPolicy() {
+            public Component getDefaultComponent(Container c) {
+                JInternalFrame jifArray[] = getAllFrames();
+                Component comp = null;
+                for (int i = 0; i < jifArray.length; i++) {
+                    comp = jifArray[i].getFocusTraversalPolicy().getDefaultComponent(jifArray[i]);
+                    if (comp != null) {
+                        break;
+                    }
+                }
+                return comp;
+            }
+        });
+        updateUI();
+!!!8928411.java!!!	getUI() : DesktopPaneUI
+        return (DesktopPaneUI)ui;
+!!!8928539.java!!!	setUI(inout ui : DesktopPaneUI) : void
+        super.setUI(ui);
+!!!8928667.java!!!	setDragMode(in dragMode : int) : void
+        int oldDragMode = this.dragMode;
+        this.dragMode = dragMode;
+        firePropertyChange("dragMode", oldDragMode, this.dragMode);
+	dragModeSet = true;
+!!!8928795.java!!!	getDragMode() : int
+         return dragMode;
+!!!8928923.java!!!	getDesktopManager() : DesktopManager
+        return desktopManager;
+!!!8929051.java!!!	setDesktopManager(inout d : DesktopManager) : void
+        DesktopManager oldValue = desktopManager;
+        desktopManager = d;
+        firePropertyChange("desktopManager", oldValue, desktopManager);
+!!!8929179.java!!!	updateUI() : void
+        setUI((DesktopPaneUI)UIManager.getUI(this));
+!!!8929307.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!8929435.java!!!	getAllFrames() : JInternalFrame
+        int i, count;
+        JInternalFrame[] results;
+        Vector vResults = new Vector(10);
+        Object next, tmp;
+
+        count = getComponentCount();
+        for(i = 0; i < count; i++) {
+            next = getComponent(i);
+            if(next instanceof JInternalFrame)
+                vResults.addElement(next);
+            else if(next instanceof JInternalFrame.JDesktopIcon)  {
+                tmp = ((JInternalFrame.JDesktopIcon)next).getInternalFrame();
+                if(tmp != null)
+                    vResults.addElement(tmp);
+            }
+        }
+
+        results = new JInternalFrame[vResults.size()];
+        vResults.copyInto(results);
+
+        return results;
+!!!8929563.java!!!	getSelectedFrame() : JInternalFrame
+      return selectedFrame;
+!!!8929691.java!!!	setSelectedFrame(inout f : JInternalFrame) : void
+      selectedFrame = f;
+!!!8929819.java!!!	getAllFramesInLayer(in layer : int) : JInternalFrame
+        int i, count;
+        JInternalFrame[] results;
+        Vector vResults = new Vector(10);
+        Object next, tmp;
+
+        count = getComponentCount();
+        for(i = 0; i < count; i++) {
+            next = getComponent(i);
+            if(next instanceof JInternalFrame) {
+                if(((JInternalFrame)next).getLayer() == layer)
+                    vResults.addElement(next);
+            } else if(next instanceof JInternalFrame.JDesktopIcon)  {
+                tmp = ((JInternalFrame.JDesktopIcon)next).getInternalFrame();
+                if(tmp != null && ((JInternalFrame)tmp).getLayer() == layer)
+                    vResults.addElement(tmp);
+            }
+        }
+
+        results = new JInternalFrame[vResults.size()];
+        vResults.copyInto(results);
+
+        return results;
+!!!8929947.java!!!	isOpaque() : boolean
+        return true;
+!!!8930075.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!8930203.java!!!	setUIProperty(in propertyName : String, inout value : Object) : void
+        if (propertyName == "dragMode") {
+	    if (!dragModeSet) {
+		setDragMode(((Integer)value).intValue());
+		dragModeSet = false;
+	    }
+	} else {
+	    super.setUIProperty(propertyName, value);
+	}
+!!!8930331.java!!!	paramString() : String
+	String desktopManagerString = (desktopManager != null ?
+				       desktopManager.toString() : "");
+
+	return super.paramString() +
+	",desktopManager=" + desktopManagerString;
+!!!8930459.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJDesktopPane();
+        }
+        return accessibleContext;

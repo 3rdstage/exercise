@@ -1,0 +1,99 @@
+class symbol_set
+!!!3104027.java!!!	symbol_set(inout other : symbol_set)
+      not_null(other);
+      _all = (Hashtable)other._all.clone();
+!!!3104155.java!!!	all() : Enumeration
+return _all.elements();
+!!!3104283.java!!!	size() : int
+return _all.size();
+!!!3104411.java!!!	not_null(inout obj : Object) : void
+      if (obj == null) 
+	throw new internal_error("Null object used in set operation");
+!!!3104539.java!!!	contains(inout sym : symbol) : boolean
+return _all.containsKey(sym.name());
+!!!3104667.java!!!	is_subset_of(inout other : symbol_set) : boolean
+      not_null(other);
+
+      /* walk down our set and make sure every element is in the other */
+      for (Enumeration e = all(); e.hasMoreElements(); )
+	if (!other.contains((symbol)e.nextElement()))
+	  return false;
+
+      /* they were all there */
+      return true;
+!!!3104795.java!!!	is_superset_of(inout other : symbol_set) : boolean
+      not_null(other);
+      return other.is_subset_of(this);
+!!!3104923.java!!!	add(inout sym : symbol) : boolean
+      Object previous;
+
+      not_null(sym); 
+
+      /* put the object in */
+      previous = _all.put(sym.name(),sym);
+
+      /* if we had a previous, this is no change */
+      return previous == null;
+!!!3105051.java!!!	remove(inout sym : symbol) : void
+      not_null(sym); 
+      _all.remove(sym.name());
+!!!3105179.java!!!	add(inout other : symbol_set) : boolean
+      boolean result = false;
+
+      not_null(other);
+
+      /* walk down the other set and do the adds individually */
+      for (Enumeration e = other.all(); e.hasMoreElements(); )
+	result = add((symbol)e.nextElement()) || result;
+
+      return result;
+!!!3105307.java!!!	remove(inout other : symbol_set) : void
+      not_null(other);
+
+      /* walk down the other set and do the removes individually */
+      for (Enumeration e = other.all(); e.hasMoreElements(); )
+	remove((symbol)e.nextElement());
+!!!3105435.java!!!	equals(inout other : symbol_set) : boolean
+      if (other == null || other.size() != size()) return false;
+
+      /* once we know they are the same size, then improper subset does test */
+      try {
+        return is_subset_of(other);
+      } catch (internal_error e) {
+	/* can't throw the error (because super class doesn't), so we crash */
+	e.crash();
+	return false;
+      }
+!!!3105563.java!!!	equals(inout other : Object) : boolean
+      if (!(other instanceof symbol_set))
+	return false;
+      else
+	return equals((symbol_set)other);
+!!!3105691.java!!!	hashCode() : int
+      int result = 0;
+      int cnt;
+      Enumeration e;
+
+      /* hash together codes from at most first 5 elements */
+      for (e = all(), cnt=0 ; e.hasMoreElements() && cnt<5; cnt++)
+	result ^= ((symbol)e.nextElement()).hashCode();
+
+      return result;
+!!!3105819.java!!!	toString() : String
+      String result;
+      boolean comma_flag;
+
+      result = "{";
+      comma_flag = false;
+      for (Enumeration e = all(); e.hasMoreElements(); )
+	{
+	  if (comma_flag)
+	    result += ", ";
+	  else
+	    comma_flag = true;
+
+	  result += ((symbol)e.nextElement()).name();
+	}
+      result += "}";
+
+      return result;

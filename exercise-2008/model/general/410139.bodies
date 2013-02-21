@@ -1,0 +1,90 @@
+class Timer
+!!!9303195.java!!!	Timer(in delay : int, inout listener : ActionListener)
+        super();
+        this.delay = delay;
+        this.initialDelay = delay;
+
+        doPostEvent = new DoPostEvent();
+
+	if (listener != null) {
+	    addActionListener(listener);
+	}
+!!!9303579.java!!!	addActionListener(inout listener : ActionListener) : void
+        listenerList.add(ActionListener.class, listener);
+!!!9303707.java!!!	removeActionListener(inout listener : ActionListener) : void
+        listenerList.remove(ActionListener.class, listener);
+!!!9303835.java!!!	getActionListeners() : ActionListener
+        return (ActionListener[])listenerList.getListeners(
+                ActionListener.class);
+!!!9303963.java!!!	fireActionPerformed(inout e : ActionEvent) : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i=listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==ActionListener.class) {
+                ((ActionListener)listeners[i+1]).actionPerformed(e);
+            }          
+        }
+!!!9304091.java!!!	getListeners(inout listenerType : Class) : T
+ 
+	return listenerList.getListeners(listenerType); 
+!!!9304219.java!!!	timerQueue() : TimerQueue
+        return TimerQueue.sharedInstance();
+!!!9304347.java!!!	setLogTimers(inout flag : boolean) : void
+        logTimers = flag;
+!!!9304475.java!!!	getLogTimers() : boolean
+        return logTimers;
+!!!9304603.java!!!	setDelay(in delay : int) : void
+        if (delay < 0) {
+            throw new IllegalArgumentException("Invalid delay: " + delay);
+        }
+        else {
+            this.delay = delay;
+        }
+!!!9304731.java!!!	getDelay() : int
+        return delay;
+!!!9304859.java!!!	setInitialDelay(in initialDelay : int) : void
+        if (initialDelay < 0) {
+            throw new IllegalArgumentException("Invalid initial delay: " +
+                                               initialDelay);
+        }
+        else {
+            this.initialDelay = initialDelay;
+        }
+!!!9304987.java!!!	getInitialDelay() : int
+        return initialDelay;
+!!!9305115.java!!!	setRepeats(inout flag : boolean) : void
+        repeats = flag;
+!!!9305243.java!!!	isRepeats() : boolean
+        return repeats;
+!!!9305371.java!!!	setCoalesce(inout flag : boolean) : void
+        boolean old = coalesce;
+        coalesce = flag;
+        if (!old && coalesce) {
+            // We must do this as otherwise if the Timer once notified
+            // in !coalese mode notify will be stuck to true and never
+            // become false.
+            cancelEvent();
+        }
+!!!9305499.java!!!	isCoalesce() : boolean
+        return coalesce;
+!!!9305627.java!!!	start() : void
+        timerQueue().addTimer(this,
+                              System.currentTimeMillis() + getInitialDelay());
+!!!9305755.java!!!	isRunning() : boolean
+        return timerQueue().containsTimer(this);
+!!!9305883.java!!!	stop() : void
+        timerQueue().removeTimer(this);
+        cancelEvent();
+!!!9306011.java!!!	restart() : void
+        stop();
+        start();
+!!!9306139.java!!!	cancelEvent() : void
+        notify = false;
+!!!9306267.java!!!	post() : void
+        if (notify == false || !coalesce) {
+            notify = true;
+            SwingUtilities.invokeLater(doPostEvent);
+        }

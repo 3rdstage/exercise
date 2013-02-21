@@ -1,0 +1,47 @@
+class Pass1Verifier
+!!!3907611.java!!!	getJavaClass() : JavaClass
+		if (jc == null){
+			jc = Repository.lookupClass(myOwner.getClassName());
+		}
+		return jc;
+!!!3907739.java!!!	Pass1Verifier(inout owner : Verifier)
+		myOwner = owner;
+!!!3907867.java!!!	do_verify() : VerificationResult
+		JavaClass jc;
+		try{
+			jc = getJavaClass();	//loads in the class file if not already done.
+
+			if (jc != null){
+				/* If we find more constraints to check, we should do this in an own method. */
+				if (! myOwner.getClassName().equals(jc.getClassName())){
+					// This should maybe caught by BCEL: In case of renamed .class files we get wrong
+					// JavaClass objects here.
+					throw new LoadingException("Wrong name: the internal name of the .class file '"+jc.getClassName()+"' does not match the file's name '"+myOwner.getClassName()+"'.");
+				}
+			}
+			
+		}
+		catch(LoadingException e){
+			return new VerificationResult(VerificationResult.VERIFIED_REJECTED, e.getMessage());
+		}
+		catch(ClassFormatError e){
+			// BCEL sometimes is a little harsh describing exceptual situations.
+			return new VerificationResult(VerificationResult.VERIFIED_REJECTED, e.getMessage());
+		}
+		catch(RuntimeException e){
+			// BCEL does not catch every possible RuntimeException; e.g. if
+			// a constant pool index is referenced that does not exist.
+			return new VerificationResult(VerificationResult.VERIFIED_REJECTED, "Parsing via BCEL did not succeed. "+e.getClass().getName()+" occured:\n"+Utility.getStackTrace(e));
+		}
+
+		if (jc != null){
+			return VerificationResult.VR_OK;
+		}
+		else{
+			//TODO: Maybe change Repository's behaviour to throw a LoadingException instead of just returning "null"
+			//      if a class file cannot be found or in another way be looked up.
+			return new VerificationResult(VerificationResult.VERIFIED_REJECTED, "Repository.lookup() failed. FILE NOT FOUND?");
+		}
+!!!3907995.java!!!	getMessages() : String
+		// This method is only here to override the javadoc-comment.
+		return super.getMessages();

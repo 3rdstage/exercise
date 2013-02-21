@@ -1,0 +1,129 @@
+class Parser
+!!!5413403.java!!!	Parser(in format : String, in value : String)
+            this.format = format;
+            this.value = value;
+            this.flen = format.length();
+            this.vlen = value.length();
+!!!5413531.java!!!	parse() : void
+            while (fidx < flen) {
+                char fch = format.charAt(fidx++);
+
+                if (fch != '%') { // not a meta character
+                    skip(fch);
+                    continue;
+                }
+
+                // seen meta character. we don't do error check against the format
+                switch (format.charAt(fidx++)) {
+                    case 'Y' : // year
+                        setYear(parseBigInteger(4));
+                        break;
+
+                    case 'M' : // month
+                        setMonth(parseInt(2, 2));
+                        break;
+
+                    case 'D' : // days
+                        setDay(parseInt(2, 2));
+                        break;
+
+                    case 'h' : // hours
+                        setHour(parseInt(2, 2));
+                        break;
+
+                    case 'm' : // minutes
+                        setMinute(parseInt(2, 2));
+                        break;
+
+                    case 's' : // parse seconds.
+                        setSecond(parseInt(2, 2));
+
+                        if (peek() == '.') {
+			    setFractionalSecond(parseBigDecimal());
+                        }
+                        break;
+
+                    case 'z' : // time zone. missing, 'Z', or [+-]nn:nn
+                        char vch = peek();
+                        if (vch == 'Z') {
+                            vidx++;
+                            setTimezone(0);
+                        } else if (vch == '+' || vch == '-') {
+                            vidx++;
+                            int h = parseInt(2, 2);
+                            skip(':');
+                            int m = parseInt(2, 2);
+                            setTimezone((h * 60 + m) * (vch == '+' ? 1 : -1));
+                        }
+			
+                        break;
+
+                    default :
+                        // illegal meta character. impossible.
+                        throw new InternalError();
+                }
+            }
+
+            if (vidx != vlen) {
+                // some tokens are left in the input
+                throw new IllegalArgumentException(value); //,vidx);
+            }
+!!!5413659.java!!!	peek() : char
+            if (vidx == vlen) {
+                return (char) -1;
+            }
+            return value.charAt(vidx);
+!!!5413787.java!!!	read() : char
+            if (vidx == vlen) {
+                throw new IllegalArgumentException(value); //,vidx);
+            }
+            return value.charAt(vidx++);
+!!!5413915.java!!!	skip(in ch : char) : void
+            if (read() != ch) {
+                throw new IllegalArgumentException(value); //,vidx-1);
+            }
+!!!5414043.java!!!	parseInt(in minDigits : int, in maxDigits : int) : int
+            int vstart = vidx;
+            while (isDigit(peek()) && (vidx - vstart) <= maxDigits) {
+                vidx++;
+            }
+            if ((vidx - vstart) < minDigits) {
+                // we are expecting more digits
+                throw new IllegalArgumentException(value); //,vidx);
+            }
+
+            // NumberFormatException is IllegalArgumentException            
+            //           try {
+            return Integer.parseInt(value.substring(vstart, vidx));
+            //            } catch( NumberFormatException e ) {
+            //                // if the value is too long for int, NumberFormatException is thrown
+            //                throw new IllegalArgumentException(value,vstart);
+            //            }
+!!!5414171.java!!!	parseBigInteger(in minDigits : int) : BigInteger
+            int vstart = vidx;
+
+	    // skip leading negative, if it exists
+	    if (peek() == '-') {
+		vidx++;
+	    }
+            while (isDigit(peek())) {
+                vidx++;
+            }
+            if ((vidx - vstart) < minDigits) {
+                // we are expecting more digits
+                throw new IllegalArgumentException(value); //,vidx);
+            }
+
+            return new BigInteger(value.substring(vstart, vidx));
+!!!5414299.java!!!	parseBigDecimal() : BigDecimal
+            int vstart = vidx;
+
+	    if (peek() == '.') {
+		vidx++;
+	    } else {
+                throw new IllegalArgumentException(value);
+	    }
+            while (isDigit(peek())) {
+                vidx++;
+            }
+            return new BigDecimal(value.substring(vstart, vidx));

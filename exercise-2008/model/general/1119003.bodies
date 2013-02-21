@@ -1,0 +1,479 @@
+class InternationalFormatter
+!!!9071003.java!!!	InternationalFormatter()
+        setOverwriteMode(false);
+!!!9071131.java!!!	InternationalFormatter(inout format : Format)
+        this();
+        setFormat(format);
+!!!9071259.java!!!	setFormat(inout format : Format) : void
+        this.format = format;
+!!!9071387.java!!!	getFormat() : Format
+        return format;
+!!!9071515.java!!!	setMinimum(inout minimum : Comparable) : void
+        if (getValueClass() == null && minimum != null) {
+            setValueClass(minimum.getClass());
+        }
+        min = minimum;
+!!!9071643.java!!!	getMinimum() : Comparable
+        return min;
+!!!9071771.java!!!	setMaximum(inout max : Comparable) : void
+        if (getValueClass() == null && max != null) {
+            setValueClass(max.getClass());
+        }
+        this.max = max;
+!!!9071899.java!!!	getMaximum() : Comparable
+        return max;
+!!!9072027.java!!!	install(inout ftf : JFormattedTextField) : void
+        super.install(ftf);
+        updateMaskIfNecessary();
+        // invoked again as the mask should now be valid.
+        positionCursorAtInitialLocation();
+!!!9072155.java!!!	valueToString(inout value : Object) : String
+        if (value == null) {
+            return "";
+        }
+        Format f = getFormat();
+
+        if (f == null) {
+            return value.toString();
+        }
+        return f.format(value);
+!!!9072283.java!!!	stringToValue(in text : String) : Object
+        Object value = stringToValue(text, getFormat());
+
+        // Convert to the value class if the Value returned from the
+        // Format does not match.
+        if (value != null && getValueClass() != null &&
+                             !getValueClass().isInstance(value)) {
+            value = super.stringToValue(value.toString());
+        }
+        try {
+            if (!isValidValue(value, true)) {
+                throw new ParseException("Value not within min/max range", 0);
+            }
+        } catch (ClassCastException cce) {
+            throw new ParseException("Class cast exception comparing values: "
+                                     + cce, 0);
+        }
+        return value;
+!!!9072411.java!!!	getFields(in offset : int) : Field
+        if (getAllowsInvalid()) {
+            // This will work if the currently edited value is valid.
+            updateMask();
+        }
+
+        Map attrs = getAttributes(offset);
+
+        if (attrs != null && attrs.size() > 0) {
+            ArrayList al = new ArrayList();
+
+            al.addAll(attrs.keySet());
+            return (Format.Field[])al.toArray(EMPTY_FIELD_ARRAY);
+        }
+        return EMPTY_FIELD_ARRAY;
+!!!9072539.java!!!	clone() : Object
+        InternationalFormatter formatter = (InternationalFormatter)super.
+                                           clone();
+
+        formatter.literalMask = null;
+        formatter.iterator = null;
+        formatter.validMask = false;
+        formatter.string = null;
+        return formatter;
+!!!9072667.java!!!	getActions() : Action
+        if (getSupportsIncrement()) {
+            return new Action[] { new IncrementAction("increment", 1),
+                                  new IncrementAction("decrement", -1) };
+        }
+        return null;
+!!!9072795.java!!!	stringToValue(in text : String, inout f : Format) : Object
+        if (f == null) {
+            return text;
+        }
+        return f.parseObject(text);
+!!!9072923.java!!!	isValidValue(inout value : Object, inout wantsCCE : boolean) : boolean
+        Comparable min = getMinimum();
+
+        try {
+            if (min != null && min.compareTo(value) > 0) {
+                return false;
+            }
+        } catch (ClassCastException cce) {
+            if (wantsCCE) {
+                throw cce;
+            }
+            return false;
+        }
+
+        Comparable max = getMaximum();
+        try {
+            if (max != null && max.compareTo(value) < 0) {
+                return false;
+            }
+        } catch (ClassCastException cce) {
+            if (wantsCCE) {
+                throw cce;
+            }
+            return false;
+        }
+        return true;
+!!!9073051.java!!!	getAttributes(in index : int) : Map
+        if (isValidMask()) {
+            AttributedCharacterIterator iterator = getIterator();
+
+            if (index >= 0 && index <= iterator.getEndIndex()) {
+                iterator.setIndex(index);
+                return iterator.getAttributes();
+            }
+        }
+        return null;
+!!!9073179.java!!!	getAttributeStart(inout id : Attribute) : int
+        if (isValidMask()) {
+            AttributedCharacterIterator iterator = getIterator();
+
+            iterator.first();
+            while (iterator.current() != CharacterIterator.DONE) {
+                if (iterator.getAttribute(id) != null) {
+                    return iterator.getIndex();
+                }
+                iterator.next();
+            }
+        }
+        return -1;
+!!!9073307.java!!!	getIterator() : AttributedCharacterIterator
+        return iterator;
+!!!9073435.java!!!	updateMaskIfNecessary() : void
+        if (!getAllowsInvalid() && (getFormat() != null)) {
+            if (!isValidMask()) {
+                updateMask();
+            }
+            else {
+                String newString = getFormattedTextField().getText();
+
+                if (!newString.equals(string)) {
+                    updateMask();
+                }
+            }
+        }
+!!!9073563.java!!!	updateMask() : void
+        if (getFormat() != null) {
+            Document doc = getFormattedTextField().getDocument();
+
+            validMask = false;
+            if (doc != null) {
+                try {
+                    string = doc.getText(0, doc.getLength());
+                } catch (BadLocationException ble) {
+                    string = null;
+                }
+                if (string != null) {
+                    try {
+                        Object value = stringToValue(string);
+                        AttributedCharacterIterator iterator = getFormat().
+                                  formatToCharacterIterator(value);
+
+                        updateMask(iterator);
+                    }
+                    catch (ParseException pe) {}
+                    catch (IllegalArgumentException iae) {}
+                    catch (NullPointerException npe) {}
+                }
+            }
+        }
+!!!9073691.java!!!	getLiteralCountTo(in index : int) : int
+        int lCount = 0;
+
+        for (int counter = 0; counter < index; counter++) {
+            if (isLiteral(counter)) {
+                lCount++;
+            }
+        }
+        return lCount;
+!!!9073819.java!!!	isLiteral(in index : int) : boolean
+        if (isValidMask() && index < string.length()) {
+            return literalMask.get(index);
+        }
+        return false;
+!!!9073947.java!!!	getLiteral(in index : int) : char
+        if (isValidMask() && string != null && index < string.length()) {
+            return string.charAt(index);
+        }
+        return (char)0;
+!!!9074075.java!!!	isNavigatable(in offset : int) : boolean
+        return !isLiteral(offset);
+!!!9074203.java!!!	updateValue(inout value : Object) : void
+        super.updateValue(value);
+        updateMaskIfNecessary();
+!!!9074331.java!!!	replace(inout fb : FilterBypass, in offset : int, in length : int, in text : String, inout attrs : AttributeSet) : void
+        if (ignoreDocumentMutate) {
+            fb.replace(offset, length, text, attrs);
+            return;
+        }
+        super.replace(fb, offset, length, text, attrs);
+!!!9074459.java!!!	getNextNonliteralIndex(in index : int, in direction : int) : int
+        int max = getFormattedTextField().getDocument().getLength();
+
+        while (index >= 0 && index < max) {
+            if (isLiteral(index)) {
+                index += direction;
+            }
+            else {
+                return index;
+            }
+        }
+        return (direction == -1) ? 0 : max;
+!!!9074587.java!!!	canReplace(inout rh : ReplaceHolder) : boolean
+        if (!getAllowsInvalid()) {
+            String text = rh.text;
+            int tl = (text != null) ? text.length() : 0;
+
+            if (tl == 0 && rh.length == 1 && getFormattedTextField().
+                              getSelectionStart() != rh.offset) {
+                // Backspace, adjust to actually delete next non-literal.
+                rh.offset = getNextNonliteralIndex(rh.offset, -1);
+            }
+            if (getOverwriteMode()) {
+                StringBuffer replace = null;
+
+                for (int counter = 0, textIndex = 0,
+                         max = Math.max(tl, rh.length); counter < max;
+                         counter++) {
+                    if (isLiteral(rh.offset + counter)) {
+                        if (replace != null) {
+                            replace.append(getLiteral(rh.offset +
+                                                      counter));
+                        }
+                        if (textIndex < tl && text.charAt(textIndex) ==
+                                      getLiteral(rh.offset + counter)) {
+                            textIndex++;
+                        }
+                        else if (textIndex == 0) {
+                            rh.offset++;
+                            rh.length--;
+                            counter--;
+                            max--;
+                        }
+                        else if (replace == null) {
+                            replace = new StringBuffer(max);
+                            replace.append(text.substring(0, textIndex));
+                            replace.append(getLiteral(rh.offset +
+                                                      counter));
+                        }
+                    }
+                    else if (textIndex < tl) {
+                        if (replace != null) {
+                            replace.append(text.charAt(textIndex));
+                        }
+                        textIndex++;
+                    }
+                    else {
+                        // Nothing to replace it with, assume ' '
+                        if (replace == null) {
+                            replace = new StringBuffer(max);
+                            if (textIndex > 0) {
+                                replace.append(text.substring(0, textIndex));
+                            }
+                        }
+                        if (replace != null) {
+                            replace.append(' ');
+                        }
+                    }
+                }
+                if (replace != null) {
+                    rh.text = replace.toString();
+                }
+            }
+            else if (tl > 0) {
+                // insert (or insert and remove)
+                rh.offset = getNextNonliteralIndex(rh.offset, 1);
+            }
+            else {
+                // remove only
+                rh.offset = getNextNonliteralIndex(rh.offset, -1);
+            }
+            ((ExtendedReplaceHolder)rh).endOffset = rh.offset;
+            ((ExtendedReplaceHolder)rh).endTextLength = (rh.text != null) ?
+                                                    rh.text.length() : 0;
+        }
+        else {
+            ((ExtendedReplaceHolder)rh).endOffset = rh.offset;
+            ((ExtendedReplaceHolder)rh).endTextLength = (rh.text != null) ?
+                                                    rh.text.length() : 0;
+        }
+        boolean can = super.canReplace(rh);
+        if (can && !getAllowsInvalid()) {
+            ((ExtendedReplaceHolder)rh).resetFromValue(this);
+        }
+        return can;
+!!!9074715.java!!!	replace(inout rh : ReplaceHolder) : boolean
+        int start = -1;
+        int direction = 1;
+        int literalCount = -1;
+
+        if (rh.length > 0 && (rh.text == null || rh.text.length() == 0) &&
+               (getFormattedTextField().getSelectionStart() != rh.offset ||
+                   rh.length > 1)) {
+            direction = -1;
+        }
+        if (!getAllowsInvalid()) {
+            if ((rh.text == null || rh.text.length() == 0) && rh.length > 0) {
+                // remove
+                start = getFormattedTextField().getSelectionStart();
+            }
+            else {
+                start = rh.offset;
+            }
+            literalCount = getLiteralCountTo(start);
+        }
+        if (super.replace(rh)) {
+            if (start != -1) {
+                int end = ((ExtendedReplaceHolder)rh).endOffset;
+
+                end += ((ExtendedReplaceHolder)rh).endTextLength;
+                repositionCursor(literalCount, end, direction);
+            }
+            else {
+                start = ((ExtendedReplaceHolder)rh).endOffset;
+                if (direction == 1) {
+                    start += ((ExtendedReplaceHolder)rh).endTextLength;
+                }
+                repositionCursor(start, direction);
+            }
+            return true;
+        }
+        return false;
+!!!9074843.java!!!	repositionCursor(in startLiteralCount : int, in end : int, in direction : int) : void
+        int endLiteralCount = getLiteralCountTo(end);
+
+        if (endLiteralCount != end) {
+            end -= startLiteralCount;
+            for (int counter = 0; counter < end; counter++) {
+                if (isLiteral(counter)) {
+                    end++;
+                }
+            }
+        }
+        repositionCursor(end, 1 /*direction*/);
+!!!9074971.java!!!	getBufferedChar(in index : int) : char
+        if (isValidMask()) {
+            if (string != null && index < string.length()) {
+                return string.charAt(index);
+            }
+        }
+        return (char)0;
+!!!9075099.java!!!	isValidMask() : boolean
+        return validMask;
+!!!9075227.java!!!	isLiteral(inout attributes : Map) : boolean
+        return ((attributes == null) || attributes.size() == 0);
+!!!9075355.java!!!	updateMask(inout iterator : AttributedCharacterIterator) : void
+        if (iterator != null) {
+            validMask = true;
+            this.iterator = iterator;
+
+            // Update the literal mask
+            if (literalMask == null) {
+                literalMask = new BitSet();
+            }
+            else {
+                for (int counter = literalMask.length() - 1; counter >= 0;
+                     counter--) {
+                    literalMask.clear(counter);
+                }
+            }
+
+            iterator.first();
+            while (iterator.current() != CharacterIterator.DONE) {
+                Map attributes = iterator.getAttributes();
+                boolean set = isLiteral(attributes);
+                int start = iterator.getIndex();
+                int end = iterator.getRunLimit();
+
+                while (start < end) {
+                    if (set) {
+                        literalMask.set(start);
+                    }
+                    else {
+                        literalMask.clear(start);
+                    }
+                    start++;
+                }
+                iterator.setIndex(start);
+            }
+        }
+!!!9075483.java!!!	canIncrement(inout field : Object, in cursorPosition : int) : boolean
+        return (field != null);
+!!!9075611.java!!!	selectField(inout f : Object, in count : int) : void
+        AttributedCharacterIterator iterator = getIterator();
+
+        if (iterator != null &&
+                        (f instanceof AttributedCharacterIterator.Attribute)) {
+            AttributedCharacterIterator.Attribute field =
+                                   (AttributedCharacterIterator.Attribute)f;
+
+            iterator.first();
+            while (iterator.current() != CharacterIterator.DONE) {
+                while (iterator.getAttribute(field) == null &&
+                       iterator.next() != CharacterIterator.DONE);
+                if (iterator.current() != CharacterIterator.DONE) {
+                    int limit = iterator.getRunLimit(field);
+
+                    if (--count <= 0) {
+                        getFormattedTextField().select(iterator.getIndex(),
+                                                       limit);
+                        break;
+                    }
+                    iterator.setIndex(limit);
+                    iterator.next();
+                }
+            }
+        }
+!!!9075739.java!!!	getAdjustField(in start : int, inout attributes : Map) : Object
+        return null;
+!!!9075867.java!!!	getFieldTypeCountTo(inout f : Object, in start : int) : int
+        AttributedCharacterIterator iterator = getIterator();
+        int count = 0;
+
+        if (iterator != null &&
+                    (f instanceof AttributedCharacterIterator.Attribute)) {
+            AttributedCharacterIterator.Attribute field =
+                                   (AttributedCharacterIterator.Attribute)f;
+            int index = 0;
+
+            iterator.first();
+            while (iterator.getIndex() < start) {
+                while (iterator.getAttribute(field) == null &&
+                       iterator.next() != CharacterIterator.DONE);
+                if (iterator.current() != CharacterIterator.DONE) {
+                    iterator.setIndex(iterator.getRunLimit(field));
+                    iterator.next();
+                    count++;
+                }
+                else {
+                    break;
+                }
+            }
+        }
+        return count;
+!!!9075995.java!!!	adjustValue(inout value : Object, inout attributes : Map, inout field : Object, in direction : int) : Object
+        return null;
+!!!9076123.java!!!	getSupportsIncrement() : boolean
+        return false;
+!!!9076251.java!!!	resetValue(inout value : Object) : void
+        Document doc = getFormattedTextField().getDocument();
+        String string = valueToString(value);
+
+        try {
+            ignoreDocumentMutate = true;
+            doc.remove(0, doc.getLength());
+            doc.insertString(0, string, null);
+        } finally {
+            ignoreDocumentMutate = false;
+        }
+        updateValue(value);
+!!!9076379.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+        updateMaskIfNecessary();
+!!!9076507.java!!!	getReplaceHolder(inout fb : FilterBypass, in offset : int, in length : int, in text : String, inout attrs : AttributeSet) : ReplaceHolder
+        if (replaceHolder == null) {
+            replaceHolder = new ExtendedReplaceHolder();
+        }
+        return super.getReplaceHolder(fb, offset, length, text, attrs);

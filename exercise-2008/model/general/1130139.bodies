@@ -1,0 +1,93 @@
+class ContainerPopup
+!!!9243803.java!!!	hide() : void
+            Component component = getComponent();
+
+            if (component != null) {
+                Container parent = component.getParent();
+
+                if (parent != null) {
+                    Rectangle bounds = component.getBounds();
+
+                    parent.remove(component);
+                    parent.repaint(bounds.x, bounds.y, bounds.width,
+                                   bounds.height);
+                }
+            }
+            owner = null;
+!!!9243931.java!!!	pack() : void
+            Component component = getComponent();
+
+            if (component != null) {
+                component.setSize(component.getPreferredSize());
+            }
+!!!9244059.java!!!	reset(inout owner : Component, inout contents : Component, in ownerX : int, in ownerY : int) : void
+            if ((owner instanceof JFrame) || (owner instanceof JDialog) ||
+                                                 (owner instanceof JWindow)) {
+                // Force the content to be added to the layered pane, otherwise
+                // we'll get an exception when adding to the RootPaneContainer.
+                owner = ((RootPaneContainer)owner).getLayeredPane();
+            }
+            super.reset(owner, contents, ownerX, ownerY);
+
+            x = ownerX;
+            y = ownerY;
+            this.owner = owner;
+!!!9244187.java!!!	overlappedByOwnedWindow() : boolean
+            Component component = getComponent();
+            if(owner != null && component != null) {
+                Window w = SwingUtilities.getWindowAncestor(owner);
+                if (w == null) {
+                    return false;
+                }
+                Window[] ownedWindows = w.getOwnedWindows();
+                if(ownedWindows != null) {
+                    Rectangle bnd = component.getBounds();
+                    for(int i=0; i<ownedWindows.length;i++) {
+                        Window owned = ownedWindows[i];
+                        if (owned.isVisible() &&
+                            bnd.intersects(owned.getBounds())) {
+
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+!!!9244315.java!!!	fitsOnScreen() : boolean
+            Component component = getComponent();
+
+            if (owner != null && component != null) {
+                Container parent;
+                int width = component.getWidth();
+                int height = component.getHeight();
+                for(parent = owner.getParent(); parent != null ;
+                    parent = parent.getParent()) {
+                    if (parent instanceof JFrame ||
+                        parent instanceof JDialog ||
+                        parent instanceof JWindow) {
+
+                        Rectangle r = parent.getBounds();
+                        Insets i = parent.getInsets();
+                        r.x += i.left;
+                        r.y += i.top;
+                        r.width -= (i.left + i.right);
+                        r.height -= (i.top + i.bottom);
+                        return SwingUtilities.isRectangleContainingRectangle(
+                                   r, new Rectangle(x, y, width, height));
+                                                  
+                    } else if (parent instanceof JApplet) {
+                        Rectangle r = parent.getBounds();
+                        Point p  = parent.getLocationOnScreen();
+
+                        r.x = p.x;
+                        r.y = p.y;
+                        return SwingUtilities.isRectangleContainingRectangle(
+                            r, new Rectangle(x, y, width, height));
+                    } else if (parent instanceof Window || 
+			       parent instanceof Applet) {
+			// No suitable swing component found
+			break;
+		    }
+                }
+            }
+            return false;

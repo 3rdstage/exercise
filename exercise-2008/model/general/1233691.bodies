@@ -1,0 +1,48 @@
+class WStringValueHelper
+!!!10214683.java!!!	insert(inout a : Any, in that : String) : void
+	org.omg.CORBA.portable.OutputStream out = a.create_output_stream ();
+	a.type (type ());
+	write (out, that);
+	a.read_value (out.create_input_stream (), type ());
+!!!10214811.java!!!	extract(inout a : Any) : String
+	return read (a.create_input_stream ());
+!!!10214939.java!!!	type() : TypeCode
+	if (__typeCode == null)
+	    {
+		synchronized (org.omg.CORBA.TypeCode.class)
+		    {
+			if (__typeCode == null)
+			    {
+				if (__active)
+				    {
+					return org.omg.CORBA.ORB.init().create_recursive_tc ( _id );
+				    }
+				__active = true;
+				__typeCode = org.omg.CORBA.ORB.init ().create_wstring_tc (0);
+				__typeCode = org.omg.CORBA.ORB.init ().create_value_box_tc (_id, "WStringValue", __typeCode);
+				__active = false;
+			    }
+		    }
+	    }
+	return __typeCode;
+!!!10215067.java!!!	id() : String
+	return _id;
+!!!10215195.java!!!	read(inout istream : InputStream) : String
+    if (!(istream instanceof org.omg.CORBA_2_3.portable.InputStream)) {
+      throw new org.omg.CORBA.BAD_PARAM(); }
+    return (String) ((org.omg.CORBA_2_3.portable.InputStream) istream).read_value (_instance);
+!!!10215323.java!!!	read_value(inout istream : InputStream) : Serializable
+    String tmp;
+    tmp = istream.read_wstring ();
+    return (java.io.Serializable) tmp;
+!!!10215451.java!!!	write(inout ostream : OutputStream, in value : String) : void
+    if (!(ostream instanceof org.omg.CORBA_2_3.portable.OutputStream)) {
+      throw new org.omg.CORBA.BAD_PARAM(); }
+    ((org.omg.CORBA_2_3.portable.OutputStream) ostream).write_value (value, _instance);
+!!!10215579.java!!!	write_value(inout ostream : OutputStream, inout value : Serializable) : void
+    if (!(value instanceof String)) {
+      throw new org.omg.CORBA.MARSHAL(); }
+    String valueType = (String) value;
+    ostream.write_wstring (valueType);
+!!!10215707.java!!!	get_id() : String
+	return _id;

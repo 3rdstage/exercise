@@ -1,0 +1,59 @@
+class IINC
+!!!3798427.java!!!	IINC(in n : int, in c : int)
+    super(); // Default behaviour of LocalVariableInstruction causes error
+
+    this.opcode = com.sun.org.apache.bcel.internal.Constants.IINC;
+    this.length = (short)3;
+
+    setIndex(n);    // May set wide as side effect
+    setIncrement(c);
+!!!3798555.java!!!	dump(inout out : DataOutputStream) : void
+    if(wide) // Need WIDE prefix ?
+      out.writeByte(com.sun.org.apache.bcel.internal.Constants.WIDE);
+
+    out.writeByte(opcode);
+
+    if(wide) {
+      out.writeShort(n);
+      out.writeShort(c);
+    } else {
+      out.writeByte(n);
+      out.writeByte(c);
+    }
+!!!3798683.java!!!	setWide() : void
+    if(wide = ((n > com.sun.org.apache.bcel.internal.Constants.MAX_SHORT) ||
+	       (Math.abs(c) > Byte.MAX_VALUE)))
+      length = 6; // wide byte included  
+    else
+      length = 3;
+!!!3798811.java!!!	initFromFile(inout bytes : ByteSequence, inout wide : boolean) : void
+    this.wide = wide;
+
+    if(wide) {
+      length = 6;
+      n = bytes.readUnsignedShort();
+      c = bytes.readShort();
+    } else {
+      length = 3;
+      n = bytes.readUnsignedByte();
+      c = bytes.readByte();
+    }
+!!!3798939.java!!!	toString(inout verbose : boolean) : String
+    return super.toString(verbose) + " " + c;
+!!!3799067.java!!!	setIndex(in n : int) : void
+ 
+    if(n < 0)
+      throw new ClassGenException("Negative index value: " + n);
+
+    this.n = n;
+    setWide();
+!!!3799195.java!!!	getIncrement() : int
+ return c;
+!!!3799323.java!!!	setIncrement(in c : int) : void
+    this.c = c;
+    setWide();
+!!!3799451.java!!!	getType(inout cp : ConstantPoolGen) : Type
+    return Type.INT;
+!!!3799579.java!!!	accept(inout v : Visitor) : void
+    v.visitLocalVariableInstruction(this);
+    v.visitIINC(this);

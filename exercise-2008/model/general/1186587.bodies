@@ -1,0 +1,66 @@
+class SynthTableHeaderUI
+!!!9747611.java!!!	createUI(inout h : JComponent) : ComponentUI
+        return new SynthTableHeaderUI();
+!!!9747739.java!!!	installDefaults() : void
+        prevRenderer = header.getDefaultRenderer();
+        if (prevRenderer instanceof UIResource) {
+            header.setDefaultRenderer(new HeaderRenderer());
+        }
+        updateStyle(header);
+!!!9747867.java!!!	updateStyle(inout c : JTableHeader) : void
+        SynthContext context = getContext(c, ENABLED);
+        SynthStyle oldStyle = style;
+        style = SynthLookAndFeel.updateStyle(context, this);
+        if (style != oldStyle) {
+            if (oldStyle != null) {
+                uninstallKeyboardActions();
+                installKeyboardActions();
+            }
+        }
+        context.dispose();
+!!!9747995.java!!!	installListeners() : void
+        super.installListeners();
+        header.addPropertyChangeListener(this);
+!!!9748123.java!!!	uninstallDefaults() : void
+        if (header.getDefaultRenderer() instanceof HeaderRenderer) {
+            header.setDefaultRenderer(prevRenderer);
+        }
+               
+        SynthContext context = getContext(header, ENABLED);
+
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+!!!9748251.java!!!	uninstallListeners() : void
+        header.removePropertyChangeListener(this);
+        super.uninstallListeners();
+!!!9748379.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintTableHeaderBackground(context,
+                          g, 0, 0, c.getWidth(), c.getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9748507.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9748635.java!!!	paint(inout context : SynthContext, inout g : Graphics) : void
+        super.paint(g, context.getComponent());
+!!!9748763.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        context.getPainter().paintTableHeaderBorder(context, g, x, y, w, h);
+!!!9748891.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9749019.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c,
+                    SynthLookAndFeel.getRegion(c), style, state);
+!!!9749147.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9749275.java!!!	getComponentState(inout c : JComponent) : int
+        return SynthLookAndFeel.getComponentState(c);
+!!!9749403.java!!!	propertyChange(inout evt : PropertyChangeEvent) : void
+        if (SynthLookAndFeel.shouldUpdateStyle(evt)) {
+            updateStyle((JTableHeader)evt.getSource());
+        }

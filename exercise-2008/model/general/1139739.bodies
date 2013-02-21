@@ -1,0 +1,70 @@
+class WindowsFileSystemView
+!!!9365275.java!!!	isTraversable(inout f : File) : Boolean
+	return Boolean.valueOf(isFileSystemRoot(f) || isComputerNode(f) || f.isDirectory());
+!!!9365403.java!!!	getChild(inout parent : File, in fileName : String) : File
+	if (fileName.startsWith("\\")
+	    && !(fileName.startsWith("\\\\"))
+	    && isFileSystem(parent)) {
+
+	    //Path is relative to the root of parent's drive
+	    String path = parent.getAbsolutePath();
+	    if (path.length() >= 2
+		&& path.charAt(1) == ':'
+		&& Character.isLetter(path.charAt(0))) {
+
+		return createFileObject(path.substring(0, 2) + fileName);
+	    }
+	}
+	return super.getChild(parent, fileName);
+!!!9365531.java!!!	getSystemTypeDescription(inout f : File) : String
+	if (f != null) {
+	    return getShellFolder(f).getFolderType();
+	} else {
+	    return null;
+	}
+!!!9365659.java!!!	getHomeDirectory() : File
+	return getRoots()[0];
+!!!9365787.java!!!	createNewFolder(inout containingDir : File) : File
+	if(containingDir == null) {
+	    throw new IOException("Containing directory is null:");
+	}
+	File newFolder = null;
+	// Using NT's default folder name
+	newFolder = createFileObject(containingDir, newFolderString);
+	int i = 2;
+	while (newFolder.exists() && (i < 100)) {
+	    newFolder = createFileObject(containingDir, MessageFormat.format(
+                newFolderNextString, new Object[] { new Integer(i) }));
+	    i++;
+	}
+
+	if(newFolder.exists()) {
+	    throw new IOException("Directory already exists:" + newFolder.getAbsolutePath());
+	} else {
+	    newFolder.mkdirs();
+	}
+
+	return newFolder;
+!!!9365915.java!!!	isDrive(inout dir : File) : boolean
+	return isFileSystemRoot(dir);
+!!!9366043.java!!!	isFloppyDrive(inout dir : File) : boolean
+	String path = dir.getAbsolutePath();
+	return (path != null && (path.equals("A:\\") || path.equals("B:\\")));
+!!!9366171.java!!!	createFileObject(in path : String) : File
+	// Check for missing backslash after drive letter such as "C:" or "C:filename"
+	if (path.length() >= 2 && path.charAt(1) == ':' && Character.isLetter(path.charAt(0))) {
+	    if (path.length() == 2) {
+		path += "\\";
+	    } else if (path.charAt(2) != '\\') {
+		path = path.substring(0, 2) + "\\" + path.substring(2);
+	    }
+	}
+	return super.createFileObject(path);
+!!!9366299.java!!!	createFileSystemRoot(inout f : File) : File
+	// Problem: Removable drives on Windows return false on f.exists()
+	// Workaround: Override exists() to always return true.
+	return new FileSystemRoot(f) {
+	    public boolean exists() {
+		return true;
+	    }
+	};

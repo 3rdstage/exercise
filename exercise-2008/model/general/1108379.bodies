@@ -1,0 +1,38 @@
+class PageLoader
+!!!8932123.java!!!	PageLoader(inout doc : Document, inout in : InputStream, in priority : int, inout old : URL, inout page : URL)
+	    setPriority(priority);
+	    this.in = in;
+	    this.old = old;
+	    this.page = page;
+	    this.doc = doc;
+!!!8932251.java!!!	run() : void
+	    try {
+		read(in, doc);
+		synchronized(JEditorPane.this) {
+		    loading = null;
+		}
+		URL page = (URL) doc.getProperty(Document.StreamDescriptionProperty);
+		String reference = page.getRef();
+		if (reference != null) {
+		    // scroll the page if necessary, but do it on the
+		    // event thread... that is the only guarantee that 
+		    // modelToView can be safely called.
+		    Runnable callScrollToReference = new Runnable() {
+                        public void run() {
+			    URL u = (URL) getDocument().getProperty
+				(Document.StreamDescriptionProperty);
+			    String ref = u.getRef();
+			    scrollToReference(ref);
+			}
+		    };
+		    SwingUtilities.invokeLater(callScrollToReference);
+		}
+	    } catch (IOException ioe) {
+		UIManager.getLookAndFeel().provideErrorFeedback(JEditorPane.this);
+	    } finally {
+                SwingUtilities.invokeLater(new Runnable() {
+                    public void run() {
+                        firePropertyChange("page", old, page);
+                    }
+                });
+	    }

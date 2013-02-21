@@ -1,0 +1,74 @@
+class RBCollationTables
+!!!7858075.java!!!	RBCollationTables(in rules : String, in decmp : int)
+        this.rules = rules;
+
+        RBTableBuilder builder = new RBTableBuilder(new BuildAPI());
+        builder.build(rules, decmp); // this object is filled in through
+                                            // the BuildAPI object
+!!!7858459.java!!!	getRules() : String
+        return rules;
+!!!7858587.java!!!	isFrenchSec() : boolean
+        return frenchSec;
+!!!7858715.java!!!	isSEAsianSwapping() : boolean
+        return seAsianSwapping;
+!!!7858843.java!!!	getContractValues(in ch : int) : Vector
+        int index = mapping.elementAt(ch);
+        return getContractValuesImpl(index - CONTRACTCHARINDEX);
+!!!7858971.java!!!	getContractValuesImpl(in index : int) : Vector
+        if (index >= 0)
+        {
+            return (Vector)contractTable.elementAt(index);
+        }
+        else // not found
+        {
+            return null;
+        }
+!!!7859099.java!!!	usedInContractSeq(in c : int) : boolean
+        return contractFlags.get(c) == 1;
+!!!7859227.java!!!	getMaxExpansion(in order : int) : int
+        int result = 1;
+
+        if (expandTable != null) {
+            // Right now this does a linear search through the entire
+            // expandsion table.  If a collator had a large number of expansions,
+            // this could cause a performance problem, but in practise that
+            // rarely happens
+            for (int i = 0; i < expandTable.size(); i++) {
+                int[] valueList = (int [])expandTable.elementAt(i);
+                int length = valueList.length;
+
+                if (length > result && valueList[length-1] == order) {
+                    result = length;
+                }
+            }
+        }
+
+        return result;
+!!!7859355.java!!!	getExpandValueList(in order : int) : int
+        return (int[])expandTable.elementAt(order - EXPANDCHARINDEX);
+!!!7859483.java!!!	getUnicodeOrder(in ch : int) : int
+        return mapping.elementAt(ch);
+!!!7859611.java!!!	getMaxSecOrder() : short
+        return maxSecOrder;
+!!!7859739.java!!!	getMaxTerOrder() : short
+        return maxTerOrder;
+!!!7859867.java!!!	reverse(inout result : StringBuffer, in from : int, in to : int) : void
+        int i = from;
+        char swap;
+
+        int j = to - 1;
+        while (i < j) {
+            swap =  result.charAt(i);
+            result.setCharAt(i, result.charAt(j));
+            result.setCharAt(j, swap);
+            i++;
+            j--;
+        }
+!!!7859995.java!!!	getEntry(inout list : Vector, in name : String, inout fwd : boolean) : int
+        for (int i = 0; i < list.size(); i++) {
+            EntryPair pair = (EntryPair)list.elementAt(i);
+            if (pair.fwd == fwd && pair.entryName.equals(name)) {
+                return i;
+            }
+        }
+        return UNMAPPED;

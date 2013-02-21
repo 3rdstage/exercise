@@ -1,0 +1,75 @@
+class JMXConnectorServerFactory
+!!!8404379.java!!!	getConnectorServerAsService(inout loader : ClassLoader, inout url : JMXServiceURL, inout map : Map, inout mbs : MBeanServer) : JMXConnectorServer
+	Iterator providers = 
+	    JMXConnectorFactory.getProviderIterator(JMXConnectorServerProvider.class,
+						    loader);
+	JMXConnectorServerProvider provider = null;
+	JMXConnectorServer connection = null;
+	while(providers.hasNext()) {
+	    provider = 
+		(JMXConnectorServerProvider) providers.next();
+	    try {
+		connection = provider.newJMXConnectorServer(url, map, mbs);
+		return connection;
+	    } catch (JMXProviderException e) {
+		throw e;
+	    }
+	    catch (Exception e) {
+		if (logger.traceOn())
+		    logger.trace("getConnectorAsService",
+				 "URL[" + url +
+				 "] Service provider exception " + e);
+		continue;
+	    }
+	}
+	return null;
+!!!8404507.java!!!	newJMXConnectorServer(inout serviceURL : JMXServiceURL, inout environment : Map, inout mbeanServer : MBeanServer) : JMXConnectorServer
+	if (environment == null)
+	    environment = new HashMap();
+	else {
+	    EnvHelp.checkAttributes(environment);
+	    environment = new HashMap(environment);
+	}
+
+	final Class targetInterface = JMXConnectorServerProvider.class;
+	final ClassLoader loader = 
+	    JMXConnectorFactory.resolveClassLoader(environment);
+	final String protocol = serviceURL.getProtocol();
+	final String providerClassName = "ServerProvider";
+	
+	JMXConnectorServerProvider provider =
+	    (JMXConnectorServerProvider)
+	    JMXConnectorFactory.getProvider(serviceURL, environment,
+					    providerClassName,
+					    targetInterface, loader);	
+	if(provider == null) {
+	    // Loader is null when context class loader is set to null
+	    // and no loader has been provided in map.
+	    // com.sun.jmx.remote.util.Service class extracted from j2se
+	    // provider search algorithm doesn't handle well null classloader.
+	    if(loader != null) {
+		JMXConnectorServer connection = 
+		    getConnectorServerAsService(loader,
+						serviceURL,
+						environment,
+						mbeanServer);
+		if(connection != null)
+		    return connection;
+	    }
+	
+	    provider = (JMXConnectorServerProvider)
+		JMXConnectorFactory.getProvider(protocol, 
+						PROTOCOL_PROVIDER_DEFAULT_PACKAGE,
+						JMXConnectorFactory.class.getClassLoader(),
+						providerClassName,
+						targetInterface);
+	}
+	
+	if(provider == null)
+	    throw new MalformedURLException("Unsupported protocol: " + 
+					    protocol);
+	
+	environment = Collections.unmodifiableMap(environment);
+        
+        return provider.newJMXConnectorServer(serviceURL, environment,
+					      mbeanServer);

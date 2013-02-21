@@ -1,0 +1,57 @@
+class DelegationPermission
+!!!8662043.java!!!	DelegationPermission(in principals : String)
+	super(principals);
+	init(principals);
+!!!8662171.java!!!	DelegationPermission(in principals : String, in actions : String)
+	super(principals, actions);
+	init(principals);
+!!!8662299.java!!!	init(in target : String) : void
+
+	StringTokenizer t = null;
+	if (!target.startsWith("\"")) {
+	    throw new IllegalArgumentException
+		("service principal [" + target +
+		 "] syntax invalid: " +
+		 "improperly quoted");
+	} else {
+	    t = new StringTokenizer(target, "\"", false);
+	    subordinate = t.nextToken();
+	    if (t.countTokens() == 2) {
+		t.nextToken();	// bypass whitespace
+		service = t.nextToken();
+	    } else if (t.countTokens() > 0) {
+		throw new IllegalArgumentException
+		    ("service principal [" + t.nextToken() +
+		     "] syntax invalid: " +
+		     "improperly quoted");
+	    }
+	}
+!!!8662427.java!!!	implies(inout p : Permission) : boolean
+	if (!(p instanceof DelegationPermission))
+	    return false;
+
+	DelegationPermission that = (DelegationPermission) p;
+	if (this.subordinate.equals(that.subordinate) &&
+	    this.service.equals(that.service))
+	    return true;
+
+	return false;
+!!!8662555.java!!!	equals(inout obj : Object) : boolean
+	if (obj == this)
+	    return true;
+
+	if (! (obj instanceof DelegationPermission))
+	    return false;
+
+	DelegationPermission that = (DelegationPermission) obj;
+	return implies(that);
+!!!8662683.java!!!	hashCode() : int
+	return getName().hashCode();
+!!!8662811.java!!!	newPermissionCollection() : PermissionCollection
+	return new KrbDelegationPermissionCollection();
+!!!8662939.java!!!	writeObject(inout s : ObjectOutputStream) : void
+	s.defaultWriteObject();
+!!!8663067.java!!!	readObject(inout s : ObjectInputStream) : void
+	// Read in the action, then initialize the rest
+	s.defaultReadObject();
+	init(getName());

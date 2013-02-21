@@ -1,0 +1,155 @@
+class MetalToolBarUI
+!!!9555739.java!!!	register(inout c : JComponent) : void
+        if (c == null) {
+            // Exception is thrown as convenience for callers that are
+            // typed to throw an NPE.
+            throw new NullPointerException("JComponent must be non-null");
+        }
+        components.add(new WeakReference(c));
+!!!9555867.java!!!	unregister(inout c : JComponent) : void
+        for (int counter = components.size() - 1; counter >= 0; counter--) {
+            // Search for the component, removing any flushed references
+            // along the way.
+            WeakReference ref = (WeakReference)components.get(counter);
+            Object target = ((WeakReference)components.get(counter)).get();
+
+            if (target == c || target == null) {
+                components.remove(counter);
+            }
+        }
+!!!9555995.java!!!	findRegisteredComponentOfType(inout from : JComponent, inout target : Class) : Object
+        JRootPane rp = SwingUtilities.getRootPane(from);
+        if (rp != null) {
+            for (int counter = components.size() - 1; counter >= 0; counter--){
+                Object component = ((WeakReference)components.get(counter)).
+                                   get();
+
+                if (component == null) {
+                    // WeakReference has gone away, remove the WeakReference
+                    components.remove(counter);
+                }
+                else if (target.isInstance(component) && SwingUtilities.
+                         getRootPane((Component)component) == rp) {
+                    return component;
+                }
+            }
+        }
+        return null;
+!!!9556123.java!!!	doesMenuBarBorderToolBar(inout c : JMenuBar) : boolean
+        JToolBar tb = (JToolBar)MetalToolBarUI.
+                    findRegisteredComponentOfType(c, JToolBar.class);
+        if (tb != null && tb.getOrientation() == JToolBar.HORIZONTAL) {
+            JRootPane rp = SwingUtilities.getRootPane(c);
+            Point point = new Point(0, 0);
+            point = SwingUtilities.convertPoint(c, point, rp);
+            int menuX = point.x;
+            int menuY = point.y;
+            point.x = point.y = 0;
+            point = SwingUtilities.convertPoint(tb, point, rp);
+            return (point.x == menuX && menuY + c.getHeight() == point.y &&
+                    c.getWidth() == tb.getWidth());
+        }
+        return false;
+!!!9556251.java!!!	createUI(inout c : JComponent) : ComponentUI
+	return new MetalToolBarUI();
+!!!9556379.java!!!	installUI(inout c : JComponent) : void
+        super.installUI( c );
+        register(c);
+!!!9556507.java!!!	uninstallUI(inout c : JComponent) : void
+        super.uninstallUI( c );
+	nonRolloverBorder = null;
+        unregister(c);
+!!!9556635.java!!!	installListeners() : void
+        super.installListeners();
+
+	contListener = createContainerListener();
+	if (contListener != null) {
+	    toolBar.addContainerListener(contListener);
+	}
+	rolloverListener = createRolloverListener();
+	if (rolloverListener != null) {
+	    toolBar.addPropertyChangeListener(rolloverListener);
+	}
+!!!9556763.java!!!	uninstallListeners() : void
+        super.uninstallListeners();
+
+	if (contListener != null) {
+	    toolBar.removeContainerListener(contListener);
+	}
+	rolloverListener = createRolloverListener();
+	if (rolloverListener != null) {
+	    toolBar.removePropertyChangeListener(rolloverListener);
+	}
+!!!9556891.java!!!	createRolloverBorder() : Border
+	return super.createRolloverBorder();
+!!!9557019.java!!!	createNonRolloverBorder() : Border
+        return super.createNonRolloverBorder();
+!!!9557147.java!!!	createNonRolloverToggleBorder() : Border
+	return createNonRolloverBorder();
+!!!9557275.java!!!	setBorderToNonRollover(inout c : Component) : void
+	if (c instanceof JToggleButton && !(c instanceof JCheckBox)) {
+	    // 4735514, 4886944: The method createNonRolloverToggleBorder() is
+	    // private in BasicToolBarUI so we can't override it. We still need
+	    // to call super from this method so that it can save away the
+	    // original border and then we install ours.
+
+	    // Before calling super we get a handle to the old border, because
+	    // super will install a non-UIResource border that we can't
+	    // distinguish from one provided by an application.
+	    JToggleButton b = (JToggleButton)c;
+	    Border border = b.getBorder();
+	    super.setBorderToNonRollover(c);
+	    if (border instanceof UIResource) {
+		if (nonRolloverBorder == null) {
+		    nonRolloverBorder = createNonRolloverToggleBorder();
+		}
+		b.setBorder(nonRolloverBorder);
+	    }
+	} else {
+	    super.setBorderToNonRollover(c);
+	}
+!!!9557403.java!!!	createContainerListener() : ContainerListener
+	return null;
+!!!9557531.java!!!	createRolloverListener() : PropertyChangeListener
+	return null;
+!!!9557659.java!!!	createDockingListener() : MouseInputListener
+	return new MetalDockingListener( toolBar );
+!!!9557787.java!!!	setDragOffset(inout p : Point) : void
+	if (!GraphicsEnvironment.isHeadless()) {
+	    if (dragWindow == null) {
+		dragWindow = createDragWindow(toolBar);
+	    }
+	    dragWindow.setOffset(p);
+	}
+!!!9557915.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        if (c.isOpaque() && (c.getBackground() instanceof UIResource) &&
+                            ((JToolBar)c).getOrientation() ==
+                      JToolBar.HORIZONTAL && UIManager.get(
+                     "MenuBar.gradient") != null) {
+            JRootPane rp = SwingUtilities.getRootPane(c);
+            JMenuBar mb = (JMenuBar)findRegisteredComponentOfType(
+                                    c, JMenuBar.class);
+            if (mb != null && mb.isOpaque() &&
+                              (mb.getBackground() instanceof UIResource)) {
+                Point point = new Point(0, 0);
+                point = SwingUtilities.convertPoint(c, point, rp);
+                int x = point.x;
+                int y = point.y;
+                point.x = point.y = 0;
+                point = SwingUtilities.convertPoint(mb, point, rp);
+                if (point.x == x && y == point.y + mb.getHeight() &&
+                     mb.getWidth() == c.getWidth() &&
+                     MetalUtils.drawGradient(c, g, "MenuBar.gradient",
+                     0, -mb.getHeight(), c.getWidth(), c.getHeight() +
+                     mb.getHeight(), true)) {
+                    paint(g, c);
+                    return;
+                }
+            }
+            if (MetalUtils.drawGradient(c, g, "MenuBar.gradient",
+                           0, 0, c.getWidth(), c.getHeight(), true)) {
+                paint(g, c);
+                return;
+            }
+        }
+        super.update(g, c);

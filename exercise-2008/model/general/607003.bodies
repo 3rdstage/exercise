@@ -1,0 +1,183 @@
+class JDialog
+!!!3893019.java!!!	JDialog()
+        this((Frame)null, false);
+!!!3893147.java!!!	JDialog(inout owner : Frame)
+        this(owner, false);
+!!!3893275.java!!!	JDialog(inout owner : Frame, inout modal : boolean)
+        this(owner, null, modal);
+!!!3893403.java!!!	JDialog(inout owner : Frame, in title : String)
+        this(owner, title, false);     
+!!!3893531.java!!!	JDialog(inout owner : Frame, in title : String, inout modal : boolean)
+        super(owner == null? SwingUtilities.getSharedOwnerFrame() : owner, 
+              title, modal);
+ 	if (owner == null) {
+	    WindowListener ownerShutdownListener =
+		(WindowListener)SwingUtilities.getSharedOwnerFrameShutdownListener();
+ 	    addWindowListener(ownerShutdownListener);
+ 	}
+        dialogInit();
+!!!3893659.java!!!	JDialog(inout owner : Frame, in title : String, inout modal : boolean, inout gc : GraphicsConfiguration)
+        super(owner == null? SwingUtilities.getSharedOwnerFrame() : owner, 
+              title, modal, gc);
+ 	if (owner == null) {
+	    WindowListener ownerShutdownListener =
+		(WindowListener)SwingUtilities.getSharedOwnerFrameShutdownListener();
+ 	    addWindowListener(ownerShutdownListener);
+ 	}
+        dialogInit();
+!!!3893787.java!!!	JDialog(inout owner : Dialog)
+        this(owner, false);
+!!!3893915.java!!!	JDialog(inout owner : Dialog, inout modal : boolean)
+        this(owner, null, modal);
+!!!3894043.java!!!	JDialog(inout owner : Dialog, in title : String)
+        this(owner, title, false);     
+!!!3894171.java!!!	JDialog(inout owner : Dialog, in title : String, inout modal : boolean)
+        super(owner, title, modal);
+        dialogInit();
+!!!3894299.java!!!	JDialog(inout owner : Dialog, in title : String, inout modal : boolean, inout gc : GraphicsConfiguration)
+
+        super(owner, title, modal, gc);
+        dialogInit();
+!!!3894427.java!!!	dialogInit() : void
+        enableEvents(AWTEvent.KEY_EVENT_MASK | AWTEvent.WINDOW_EVENT_MASK);
+        setLocale( JComponent.getDefaultLocale() );
+        setRootPane(createRootPane());
+        setRootPaneCheckingEnabled(true);
+        if (JDialog.isDefaultLookAndFeelDecorated()) {
+            boolean supportsWindowDecorations = 
+            UIManager.getLookAndFeel().getSupportsWindowDecorations();
+            if (supportsWindowDecorations) {
+                setUndecorated(true);
+                getRootPane().setWindowDecorationStyle(JRootPane.PLAIN_DIALOG);
+            }
+        }
+        sun.awt.SunToolkit.checkAndSetPolicy(this, true);
+!!!3894555.java!!!	createRootPane() : JRootPane
+        JRootPane rp = new JRootPane();
+        // NOTE: this uses setOpaque vs LookAndFeel.installProperty as there
+        // is NO reason for the RootPane not to be opaque. For painting to
+        // work the contentPane must be opaque, therefor the RootPane can
+        // also be opaque.
+        rp.setOpaque(true);
+        return rp;
+!!!3894683.java!!!	processWindowEvent(inout e : WindowEvent) : void
+        super.processWindowEvent(e);
+
+        if (e.getID() == WindowEvent.WINDOW_CLOSING) {
+            switch(defaultCloseOperation) {
+              case HIDE_ON_CLOSE:
+                 setVisible(false);
+                 break;
+              case DISPOSE_ON_CLOSE:
+                 setVisible(false);
+                 dispose();
+                 break;
+              case DO_NOTHING_ON_CLOSE:
+                 default: 
+                 break;
+            }
+        }
+!!!3894811.java!!!	setDefaultCloseOperation(in operation : int) : void
+        this.defaultCloseOperation = operation;
+!!!3894939.java!!!	getDefaultCloseOperation() : int
+        return defaultCloseOperation;
+!!!3895067.java!!!	update(inout g : Graphics) : void
+        paint(g);
+!!!3895195.java!!!	setJMenuBar(inout menu : JMenuBar) : void
+        getRootPane().setMenuBar(menu);
+!!!3895323.java!!!	getJMenuBar() : JMenuBar
+ 
+        return getRootPane().getMenuBar(); 
+!!!3895451.java!!!	isRootPaneCheckingEnabled() : boolean
+        return rootPaneCheckingEnabled;
+!!!3895579.java!!!	setRootPaneCheckingEnabled(inout enabled : boolean) : void
+        rootPaneCheckingEnabled = enabled;
+!!!3895707.java!!!	addImpl(inout comp : Component, inout constraints : Object, in index : int) : void
+        if(isRootPaneCheckingEnabled()) {
+            getContentPane().add(comp, constraints, index);
+        }
+        else {
+            super.addImpl(comp, constraints, index);
+        }
+!!!3895835.java!!!	remove(inout comp : Component) : void
+	if (comp == rootPane) {
+	    super.remove(comp);
+	} else {
+	    getContentPane().remove(comp);
+	}
+!!!3895963.java!!!	setLayout(inout manager : LayoutManager) : void
+        if(isRootPaneCheckingEnabled()) {
+            getContentPane().setLayout(manager);
+        }
+        else {
+            super.setLayout(manager);
+        }
+!!!3896091.java!!!	getRootPane() : JRootPane
+ 
+        return rootPane; 
+!!!3896219.java!!!	setRootPane(inout root : JRootPane) : void
+        if(rootPane != null) {
+            remove(rootPane);
+        }
+        rootPane = root;
+        if(rootPane != null) {
+            boolean checkingEnabled = isRootPaneCheckingEnabled();
+            try {
+                setRootPaneCheckingEnabled(false);
+                add(rootPane, BorderLayout.CENTER);
+            }
+            finally {
+                setRootPaneCheckingEnabled(checkingEnabled);
+            }
+        }
+!!!3896347.java!!!	getContentPane() : Container
+ 
+        return getRootPane().getContentPane(); 
+!!!3896475.java!!!	setContentPane(inout contentPane : Container) : void
+        getRootPane().setContentPane(contentPane);
+!!!3896603.java!!!	getLayeredPane() : JLayeredPane
+ 
+        return getRootPane().getLayeredPane(); 
+!!!3896731.java!!!	setLayeredPane(inout layeredPane : JLayeredPane) : void
+        getRootPane().setLayeredPane(layeredPane);
+!!!3896859.java!!!	getGlassPane() : Component
+ 
+        return getRootPane().getGlassPane(); 
+!!!3896987.java!!!	setGlassPane(inout glassPane : Component) : void
+        getRootPane().setGlassPane(glassPane);
+!!!3897115.java!!!	setDefaultLookAndFeelDecorated(inout defaultLookAndFeelDecorated : boolean) : void
+        if (defaultLookAndFeelDecorated) {
+            SwingUtilities.appContextPut(defaultLookAndFeelDecoratedKey, Boolean.TRUE);
+        } else {
+            SwingUtilities.appContextPut(defaultLookAndFeelDecoratedKey, Boolean.FALSE);
+        }
+!!!3897243.java!!!	isDefaultLookAndFeelDecorated() : boolean
+        Boolean defaultLookAndFeelDecorated = 
+            (Boolean) SwingUtilities.appContextGet(defaultLookAndFeelDecoratedKey);
+        if (defaultLookAndFeelDecorated == null) {
+            defaultLookAndFeelDecorated = Boolean.FALSE;
+        }
+        return defaultLookAndFeelDecorated.booleanValue();
+!!!3897371.java!!!	paramString() : String
+        String defaultCloseOperationString;
+        if (defaultCloseOperation == HIDE_ON_CLOSE) {
+            defaultCloseOperationString = "HIDE_ON_CLOSE";
+        } else if (defaultCloseOperation == DISPOSE_ON_CLOSE) {
+            defaultCloseOperationString = "DISPOSE_ON_CLOSE";
+        } else if (defaultCloseOperation == DO_NOTHING_ON_CLOSE) {
+            defaultCloseOperationString = "DO_NOTHING_ON_CLOSE";
+        } else defaultCloseOperationString = "";
+	String rootPaneString = (rootPane != null ?
+				 rootPane.toString() : "");
+	String rootPaneCheckingEnabledString = (rootPaneCheckingEnabled ?
+						"true" : "false");
+
+	return super.paramString() +
+	",defaultCloseOperation=" + defaultCloseOperationString +
+	",rootPane=" + rootPaneString +
+	",rootPaneCheckingEnabled=" + rootPaneCheckingEnabledString;
+!!!3897499.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJDialog();
+        }
+        return accessibleContext;

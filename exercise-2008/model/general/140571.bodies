@@ -1,0 +1,61 @@
+class UnmodifiableEntrySet
+!!!208411.java!!!	UnmodifiableEntrySet(inout s : Set)
+                super((Set<Map.Entry<K,V>>)(Set)s);
+!!!208539.java!!!	iterator() : Iterator
+                return new Iterator<Map.Entry<K,V>>() {
+		    Iterator<? extends Map.Entry<? extends K, ? extends V>> i = c.iterator();
+
+                    public boolean hasNext() {
+                        return i.hasNext();
+                    }
+		    public Map.Entry<K,V> next() {
+			return new UnmodifiableEntry<K,V>(i.next());
+                    }
+                    public void remove() {
+                        throw new UnsupportedOperationException();
+                    }
+                };
+!!!208667.java!!!	toArray() : Object
+                Object[] a = c.toArray();
+                for (int i=0; i<a.length; i++)
+                    a[i] = new UnmodifiableEntry<K,V>((Map.Entry<K,V>)a[i]);
+                return a;
+!!!208795.java!!!	toArray(inout a : T) : T
+                // We don't pass a to c.toArray, to avoid window of
+                // vulnerability wherein an unscrupulous multithreaded client
+                // could get his hands on raw (unwrapped) Entries from c.
+		Object[] arr =
+		    c.toArray(
+			a.length==0 ? a :
+			(T[])java.lang.reflect.Array.newInstance(a.getClass().getComponentType(), 0));
+
+                for (int i=0; i<arr.length; i++)
+                    arr[i] = new UnmodifiableEntry<K,V>((Map.Entry<K,V>)arr[i]);
+
+                if (arr.length > a.length)
+                    return (T[])arr;
+
+                System.arraycopy(arr, 0, a, 0, arr.length);
+                if (a.length > arr.length)
+                    a[arr.length] = null;
+                return a;
+!!!208923.java!!!	contains(inout o : Object) : boolean
+                if (!(o instanceof Map.Entry))
+                    return false;
+                return c.contains(new UnmodifiableEntry<K,V>((Map.Entry<K,V>) o));
+!!!209051.java!!!	containsAll(inout coll : Collection) : boolean
+                Iterator<?> e = coll.iterator();
+                while (e.hasNext())
+                    if (!contains(e.next())) // Invokes safe contains() above
+                        return false;
+                return true;
+!!!209179.java!!!	equals(inout o : Object) : boolean
+                if (o == this)
+                    return true;
+
+                if (!(o instanceof Set))
+                    return false;
+                Set s = (Set) o;
+                if (s.size() != c.size())
+                    return false;
+                return containsAll(s); // Invokes safe containsAll() above

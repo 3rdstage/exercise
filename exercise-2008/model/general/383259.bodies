@@ -1,0 +1,241 @@
+class JTextField
+!!!2732699.java!!!	JTextField()
+        this(null, null, 0);
+!!!2732827.java!!!	JTextField(in text : String)
+        this(null, text, 0);
+!!!2732955.java!!!	JTextField(in columns : int)
+        this(null, null, columns);
+!!!2733083.java!!!	JTextField(in text : String, in columns : int)
+        this(null, text, columns);
+!!!2733211.java!!!	JTextField(inout doc : Document, in text : String, in columns : int)
+        if (columns < 0) {
+            throw new IllegalArgumentException("columns less than zero.");
+        }
+        visibility = new DefaultBoundedRangeModel();
+        visibility.addChangeListener(new ScrollRepainter());
+        this.columns = columns;
+        if (doc == null) {
+            doc = createDefaultModel();
+        }
+        setDocument(doc);
+        if (text != null) {
+            setText(text);
+        }
+!!!2733339.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!2733467.java!!!	setDocument(inout doc : Document) : void
+	if (doc != null) {
+	    doc.putProperty("filterNewlines", Boolean.TRUE);
+	}
+	super.setDocument(doc);
+!!!2733595.java!!!	isValidateRoot() : boolean
+	Component parent = getParent();
+	if (parent instanceof JViewport) {
+	    return false;
+	}
+        return true;
+!!!2733723.java!!!	getHorizontalAlignment() : int
+        return horizontalAlignment;
+!!!2733851.java!!!	setHorizontalAlignment(in alignment : int) : void
+        if (alignment == horizontalAlignment) return;
+        int oldValue = horizontalAlignment;
+        if ((alignment == LEFT) || (alignment == CENTER) || 
+	    (alignment == RIGHT)|| (alignment == LEADING) || 
+	    (alignment == TRAILING)) {
+            horizontalAlignment = alignment;
+        } else {
+            throw new IllegalArgumentException("horizontalAlignment");
+        }
+        firePropertyChange("horizontalAlignment", oldValue, horizontalAlignment);       
+        invalidate();
+        repaint();
+!!!2733979.java!!!	createDefaultModel() : Document
+        return new PlainDocument();
+!!!2734107.java!!!	getColumns() : int
+        return columns;
+!!!2734235.java!!!	setColumns(in columns : int) : void
+        int oldVal = this.columns;
+        if (columns < 0) {
+            throw new IllegalArgumentException("columns less than zero.");
+        }
+        if (columns != oldVal) {
+            this.columns = columns;
+            invalidate();
+        }
+!!!2734363.java!!!	getColumnWidth() : int
+        if (columnWidth == 0) {
+            FontMetrics metrics = getFontMetrics(getFont());
+            columnWidth = metrics.charWidth('m');
+        }
+        return columnWidth;
+!!!2734491.java!!!	getPreferredSize() : Dimension
+        Dimension size = super.getPreferredSize();
+        if (columns != 0) {
+            Insets insets = getInsets();
+            size.width = columns * getColumnWidth() +
+                insets.left + insets.right;
+        }
+        return size;
+!!!2734619.java!!!	setFont(inout f : Font) : void
+        super.setFont(f);
+        columnWidth = 0;
+!!!2734747.java!!!	addActionListener(inout l : ActionListener) : void
+        listenerList.add(ActionListener.class, l);
+!!!2734875.java!!!	removeActionListener(inout l : ActionListener) : void
+	if ((l != null) && (getAction() == l)) {
+	    setAction(null);
+	} else {
+	    listenerList.remove(ActionListener.class, l);
+	}
+!!!2735003.java!!!	getActionListeners() : ActionListener
+        return (ActionListener[])listenerList.getListeners(
+                ActionListener.class);
+!!!2735131.java!!!	fireActionPerformed() : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        int modifiers = 0;
+        AWTEvent currentEvent = EventQueue.getCurrentEvent();
+        if (currentEvent instanceof InputEvent) {
+            modifiers = ((InputEvent)currentEvent).getModifiers();
+        } else if (currentEvent instanceof ActionEvent) {
+            modifiers = ((ActionEvent)currentEvent).getModifiers();
+        }
+        ActionEvent e =
+            new ActionEvent(this, ActionEvent.ACTION_PERFORMED,
+                            (command != null) ? command : getText(),
+                            EventQueue.getMostRecentEventTime(), modifiers);
+                            
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==ActionListener.class) {
+                ((ActionListener)listeners[i+1]).actionPerformed(e);
+            }          
+        }
+!!!2735259.java!!!	setActionCommand(in command : String) : void
+        this.command = command;
+!!!2735387.java!!!	setAction(inout a : Action) : void
+	Action oldValue = getAction();
+	if (action==null || !action.equals(a)) {
+	    action = a;
+	    if (oldValue!=null) {
+		removeActionListener(oldValue);
+		oldValue.removePropertyChangeListener(actionPropertyChangeListener);
+		actionPropertyChangeListener = null;
+	    }
+	    configurePropertiesFromAction(action);
+	    if (action!=null) {		
+		// Don't add if it is already a listener
+		if (!isListener(ActionListener.class, action)) {
+		    addActionListener(action);
+		}
+		// Reverse linkage:
+		actionPropertyChangeListener = createActionPropertyChangeListener(action);
+		action.addPropertyChangeListener(actionPropertyChangeListener);
+	    }
+	    firePropertyChange("action", oldValue, action);
+	    revalidate();
+	    repaint();
+	}
+!!!2735515.java!!!	isListener(inout c : Class, inout a : ActionListener) : boolean
+	boolean isListener = false;
+	Object[] listeners = listenerList.getListenerList();
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==c && listeners[i+1]==a) {
+		    isListener=true;
+	    }
+	}
+	return isListener;
+!!!2735643.java!!!	getAction() : Action
+	return action;
+!!!2735771.java!!!	configurePropertiesFromAction(inout a : Action) : void
+	setEnabled((a!=null?a.isEnabled():true));
+ 	setToolTipText((a!=null?(String)a.getValue(Action.SHORT_DESCRIPTION):null));	
+!!!2735899.java!!!	createActionPropertyChangeListener(inout a : Action) : PropertyChangeListener
+        return new AbstractActionPropertyChangeListener(this, a) {
+	    public void propertyChange(PropertyChangeEvent e) {	    
+		String propertyName = e.getPropertyName();
+		JTextField textField = (JTextField)getTarget();
+		if (textField == null) {   //WeakRef GC'ed in 1.2
+		    Action action = (Action)e.getSource();
+		    action.removePropertyChangeListener(this);
+		} else {
+		    if (e.getPropertyName().equals(Action.SHORT_DESCRIPTION)) {
+			String text = (String) e.getNewValue();
+			textField.setToolTipText(text);
+		    } else if (propertyName.equals("enabled")) {
+			Boolean enabledState = (Boolean) e.getNewValue();
+			textField.setEnabled(enabledState.booleanValue());
+			textField.repaint();
+		    } 
+		}
+	    }
+	};
+!!!2736027.java!!!	getActions() : Action
+        return TextAction.augmentList(super.getActions(), defaultActions);
+!!!2736155.java!!!	postActionEvent() : void
+        fireActionPerformed();
+!!!2736283.java!!!	getHorizontalVisibility() : BoundedRangeModel
+        return visibility;
+!!!2736411.java!!!	getScrollOffset() : int
+        return visibility.getValue();
+!!!2736539.java!!!	setScrollOffset(in scrollOffset : int) : void
+        visibility.setValue(scrollOffset);
+!!!2736667.java!!!	scrollRectToVisible(inout r : Rectangle) : void
+        // convert to coordinate system of the bounded range
+	Insets i = getInsets();
+        int x0 = r.x + visibility.getValue() - i.left;
+        int x1 = x0 + r.width;
+        if (x0 < visibility.getValue()) {
+            // Scroll to the left
+            visibility.setValue(x0);
+        } else if(x1 > visibility.getValue() + visibility.getExtent()) {
+            // Scroll to the right
+            visibility.setValue(x1 - visibility.getExtent());
+        }
+!!!2736795.java!!!	hasActionListener() : boolean
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==ActionListener.class) {
+                return true;
+            }          
+        }
+        return false;
+!!!2737435.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!2737563.java!!!	paramString() : String
+        String horizontalAlignmentString;
+        if (horizontalAlignment == LEFT) {
+	    horizontalAlignmentString = "LEFT";
+	} else if (horizontalAlignment == CENTER) {
+	    horizontalAlignmentString = "CENTER";
+	} else if (horizontalAlignment == RIGHT) {
+	    horizontalAlignmentString = "RIGHT";
+	} else if (horizontalAlignment == LEADING) {
+	    horizontalAlignmentString = "LEADING";
+	} else if (horizontalAlignment == TRAILING) {
+	    horizontalAlignmentString = "TRAILING";
+	} else horizontalAlignmentString = "";
+        String commandString = (command != null ?
+				command : "");
+
+        return super.paramString() +
+        ",columns=" + columns +
+        ",columnWidth=" + columnWidth +
+        ",command=" + commandString +
+        ",horizontalAlignment=" + horizontalAlignmentString;
+!!!2737691.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJTextField();
+        }
+        return accessibleContext;

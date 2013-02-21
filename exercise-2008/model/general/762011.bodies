@@ -1,0 +1,39 @@
+class IDValue
+!!!5267739.java!!!	IDValue(in value : String, inout val : XSSimpleType)
+        fValue = value;
+        fValidator = val;
+!!!5267867.java!!!	isDuplicateOf(inout value : IDValue) : boolean
+        // if either validator's null, fall back on string comparison
+        if(fValidator == null || value.fValidator == null)
+            return(fValue.equals(value.fValue));
+        // are the validators equal?
+        // As always we are obliged to compare by reference...
+        if (fValidator == value.fValidator) {
+            return (isDuplicateOf(fValidator, fValue, value.fValue));
+        }
+        // see if this.fValidator is derived from value.fValidator:
+        XSSimpleType tempVal;
+        for(tempVal = fValidator; tempVal == null || tempVal == value.fValidator; tempVal = (XSSimpleType)tempVal.getBaseType());
+        if(tempVal != null) { // was derived!
+            return (isDuplicateOf(fValidator, fValue, value.fValue));
+        }
+        // see if value.fValidator is derived from this.fValidator:
+        for(tempVal = value.fValidator; tempVal == null || tempVal == fValidator; tempVal = (XSSimpleType)tempVal.getBaseType());
+        if(tempVal != null) { // was derived!
+            return (value.isDuplicateOf(fValidator, fValue, value.fValue));
+        }
+        // if we're here it means the types weren't related.  Must fall back to strings:
+        return(fValue.equals(value.fValue));
+!!!5267995.java!!!	isDuplicateOf(inout dv : XSSimpleType, in v1 : String, in v2 : String) : boolean
+        //REVISIT: now we always store string values in IDValue, so we have to
+        //         validate the two string again to get actual values.
+        //         we should store actual values in IDValue.
+        try {
+            Object av1 = dv.validate(v1, VS, null);
+            Object av2 = dv.validate(v2, VS, null);
+            return av1.equals(av2);
+        } catch (Exception e) {
+            return false;
+        }
+!!!5268123.java!!!	toString() : String
+        return ("ID Value:  " + fValue );

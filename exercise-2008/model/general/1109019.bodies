@@ -1,0 +1,55 @@
+class HTMLLink
+!!!8938011.java!!!	HTMLLink(inout e : Element)
+		element = e;
+!!!8938139.java!!!	isValid() : boolean
+		return JEditorPaneAccessibleHypertextSupport.this.linksValid;
+!!!8938267.java!!!	getAccessibleActionCount() : int
+		return 1;
+!!!8938395.java!!!	doAccessibleAction(in i : int) : boolean
+		if (i == 0 && isValid() == true) {
+		    URL u = (URL) getAccessibleActionObject(i);
+		    if (u != null) {
+			HyperlinkEvent linkEvent =
+			    new HyperlinkEvent(JEditorPane.this, HyperlinkEvent.EventType.ACTIVATED, u);
+			JEditorPane.this.fireHyperlinkUpdate(linkEvent);
+			return true;
+		    }
+		}
+		return false;  // link invalid or i != 0
+!!!8938523.java!!!	getAccessibleActionDescription(in i : int) : String
+		if (i == 0 && isValid() == true) {
+		    Document d = JEditorPane.this.getDocument();
+		    if (d != null) {
+			try {
+			    return d.getText(getStartIndex(),
+					     getEndIndex() - getStartIndex());
+			} catch (BadLocationException exception) {
+			    return null;
+			}
+		    }
+		}
+		return null;
+!!!8938651.java!!!	getAccessibleActionObject(in i : int) : Object
+		if (i == 0 && isValid() == true) {
+		    AttributeSet as = element.getAttributes();
+		    AttributeSet anchor = 
+			(AttributeSet) as.getAttribute(HTML.Tag.A);
+		    String href = (anchor != null) ?
+			(String) anchor.getAttribute(HTML.Attribute.HREF) : null;
+		    if (href != null) {
+			URL u;
+			try {
+			    u = new URL(JEditorPane.this.getPage(), href);
+			} catch (MalformedURLException m) {
+			    u = null;
+			}
+			return u;
+		    }
+		}
+		return null;  // link invalid or i != 0
+!!!8938779.java!!!	getAccessibleActionAnchor(in i : int) : Object
+		return getAccessibleActionDescription(i);
+!!!8938907.java!!!	getStartIndex() : int
+		return element.getStartOffset();
+!!!8939035.java!!!	getEndIndex() : int
+		return element.getEndOffset();

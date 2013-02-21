@@ -1,0 +1,59 @@
+class XMLDeclDispatcher
+!!!4951451.java!!!	dispatch(inout complete : boolean) : boolean
+
+            // next dispatcher is prolog regardless of whether there
+            // is an XMLDecl in this document
+            setScannerState(SCANNER_STATE_PROLOG);
+            setDispatcher(fPrologDispatcher);
+
+            // scan XMLDecl
+            try {
+                if (fEntityScanner.skipString("<?xml")) {
+                    fMarkupDepth++;
+                    // NOTE: special case where document starts with a PI
+                    //       whose name starts with "xml" (e.g. "xmlfoo")
+                    if (XMLChar.isName(fEntityScanner.peekChar())) {
+                        fStringBuffer.clear();
+                        fStringBuffer.append("xml");
+                        if (fNamespaces) {
+                            while (XMLChar.isNCName(fEntityScanner.peekChar())) {
+                                fStringBuffer.append((char)fEntityScanner.scanChar());
+                            }
+                        }
+                        else {
+                            while (XMLChar.isName(fEntityScanner.peekChar())) {
+                                fStringBuffer.append((char)fEntityScanner.scanChar());
+                            }
+                        }
+                        String target = fSymbolTable.addSymbol(fStringBuffer.ch, fStringBuffer.offset, fStringBuffer.length);
+                        scanPIData(target, fString);
+                    }
+
+                    // standard XML declaration
+                    else {
+                        scanXMLDeclOrTextDecl(false);
+                    }
+                }
+                fEntityManager.fCurrentEntity.mayReadChunks = true;
+
+                // if no XMLDecl, then scan piece of prolog
+                return true;
+            }
+            // encoding errors
+            catch (MalformedByteSequenceException e) {
+                fErrorReporter.reportError(e.getDomain(), e.getKey(), 
+                    e.getArguments(), XMLErrorReporter.SEVERITY_FATAL_ERROR);
+                return false;
+            }
+            catch (CharConversionException e) {
+                reportFatalError("CharConversionFailure", null);
+                return false;
+            }
+            // premature end of file
+            catch (EOFException e) {
+                reportFatalError("PrematureEOF", null);
+                return false;
+                //throw e;
+            }
+
+

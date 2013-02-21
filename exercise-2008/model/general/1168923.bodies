@@ -1,0 +1,36 @@
+class MetalLazyValue
+!!!9527067.java!!!	MetalLazyValue(in name : String)
+            this.className = name;
+!!!9527195.java!!!	MetalLazyValue(in name : String, in methodName : String)
+            this(name);
+            this.methodName = methodName;
+!!!9527323.java!!!	createValue(inout table : UIDefaults) : Object
+            try {
+                final Class c = Class.forName(className);
+
+                if (methodName == null) {
+                    return c.newInstance();
+                }
+                Method method = (Method)AccessController.doPrivileged(
+                    new PrivilegedAction() {
+                    public Object run() {
+                        Method[] methods = c.getDeclaredMethods();
+                        for (int counter = methods.length - 1; counter >= 0;
+                             counter--) {
+                            if (methods[counter].getName().equals(methodName)){
+                                methods[counter].setAccessible(true);
+                                return methods[counter];
+                            }
+                        }
+                        return null;
+                    }
+                });
+                if (method != null) {
+                    return method.invoke(null, null);
+                }
+            } catch (ClassNotFoundException cnfe) {
+            } catch (InstantiationException ie) {
+            } catch (IllegalAccessException iae) {
+            } catch (InvocationTargetException ite) {
+            }
+            return null;

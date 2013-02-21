@@ -1,0 +1,247 @@
+class ElementInfo
+!!!9916315.java!!!	ElementInfo(inout element : Element)
+            this(element, null);
+!!!9916443.java!!!	ElementInfo(inout element : Element, inout parent : ElementInfo)
+            this.element = element;
+            this.parent = parent;
+            isValid = false;
+            canBeValid = true;
+!!!9916571.java!!!	validate() : void
+            isValid = true;
+            loadChildren(getElement());
+!!!9916699.java!!!	loadChildren(inout parent : Element) : void
+            if (!parent.isLeaf()) {
+                for (int counter = 0, maxCounter = parent.getElementCount();
+                    counter < maxCounter; counter++) {
+                    Element e = parent.getElement(counter);
+                    ElementInfo childInfo = createElementInfo(e, this);
+
+                    if (childInfo != null) {
+                        addChild(childInfo);
+                    }
+                    else {
+                        loadChildren(e);
+                    }
+                }
+            }
+!!!9916827.java!!!	getIndexInParent() : int
+            if (parent == null || !parent.isValid()) {
+                return -1;
+            }
+            return parent.indexOf(this);
+!!!9916955.java!!!	getElement() : Element
+            return element;
+!!!9917083.java!!!	getParent() : ElementInfo
+            return parent;
+!!!9917211.java!!!	indexOf(inout child : ElementInfo) : int
+            ArrayList children = this.children;
+
+            if (children != null) {
+                return children.indexOf(child);
+            }
+            return -1;
+!!!9917339.java!!!	getChild(in index : int) : ElementInfo
+            if (validateIfNecessary()) {
+                ArrayList children = this.children;
+
+                if (children != null && index >= 0 &&
+                                        index < children.size()) {
+                    return (ElementInfo)children.get(index);
+                }
+            }
+            return null;
+!!!9917467.java!!!	getChildCount() : int
+            validateIfNecessary();
+            return (children == null) ? 0 : children.size();
+!!!9917595.java!!!	addChild(inout child : ElementInfo) : void
+            if (children == null) {
+                children = new ArrayList();
+            }
+            children.add(child);
+!!!9917723.java!!!	getView() : View
+            if (!validateIfNecessary()) {
+                return null;
+            }
+            Object lock = lock();
+            try {
+                View rootView = getRootView();
+                Element e = getElement();
+                int start = e.getStartOffset();
+
+                if (rootView != null) {
+                    return getView(rootView, e, start);
+                }
+                return null;
+            } finally {
+                unlock(lock);
+            }
+!!!9917851.java!!!	getBounds() : Rectangle
+            if (!validateIfNecessary()) {
+                return null;
+            }
+            Object lock = lock();
+            try {
+                Rectangle bounds = getRootEditorRect();
+                View rootView = getRootView();
+                Element e = getElement();
+
+                if (bounds != null && rootView != null) {
+                    try {
+                        return rootView.modelToView(e.getStartOffset(),
+                                                    Position.Bias.Forward,
+                                                    e.getEndOffset(),
+                                                    Position.Bias.Backward,
+                                                    bounds).getBounds();
+                    } catch (BadLocationException ble) { }
+                }
+            } finally {
+                unlock(lock);
+            }
+            return null;
+!!!9917979.java!!!	isValid() : boolean
+            return isValid;
+!!!9918107.java!!!	getAttributes() : AttributeSet
+            if (validateIfNecessary()) {
+                return getElement().getAttributes();
+            }
+            return null;
+!!!9918235.java!!!	getViewAttributes() : AttributeSet
+            if (validateIfNecessary()) {
+                View view = getView();
+
+                if (view != null) {
+                    return view.getElement().getAttributes();
+                }
+                return getElement().getAttributes();
+            }
+            return null;
+!!!9918363.java!!!	getIntAttr(inout attrs : AttributeSet, inout key : Object, in deflt : int) : int
+            if (attrs != null && attrs.isDefined(key)) {
+                int i;
+                String val = (String)attrs.getAttribute(key);
+                if (val == null) {
+                    i = deflt;
+                }
+                else {
+                    try {
+                        i = Math.max(0, Integer.parseInt(val));
+                    } catch (NumberFormatException x) {
+                        i = deflt;
+                    }
+                }
+                return i;
+            }
+            return deflt;
+!!!9918491.java!!!	validateIfNecessary() : boolean
+            if (!isValid() && canBeValid) {
+                children = null;
+                Object lock = lock();
+
+                try {
+                    validate();
+                } finally {
+                    unlock(lock);
+                }
+            }
+            return isValid();
+!!!9918619.java!!!	invalidate(inout first : boolean) : void
+            if (!isValid()) {
+                if (canBeValid && !first) {
+                    canBeValid = false;
+                }
+                return;
+            }
+            isValid = false;
+            canBeValid = first;
+            if (children != null) {
+                for (int counter = 0; counter < children.size(); counter++) {
+                    ((ElementInfo)children.get(counter)).invalidate(false);
+                }
+                children = null;
+            }
+!!!9918747.java!!!	getView(inout parent : View, inout e : Element, in start : int) : View
+            if (parent.getElement() == e) {
+                return parent;
+            }
+            int index = parent.getViewIndex(start, Position.Bias.Forward);
+
+            if (index != -1 && index < parent.getViewCount()) {
+                return getView(parent.getView(index), e, start);
+            }
+            return null;
+!!!9918875.java!!!	getClosestInfoIndex(in index : int) : int
+            for (int counter = 0; counter < getChildCount(); counter++) {
+                ElementInfo info = getChild(counter);
+
+                if (index < info.getElement().getEndOffset() ||
+                    index == info.getElement().getStartOffset()) {
+                    return counter;
+                }
+            }
+            return -1;
+!!!9919003.java!!!	update(inout e : DocumentEvent) : void
+            if (!isValid()) {
+                return;
+            }
+            ElementInfo parent = getParent();
+            Element element = getElement();
+
+            do {
+                DocumentEvent.ElementChange ec = e.getChange(element);
+                if (ec != null) {
+                    if (element == getElement()) {
+                        // One of our children changed.
+                        invalidate(true);
+                    }
+                    else if (parent != null) {
+                        parent.invalidate(parent == getRootInfo());
+                    }
+                    return;
+                }
+                element = element.getParentElement();
+            } while (parent != null && element != null &&
+                     element != parent.getElement());
+
+            if (getChildCount() > 0) {
+                Element elem = getElement();
+                int pos = e.getOffset();
+                int index0 = getClosestInfoIndex(pos);
+                if (index0 == -1 &&
+                    e.getType() == DocumentEvent.EventType.REMOVE &&
+                    pos >= elem.getEndOffset()) {
+                    // Event beyond our offsets. We may have represented this,
+                    // that is the remove may have removed one of our child
+                    // Elements that represented this, so, we should foward
+                    // to last element.
+                    index0 = getChildCount() - 1;
+                }
+                ElementInfo info = (index0 >= 0) ? getChild(index0) : null;
+                if (info != null &&
+                    (info.getElement().getStartOffset() == pos) && (pos > 0)) {
+                    // If at a boundary, forward the event to the previous
+                    // ElementInfo too.
+                    index0 = Math.max(index0 - 1, 0);
+                }
+                int index1;
+                if (e.getType() != DocumentEvent.EventType.REMOVE) {
+                    index1 = getClosestInfoIndex(pos + e.getLength());
+                    if (index1 < 0) {
+                        index1 = getChildCount() - 1;
+                    }
+                }
+                else {
+                    index1 = index0;
+                    // A remove may result in empty elements.
+                    while ((index1 + 1) < getChildCount() &&
+                           getChild(index1 + 1).getElement().getEndOffset() ==
+                           getChild(index1 + 1).getElement().getStartOffset()){
+                        index1++;
+                    }
+                }
+                index0 = Math.max(index0, 0);
+                // The check for isValid is here as in the process of
+                // forwarding update our child may invalidate us.
+                for (int i = index0; i <= index1 && isValid(); i++) {
+                    getChild(i).update(e);
+                }
+            }

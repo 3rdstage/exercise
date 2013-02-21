@@ -1,0 +1,120 @@
+class SchemaFactoryImpl
+!!!5431195.java!!!	SchemaFactoryImpl()
+        secureProcessing = new SecurityManager();
+        // intercept error report and remember the last thrown exception.
+        loader.setErrorHandler(new ErrorHandlerWrapper(new ErrorHandler() {
+            public void warning(SAXParseException exception) throws SAXException {
+                if( errorHandler!=null )    errorHandler.warning(exception);
+            }
+            
+            public void error(SAXParseException exception) throws SAXException {
+                lastException = exception;
+                if( errorHandler!=null )    errorHandler.error(exception);
+                else    throw exception;
+            }
+            
+            public void fatalError(SAXParseException exception) throws SAXException {
+                lastException = exception;
+                if( errorHandler!=null )    errorHandler.fatalError(exception);
+                else    throw exception;
+            }
+        }));
+!!!5431323.java!!!	isSchemaLanguageSupported(in schemaLanguage : String) : boolean
+        
+        if (schemaLanguage == null) {
+            throw new NullPointerException(
+            messageFormatter.formatMessage(Locale.getDefault(),
+            "SchemaLanguageSupportedErrorWhenNull",
+            new Object [] {this.getClass().getName()}));
+        }
+        
+        if (schemaLanguage.length() == 0) {
+            throw new IllegalArgumentException(
+            messageFormatter.formatMessage(Locale.getDefault(),
+            "SchemaLanguageSupportedErrorWhenLength",
+            new Object [] {this.getClass().getName()}));
+        }
+        
+        // understand W3C Schema and RELAX NG
+        if (schemaLanguage.equals(XMLConstants.W3C_XML_SCHEMA_NS_URI)
+        || schemaLanguage.equals(XMLConstants.RELAXNG_NS_URI)) {
+            return true;
+        }
+        
+        // don't know how to validate anything else
+        return false;
+!!!5431451.java!!!	getResourceResolver() : LSResourceResolver
+        return resourceResolver;
+!!!5431579.java!!!	setResourceResolver(inout resourceResolver : LSResourceResolver) : void
+        this.resourceResolver = resourceResolver;
+        loader.setEntityResolver(new DOMEntityResolverWrapper(resourceResolver));
+!!!5431707.java!!!	getErrorHandler() : ErrorHandler
+        return errorHandler;
+!!!5431835.java!!!	setErrorHandler(inout errorHandler : ErrorHandler) : void
+        this.errorHandler = errorHandler;
+!!!5431963.java!!!	newSchema(inout schemas : Source) : Schema
+        
+        lastException = null;
+        
+        // this will let the loader store parsed Grammars into the pool.
+        XMLGrammarPool pool = new XMLGrammarPoolImpl();
+        loader.setProperty(XercesConstants.XMLGRAMMAR_POOL,pool);
+        loader.setFeature(Constants.XERCES_FEATURE_PREFIX + Constants.SCHEMA_FULL_CHECKING,true);
+        if(enableSP)
+            loader.setProperty(Constants.XERCES_PROPERTY_PREFIX + Constants.SECURITY_MANAGER_PROPERTY,secureProcessing);
+        else
+            loader.setProperty(Constants.XERCES_PROPERTY_PREFIX + Constants.SECURITY_MANAGER_PROPERTY,null);
+        
+        for( int i=0; i<schemas.length; i++ ) {
+            try {
+                loader.loadGrammar(schemas[i]);
+            } catch (XNIException e) {
+                // this should have been reported to users already.
+                throw Util.toSAXException(e);
+            } catch (IOException e) {
+                // this hasn't been reported, so do so now.
+                SAXParseException se = new SAXParseException(e.getMessage(),null,e);
+                errorHandler.error(se);
+                throw se; // and we must throw it.
+            }
+        }
+        
+        // if any error had been reported, throw it.
+        if( lastException!=null )
+            throw lastException;
+        
+        // make sure no further grammars are added by making it read-only.
+        return new SchemaImpl(new ReadonlyGrammarPool(pool),true);
+!!!5432091.java!!!	newSchema() : Schema
+        // use a pool that uses the system id as the equality source.
+        return new SchemaImpl(new XMLGrammarPoolImpl() {
+            public boolean equals(XMLGrammarDescription desc1, XMLGrammarDescription desc2) {
+                String sid1 = desc1.getExpandedSystemId();
+                String sid2 = desc2.getExpandedSystemId();
+                if( sid1!=null && sid2!=null )
+                    return sid1.equals(sid2);
+                if( sid1==null && sid2==null )
+                    return true;
+                return false;
+            }
+            public int hashCode(XMLGrammarDescription desc) {
+                String s = desc.getExpandedSystemId();
+                if(s!=null)     return s.hashCode();
+                return 0;
+            }
+        }, false);
+!!!5432219.java!!!	setFeature(in name : String, inout value : boolean) : void
+        if(name==null) throw new NullPointerException(SAXMessageFormatter.formatMessage(Locale.getDefault(),
+        "nullparameter",new Object[] {"setFeature(String,boolean)"}));
+        if(name.equals(Constants.FEATURE_SECURE_PROCESSING)){
+            enableSP = value;
+        }else throw new SAXNotRecognizedException(SAXMessageFormatter.formatMessage(Locale.getDefault(),
+        "feature-not-supported", new Object [] {name}));
+        
+!!!5432347.java!!!	getFeature(in name : String) : boolean
+        if(name==null) throw new NullPointerException(SAXMessageFormatter.formatMessage(Locale.getDefault(),
+        "nullparameter",new Object[] {"getFeature(String)"}));
+        if(name.equals(Constants.FEATURE_SECURE_PROCESSING))
+            return enableSP;
+        else throw new SAXNotRecognizedException(SAXMessageFormatter.formatMessage(Locale.getDefault(),
+        "feature-not-supported", new Object [] {name}));

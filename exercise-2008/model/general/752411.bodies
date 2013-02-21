@@ -1,0 +1,56 @@
+class XSAnnotationImpl
+!!!5206683.java!!!	XSAnnotationImpl(in contents : String, inout grammar : SchemaGrammar)
+        fData = contents;
+        fGrammar = grammar;
+!!!5206811.java!!!	writeAnnotation(inout target : Object, in targetType : short) : boolean
+        if(targetType == XSAnnotation.W3C_DOM_ELEMENT || targetType == XSAnnotation.W3C_DOM_DOCUMENT) {
+            writeToDOM((Node)target, targetType);
+            return true;
+        } else if (targetType == SAX_CONTENTHANDLER) {
+            writeToSAX((ContentHandler)target);
+            return true;
+        }
+        return false;
+!!!5206939.java!!!	getAnnotationString() : String
+        return fData;
+!!!5207067.java!!!	getType() : short
+        return XSConstants.ANNOTATION;
+!!!5207195.java!!!	getName() : String
+        return null;
+!!!5207323.java!!!	getNamespace() : String
+        return null;
+!!!5207451.java!!!	getNamespaceItem() : XSNamespaceItem
+        return null;
+!!!5207579.java!!!	writeToSAX(inout handler : ContentHandler) : void
+        // nothing must go wrong with this parse...
+        SAXParser parser = fGrammar.getSAXParser();
+        StringReader aReader = new StringReader(fData);
+        InputSource aSource = new InputSource(aReader);
+        parser.setContentHandler(handler);
+        try {
+            parser.parse(aSource);
+        } catch (SAXException e) {
+            // this should never happen!
+            // REVISIT:  what to do with this?; should really not
+            // eat it...
+        } catch (IOException i) {
+            // ditto with above
+        }
+!!!5207707.java!!!	writeToDOM(inout target : Node, in type : short) : void
+        Document futureOwner = (type == XSAnnotation.W3C_DOM_ELEMENT)?target.getOwnerDocument():(Document)target;
+        DOMParser parser = fGrammar.getDOMParser();
+        StringReader aReader = new StringReader(fData);
+        InputSource aSource = new InputSource(aReader);
+        try {
+            parser.parse(aSource);
+        } catch (SAXException e) {
+            // this should never happen!
+            // REVISIT:  what to do with this?; should really not
+            // eat it...
+        } catch (IOException i) {
+            // ditto with above
+        }
+        Document aDocument = parser.getDocument();
+        Element annotation = aDocument.getDocumentElement();
+        Node newElem = futureOwner.importNode(annotation, true);
+        target.insertBefore(newElem, target.getFirstChild());

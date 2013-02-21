@@ -1,0 +1,56 @@
+class Trace
+!!!3547291.java!!!	Trace()
+	
+!!!3547419.java!!!	initDestination() : TraceDestination
+      // Attempt to locate class java.util.logging.LogManager
+      //
+      try
+      {
+        Class.forName("java.util.logging.LogManager");
+        
+        // Class could be loaded, use a new instance of TraceManager as the trace
+        // destination 
+        //
+        return new TraceManager();
+      }
+      catch (ClassNotFoundException e)
+      {
+        // Class could not be loaded, means that we are running J2SE 1.3 or below.
+        //
+        return null;
+      }
+!!!3547547.java!!!	setDestination(inout output : TraceDestination) : void
+	out = output;
+!!!3547675.java!!!	isSelected(in level : int, in type : int) : boolean
+	final TraceDestination output = out();
+	if (output != null) return output.isSelected(level,type);
+	return false;
+!!!3547803.java!!!	send(in level : int, in type : int, in className : String, in methodName : String, in info : String) : boolean
+
+	final TraceDestination output = out();
+	if (output == null) return false;
+	if (!(output.isSelected(level, type))) return false;
+	return output.send(level,type,className,methodName,info);
+!!!3547931.java!!!	send(in level : int, in type : int, in className : String, in methodName : String, inout exception : Throwable) : boolean
+	final TraceDestination output = out();
+	if (output == null) return false;
+	if (!(output.isSelected(level, type))) return false;
+	return output.send(level,type,className,methodName,exception);
+!!!3548059.java!!!	warning(in loggerName : String, in msg : String) : void
+	final TraceDestination output = out();
+	if (output instanceof TraceManager)
+	    // Log a warning message
+	    ((TraceManager)output).warning(loggerName,msg);
+	else if (output != null) 
+	    // Best effort
+	    output.send(LEVEL_TRACE,INFO_MISC,null,null,msg);
+!!!3548187.java!!!	fine(in loggerName : String, in msg : String) : void
+	final TraceDestination output = out();
+	if (output instanceof TraceManager)
+	    // Log a fine message
+	    ((TraceManager)output).fine(loggerName,msg);
+	else if (output != null) 
+	    // Best effort
+	    output.send(LEVEL_TRACE,INFO_MISC,null,null,msg);
+!!!3548315.java!!!	out() : TraceDestination
+	return out;

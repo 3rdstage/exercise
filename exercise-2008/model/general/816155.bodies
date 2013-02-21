@@ -1,0 +1,142 @@
+class VariableStack
+!!!5911579.java!!!	VariableStack()
+    reset();
+!!!5911707.java!!!	clone() : Object
+
+    VariableStack vs = (VariableStack) super.clone();
+
+    // I *think* I can get away with a shallow clone here?
+    vs._stackFrames = (XObject[]) _stackFrames.clone();
+    vs._links = (int[]) _links.clone();
+
+    return vs;
+!!!5911835.java!!!	elementAt(in i : int) : XObject
+    return _stackFrames[i];
+!!!5911963.java!!!	size() : int
+    return _frameTop;
+!!!5912091.java!!!	reset() : void
+
+    _frameTop = 0;
+    _linksTop = 0;
+
+    // Adding one here to the stack of frame positions will allow us always 
+    // to look one under without having to check if we're at zero.
+    // (As long as the caller doesn't screw up link/unlink.)
+    _links[_linksTop++] = 0;
+    _stackFrames = new XObject[_stackFrames.length]; 
+!!!5912219.java!!!	setStackFrame(in sf : int) : void
+    _currentFrameBottom = sf;
+!!!5912347.java!!!	getStackFrame() : int
+    return _currentFrameBottom;
+!!!5912475.java!!!	link(in size : int) : int
+
+    _currentFrameBottom = _frameTop;
+    _frameTop += size;
+
+    if (_frameTop >= _stackFrames.length)
+    {
+      XObject newsf[] = new XObject[_stackFrames.length + XPathContext.RECURSIONLIMIT + size];
+
+      System.arraycopy(_stackFrames, 0, newsf, 0, _stackFrames.length);
+
+      _stackFrames = newsf;
+    }
+
+    if (_linksTop + 1 >= _links.length)
+    {
+      int newlinks[] = new int[_links.length + (CLEARLIMITATION * 2)];
+
+      System.arraycopy(_links, 0, newlinks, 0, _links.length);
+
+      _links = newlinks;
+    }
+
+    _links[_linksTop++] = _currentFrameBottom;
+
+    return _currentFrameBottom;
+!!!5912603.java!!!	unlink() : void
+    _frameTop = _links[--_linksTop];
+    _currentFrameBottom = _links[_linksTop - 1];
+!!!5912731.java!!!	unlink(in currentFrame : int) : void
+    _frameTop = _links[--_linksTop];
+    _currentFrameBottom = currentFrame; 
+!!!5912859.java!!!	setLocalVariable(in index : int, inout val : XObject) : void
+    _stackFrames[index + _currentFrameBottom] = val;
+!!!5912987.java!!!	setLocalVariable(in index : int, inout val : XObject, in stackFrame : int) : void
+    _stackFrames[index + stackFrame] = val;
+!!!5913115.java!!!	getLocalVariable(inout xctxt : XPathContext, in index : int) : XObject
+
+    index += _currentFrameBottom;
+
+    XObject val = _stackFrames[index];
+    
+    if(null == val)
+      throw new TransformerException(XSLMessages.createXPATHMessage(XPATHErrorResources.ER_VARIABLE_ACCESSED_BEFORE_BIND, null),
+                     xctxt.getSAXLocator());
+      // "Variable accessed before it is bound!", xctxt.getSAXLocator());
+
+    // Lazy execution of variables.
+    if (val.getType() == XObject.CLASS_UNRESOLVEDVARIABLE)
+      return (_stackFrames[index] = val.execute(xctxt));
+
+    return val;
+!!!5913243.java!!!	getLocalVariable(in index : int, in frame : int) : XObject
+
+    index += frame;
+
+    XObject val = _stackFrames[index];
+
+    return val;
+!!!5913371.java!!!	getLocalVariable(inout xctxt : XPathContext, in index : int, inout destructiveOK : boolean) : XObject
+
+    index += _currentFrameBottom;
+
+    XObject val = _stackFrames[index];
+    
+    if(null == val)
+      throw new TransformerException(XSLMessages.createXPATHMessage(XPATHErrorResources.ER_VARIABLE_ACCESSED_BEFORE_BIND, null),
+                     xctxt.getSAXLocator());
+      // "Variable accessed before it is bound!", xctxt.getSAXLocator());
+
+    // Lazy execution of variables.
+    if (val.getType() == XObject.CLASS_UNRESOLVEDVARIABLE)
+      return (_stackFrames[index] = val.execute(xctxt));
+
+    return destructiveOK ? val : val.getFresh();
+!!!5913499.java!!!	isLocalSet(in index : int) : boolean
+    return (_stackFrames[index + _currentFrameBottom] != null);
+!!!5913627.java!!!	clearLocalSlots(in start : int, in len : int) : void
+
+    start += _currentFrameBottom;
+
+    System.arraycopy(m_nulls, 0, _stackFrames, start, len);
+!!!5913755.java!!!	setGlobalVariable(in index : int, in val : XObject) : void
+    _stackFrames[index] = val;
+!!!5913883.java!!!	getGlobalVariable(inout xctxt : XPathContext, in index : int) : XObject
+
+    XObject val = _stackFrames[index];
+
+    // Lazy execution of variables.
+    if (val.getType() == XObject.CLASS_UNRESOLVEDVARIABLE)
+      return (_stackFrames[index] = val.execute(xctxt));
+
+    return val;
+!!!5914011.java!!!	getGlobalVariable(inout xctxt : XPathContext, in index : int, inout destructiveOK : boolean) : XObject
+
+    XObject val = _stackFrames[index];
+
+    // Lazy execution of variables.
+    if (val.getType() == XObject.CLASS_UNRESOLVEDVARIABLE)
+      return (_stackFrames[index] = val.execute(xctxt));
+
+    return destructiveOK ? val : val.getFresh();
+!!!5914139.java!!!	getVariableOrParam(inout xctxt : XPathContext, inout qname : QName) : XObject
+
+    // <<<<<<<   TIGER SPECIFIC CHANGE >>>>>>>>>
+    // As we are not supporting Xalan interpretive we are taking away the functionality
+    // dependent on XSLT interpretive Transformer. Only way supported is to use XSLTC 
+    // and the execution path needed for supporting standard XPath API defined by 
+    // JAXP 1.3 . This method is overridden in XPath implementation to support 
+    // standard XPath functionality with xpath package of Xalan   
+
+    throw new javax.xml.transform.TransformerException(XSLMessages.createXPATHMessage(XPATHErrorResources.ER_VAR_NOT_RESOLVABLE, new Object[]{qname.toString()})); //"Variable not resolvable: " + qname);

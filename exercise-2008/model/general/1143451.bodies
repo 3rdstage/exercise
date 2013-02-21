@@ -1,0 +1,116 @@
+class BasicColorChooserUI
+!!!9377947.java!!!	createUI(inout c : JComponent) : ComponentUI
+	return new BasicColorChooserUI();
+!!!9378075.java!!!	createDefaultChoosers() : AbstractColorChooserPanel
+        AbstractColorChooserPanel[] panels = ColorChooserComponentFactory.getDefaultChooserPanels();
+	return panels;
+!!!9378203.java!!!	uninstallDefaultChoosers() : void
+        AbstractColorChooserPanel[] choosers = chooser.getChooserPanels();
+        for( int i = 0 ; i < choosers.length; i++) {
+       	    chooser.removeChooserPanel( choosers[i] );
+	}
+!!!9378331.java!!!	installUI(inout c : JComponent) : void
+        chooser = (JColorChooser)c;
+
+        super.installUI( c );
+
+	installDefaults();
+	installListeners();
+
+	tabbedPane = new JTabbedPane();
+        tabbedPane.setName("ColorChooser.tabPane");
+	singlePanel = new JPanel(new CenterLayout());
+        singlePanel.setName("ColorChooser.panel");
+
+	chooser.setLayout( new BorderLayout() );
+
+	defaultChoosers = createDefaultChoosers();
+	chooser.setChooserPanels(defaultChoosers);
+
+	previewPanelHolder = new JPanel(new CenterLayout());
+        previewPanelHolder.setName("ColorChooser.previewPanelHolder");
+
+        if (DefaultLookup.getBoolean(chooser, this,
+                                  "ColorChooser.showPreviewPanelText", true)) {
+            String previewString = UIManager.getString(
+                "ColorChooser.previewText", chooser.getLocale());
+            previewPanelHolder.setBorder(new TitledBorder(previewString));
+        }
+	chooser.add(previewPanelHolder, BorderLayout.SOUTH);
+
+	installPreviewPanel();
+	chooser.applyComponentOrientation(c.getComponentOrientation());
+!!!9378459.java!!!	uninstallUI(inout c : JComponent) : void
+	chooser.remove(tabbedPane);
+	chooser.remove(singlePanel);
+	chooser.remove(previewPanelHolder);
+
+        uninstallDefaultChoosers();
+	uninstallListeners();
+	uninstallDefaults();
+
+	previewPanelHolder.remove(previewPanel);
+	if (previewPanel instanceof UIResource) {
+	    chooser.setPreviewPanel(null);
+	}
+
+	previewPanelHolder = null;
+	previewPanel = null;
+	defaultChoosers = null;
+	chooser = null;
+	tabbedPane = null;
+
+        handler = null;
+!!!9378587.java!!!	installPreviewPanel() : void
+	if (previewPanel != null) {
+	    previewPanelHolder.remove(previewPanel);
+	    previewPanel.removeMouseListener(getHandler());
+	}
+
+	previewPanel = chooser.getPreviewPanel();
+        Dimension layoutSize = new Dimension(); // fix for bug 4759306
+        if (previewPanel != null) {
+            layoutSize = new BorderLayout().minimumLayoutSize(previewPanel);
+            if ((previewPanelHolder != null) && (chooser != null) &&
+            (layoutSize.getWidth() + layoutSize.getHeight() == 0)) {
+              chooser.remove(previewPanelHolder);
+              return;
+            }
+        }
+	if (previewPanel == null || previewPanel instanceof UIResource) { 
+	  previewPanel = ColorChooserComponentFactory.getPreviewPanel(); // get from table?
+	    chooser.setPreviewPanel(previewPanel);
+	}
+	previewPanel.setForeground(chooser.getColor());
+	previewPanelHolder.add(previewPanel);
+	previewPanel.addMouseListener(getHandler());
+!!!9378715.java!!!	installDefaults() : void
+        LookAndFeel.installColorsAndFont(chooser, "ColorChooser.background", 
+                                              "ColorChooser.foreground",
+                                              "ColorChooser.font");
+        LookAndFeel.installProperty(chooser, "opaque", Boolean.TRUE);
+	TransferHandler th = chooser.getTransferHandler();
+	if (th == null || th instanceof UIResource) {
+	    chooser.setTransferHandler(defaultTransferHandler);
+	}
+!!!9378843.java!!!	uninstallDefaults() : void
+	if (chooser.getTransferHandler() instanceof UIResource) {
+	    chooser.setTransferHandler(null);
+	}
+!!!9378971.java!!!	installListeners() : void
+        propertyChangeListener = createPropertyChangeListener();
+	chooser.addPropertyChangeListener( propertyChangeListener );
+
+	previewListener = getHandler();
+	chooser.getSelectionModel().addChangeListener(previewListener);
+!!!9379099.java!!!	getHandler() : Handler
+        if (handler == null) {
+            handler = new Handler();
+        }
+        return handler;
+!!!9379227.java!!!	createPropertyChangeListener() : PropertyChangeListener
+        return getHandler();
+!!!9379355.java!!!	uninstallListeners() : void
+	chooser.removePropertyChangeListener( propertyChangeListener );
+	chooser.getSelectionModel().removeChangeListener(previewListener);
+	previewPanel.removeMouseListener(getHandler());

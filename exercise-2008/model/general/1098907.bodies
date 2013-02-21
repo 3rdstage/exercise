@@ -1,0 +1,290 @@
+class SyncFactory
+!!!8822427.java!!!	registerProvider(in providerID : String) : void
+        
+        ProviderImpl impl = new ProviderImpl();
+        impl.setClassname(providerID);
+        initMapIfNecessary();
+        implementations.put(providerID, impl);
+        
+!!!8822555.java!!!	getSyncFactory() : SyncFactory
+         
+         // This method uses the Singleton Design Pattern
+         // with Double-Checked Locking Pattern for
+         // 1. Creating single instance of the SyncFactory
+         // 2. Make the class thread safe, so that at one time
+         //    only one thread enters the synchronized block
+         //    to instantiate. 
+         
+         // if syncFactory object is already there
+         // don't go into synchronized block and return
+         // that object.
+         // else go into synchronized block
+         
+         if(syncFactory == null){
+	     synchronized(SyncFactory.class) {
+	        if(syncFactory == null){
+	            syncFactory = new SyncFactory();
+	        } //end if   
+	     } //end synchronized block    
+         } //end if
+         return syncFactory;
+!!!8822683.java!!!	unregisterProvider(in providerID : String) : void
+           
+        initMapIfNecessary();    
+        if (implementations.containsKey(providerID)) {
+            implementations.remove(providerID);
+        }
+!!!8822811.java!!!	initMapIfNecessary() : void
+                
+        
+        // Local implementation class names and keys from Properties
+        // file, translate names into Class objects using Class.forName
+        // and store mappings
+        Properties properties = new Properties();                            
+                                
+        if (implementations == null) {
+            implementations = new Hashtable();                                    
+                        
+            try {                        
+                                
+                // check if user is supplying his Synchronisation Provider 
+                // Implementation  if not use Sun's implementation.                                      
+                // properties.load(new FileInputStream(ROWSET_PROPERTIES));
+                 
+                // The rowset.properties needs to be in jdk/jre/lib when 
+                // integrated with jdk.
+                // else it should be picked from -D option from command line.
+
+                // -Drowset.properties will add to standard properties. Similar
+                // keys will over-write
+
+                /*
+                 * Dependent on application
+                 */
+                String strRowsetProperties = System.getProperty("rowset.properties");
+                if ( strRowsetProperties != null) {
+                    // Load user's implementation of SyncProvider 
+                    // here. -Drowset.properties=/abc/def/pqr.txt
+                    ROWSET_PROPERTIES = strRowsetProperties; 
+                    properties.load(new FileInputStream(ROWSET_PROPERTIES));
+                    parseProperties(properties);
+                } 
+                 
+                /*
+                 * Always available 
+                 */
+                ROWSET_PROPERTIES = "javax" + strFileSep + "sql" + 
+                    strFileSep + "rowset" + strFileSep + 
+                    "rowset.properties";
+                // properties.load(
+                //                ClassLoader.getSystemResourceAsStream(ROWSET_PROPERTIES));
+                
+                ClassLoader cl = Thread.currentThread().getContextClassLoader();
+                
+                properties.load(cl.getResourceAsStream(ROWSET_PROPERTIES));
+                parseProperties(properties);
+
+                // removed else, has properties should sum together
+
+            } catch (FileNotFoundException e) {
+                throw new SyncFactoryException("Cannot locate properties file: " + e);
+            } catch (IOException e) {
+                throw new SyncFactoryException("IOException: " + e);
+            }
+                                      
+            /*
+             * Now deal with -Drowset.provider.classname
+             * load additional properties from -D command line
+             */
+            properties.clear();
+            String providerImpls = System.getProperty(ROWSET_SYNC_PROVIDER);      
+
+            if (providerImpls != null) {
+                int i = 0;
+                if (providerImpls.indexOf(colon) > 0) {
+                    StringTokenizer tokenizer = new StringTokenizer(providerImpls, colon);
+                    while (tokenizer.hasMoreElements()) {
+                        properties.put(ROWSET_SYNC_PROVIDER + "." + i, tokenizer.nextToken());
+                        i++;
+                    }
+                } else {
+                    properties.put(ROWSET_SYNC_PROVIDER, providerImpls);
+                }
+                parseProperties(properties);
+            }
+        }        
+!!!8822939.java!!!	parseProperties(inout p : Properties) : void
+
+        ProviderImpl impl = null;
+        String key = null;
+        String[] propertyNames = null;               
+        
+        for (Enumeration e = p.propertyNames(); e.hasMoreElements() ;) {
+
+            String str = (String)e.nextElement();
+                               
+            int w = str.length();
+
+            if (str.startsWith(SyncFactory.ROWSET_SYNC_PROVIDER)) {
+                
+                impl = new ProviderImpl();
+                impl.setIndex(providerImplIndex++);
+
+                if (w == (SyncFactory.ROWSET_SYNC_PROVIDER).length()) {
+                    // no property index has been set.
+                    propertyNames = getPropertyNames(false);
+                } else {
+                    // property index has been set. 
+                    propertyNames = getPropertyNames(true, str.substring(w-1));
+                }
+
+                key = p.getProperty(propertyNames[0]);                
+                impl.setClassname(key);
+                impl.setVendor(p.getProperty(propertyNames[1]));
+                impl.setVersion(p.getProperty(propertyNames[2]));
+                implementations.put(key, impl);                                
+            }
+        }            
+!!!8823067.java!!!	getPropertyNames(inout append : boolean) : String
+        return getPropertyNames(append, null);
+!!!8823195.java!!!	getPropertyNames(inout append : boolean, in propertyIndex : String) : String
+        String dot = ".";
+        String[] propertyNames = 
+            new String[] {SyncFactory.ROWSET_SYNC_PROVIDER, 
+                              SyncFactory.ROWSET_SYNC_VENDOR,
+                              SyncFactory.ROWSET_SYNC_PROVIDER_VERSION};
+        if (append) {
+            for (int i = 0; i < propertyNames.length; i++) {
+                propertyNames[i] = propertyNames[i] + 
+                    dot + 
+                    propertyIndex;
+            }
+            return propertyNames;
+        } else {
+            return propertyNames;
+        }
+!!!8823323.java!!!	showImpl(inout impl : ProviderImpl) : void
+        System.out.println("Provider implementation:");
+        System.out.println("Classname: " + impl.getClassname());
+        System.out.println("Vendor: " + impl.getVendor());
+        System.out.println("Version: " + impl.getVersion());
+        System.out.println("Impl index: " + impl.getIndex());
+!!!8823451.java!!!	getInstance(in providerID : String) : SyncProvider
+        initMapIfNecessary(); // populate HashTable
+        initJNDIContext();    // check JNDI context for any additional bindings
+        
+        ProviderImpl impl = (ProviderImpl)implementations.get(providerID);        
+        
+        if (impl == null) {                            
+            // Requested SyncProvider is unavailable. Return default provider.            
+            return new com.sun.rowset.providers.RIOptimisticProvider();
+        }
+        
+        // Attempt to invoke classname from registered SyncProvider list
+        Class c = null;                
+        try {
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();           
+            
+            /**
+             * The SyncProvider implementation of the user will be in 
+             * the classpath. We need to find the ClassLoader which loads 
+             * this SyncFactory and try to laod the SyncProvider class from 
+             * there.
+             **/
+	    
+	    c = Class.forName(providerID, true, cl);
+	    	
+            if (c != null) {                
+                return (SyncProvider)c.newInstance();
+            } else {                
+                return new com.sun.rowset.providers.RIOptimisticProvider();              
+            }                
+            
+        } catch (IllegalAccessException e) {
+            throw new SyncFactoryException("IllegalAccessException: " + e.getMessage());            
+        } catch (InstantiationException e) {
+            throw new SyncFactoryException("InstantiationException: " + e.getMessage());            
+        } catch (ClassNotFoundException e) {
+            throw new SyncFactoryException("ClassNotFoundException: " + e.getMessage());
+        }                       
+!!!8823579.java!!!	getRegisteredProviders() : Enumeration
+        initMapIfNecessary();
+        // return a collection of classnames
+        // of type SyncProvider
+        return implementations.elements();
+!!!8823707.java!!!	setLogger(inout logger : Logger) : void
+        rsLogger = logger;
+!!!8823835.java!!!	setLogger(inout logger : Logger, inout level : Level) : void
+	// singleton 
+       
+	rsLogger = logger;
+	rsLogger.setLevel(level);
+!!!8823963.java!!!	getLogger() : Logger
+	// only one logger per session
+	if(rsLogger == null){
+	   throw new SyncFactoryException("(SyncFactory) : No logger has been set");
+	}
+	return rsLogger;
+!!!8824091.java!!!	setJNDIContext(inout ctx : Context) : void
+	if (ctx == null) {
+	    throw new SyncFactoryException("Invalid JNDI context supplied");
+	}
+	ic = ctx;        
+        jndiCtxEstablished = true;
+!!!8824219.java!!!	initJNDIContext() : void
+        
+                        
+        if (jndiCtxEstablished && (ic != null) && (lazyJNDICtxRefresh == false)) {
+            try {                                
+                parseProperties(parseJNDIContext());
+                lazyJNDICtxRefresh = true; // touch JNDI namespace once.
+            } catch (NamingException e) {
+		e.printStackTrace();
+                throw new SyncFactoryException("SPI: NamingException: " + e.getExplanation());
+            } catch (Exception e) {
+		e.printStackTrace();
+	throw new SyncFactoryException("SPI: Exception: " + e.getMessage());
+	    }
+        }           
+!!!8824347.java!!!	parseJNDIContext() : Properties
+                
+        NamingEnumeration bindings = ic.listBindings("");
+        Properties properties = new Properties();        
+        
+        // Hunt one level below context for available SyncProvider objects                            
+	enumerateBindings(bindings, properties);
+
+        return properties;
+!!!8824475.java!!!	enumerateBindings(inout bindings : NamingEnumeration, inout properties : Properties) : void
+
+	boolean syncProviderObj = false; // move to parameters ?
+
+	try {
+	    Binding bd = null;
+	    Object elementObj = null;
+	    String element = null;
+	    while (bindings.hasMore()) {
+	        bd = (Binding)bindings.next();
+	        element = bd.getName();
+	        elementObj = bd.getObject();
+
+	        if (!(ic.lookup(element) instanceof Context)) {
+		     // skip directories/sub-contexts
+	             if (ic.lookup(element) instanceof SyncProvider) {
+			syncProviderObj = true;
+		     }
+		}
+
+		if (syncProviderObj) {
+		    SyncProvider sync = (SyncProvider)elementObj;
+		    properties.put(SyncFactory.ROWSET_SYNC_PROVIDER,
+			sync.getProviderID());
+		    syncProviderObj = false; // reset
+		}
+
+            }
+	} catch (javax.naming.NotContextException e) {
+	    bindings.next();
+	    // Re-entrant call into method
+	    enumerateBindings(bindings, properties);
+	}

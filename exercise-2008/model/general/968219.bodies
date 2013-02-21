@@ -1,0 +1,542 @@
+class Security
+!!!7609755.java!!!	initialize() : void
+	props = new Properties();
+	boolean loadedProps = false;
+	boolean overrideAll = false;
+
+	// first load the system properties file
+	// to determine the value of security.overridePropertiesFile
+	File propFile = securityPropFile("java.security");
+	if (propFile.exists()) {
+	    try {
+		FileInputStream fis = new FileInputStream(propFile);
+		InputStream is = new BufferedInputStream(fis);
+		props.load(is);
+		is.close();
+		loadedProps = true;
+
+		if (sdebug != null) {
+		    sdebug.println("reading security properties file: " +
+				propFile);
+		}
+	    } catch (IOException e) {
+		if (sdebug != null) {
+		    sdebug.println("unable to load security properties from " +
+				propFile);
+		    e.printStackTrace();
+		}
+	    }
+	}
+
+	if ("true".equalsIgnoreCase(props.getProperty
+		("security.overridePropertiesFile"))) {
+
+	    String extraPropFile = System.getProperty
+					("java.security.properties");
+	    if (extraPropFile != null && extraPropFile.startsWith("=")) {
+		overrideAll = true;
+		extraPropFile = extraPropFile.substring(1);
+	    }
+
+	    if (overrideAll) {
+		props = new Properties();
+		if (sdebug != null) {
+		    sdebug.println
+			("overriding other security properties files!");
+		}
+	    }
+
+	    // now load the user-specified file so its values
+	    // will win if they conflict with the earlier values
+	    if (extraPropFile != null) {
+		try {
+		    URL propURL;
+
+		    extraPropFile = PropertyExpander.expand(extraPropFile);
+		    propFile = new File(extraPropFile);
+		    if (propFile.exists()) {
+			propURL = new URL
+				("file:" + propFile.getCanonicalPath());
+		    } else {
+			propURL = new URL(extraPropFile);
+		    }
+		    BufferedInputStream bis = new BufferedInputStream
+					(propURL.openStream());
+		    props.load(bis);
+		    bis.close();
+		    loadedProps = true;
+
+		    if (sdebug != null) {
+			sdebug.println("reading security properties file: " +
+					propURL);
+			if (overrideAll) {
+			    sdebug.println
+				("overriding other security properties files!");
+			}
+		    }
+		} catch (Exception e) {
+		    if (sdebug != null) {
+			sdebug.println
+				("unable to load security properties from " +
+				extraPropFile);
+			e.printStackTrace();
+		    }
+		}
+	    }
+	}
+
+	if (!loadedProps) {
+	    initializeStatic();
+	    if (sdebug != null) {
+		sdebug.println("unable to load security properties " +
+			"-- using defaults");
+	    }
+	}
+
+!!!7609883.java!!!	initializeStatic() : void
+	props.put("security.provider.1", "sun.security.provider.Sun");
+	props.put("security.provider.2", "sun.security.rsa.SunRsaSign");
+	props.put("security.provider.3", "com.sun.net.ssl.internal.ssl.Provider");
+	props.put("security.provider.4", "com.sun.crypto.provider.SunJCE");
+	props.put("security.provider.5", "sun.security.jgss.SunProvider");
+	props.put("security.provider.6", "com.sun.security.sasl.Provider");
+!!!7610139.java!!!	securityPropFile(in filename : String) : File
+	// maybe check for a system property which will specify where to
+	// look. Someday.
+	String sep = File.separator;
+	return new File(System.getProperty("java.home") + sep + "lib" + sep + 
+			"security" + sep + filename);
+!!!7610267.java!!!	getProviderProperty(in key : String) : ProviderProperty
+	ProviderProperty entry = null;
+
+	List providers = Providers.getProviderList().providers();
+	for (int i = 0; i < providers.size(); i++) {
+
+	    String matchKey = null;
+	    Provider prov = (Provider)providers.get(i);	    
+	    String prop = prov.getProperty(key);
+
+	    if (prop == null) {
+		// Is there a match if we do a case-insensitive property name
+		// comparison? Let's try ...
+		for (Enumeration e = prov.keys();
+		     e.hasMoreElements() && prop == null; ) {
+		    matchKey = (String)e.nextElement();
+		    if (key.equalsIgnoreCase(matchKey)) {
+			prop = prov.getProperty(matchKey);
+			break;
+		    }
+		}
+	    }
+
+	    if (prop != null) {
+		ProviderProperty newEntry = new ProviderProperty();
+		newEntry.className = prop;
+		newEntry.provider = prov;
+		return newEntry;
+	    }
+	}
+
+	return entry;
+!!!7610395.java!!!	getProviderProperty(in key : String, inout provider : Provider) : String
+	String prop = provider.getProperty(key);
+	if (prop == null) {
+	    // Is there a match if we do a case-insensitive property name
+	    // comparison? Let's try ...
+	    for (Enumeration e = provider.keys();
+		 e.hasMoreElements() && prop == null; ) {
+		String matchKey = (String)e.nextElement();
+		if (key.equalsIgnoreCase(matchKey)) {
+		    prop = provider.getProperty(matchKey);
+		    break;
+		}
+	    }
+	}
+	return prop;
+!!!7610523.java!!!	getAlgorithmProperty(in algName : String, in propName : String) : String
+	ProviderProperty entry = getProviderProperty("Alg." + propName
+						     + "." + algName);
+	if (entry != null) {
+	    return entry.className;
+	} else {
+	    return null;
+	}
+!!!7610651.java!!!	insertProviderAt(inout provider : Provider, in position : int) : int
+	String providerName = provider.getName();
+	check("insertProvider." + providerName);
+	ProviderList list = Providers.getFullProviderList();
+	ProviderList newList = ProviderList.insertAt(list, provider, position - 1);
+	if (list == newList) {
+	    return -1;
+	}
+	Providers.setProviderList(newList);
+	return newList.getIndex(providerName) + 1;
+!!!7610779.java!!!	addProvider(inout provider : Provider) : int
+	/*
+ 	 * We can't assign a position here because the statically
+	 * registered providers may not have been installed yet. 
+	 * insertProviderAt() will fix that value after it has 
+	 * loaded the static providers.
+ 	 */
+	return insertProviderAt(provider, 0);
+!!!7610907.java!!!	removeProvider(in name : String) : void
+	check("removeProvider." + name);
+	ProviderList list = Providers.getFullProviderList();
+	ProviderList newList = ProviderList.remove(list, name);
+	Providers.setProviderList(newList);
+!!!7611035.java!!!	getProviders() : Provider
+	return Providers.getFullProviderList().toArray();
+!!!7611163.java!!!	getProvider(in name : String) : Provider
+	return Providers.getProviderList().getProvider(name);
+!!!7611291.java!!!	getProviders(in filter : String) : Provider
+	String key = null;
+	String value = null;
+	int index = filter.indexOf(':');
+
+	if (index == -1) {
+	    key = filter;
+	    value = "";
+	} else {
+	    key = filter.substring(0, index);
+	    value = filter.substring(index + 1);
+	}
+
+	Hashtable hashtableFilter = new Hashtable(1);
+	hashtableFilter.put(key, value);
+
+	return (getProviders(hashtableFilter));
+!!!7611419.java!!!	getProviders(inout filter : Map) : Provider
+	// Get all installed providers first.
+	// Then only return those providers who satisfy the selection criteria.
+	Provider[] allProviders = Security.getProviders();
+	Set keySet = filter.keySet();
+	LinkedHashSet candidates = new LinkedHashSet(5);
+
+	// Returns all installed providers
+	// if the selection criteria is null.
+	if ((keySet == null) || (allProviders == null)) {
+	    return allProviders;
+	}
+	
+	boolean firstSearch = true;
+
+	// For each selection criterion, remove providers
+	// which don't satisfy the criterion from the candidate set.
+	for (Iterator ite = keySet.iterator(); ite.hasNext(); ) {
+	    String key = (String)ite.next();
+	    String value = (String)filter.get(key);
+	    
+	    LinkedHashSet newCandidates = getAllQualifyingCandidates(key, value, 
+							       allProviders);
+	    if (firstSearch) {
+		candidates = newCandidates;
+		firstSearch = false;
+	    }
+
+	    if ((newCandidates != null) && !newCandidates.isEmpty()) {
+		// For each provider in the candidates set, if it
+		// isn't in the newCandidate set, we should remove
+		// it from the candidate set.
+		for (Iterator cansIte = candidates.iterator();
+		     cansIte.hasNext(); ) {
+		    Provider prov = (Provider)cansIte.next();
+		    if (!newCandidates.contains(prov)) {
+			cansIte.remove();
+		    }
+		}
+	    } else {
+		candidates = null;
+		break;
+	    }
+	}
+
+	if ((candidates == null) || (candidates.isEmpty()))
+	    return null;
+
+	Object[] candidatesArray = candidates.toArray();
+	Provider[] result = new Provider[candidatesArray.length];
+
+	for (int i = 0; i < result.length; i++) {
+	    result[i] = (Provider)candidatesArray[i];
+	}
+	
+	return result;
+!!!7611547.java!!!	getSpiClass(in type : String) : Class
+	Class clazz = spiMap.get(type);
+	if (clazz != null) {
+	    return clazz;
+	}
+	try {
+	    clazz = Class.forName("java.security." + type + "Spi");
+	    spiMap.put(type, clazz);
+	    return clazz;
+	} catch (ClassNotFoundException e) {
+	    throw (Error)new AssertionError("Spi class not found").initCause(e);
+	}
+!!!7611675.java!!!	getImpl(in algorithm : String, in type : String, in provider : String) : Object
+	if (provider == null) {
+	    return GetInstance.getInstance
+	    	(type, getSpiClass(type), algorithm).toArray();
+	} else {
+	    return GetInstance.getInstance
+	    	(type, getSpiClass(type), algorithm, provider).toArray();
+	}
+!!!7611803.java!!!	getImpl(in algorithm : String, in type : String, in provider : String, inout params : Object) : Object
+	if (provider == null) {
+	    return GetInstance.getInstance
+	    	(type, getSpiClass(type), algorithm, params).toArray();
+	} else {
+	    return GetInstance.getInstance
+	    	(type, getSpiClass(type), algorithm, params, provider).toArray();
+	}
+!!!7611931.java!!!	getImpl(in algorithm : String, in type : String, inout provider : Provider) : Object
+	return GetInstance.getInstance
+	    (type, getSpiClass(type), algorithm, provider).toArray();
+!!!7612059.java!!!	getImpl(in algorithm : String, in type : String, inout provider : Provider, inout params : Object) : Object
+	return GetInstance.getInstance
+	    (type, getSpiClass(type), algorithm, params, provider).toArray();
+!!!7612187.java!!!	getProperty(in key : String) : String
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {
+	    sm.checkPermission(new SecurityPermission("getProperty."+
+						      key));
+	}
+	String name = props.getProperty(key);
+	if (name != null)
+	    name = name.trim();	// could be a class name with trailing ws
+	return name;
+!!!7612315.java!!!	setProperty(in key : String, in datum : String) : void
+	check("setProperty."+key);
+	props.put(key, datum);
+	invalidateSMCache(key);  /* See below. */
+!!!7612443.java!!!	invalidateSMCache(in key : String) : void
+	
+	final boolean pa = key.equals("package.access");
+	final boolean pd = key.equals("package.definition");
+
+	if (pa || pd) {
+	    AccessController.doPrivileged(new PrivilegedAction() {
+		public Object run() {
+		    try {
+			/* Get the class via the bootstrap class loader. */
+			Class cl = Class.forName(
+			    "java.lang.SecurityManager", false, null);
+			Field f = null;
+			boolean accessible = false;
+
+			if (pa) {
+			    f = cl.getDeclaredField("packageAccessValid");
+			    accessible = f.isAccessible();
+			    f.setAccessible(true);
+			} else {
+			    f = cl.getDeclaredField("packageDefinitionValid");
+			    accessible = f.isAccessible();
+			    f.setAccessible(true);
+			}
+			f.setBoolean(f, false);
+			f.setAccessible(accessible);
+		    }
+		    catch (Exception e1) {
+			/* If we couldn't get the class, it hasn't
+			 * been loaded yet.  If there is no such
+			 * field, we shouldn't try to set it.  There
+			 * shouldn't be a security execption, as we
+			 * are loaded by boot class loader, and we
+			 * are inside a doPrivileged() here.
+			 *
+			 * NOOP: don't do anything...
+			 */
+		    }
+		    return null;
+		}  /* run */
+	    });  /* PrivilegedAction */
+	}  /* if */
+!!!7612571.java!!!	check(in directive : String) : void
+	
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkSecurityAccess(directive);
+	}
+!!!7612699.java!!!	getAllQualifyingCandidates(in filterKey : String, in filterValue : String, inout allProviders : Provider) : LinkedHashSet
+	String[] filterComponents = getFilterComponents(filterKey,
+							filterValue);
+
+	// The first component is the service name.
+	// The second is the algorithm name.
+	// If the third isn't null, that is the attrinute name.
+	String serviceName = filterComponents[0];
+	String algName = filterComponents[1];
+	String attrName = filterComponents[2];
+
+	return getProvidersNotUsingCache(serviceName, algName, attrName,
+					 filterValue, allProviders);
+!!!7612827.java!!!	getProvidersNotUsingCache(in serviceName : String, in algName : String, in attrName : String, in filterValue : String, inout allProviders : Provider) : LinkedHashSet
+	LinkedHashSet candidates = new LinkedHashSet(5);
+	for (int i = 0; i < allProviders.length; i++) {
+	    if (isCriterionSatisfied(allProviders[i], serviceName, 
+				     algName,
+				     attrName, filterValue)) {
+		candidates.add(allProviders[i]);
+	    }
+	}
+	return candidates;
+!!!7612955.java!!!	isCriterionSatisfied(inout prov : Provider, in serviceName : String, in algName : String, in attrName : String, in filterValue : String) : boolean
+	String key = serviceName + '.' + algName;
+
+	if (attrName != null) {
+	    key += ' ' + attrName;
+	}
+      	// Check whether the provider has a property
+	// whose key is the same as the given key.
+	String propValue = getProviderProperty(key, prov);
+
+	if (propValue == null) {
+	    // Check whether we have an alias instead
+	    // of a standard name in the key.
+	    String standardName = getProviderProperty("Alg.Alias." + 
+						      serviceName + "." +
+						      algName,
+						      prov);
+	    if (standardName != null) {
+		key = serviceName + "." + standardName;
+
+		if (attrName != null) {
+		    key += ' ' + attrName;
+		}
+
+		propValue = getProviderProperty(key, prov);
+	    }
+	    
+	    if (propValue == null) {
+		// The provider doesn't have the given
+		// key in its property list.
+		return false;
+	    }
+	}
+
+	// If the key is in the format of:
+	// <crypto_service>.<algorithm_or_type>,
+        // there is no need to check the value.
+	
+	if (attrName == null) {
+	    return true;
+	}
+
+	// If we get here, the key must be in the
+	// format of <crypto_service>.<algorithm_or_provider> <attribute_name>.
+	if (isStandardAttr(attrName)) {
+	    return isConstraintSatisfied(attrName, filterValue, propValue);
+	} else {
+	    return filterValue.equalsIgnoreCase(propValue);
+	}
+!!!7613083.java!!!	isStandardAttr(in attribute : String) : boolean
+	// For now, we just have two standard attributes: 
+	// KeySize and ImplementedIn.
+	if (attribute.equalsIgnoreCase("KeySize"))
+	    return true;
+	
+	if (attribute.equalsIgnoreCase("ImplementedIn"))
+	    return true;
+
+	return false;
+!!!7613211.java!!!	isConstraintSatisfied(in attribute : String, in value : String, in prop : String) : boolean
+	// For KeySize, prop is the max key size the
+	// provider supports for a specific <crypto_service>.<algorithm>.
+	if (attribute.equalsIgnoreCase("KeySize")) {
+	    int requestedSize = Integer.parseInt(value);
+	    int maxSize = Integer.parseInt(prop);
+	    if (requestedSize <= maxSize) {
+		return true;
+	    } else {
+		return false;
+	    }
+	}
+
+	// For Type, prop is the type of the implementation
+	// for a specific <crypto service>.<algorithm>.
+	if (attribute.equalsIgnoreCase("ImplementedIn")) {
+	    return value.equalsIgnoreCase(prop);
+	}
+
+	return false;
+!!!7613339.java!!!	getFilterComponents(in filterKey : String, in filterValue : String) : String
+	int algIndex = filterKey.indexOf('.');
+
+	if (algIndex < 0) {
+	    // There must be a dot in the filter, and the dot
+	    // shouldn't be at the beginning of this string.
+	    throw new InvalidParameterException("Invalid filter");
+	}
+
+	String serviceName = filterKey.substring(0, algIndex);
+	String algName = null;
+	String attrName = null;
+
+	if (filterValue.length() == 0) {
+	    // The filterValue is an empty string. So the filterKey 
+	    // should be in the format of <crypto_service>.<algorithm_or_type>.
+	    algName = filterKey.substring(algIndex + 1).trim();
+	    if (algName.length() == 0) {
+		// There must be a algorithm or type name.
+		throw new InvalidParameterException("Invalid filter");
+	    }
+	} else {	
+	    // The filterValue is a non-empty string. So the filterKey must be
+	    // in the format of
+	    // <crypto_service>.<algorithm_or_type> <attribute_name>
+	    int attrIndex = filterKey.indexOf(' ');
+
+	    if (attrIndex == -1) {
+		// There is no attribute name in the filter.
+		throw new InvalidParameterException("Invalid filter");
+	    } else {
+		attrName = filterKey.substring(attrIndex + 1).trim();
+		if (attrName.length() == 0) {
+		    // There is no attribute name in the filter.
+		    throw new InvalidParameterException("Invalid filter");
+		}
+	    }
+	
+	    // There must be an algorithm name in the filter.
+	    if ((attrIndex < algIndex) ||
+		(algIndex == attrIndex - 1)) {
+		throw new InvalidParameterException("Invalid filter");
+	    } else {
+		algName = filterKey.substring(algIndex + 1, attrIndex);
+	    }
+	}
+
+	String[] result = new String[3];
+	result[0] = serviceName;
+	result[1] = algName;
+	result[2] = attrName;
+
+	return result;
+!!!7613467.java!!!	getAlgorithms(in serviceName : String) : Set
+
+	if ((serviceName == null) || (serviceName.length() == 0) ||
+	    (serviceName.endsWith("."))) {
+	    return Collections.EMPTY_SET;
+	}
+
+	HashSet result = new HashSet();
+	Provider[] providers = Security.getProviders();
+
+	for (int i = 0; i < providers.length; i++) {
+	    // Check the keys for each provider.
+	    for (Enumeration e = providers[i].keys(); e.hasMoreElements(); ) {
+		String currentKey = ((String)e.nextElement()).toUpperCase();
+		if (currentKey.startsWith(serviceName.toUpperCase())) {
+		    // We should skip the currentKey if it contains a 
+		    // whitespace. The reason is: such an entry in the
+		    // provider property contains attributes for the
+		    // implementation of an algorithm. We are only interested
+		    // in entries which lead to the implementation
+		    // classes.
+		    if (currentKey.indexOf(" ") < 0) {
+			result.add(currentKey.substring(serviceName.length() + 1));
+		    }
+		}
+	    }	    
+	}
+	return Collections.unmodifiableSet(result);

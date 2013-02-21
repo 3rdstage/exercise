@@ -1,0 +1,60 @@
+class SynthColorChooserUI
+!!!9666203.java!!!	createUI(inout c : JComponent) : ComponentUI
+	return new SynthColorChooserUI();
+!!!9666331.java!!!	createDefaultChoosers() : AbstractColorChooserPanel
+        SynthContext context = getContext(chooser, ENABLED);
+        AbstractColorChooserPanel[] panels = (AbstractColorChooserPanel[])
+                     context.getStyle().get(context, "ColorChooser.panels");
+        context.dispose();
+
+        if (panels == null) {
+            panels = ColorChooserComponentFactory.getDefaultChooserPanels();
+        }
+	return panels;
+!!!9666459.java!!!	installDefaults() : void
+        updateStyle(chooser);
+!!!9666587.java!!!	updateStyle(inout c : JComponent) : void
+        SynthContext context = getContext(c, ENABLED);
+        style = SynthLookAndFeel.updateStyle(context, this);
+        context.dispose();
+!!!9666715.java!!!	uninstallDefaults() : void
+        SynthContext context = getContext(chooser, ENABLED);
+
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+        super.uninstallDefaults();
+!!!9666843.java!!!	installListeners() : void
+        super.installListeners();
+        chooser.addPropertyChangeListener(this);
+!!!9666971.java!!!	uninstallListeners() : void
+        chooser.removePropertyChangeListener(this);
+        super.uninstallListeners();
+!!!9667099.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9667227.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c,
+                    SynthLookAndFeel.getRegion(c), style, state);
+!!!9667355.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9667483.java!!!	getComponentState(inout c : JComponent) : int
+        return SynthLookAndFeel.getComponentState(c);
+!!!9667611.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintColorChooserBackground(context, g, 0, 0,
+                                                  c.getWidth(), c.getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9667739.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9667995.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        context.getPainter().paintColorChooserBorder(context, g, x, y,w,h);
+!!!9668123.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+        if (SynthLookAndFeel.shouldUpdateStyle(e)) {
+            updateStyle((JColorChooser)e.getSource());
+        }

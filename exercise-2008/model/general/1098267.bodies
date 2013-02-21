@@ -1,0 +1,64 @@
+class SerialJavaObject
+!!!8814107.java!!!	SerialJavaObject(inout obj : Object)
+
+	// if any static fields are found, an exception
+        // should be thrown
+
+
+	// get Class. Object instance should always be available
+	Class c = obj.getClass(); 	
+
+	// determine if object implements Serializable i/f
+	boolean serializableImpl = false;
+	Class[] theIf = c.getInterfaces();
+	for (int i = 0; i < theIf.length; i++) {
+	    String ifName = theIf[i].getName();
+	    if (ifName == "java.io.Serializable") {
+		serializableImpl = true;	
+	    }
+ 	}
+
+	// can only determine public fields (obviously). If
+	// any of these are static, this should invalidate
+   	// the action of attempting to persist these fields
+	// in a serialized form
+
+ 	boolean anyStaticFields = false;
+	fields = c.getFields();
+        //fields = new Object[field.length];
+
+	for (int i = 0; i < fields.length; i++ ) {                 
+	    if ( fields[i].getModifiers() == Modifier.STATIC ) {
+		anyStaticFields = true;
+	    }
+            //fields[i] = field[i].get(obj);
+	}
+        try {
+            if (!(serializableImpl)) {
+               throw new RowSetWarning("Test");
+            }
+        } catch (RowSetWarning w) {
+            setWarning(w);
+        }
+        
+	if (anyStaticFields) {
+	    throw new SerialException("Located static fields in " +
+		"object instance. Cannot serialize");
+	}
+
+	this.obj = obj;
+!!!8814235.java!!!	getObject() : Object
+        return this.obj;
+!!!8814363.java!!!	getFields() : Field
+	if (fields != null) {	
+            Class c = this.obj.getClass();
+	    return sun.reflect.misc.FieldUtil.getFields(c);
+	} else {
+	    throw new SerialException("SerialJavaObject does not contain" +
+		" a serialized object instance");
+	}
+!!!8814491.java!!!	setWarning(inout e : RowSetWarning) : void
+        if (chain == null) {
+            chain = new java.util.Vector();
+        }
+        chain.add(e);

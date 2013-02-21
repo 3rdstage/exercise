@@ -1,0 +1,98 @@
+class Key
+!!!6245659.java!!!	Key(inout map : Map)
+	    attrs = map;
+
+	    Object o = map.get(TextAttribute.FAMILY);
+	    if (o != null) {
+		family = (String)o;
+	    }
+	    hashCode = family.hashCode();
+
+	    o = map.get(TextAttribute.WEIGHT);
+	    if (o != null && o != TextAttribute.WEIGHT_REGULAR) {
+		// ugh, force to the only values we understand
+		// weight is either bold, or it's not...
+		float xweight = ((Float)o).floatValue();
+		if (xweight == TextAttribute.WEIGHT_BOLD.floatValue()) {
+		    weight = xweight;
+		    hashCode = (hashCode << 3) ^ Float.floatToIntBits(weight);
+		}
+	    }
+
+	    o = map.get(TextAttribute.POSTURE);
+	    if (o != null && o != TextAttribute.POSTURE_REGULAR) {
+		// ugh, same problem as with weight
+		float xposture = ((Float)o).floatValue();
+		if (xposture == TextAttribute.POSTURE_OBLIQUE.floatValue()) {
+		    posture = xposture;
+		    hashCode = (hashCode << 3) ^ Float.floatToIntBits(posture);
+		}
+	    }
+
+	    o = map.get(TextAttribute.SIZE);
+	    if (o != null) {
+		size = ((Float)o).floatValue();
+		if (size != 12.0f) {
+		    hashCode = (hashCode << 3) ^ Float.floatToIntBits(size);
+		}
+	    }
+
+	    o = map.get(TextAttribute.TRANSFORM);
+	    if (o != null) {
+		AffineTransform tx = null;
+		if (o instanceof TransformAttribute) {
+		    TransformAttribute ta = (TransformAttribute)o;
+		    if (!ta.isIdentity()) {
+			tx = ta.getTransform();
+		    }
+		} else if (o instanceof AffineTransform) {
+		    AffineTransform at = (AffineTransform)o;
+		    if (!at.isIdentity()) {
+			tx = at;
+		    }
+		}
+		if (tx != null) {
+		    txdata = new double[6];
+		    tx.getMatrix(txdata);
+		    hashCode = (hashCode << 3) ^ new Double(txdata[0]).hashCode();
+		}
+	    }
+
+            o = map.get(TextAttribute.SUPERSCRIPT);
+            if (o != null) {
+                if (o instanceof Integer) {
+                    superscript = ((Integer)o).intValue();
+                    hashCode = hashCode << 3 ^ superscript;
+                }
+            }
+
+            o = map.get(TextAttribute.WIDTH);
+            if (o != null) {
+                if (o instanceof Float) {
+                    width = ((Float)o).floatValue();
+                    hashCode = hashCode << 3 ^ Float.floatToIntBits(width);
+                }
+            }
+!!!6245787.java!!!	hashCode() : int
+	    return hashCode;
+!!!6245915.java!!!	equals(inout rhs : Object) : boolean
+	    Key rhskey = (Key)rhs;
+	    if (this.hashCode == rhskey.hashCode && 
+		this.size == rhskey.size &&
+		this.weight == rhskey.weight &&
+		this.posture == rhskey.posture &&
+                this.superscript == rhskey.superscript &&
+                this.width == rhskey.width &&
+		this.family.equals(rhskey.family) &&
+		((this.txdata == null) == (rhskey.txdata == null))) {
+		
+		if (this.txdata != null) {
+		    for (int i = 0; i < this.txdata.length; ++i) {
+			if (this.txdata[i] != rhskey.txdata[i]) {
+			    return false;
+			}
+		    }
+		}
+		return true;
+	    }
+	    return false;

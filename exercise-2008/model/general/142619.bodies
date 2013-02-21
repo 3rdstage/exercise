@@ -1,0 +1,76 @@
+class CheckedMap
+!!!228635.java!!!	typeCheck(inout key : Object, inout value : Object) : void
+            if (!keyType.isInstance(key))
+                throw new ClassCastException("Attempt to insert " +
+                    key.getClass() + " key into collection with key type "
+                    + keyType);
+
+            if (!valueType.isInstance(value))
+                throw new ClassCastException("Attempt to insert " +
+                    value.getClass() +" value into collection with value type "
+                    + valueType);
+!!!228763.java!!!	CheckedMap(inout m : Map, inout keyType : Class<K>, inout valueType : Class<V>)
+            if (m == null || keyType == null || valueType == null)
+                throw new NullPointerException();
+            this.m = m;
+            this.keyType = keyType;
+            this.valueType = valueType;
+!!!228891.java!!!	size() : int
+ return m.size();
+!!!229019.java!!!	isEmpty() : boolean
+ return m.isEmpty();
+!!!229147.java!!!	containsKey(inout key : Object) : boolean
+ return m.containsKey(key);
+!!!229275.java!!!	containsValue(inout v : Object) : boolean
+ return m.containsValue(v);
+!!!229403.java!!!	get(inout key : Object) : V
+ return m.get(key);
+!!!229531.java!!!	remove(inout key : Object) : V
+ return m.remove(key);
+!!!229659.java!!!	clear() : void
+ m.clear();
+!!!229787.java!!!	keySet() : Set
+ return m.keySet();
+!!!229915.java!!!	values() : Collection
+ return m.values();
+!!!230043.java!!!	equals(inout o : Object) : boolean
+ return m.equals(o);
+!!!230171.java!!!	hashCode() : int
+ return m.hashCode();
+!!!230299.java!!!	toString() : String
+ return m.toString();
+!!!230427.java!!!	put(inout key : K, inout value : V) : V
+            typeCheck(key, value);
+            return m.put(key, value);
+!!!230555.java!!!	putAll(inout t : Map) : void
+            // See CheckCollection.addAll, above, for an explanation
+            K[] keys = null;
+            try {
+                keys = t.keySet().toArray(zeroLengthKeyArray());
+            } catch(ArrayStoreException e) {
+                throw new ClassCastException();
+            }
+            V[] values = null;
+            try {
+                values = t.values().toArray(zeroLengthValueArray());
+            } catch(ArrayStoreException e) {
+                throw new ClassCastException();
+            }
+
+            if (keys.length != values.length)
+                throw new ConcurrentModificationException();
+
+            for (int i = 0; i < keys.length; i++)
+                m.put(keys[i], values[i]);
+!!!230683.java!!!	zeroLengthKeyArray() : K
+            if (zeroLengthKeyArray == null)
+                zeroLengthKeyArray = (K[]) Array.newInstance(keyType, 0);
+            return zeroLengthKeyArray;
+!!!230811.java!!!	zeroLengthValueArray() : V
+            if (zeroLengthValueArray == null)
+                zeroLengthValueArray = (V[]) Array.newInstance(valueType, 0);
+            return zeroLengthValueArray;
+!!!230939.java!!!	entrySet() : Set
+            if (entrySet==null)
+                entrySet = new CheckedEntrySet<K,V>(m.entrySet(), valueType);
+            return entrySet;

@@ -1,0 +1,134 @@
+class BasicDropTargetListener
+!!!2518811.java!!!	updateAutoscrollRegion(inout c : JComponent) : void
+	// compute the outer
+	Rectangle visible = c.getVisibleRect();
+	outer.reshape(visible.x, visible.y, visible.width, visible.height);
+
+	// compute the insets
+	Insets i = new Insets(0, 0, 0, 0);
+	if (c instanceof Scrollable) {
+            int minSize = 2 * AUTOSCROLL_INSET;
+
+            if (visible.width >= minSize) {
+                i.left = i.right = AUTOSCROLL_INSET;
+            }
+            
+            if (visible.height >= minSize) {
+                i.top = i.bottom = AUTOSCROLL_INSET;
+            }
+	}
+
+	// set the inner from the insets
+	inner.reshape(visible.x + i.left, 
+		      visible.y + i.top,
+		      visible.width - (i.left + i.right),
+		      visible.height - (i.top  + i.bottom));
+!!!2518939.java!!!	autoscroll(inout c : JComponent, inout pos : Point) : void
+	if (c instanceof Scrollable) {
+	    Scrollable s = (Scrollable) c;
+	    if (pos.y < inner.y) {
+		// scroll upward
+		int dy = s.getScrollableUnitIncrement(outer, SwingConstants.VERTICAL, -1);
+		Rectangle r = new Rectangle(inner.x, outer.y - dy, inner.width, dy);
+		c.scrollRectToVisible(r);
+	    } else if (pos.y > (inner.y + inner.height)) {
+		// scroll downard
+		int dy = s.getScrollableUnitIncrement(outer, SwingConstants.VERTICAL, 1);
+		Rectangle r = new Rectangle(inner.x, outer.y + outer.height, inner.width, dy);
+		c.scrollRectToVisible(r);
+	    }
+
+	    if (pos.x < inner.x) {
+		// scroll left
+		int dx = s.getScrollableUnitIncrement(outer, SwingConstants.HORIZONTAL, -1);
+		Rectangle r = new Rectangle(outer.x - dx, inner.y, dx, inner.height);
+		c.scrollRectToVisible(r);
+	    } else if (pos.x > (inner.x + inner.width)) {
+		// scroll right
+		int dx = s.getScrollableUnitIncrement(outer, SwingConstants.HORIZONTAL, 1);
+		Rectangle r = new Rectangle(outer.x + outer.width, inner.y, dx, inner.height);
+		c.scrollRectToVisible(r);
+	    }
+	}
+!!!2519067.java!!!	initPropertiesIfNecessary() : void
+        if (timer == null) {
+            Toolkit t  = Toolkit.getDefaultToolkit();
+            Integer    initial  = new Integer(100);
+            Integer    interval = new Integer(100);
+
+            try {
+                initial = (Integer)t.getDesktopProperty(
+                                     "DnD.Autoscroll.initialDelay");
+            } catch (Exception e) {
+                // ignore
+            }
+            try {
+                interval = (Integer)t.getDesktopProperty(
+                                      "DnD.Autoscroll.interval");
+            } catch (Exception e) {
+                // ignore
+            }
+            timer = new Timer(interval.intValue(), this);
+
+            timer.setCoalesce(true);
+            timer.setInitialDelay(initial.intValue());
+
+            try {
+                hysteresis = ((Integer)t.getDesktopProperty(
+                             "DnD.Autoscroll.cursorHysteresis")).intValue();
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+!!!2519195.java!!!	getComponent(inout e : DropTargetEvent) : JComponent
+	DropTargetContext context = e.getDropTargetContext();
+	return (JComponent) context.getComponent();
+!!!2519323.java!!!	actionPerformed(inout e : ActionEvent) : void
+	updateAutoscrollRegion(component);
+	if (outer.contains(lastPosition) && !inner.contains(lastPosition)) {
+	    autoscroll(component, lastPosition);
+	}
+!!!2519451.java!!!	dragEnter(inout e : DropTargetDragEvent) : void
+	component = getComponent(e);
+	TransferHandler th = component.getTransferHandler();
+	canImport = th.canImport(component, e.getCurrentDataFlavors());
+	if (canImport) {
+	    saveComponentState(component);
+	    lastPosition = e.getLocation();
+	    updateAutoscrollRegion(component);
+            initPropertiesIfNecessary();
+	}
+!!!2519579.java!!!	dragOver(inout e : DropTargetDragEvent) : void
+	if (canImport) {
+	    Point p = e.getLocation();
+	    updateInsertionLocation(component, p);
+
+
+	    // check autoscroll
+	    synchronized(this) {
+		if (Math.abs(p.x - lastPosition.x) > hysteresis ||
+		    Math.abs(p.y - lastPosition.y) > hysteresis) {
+		    // no autoscroll 
+		    if (timer.isRunning()) timer.stop();
+		} else {
+		    if (!timer.isRunning()) timer.start();
+		}
+		lastPosition = p;
+	    }
+	}
+!!!2519707.java!!!	dragExit(inout e : DropTargetEvent) : void
+        if (canImport) {
+            restoreComponentState(component);
+        }
+        cleanup();
+!!!2519835.java!!!	drop(inout e : DropTargetDropEvent) : void
+        if (canImport) {
+            restoreComponentStateForDrop(component);
+        }
+        cleanup();
+!!!2520091.java!!!	cleanup() : void
+        if (timer != null) {
+            timer.stop();
+        }
+	component = null;
+	lastPosition = null;

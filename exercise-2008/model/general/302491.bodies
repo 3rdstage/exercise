@@ -1,0 +1,34 @@
+class DefaultSocketFactoryImpl
+!!!1670555.java!!!	setORB(inout orb : ORB) : void
+	this.orb = orb;
+!!!1670683.java!!!	createServerSocket(in type : String, inout inetSocketAddress : InetSocketAddress) : ServerSocket
+	ServerSocketChannel serverSocketChannel = null;
+	ServerSocket serverSocket = null;
+
+	if (orb.getORBData().acceptorSocketType().equals(ORBConstants.SOCKETCHANNEL)) {
+	    serverSocketChannel = ServerSocketChannel.open();
+	    serverSocket = serverSocketChannel.socket();
+	} else {
+	    serverSocket = new ServerSocket();
+	}
+	serverSocket.bind(inetSocketAddress);
+	return serverSocket;
+!!!1670811.java!!!	createSocket(in type : String, inout inetSocketAddress : InetSocketAddress) : Socket
+	SocketChannel socketChannel = null;
+	Socket socket = null;
+
+	if (orb.getORBData().connectionSocketType().equals(ORBConstants.SOCKETCHANNEL)) {
+	    socketChannel = SocketChannel.open(inetSocketAddress);
+	    socket = socketChannel.socket();
+	} else {
+	    socket = new Socket(inetSocketAddress.getHostName(),
+				inetSocketAddress.getPort());
+	}
+
+	// Disable Nagle's algorithm (i.e., always send immediately).
+	socket.setTcpNoDelay(true);
+
+	return socket;
+!!!1670939.java!!!	setAcceptedSocketOptions(inout acceptor : Acceptor, inout serverSocket : ServerSocket, inout socket : Socket) : void
+	// Disable Nagle's algorithm (i.e., always send immediately).
+	socket.setTcpNoDelay(true);

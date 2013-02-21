@@ -1,0 +1,94 @@
+class FAMRAV_Visitor
+!!!3912987.java!!!	FAMRAV_Visitor(inout _jc : JavaClass)
+			jc = _jc;
+			cp = _jc.getConstantPool();
+!!!3913115.java!!!	visitConstantFieldref(inout obj : ConstantFieldref) : void
+			if (obj.getTag() != Constants.CONSTANT_Fieldref){
+				throw new ClassConstraintException("ConstantFieldref '"+tostring(obj)+"' has wrong tag!");
+			}
+			int name_and_type_index = obj.getNameAndTypeIndex();
+			ConstantNameAndType cnat = (ConstantNameAndType) (cp.getConstant(name_and_type_index));
+			String name = ((ConstantUtf8) (cp.getConstant(cnat.getNameIndex()))).getBytes(); // Field or Method name
+			if (!validFieldName(name)){
+				throw new ClassConstraintException("Invalid field name '"+name+"' referenced by '"+tostring(obj)+"'.");
+			}
+			
+			int class_index = obj.getClassIndex();
+			ConstantClass cc = (ConstantClass) (cp.getConstant(class_index));
+			String className = ((ConstantUtf8) (cp.getConstant(cc.getNameIndex()))).getBytes(); // Class Name in internal form
+			if (! validClassName(className)){
+				throw new ClassConstraintException("Illegal class name '"+className+"' used by '"+tostring(obj)+"'.");
+			}
+
+			String sig  = ((ConstantUtf8) (cp.getConstant(cnat.getSignatureIndex()))).getBytes(); // Field or Method signature(=descriptor)
+						
+			try{
+				Type t = Type.getType(sig);
+			}
+			catch (ClassFormatError cfe){
+				// Well, BCEL sometimes is a little harsh describing exceptional situations.
+				throw new ClassConstraintException("Illegal descriptor (==signature) '"+sig+"' used by '"+tostring(obj)+"'.");
+			}
+!!!3913243.java!!!	visitConstantMethodref(inout obj : ConstantMethodref) : void
+			if (obj.getTag() != Constants.CONSTANT_Methodref){
+				throw new ClassConstraintException("ConstantMethodref '"+tostring(obj)+"' has wrong tag!");
+			}
+			int name_and_type_index = obj.getNameAndTypeIndex();
+			ConstantNameAndType cnat = (ConstantNameAndType) (cp.getConstant(name_and_type_index));
+			String name = ((ConstantUtf8) (cp.getConstant(cnat.getNameIndex()))).getBytes(); // Field or Method name
+			if (!validClassMethodName(name)){
+				throw new ClassConstraintException("Invalid (non-interface) method name '"+name+"' referenced by '"+tostring(obj)+"'.");
+			}
+
+			int class_index = obj.getClassIndex();
+			ConstantClass cc = (ConstantClass) (cp.getConstant(class_index));
+			String className = ((ConstantUtf8) (cp.getConstant(cc.getNameIndex()))).getBytes(); // Class Name in internal form
+			if (! validClassName(className)){
+				throw new ClassConstraintException("Illegal class name '"+className+"' used by '"+tostring(obj)+"'.");
+			}
+
+			String sig  = ((ConstantUtf8) (cp.getConstant(cnat.getSignatureIndex()))).getBytes(); // Field or Method signature(=descriptor)
+						
+			try{
+				Type   t  = Type.getReturnType(sig);
+				Type[] ts = Type.getArgumentTypes(sig);
+				if ( name.equals(CONSTRUCTOR_NAME) && (t != Type.VOID) ){
+					throw new ClassConstraintException("Instance initialization method must have VOID return type.");
+				}
+			}
+			catch (ClassFormatError cfe){
+				// Well, BCEL sometimes is a little harsh describing exceptional situations.
+				throw new ClassConstraintException("Illegal descriptor (==signature) '"+sig+"' used by '"+tostring(obj)+"'.");
+			}
+!!!3913371.java!!!	visitConstantInterfaceMethodref(inout obj : ConstantInterfaceMethodref) : void
+			if (obj.getTag() != Constants.CONSTANT_InterfaceMethodref){
+				throw new ClassConstraintException("ConstantInterfaceMethodref '"+tostring(obj)+"' has wrong tag!");
+			}
+			int name_and_type_index = obj.getNameAndTypeIndex();
+			ConstantNameAndType cnat = (ConstantNameAndType) (cp.getConstant(name_and_type_index));
+			String name = ((ConstantUtf8) (cp.getConstant(cnat.getNameIndex()))).getBytes(); // Field or Method name
+			if (!validInterfaceMethodName(name)){
+				throw new ClassConstraintException("Invalid (interface) method name '"+name+"' referenced by '"+tostring(obj)+"'.");
+			}
+
+			int class_index = obj.getClassIndex();
+			ConstantClass cc = (ConstantClass) (cp.getConstant(class_index));
+			String className = ((ConstantUtf8) (cp.getConstant(cc.getNameIndex()))).getBytes(); // Class Name in internal form
+			if (! validClassName(className)){
+				throw new ClassConstraintException("Illegal class name '"+className+"' used by '"+tostring(obj)+"'.");
+			}
+
+			String sig  = ((ConstantUtf8) (cp.getConstant(cnat.getSignatureIndex()))).getBytes(); // Field or Method signature(=descriptor)
+						
+			try{
+				Type   t  = Type.getReturnType(sig);
+				Type[] ts = Type.getArgumentTypes(sig);
+				if ( name.equals(STATIC_INITIALIZER_NAME) && (t != Type.VOID) ){
+					addMessage("Class or interface initialization method '"+STATIC_INITIALIZER_NAME+"' usually has VOID return type instead of '"+t+"'. Note this is really not a requirement of The Java Virtual Machine Specification, Second Edition.");
+				}
+			}
+			catch (ClassFormatError cfe){
+				// Well, BCEL sometimes is a little harsh describing exceptional situations.
+				throw new ClassConstraintException("Illegal descriptor (==signature) '"+sig+"' used by '"+tostring(obj)+"'.");
+			}
+

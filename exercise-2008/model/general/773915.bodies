@@ -1,0 +1,79 @@
+class XNI2SAX
+!!!5385627.java!!!	setContentHandler(inout handler : ContentHandler) : void
+        this.fContentHandler = handler;
+!!!5385755.java!!!	getContentHandler() : ContentHandler
+        return fContentHandler;
+!!!5385883.java!!!	xmlDecl(in version : String, in encoding : String, in standalone : String, inout augs : Augmentations) : void
+        this.fVersion = version;
+!!!5386011.java!!!	startDocument(inout locator : XMLLocator, in encoding : String, inout namespaceContext : NamespaceContext, inout augs : Augmentations) : void
+        fNamespaceContext = namespaceContext;
+        fContentHandler.setDocumentLocator(new LocatorProxy(locator,fVersion));
+        try {
+            fContentHandler.startDocument();
+        } catch (SAXException e) {
+            throw new XNIException(e);
+        }
+!!!5386139.java!!!	endDocument(inout augs : Augmentations) : void
+        try {
+            fContentHandler.endDocument();
+        } catch (SAXException e) {
+            throw new XNIException(e);
+        }
+!!!5386267.java!!!	processingInstruction(in target : String, inout data : XMLString, inout augs : Augmentations) : void
+        try {
+            fContentHandler.processingInstruction(target,data.toString());
+        } catch (SAXException e) {
+            throw new XNIException(e);
+        }
+!!!5386395.java!!!	startElement(inout element : QName, inout attributes : XMLAttributes, inout augs : Augmentations) : void
+        try {
+            // start namespace prefix mappings
+            int count = fNamespaceContext.getDeclaredPrefixCount();
+            if (count > 0) {
+                String prefix = null;
+                String uri = null;
+                for (int i = 0; i < count; i++) {
+                    prefix = fNamespaceContext.getDeclaredPrefixAt(i);
+                    uri = fNamespaceContext.getURI(prefix);
+                    fContentHandler.startPrefixMapping(prefix, (uri == null)?"":uri);
+                }
+            }
+                    
+            String uri = element.uri != null ? element.uri : "";
+            String localpart = element.localpart;
+            fAttributesProxy.setAttributes(attributes);
+            fContentHandler.startElement(uri, localpart, element.rawname, fAttributesProxy);
+        } catch( SAXException e ) {
+            throw new XNIException(e);
+        }
+!!!5386523.java!!!	endElement(inout element : QName, inout augs : Augmentations) : void
+        try {
+            String uri = element.uri != null ? element.uri : "";
+            String localpart = element.localpart;
+            fContentHandler.endElement(uri, localpart, element.rawname);
+            
+            // send endPrefixMapping events
+            int count = fNamespaceContext.getDeclaredPrefixCount();
+            if (count > 0) {
+                for (int i = 0; i < count; i++) {
+                    fContentHandler.endPrefixMapping(fNamespaceContext.getDeclaredPrefixAt(i));
+                }
+            }
+        } catch( SAXException e ) {
+            throw new XNIException(e);
+        }
+!!!5386651.java!!!	emptyElement(inout element : QName, inout attributes : XMLAttributes, inout augs : Augmentations) : void
+        startElement(element,attributes,augs);
+        endElement(element,augs);
+!!!5386779.java!!!	characters(inout text : XMLString, inout augs : Augmentations) : void
+        try {
+            fContentHandler.characters(text.ch,text.offset,text.length);
+        } catch (SAXException e) {
+            throw new XNIException(e);
+        }
+!!!5386907.java!!!	ignorableWhitespace(inout text : XMLString, inout augs : Augmentations) : void
+        try {
+            fContentHandler.ignorableWhitespace(text.ch,text.offset,text.length);
+        } catch (SAXException e) {
+            throw new XNIException(e);
+        }

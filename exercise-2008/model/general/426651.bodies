@@ -1,0 +1,270 @@
+class StyleContext
+!!!2575131.java!!!	getDefaultStyleContext() : StyleContext
+        if (defaultContext == null) {
+            defaultContext = new StyleContext();
+        }
+        return defaultContext;
+!!!2575259.java!!!	StyleContext()
+        styles = new NamedStyle(null);
+        addStyle(DEFAULT_STYLE, null);
+!!!2575387.java!!!	addStyle(in nm : String, inout parent : Style) : Style
+        Style style = new NamedStyle(nm, parent); 
+        if (nm != null) {
+            // add a named style, a class of attributes
+            styles.addAttribute(nm, style);
+        }
+        return style;
+!!!2575515.java!!!	removeStyle(in nm : String) : void
+        styles.removeAttribute(nm);
+!!!2575643.java!!!	getStyle(in nm : String) : Style
+        return (Style) styles.getAttribute(nm);
+!!!2575771.java!!!	getStyleNames() : Enumeration
+        return styles.getAttributeNames();
+!!!2575899.java!!!	addChangeListener(inout l : ChangeListener) : void
+        styles.addChangeListener(l);
+!!!2576027.java!!!	removeChangeListener(inout l : ChangeListener) : void
+        styles.removeChangeListener(l);
+!!!2576155.java!!!	getChangeListeners() : ChangeListener
+        return ((NamedStyle)styles).getChangeListeners();
+!!!2576283.java!!!	getFont(inout attr : AttributeSet) : Font
+        // PENDING(prinz) add cache behavior
+        int style = Font.PLAIN;
+        if (StyleConstants.isBold(attr)) {
+            style |= Font.BOLD;
+        }
+        if (StyleConstants.isItalic(attr)) {
+            style |= Font.ITALIC;
+        }
+        String family = StyleConstants.getFontFamily(attr);
+        int size = StyleConstants.getFontSize(attr);
+
+	/**
+	 * if either superscript or subscript is
+	 * is set, we need to reduce the font size
+	 * by 2.
+	 */
+	if (StyleConstants.isSuperscript(attr) ||
+	    StyleConstants.isSubscript(attr)) {
+	    size -= 2;
+	}
+
+        return getFont(family, style, size);
+!!!2576411.java!!!	getForeground(inout attr : AttributeSet) : Color
+	return StyleConstants.getForeground(attr);
+!!!2576539.java!!!	getBackground(inout attr : AttributeSet) : Color
+	return StyleConstants.getBackground(attr);
+!!!2576667.java!!!	getFont(in family : String, in style : int, in size : int) : Font
+        fontSearch.setValue(family, style, size);
+        Font f = (Font) fontTable.get(fontSearch);
+        if (f == null) {
+            // haven't seen this one yet.
+            Style defaultStyle = 
+                getStyle(StyleContext.DEFAULT_STYLE);
+            if (defaultStyle != null) {
+                final String FONT_ATTRIBUTE_KEY = "FONT_ATTRIBUTE_KEY";
+                Font defaultFont = 
+                    (Font) defaultStyle.getAttribute(FONT_ATTRIBUTE_KEY);
+                if (defaultFont != null
+                      && defaultFont.getFamily().equalsIgnoreCase(family)) {
+                    f = defaultFont.deriveFont(style, size);
+                }
+            }
+            if (f == null) {
+                f = new Font(family, style, size);
+            }
+            if (! FontManager.fontSupportsDefaultEncoding(f)) {
+                f = FontManager.getCompositeFontUIResource(f);
+            }
+            FontKey key = new FontKey(family, style, size);
+            fontTable.put(key, f);
+        }
+        return f;
+!!!2576795.java!!!	getFontMetrics(inout f : Font) : FontMetrics
+        // The Toolkit implementations cache, so we just forward
+        // to the default toolkit.
+        return Toolkit.getDefaultToolkit().getFontMetrics(f);
+!!!2576923.java!!!	addAttribute(inout old : AttributeSet, inout name : Object, inout value : Object) : AttributeSet
+        if ((old.getAttributeCount() + 1) <= getCompressionThreshold()) {
+            // build a search key and find/create an immutable and unique
+            // set.
+            search.removeAttributes(search);
+            search.addAttributes(old);
+            search.addAttribute(name, value);
+            reclaim(old);
+            return getImmutableUniqueSet();
+        }
+        MutableAttributeSet ma = getMutableAttributeSet(old);
+        ma.addAttribute(name, value);
+        return ma;
+!!!2577051.java!!!	addAttributes(inout old : AttributeSet, inout attr : AttributeSet) : AttributeSet
+        if ((old.getAttributeCount() + attr.getAttributeCount()) <= getCompressionThreshold()) {
+            // build a search key and find/create an immutable and unique
+            // set.
+            search.removeAttributes(search);
+            search.addAttributes(old);
+            search.addAttributes(attr);
+            reclaim(old);
+            return getImmutableUniqueSet();
+        }
+        MutableAttributeSet ma = getMutableAttributeSet(old);
+        ma.addAttributes(attr);
+        return ma;
+!!!2577179.java!!!	removeAttribute(inout old : AttributeSet, inout name : Object) : AttributeSet
+        if ((old.getAttributeCount() - 1) <= getCompressionThreshold()) {
+            // build a search key and find/create an immutable and unique
+            // set.
+            search.removeAttributes(search);
+            search.addAttributes(old);
+            search.removeAttribute(name);
+            reclaim(old);
+            return getImmutableUniqueSet();
+        }
+        MutableAttributeSet ma = getMutableAttributeSet(old);
+        ma.removeAttribute(name);
+        return ma;
+!!!2577307.java!!!	removeAttributes(inout old : AttributeSet, inout names : Enumeration) : AttributeSet
+        if (old.getAttributeCount() <= getCompressionThreshold()) {
+            // build a search key and find/create an immutable and unique
+            // set.
+            search.removeAttributes(search);
+            search.addAttributes(old);
+            search.removeAttributes(names);
+            reclaim(old);
+            return getImmutableUniqueSet();
+        }
+        MutableAttributeSet ma = getMutableAttributeSet(old);
+        ma.removeAttributes(names);
+        return ma;
+!!!2577435.java!!!	removeAttributes(inout old : AttributeSet, inout attrs : AttributeSet) : AttributeSet
+        if (old.getAttributeCount() <= getCompressionThreshold()) {
+            // build a search key and find/create an immutable and unique
+            // set.
+            search.removeAttributes(search);
+            search.addAttributes(old);
+            search.removeAttributes(attrs);
+            reclaim(old);
+            return getImmutableUniqueSet();
+        }
+        MutableAttributeSet ma = getMutableAttributeSet(old);
+        ma.removeAttributes(attrs);
+        return ma;
+!!!2577563.java!!!	getEmptySet() : AttributeSet
+        return SimpleAttributeSet.EMPTY;
+!!!2577691.java!!!	reclaim(inout a : AttributeSet) : void
+	if (SwingUtilities.isEventDispatchThread()) {
+	    attributesPool.size(); // force WeakHashMap to expunge stale entries
+	} 
+	// if current thread is not event dispatching thread
+	// do not bother with expunging stale entries.
+!!!2577819.java!!!	getCompressionThreshold() : int
+        return THRESHOLD;
+!!!2577947.java!!!	createSmallAttributeSet(inout a : AttributeSet) : SmallAttributeSet
+	return new SmallAttributeSet(a);
+!!!2578075.java!!!	createLargeAttributeSet(inout a : AttributeSet) : MutableAttributeSet
+        return new SimpleAttributeSet(a);
+!!!2578203.java!!!	removeUnusedSets() : void
+	attributesPool.size(); // force WeakHashMap to expunge stale entries
+!!!2578331.java!!!	getImmutableUniqueSet() : AttributeSet
+	// PENDING(prinz) should consider finding a alternative to
+	// generating extra garbage on search key.
+	SmallAttributeSet key = createSmallAttributeSet(search);
+	WeakReference reference = (WeakReference)attributesPool.get(key);
+        SmallAttributeSet a;
+        if (reference == null 
+	    || (a = (SmallAttributeSet)reference.get()) == null) {
+            a = key;
+            attributesPool.put(a, new WeakReference(a));
+        } 
+        return a;
+!!!2578459.java!!!	getMutableAttributeSet(inout a : AttributeSet) : MutableAttributeSet
+        if (a instanceof MutableAttributeSet &&
+	    a != SimpleAttributeSet.EMPTY) {
+            return (MutableAttributeSet) a;
+        }
+        return createLargeAttributeSet(a);
+!!!2578587.java!!!	toString() : String
+        removeUnusedSets();
+        String s = "";
+        Iterator iterator = attributesPool.keySet().iterator();
+        while (iterator.hasNext()) {
+            SmallAttributeSet set = (SmallAttributeSet)iterator.next();
+            s = s + set + "\n";
+        }
+        return s;
+!!!2578715.java!!!	writeAttributes(inout out : ObjectOutputStream, inout a : AttributeSet) : void
+        writeAttributeSet(out, a);				      
+!!!2578843.java!!!	readAttributes(inout in : ObjectInputStream, inout a : MutableAttributeSet) : void
+        readAttributeSet(in, a);
+!!!2578971.java!!!	writeAttributeSet(inout out : ObjectOutputStream, inout a : AttributeSet) : void
+        int n = a.getAttributeCount();
+        out.writeInt(n);
+        Enumeration keys = a.getAttributeNames();
+        while (keys.hasMoreElements()) {
+            Object key = keys.nextElement();
+            if (key instanceof Serializable) {
+                out.writeObject(key);
+            } else {
+                Object ioFmt = freezeKeyMap.get(key);
+		if (ioFmt == null) {
+		    throw new NotSerializableException(key.getClass().
+			         getName() + " is not serializable as a key in an AttributeSet");
+		}
+                out.writeObject(ioFmt);
+            }
+            Object value = a.getAttribute(key);
+            Object ioFmt = freezeKeyMap.get(value);
+            if (value instanceof Serializable) {
+                out.writeObject((ioFmt != null) ? ioFmt : value);
+            } else {
+		if (ioFmt == null) {
+		    throw new NotSerializableException(value.getClass().
+			         getName() + " is not serializable as a value in an AttributeSet");
+		}
+                out.writeObject(ioFmt);
+            }
+        }
+!!!2579099.java!!!	readAttributeSet(inout in : ObjectInputStream, inout a : MutableAttributeSet) : void
+
+        int n = in.readInt();
+        for (int i = 0; i < n; i++) {
+            Object key = in.readObject();
+            Object value = in.readObject();
+	    if (thawKeyMap != null) {
+		Object staticKey = thawKeyMap.get(key);
+		if (staticKey != null) {
+		    key = staticKey;
+		}
+		Object staticValue = thawKeyMap.get(value);
+		if (staticValue != null) {
+		    value = staticValue;
+		}
+	    }
+            a.addAttribute(key, value);
+        }
+!!!2579227.java!!!	registerStaticAttributeKey(inout key : Object) : void
+        String ioFmt = key.getClass().getName() + "." + key.toString();
+        if (freezeKeyMap == null) {
+            freezeKeyMap = new Hashtable();
+            thawKeyMap = new Hashtable();
+        }
+        freezeKeyMap.put(key, ioFmt);
+        thawKeyMap.put(ioFmt, key);
+!!!2579355.java!!!	getStaticAttribute(inout key : Object) : Object
+	if (thawKeyMap == null || key == null) {
+	    return null;
+	}
+	return thawKeyMap.get(key);
+!!!2579483.java!!!	getStaticAttributeKey(inout key : Object) : Object
+        return key.getClass().getName() + "." + key.toString();
+!!!2579611.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        // clean out unused sets before saving
+        removeUnusedSets();
+
+        s.defaultWriteObject();
+!!!2579739.java!!!	readObject(inout s : ObjectInputStream) : void
+        fontSearch = new FontKey(null, 0, 0);
+        fontTable = new Hashtable();
+        search = new SimpleAttributeSet();
+        attributesPool = Collections.
+	    synchronizedMap(new WeakHashMap());
+        s.defaultReadObject();

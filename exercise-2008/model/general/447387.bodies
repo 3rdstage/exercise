@@ -1,0 +1,49 @@
+class ComposedTextCaret
+!!!2732059.java!!!	install(inout c : JTextComponent) : void
+	    super.install(c);
+
+	    Document doc = c.getDocument();
+	    if (doc instanceof StyledDocument) {
+		StyledDocument sDoc = (StyledDocument)doc;
+		Element elem = sDoc.getCharacterElement(c.composedTextStart.getOffset());
+	        AttributeSet attr = elem.getAttributes();
+	        bg = sDoc.getBackground(attr);
+	    }
+	
+	    if (bg == null) {
+	        bg = c.getBackground();
+	    }
+!!!2732187.java!!!	paint(inout g : Graphics) : void
+	    if(isVisible()) {
+	        try {
+		    Rectangle r = component.modelToView(getDot());
+		    g.setXORMode(bg);
+		    g.drawLine(r.x, r.y, r.x, r.y + r.height - 1);
+		    g.setPaintMode();
+	        } catch (BadLocationException e) {
+		    // can't render I guess
+		    //System.err.println("Can't render cursor");
+	        }
+	    }
+!!!2732315.java!!!	positionCaret(inout me : MouseEvent) : void
+	    JTextComponent host = component;
+	    Point pt = new Point(me.getX(), me.getY());
+	    int offset = host.viewToModel(pt);
+	    int composedStartIndex = host.composedTextStart.getOffset();
+	    if ((offset < composedStartIndex) ||
+	        (offset > composedTextEnd.getOffset())) {
+		try {
+		    // Issue endComposition
+		    Position newPos = host.getDocument().createPosition(offset); 
+		    host.getInputContext().endComposition();
+
+		    // Post a caret positioning runnable to assure that the positioning
+		    // occurs *after* committing the composed text.
+		    EventQueue.invokeLater(new DoSetCaretPosition(host, newPos));
+		} catch (BadLocationException ble) {
+		    System.err.println(ble);
+		}
+	    } else {
+	        // Normal processing
+	        super.positionCaret(me);
+	    }

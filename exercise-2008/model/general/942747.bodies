@@ -1,0 +1,173 @@
+class HeapCharBuffer
+!!!7447323.java!!!	HeapCharBuffer(in cap : int, in lim : int)
+		// package-private
+
+	super(-1, 0, lim, cap, new char[cap], 0);
+	/*
+	hb = new char[cap];
+	offset = 0;
+	*/
+
+
+
+
+!!!7447451.java!!!	HeapCharBuffer(in buf : char, in off : int, in len : int)
+ // package-private
+
+	super(-1, off, off + len, buf.length, buf, 0);
+	/*
+	hb = buf;
+	offset = 0;
+	*/
+
+
+
+
+!!!7447579.java!!!	HeapCharBuffer(in buf : char, in mark : int, in pos : int, in lim : int, in cap : int, in off : int)
+
+
+	super(mark, pos, lim, cap, buf, off);
+	/*
+	hb = buf;
+	offset = off;
+	*/
+
+
+
+
+!!!7447707.java!!!	slice() : CharBuffer
+
+	return new HeapCharBuffer(hb,
+					-1,
+					0,
+					this.remaining(),
+					this.remaining(),
+					this.position() + offset);
+!!!7447835.java!!!	duplicate() : CharBuffer
+
+	return new HeapCharBuffer(hb,
+					this.markValue(),
+					this.position(),
+					this.limit(),
+					this.capacity(),
+					offset);
+!!!7447963.java!!!	asReadOnlyBuffer() : CharBuffer
+
+
+	return new HeapCharBufferR(hb,
+				     this.markValue(),
+				     this.position(),
+				     this.limit(),
+				     this.capacity(),
+				     offset);
+
+
+
+!!!7448091.java!!!	ix(in i : int) : int
+
+	return i + offset;
+!!!7448219.java!!!	get() : char
+
+	return hb[ix(nextGetIndex())];
+!!!7448347.java!!!	get(in i : int) : char
+
+	return hb[ix(checkIndex(i))];
+!!!7448475.java!!!	get(in dst : char, in offset : int, in length : int) : CharBuffer
+
+	checkBounds(offset, length, dst.length);
+	if (length > remaining())
+	    throw new BufferUnderflowException();
+	System.arraycopy(hb, ix(position()), dst, offset, length);
+	position(position() + length);
+	return this;
+!!!7448603.java!!!	isDirect() : boolean
+
+	return false;
+!!!7448731.java!!!	isReadOnly() : boolean
+
+	return false;
+!!!7448859.java!!!	put(in x : char) : CharBuffer
+
+
+	hb[ix(nextPutIndex())] = x;
+	return this;
+
+
+
+!!!7448987.java!!!	put(in i : int, in x : char) : CharBuffer
+
+
+	hb[ix(checkIndex(i))] = x;
+	return this;
+
+
+
+!!!7449115.java!!!	put(in src : char, in offset : int, in length : int) : CharBuffer
+
+
+	checkBounds(offset, length, src.length);
+	if (length > remaining())
+	    throw new BufferOverflowException();
+	System.arraycopy(src, offset, hb, ix(position()), length);
+	position(position() + length);
+	return this;
+
+
+
+!!!7449243.java!!!	put(inout src : CharBuffer) : CharBuffer
+
+
+	if (src instanceof HeapCharBuffer) {
+	    if (src == this)
+		throw new IllegalArgumentException();
+	    HeapCharBuffer sb = (HeapCharBuffer)src;
+	    int n = sb.remaining();
+	    if (n > remaining())
+		throw new BufferOverflowException();
+	    System.arraycopy(sb.hb, sb.ix(sb.position()),
+			     hb, ix(position()), n);
+	    sb.position(sb.position() + n);
+	    position(position() + n);
+	} else if (src.isDirect()) {
+	    int n = src.remaining();
+	    if (n > remaining())
+		throw new BufferOverflowException();
+	    src.get(hb, ix(position()), n);
+	    position(position() + n);
+	} else {
+	    super.put(src);
+	}
+	return this;
+
+
+
+!!!7449371.java!!!	compact() : CharBuffer
+
+
+	System.arraycopy(hb, ix(position()), hb, ix(0), remaining());
+	position(remaining());
+	limit(capacity());
+	return this;
+
+
+
+!!!7449499.java!!!	toString(in start : int, in end : int) : String
+		// package-private
+	try {
+	    return new String(hb, start + offset, end - start);
+	} catch (StringIndexOutOfBoundsException x) {
+	    throw new IndexOutOfBoundsException();
+	}
+!!!7449627.java!!!	subSequence(in start : int, in end : int) : CharSequence
+
+        if ((start < 0)
+	    || (end > length())
+	    || (start > end))
+	    throw new IndexOutOfBoundsException();
+        int len = end - start;
+        return new HeapCharBuffer(hb,
+				      -1, 0, len, len,
+				      offset + position() + start);
+!!!7449755.java!!!	order() : ByteOrder
+
+	return ByteOrder.nativeOrder();

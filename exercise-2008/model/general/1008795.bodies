@@ -1,0 +1,105 @@
+class Preferences
+!!!8066971.java!!!	factory() : PreferencesFactory
+	// 1. Try user-specified system property
+	String factoryName = AccessController.doPrivileged(
+	    new PrivilegedAction<String>() {
+		public String run() {
+		    return System.getProperty(
+			"java.util.prefs.PreferencesFactory");}});
+	if (factoryName != null) {
+	    // FIXME: This code should be run in a doPrivileged and
+	    // not use the context classloader, to avoid being
+	    // dependent on the invoking thread.
+	    // Checking AllPermission also seems wrong.
+	    try {
+		return (PreferencesFactory)
+		    Class.forName(factoryName, false,
+				  ClassLoader.getSystemClassLoader())
+		    .newInstance();
+	    } catch (Exception ex) {
+		try {
+		    // workaround for javaws, plugin,
+		    // load factory class using non-system classloader
+		    SecurityManager sm = System.getSecurityManager();
+		    if (sm != null) {
+			sm.checkPermission(new java.security.AllPermission());
+		    }
+		    return (PreferencesFactory)
+			Class.forName(factoryName, false,
+				      Thread.currentThread()
+				      .getContextClassLoader())
+			.newInstance();
+		} catch (Exception e) {
+		    InternalError error = new InternalError(
+			"Can't instantiate Preferences factory "
+			+ factoryName);
+		    error.initCause(e);
+		    throw error;
+		}
+	    }
+	}
+
+	return AccessController.doPrivileged(
+	    new PrivilegedAction<PreferencesFactory>() {
+		public PreferencesFactory run() {
+		    return factory1();}});
+!!!8067099.java!!!	factory1() : PreferencesFactory
+	// 2. Try service provider interface
+	Iterator i = Service.providers(PreferencesFactory.class,
+				       ClassLoader.getSystemClassLoader());
+	// choose first provider instance
+	while (i.hasNext()) {
+	    try {
+		return (PreferencesFactory) i.next();
+	    } catch (ServiceConfigurationError sce) {
+		if (sce.getCause() instanceof SecurityException) {
+		    // Ignore the security exception, try the next provider
+		    continue;
+		}
+		throw sce;
+	    }
+	}
+
+	// 3. Use platform-specific system-wide default
+	String platformFactory =
+	    System.getProperty("os.name").startsWith("Windows")
+	    ? "java.util.prefs.WindowsPreferencesFactory"
+	    : "java.util.prefs.FileSystemPreferencesFactory";
+	try {
+	    return (PreferencesFactory)
+		Class.forName(platformFactory, false, null).newInstance();
+	} catch (Exception e) {
+	    InternalError error = new InternalError(
+		"Can't instantiate platform default Preferences factory "
+		+ platformFactory);
+	    error.initCause(e);
+	    throw error;
+	}
+!!!8067227.java!!!	userNodeForPackage(inout c : Class) : Preferences
+        return userRoot().node(nodeName(c));
+!!!8067355.java!!!	systemNodeForPackage(inout c : Class) : Preferences
+        return systemRoot().node(nodeName(c));
+!!!8067483.java!!!	nodeName(inout c : Class) : String
+        if (c.isArray())
+            throw new IllegalArgumentException(
+                "Arrays have no associated preferences node.");
+        String className = c.getName();
+        int pkgEndIndex = className.lastIndexOf('.');
+        if (pkgEndIndex < 0)
+            return "/<unnamed>";
+        String packageName = className.substring(0, pkgEndIndex);
+        return "/" + packageName.replace('.', '/');
+!!!8067611.java!!!	userRoot() : Preferences
+	SecurityManager security = System.getSecurityManager();
+	if (security != null)
+            security.checkPermission(prefsPerm);
+
+        return factory.userRoot();
+!!!8067739.java!!!	systemRoot() : Preferences
+	SecurityManager security = System.getSecurityManager();
+	if (security != null)
+            security.checkPermission(prefsPerm);
+
+        return factory.systemRoot();
+!!!8072347.java!!!	importPreferences(inout is : InputStream) : void
+        XmlSupport.importPreferences(is);

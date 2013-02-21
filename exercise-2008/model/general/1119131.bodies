@@ -1,0 +1,252 @@
+class DefaultFormatter
+!!!9065755.java!!!	DefaultFormatter()
+        overwriteMode = true;
+        allowsInvalid = true;
+!!!9065883.java!!!	install(inout ftf : JFormattedTextField) : void
+        super.install(ftf);
+        positionCursorAtInitialLocation();
+!!!9066011.java!!!	setCommitsOnValidEdit(inout commit : boolean) : void
+        commitOnEdit = commit;
+!!!9066139.java!!!	getCommitsOnValidEdit() : boolean
+        return commitOnEdit;
+!!!9066267.java!!!	setOverwriteMode(inout overwriteMode : boolean) : void
+        this.overwriteMode = overwriteMode;
+!!!9066395.java!!!	getOverwriteMode() : boolean
+        return overwriteMode;
+!!!9066523.java!!!	setAllowsInvalid(inout allowsInvalid : boolean) : void
+        this.allowsInvalid = allowsInvalid;
+!!!9066651.java!!!	getAllowsInvalid() : boolean
+        return allowsInvalid;
+!!!9066779.java!!!	setValueClass(inout valueClass : Class) : void
+        this.valueClass = valueClass;
+!!!9066907.java!!!	getValueClass() : Class
+        return valueClass;
+!!!9067035.java!!!	stringToValue(in string : String) : Object
+        Class vc = getValueClass();
+        JFormattedTextField ftf = getFormattedTextField();
+
+        if (vc == null && ftf != null) {
+            Object value = ftf.getValue();
+
+            if (value != null) {
+                vc = value.getClass();
+            }
+        }
+        if (vc != null) {
+            Constructor cons;
+
+            try {
+                cons = vc.getConstructor(new Class[] { String.class });
+
+            } catch (NoSuchMethodException nsme) {
+                cons = null;
+            }
+
+            if (cons != null) {
+                try {
+                    return cons.newInstance(new Object[] { string });
+                } catch (Throwable ex) {
+                    throw new ParseException("Error creating instance", 0);
+                }
+            }
+        }
+        return string;
+!!!9067163.java!!!	valueToString(inout value : Object) : String
+        if (value == null) {
+            return "";
+        }
+        return value.toString();
+!!!9067291.java!!!	getDocumentFilter() : DocumentFilter
+        if (documentFilter == null) {
+            documentFilter = new DefaultDocumentFilter();
+        }
+        return documentFilter;
+!!!9067419.java!!!	getNavigationFilter() : NavigationFilter
+        if (navigationFilter == null) {
+            navigationFilter = new DefaultNavigationFilter();
+        }
+        return navigationFilter;
+!!!9067547.java!!!	clone() : Object
+        DefaultFormatter formatter = (DefaultFormatter)super.clone();
+
+        formatter.navigationFilter = null;
+        formatter.documentFilter = null;
+        formatter.replaceHolder = null;
+        return formatter;
+!!!9067675.java!!!	positionCursorAtInitialLocation() : void
+        JFormattedTextField ftf = getFormattedTextField();
+        if (ftf != null) {
+            ftf.setCaretPosition(getInitialVisualPosition());
+        }
+!!!9067803.java!!!	getInitialVisualPosition() : int
+        return getNextNavigatableChar(0, 1);
+!!!9067931.java!!!	isNavigatable(in offset : int) : boolean
+        return true;
+!!!9068059.java!!!	isLegalInsertText(in text : String) : boolean
+        return true;
+!!!9068187.java!!!	getNextNavigatableChar(in offset : int, in direction : int) : int
+        int max = getFormattedTextField().getDocument().getLength();
+
+        while (offset >= 0 && offset < max) {
+            if (isNavigatable(offset)) {
+                return offset;
+            }
+            offset += direction;
+        }
+        return offset;
+!!!9068315.java!!!	getReplaceString(in offset : int, in deleteLength : int, in replaceString : String) : String
+        String string = getFormattedTextField().getText();
+        String result;
+
+        result = string.substring(0, offset);
+        if (replaceString != null) {
+            result += replaceString;
+        }
+        if (offset + deleteLength < string.length()) {
+            result += string.substring(offset + deleteLength);
+        }
+        return result;
+!!!9068443.java!!!	isValidEdit(inout rh : ReplaceHolder) : boolean
+        if (!getAllowsInvalid()) {
+            String newString = getReplaceString(rh.offset, rh.length, rh.text);
+
+            try {
+                rh.value = stringToValue(newString);
+
+                return true;
+            } catch (ParseException pe) {
+                return false;
+            }
+        }
+        return true;
+!!!9068571.java!!!	commitEdit() : void
+        JFormattedTextField ftf = getFormattedTextField();
+
+        if (ftf != null) {
+            ftf.commitEdit();
+        }
+!!!9068699.java!!!	updateValue() : void
+        updateValue(null);
+!!!9068827.java!!!	updateValue(inout value : Object) : void
+        try {
+            if (value == null) {
+                String string = getFormattedTextField().getText();
+
+                value = stringToValue(string);
+            }
+
+            if (getCommitsOnValidEdit()) {
+                commitEdit();
+            }
+            setEditValid(true);
+        } catch (ParseException pe) {
+            setEditValid(false);
+        }
+!!!9068955.java!!!	getNextCursorPosition(in offset : int, in direction : int) : int
+        int newOffset = getNextNavigatableChar(offset, direction);
+        int max = getFormattedTextField().getDocument().getLength();
+
+        if (!getAllowsInvalid()) {
+            if (direction == -1 && offset == newOffset) {
+                // Case where hit backspace and only characters before
+                // offset are fixed.
+                newOffset = getNextNavigatableChar(newOffset, 1);
+                if (newOffset >= max) {
+                    newOffset = offset;
+                }
+            }
+            else if (direction == 1 && newOffset >= max) {
+                // Don't go beyond last editable character.
+                newOffset = getNextNavigatableChar(max - 1, -1);
+                if (newOffset < max) {
+                    newOffset++;
+                }
+            }
+        }
+        return newOffset;
+!!!9069083.java!!!	repositionCursor(in offset : int, in direction : int) : void
+        getFormattedTextField().getCaret().setDot(getNextCursorPosition
+                                                  (offset, direction));
+!!!9069211.java!!!	getNextVisualPositionFrom(inout text : JTextComponent, in pos : int, inout bias : Bias, in direction : int, inout biasRet : Bias) : int
+        int value = text.getUI().getNextVisualPositionFrom(text, pos, bias,
+                                                           direction, biasRet);
+
+        if (value == -1) {
+            return -1;
+        }
+        if (!getAllowsInvalid() && (direction == SwingConstants.EAST ||
+                                    direction == SwingConstants.WEST)) {
+            int last = -1;
+
+            while (!isNavigatable(value) && value != last) {
+                last = value;
+                value = text.getUI().getNextVisualPositionFrom(
+                              text, value, bias, direction,biasRet);
+            }
+            int max = getFormattedTextField().getDocument().getLength();
+            if (last == value || value == max) {
+                if (value == 0) {
+                    biasRet[0] = Position.Bias.Forward;
+                    value = getInitialVisualPosition();
+                }
+                if (value >= max && max > 0) {
+                    // Pending: should not assume forward!
+                    biasRet[0] = Position.Bias.Forward;
+                    value = getNextNavigatableChar(max - 1, -1) + 1;
+                }
+            }
+        }
+        return value;
+!!!9069339.java!!!	canReplace(inout rh : ReplaceHolder) : boolean
+        return isValidEdit(rh);
+!!!9069467.java!!!	replace(inout fb : FilterBypass, in offset : int, in length : int, in text : String, inout attrs : AttributeSet) : void
+        ReplaceHolder rh = getReplaceHolder(fb, offset, length, text, attrs);
+
+        replace(rh);
+!!!9069595.java!!!	replace(inout rh : ReplaceHolder) : boolean
+        boolean valid = true;
+        int direction = 1;
+
+        if (rh.length > 0 && (rh.text == null || rh.text.length() == 0) &&
+               (getFormattedTextField().getSelectionStart() != rh.offset ||
+                   rh.length > 1)) {
+            direction = -1;
+        }
+
+        if (getOverwriteMode() && rh.text != null) {
+            rh.length = Math.min(Math.max(rh.length, rh.text.length()),
+                                 rh.fb.getDocument().getLength() - rh.offset);
+        }
+        if ((rh.text != null && !isLegalInsertText(rh.text)) ||
+            !canReplace(rh) ||
+            (rh.length == 0 && (rh.text == null || rh.text.length() == 0))) {
+            valid = false;
+        }
+        if (valid) {
+            int cursor = rh.cursorPosition;
+
+            rh.fb.replace(rh.offset, rh.length, rh.text, rh.attrs);
+            if (cursor == -1) {
+                cursor = rh.offset;
+                if (direction == 1 && rh.text != null) {
+                    cursor = rh.offset + rh.text.length();
+                }
+            }
+            updateValue(rh.value);
+            repositionCursor(cursor, direction);
+            return true;
+        }
+        else {
+            invalidEdit();
+        }
+        return false;
+!!!9069723.java!!!	setDot(inout fb : FilterBypass, in dot : int, inout bias : Bias) : void
+        fb.setDot(dot, bias);
+!!!9069851.java!!!	moveDot(inout fb : FilterBypass, in dot : int, inout bias : Bias) : void
+        fb.moveDot(dot, bias);
+!!!9069979.java!!!	getReplaceHolder(inout fb : FilterBypass, in offset : int, in length : int, in text : String, inout attrs : AttributeSet) : ReplaceHolder
+        if (replaceHolder == null) {
+            replaceHolder = new ReplaceHolder();
+        }
+        replaceHolder.reset(fb, offset, length, text, attrs);
+        return replaceHolder;

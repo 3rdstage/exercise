@@ -1,0 +1,188 @@
+class JMenuBar
+!!!2647963.java!!!	JMenuBar()
+        super();
+        setFocusTraversalKeysEnabled(false);
+        setSelectionModel(new DefaultSingleSelectionModel());
+        updateUI();
+!!!2648091.java!!!	getUI() : MenuBarUI
+        return (MenuBarUI)ui;
+!!!2648219.java!!!	setUI(inout ui : MenuBarUI) : void
+        super.setUI(ui);
+!!!2648347.java!!!	updateUI() : void
+        setUI((MenuBarUI)UIManager.getUI(this));
+!!!2648475.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!2648603.java!!!	getSelectionModel() : SingleSelectionModel
+        return selectionModel;
+!!!2648731.java!!!	setSelectionModel(inout model : SingleSelectionModel) : void
+	SingleSelectionModel oldValue = selectionModel;
+        this.selectionModel = model;
+        firePropertyChange("selectionModel", oldValue, selectionModel);
+!!!2648859.java!!!	add(inout c : JMenu) : JMenu
+        super.add(c);
+        return c;
+!!!2648987.java!!!	getMenu(in index : int) : JMenu
+        Component c = getComponentAtIndex(index);
+        if (c instanceof JMenu) 
+            return (JMenu) c;
+        return null;
+!!!2649115.java!!!	getMenuCount() : int
+        return getComponentCount();
+!!!2649243.java!!!	setHelpMenu(inout menu : JMenu) : void
+        throw new Error("setHelpMenu() not yet implemented.");
+!!!2649371.java!!!	getHelpMenu() : JMenu
+        throw new Error("getHelpMenu() not yet implemented.");
+!!!2649499.java!!!	getComponentAtIndex(in i : int) : Component
+	
+	return getComponent(i);
+!!!2649627.java!!!	getComponentIndex(inout c : Component) : int
+        int ncomponents = this.getComponentCount();
+        Component[] component = this.getComponents();
+        for (int i = 0 ; i < ncomponents ; i++) {
+            Component comp = component[i];
+            if (comp == c) 
+                return i;
+        }
+        return -1;
+!!!2649755.java!!!	setSelected(inout sel : Component) : void
+    
+        SingleSelectionModel model = getSelectionModel();
+        int index = getComponentIndex(sel);
+        model.setSelectedIndex(index);
+!!!2649883.java!!!	isSelected() : boolean
+       
+        return selectionModel.isSelected();
+!!!2650011.java!!!	isBorderPainted() : boolean
+        return paintBorder;
+!!!2650139.java!!!	setBorderPainted(inout b : boolean) : void
+        boolean oldValue = paintBorder;
+        paintBorder = b;
+        firePropertyChange("borderPainted", oldValue, paintBorder);
+        if (b != oldValue) {
+            revalidate();
+            repaint();
+        }
+!!!2650267.java!!!	paintBorder(inout g : Graphics) : void
+    
+        if (isBorderPainted()) {
+            super.paintBorder(g);
+        }
+!!!2650395.java!!!	setMargin(inout m : Insets) : void
+        Insets old = margin;
+        this.margin = m;
+        firePropertyChange("margin", old, m);
+        if (old == null || !old.equals(m)) {
+            revalidate();
+            repaint();
+        }
+!!!2650523.java!!!	getMargin() : Insets
+        if(margin == null) {
+            return new Insets(0,0,0,0);
+        } else {
+            return margin;
+        }
+!!!2651035.java!!!	getSubElements() : MenuElement
+        MenuElement result[];
+        Vector tmp = new Vector();
+        int c = getComponentCount();
+        int i;
+        Component m;
+
+        for(i=0 ; i < c ; i++) {
+            m = getComponent(i);
+            if(m instanceof MenuElement)
+                tmp.addElement(m);
+        }
+
+        result = new MenuElement[tmp.size()];
+        for(i=0,c=tmp.size() ; i < c ; i++) 
+            result[i] = (MenuElement) tmp.elementAt(i);
+        return result;
+!!!2651163.java!!!	getComponent() : Component
+        return this;
+!!!2651291.java!!!	paramString() : String
+	String paintBorderString = (paintBorder ?
+				    "true" : "false");
+	String marginString = (margin != null ?
+			       margin.toString() : "");
+
+	return super.paramString() +
+	",margin=" + marginString +
+	",paintBorder=" + paintBorderString;
+!!!2651419.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJMenuBar();
+        }
+        return accessibleContext;
+!!!2652827.java!!!	processKeyBinding(inout ks : KeyStroke, inout e : KeyEvent, in condition : int, inout pressed : boolean) : boolean
+	// See if we have a local binding.
+	boolean retValue = super.processKeyBinding(ks, e, condition, pressed);
+	if (!retValue) {
+            MenuElement[] subElements = getSubElements();
+            for (int i=0; i<subElements.length; i++) {
+                if (processBindingForKeyStrokeRecursive(
+                                                        subElements[i], ks, e, condition, pressed)) {
+                    return true;
+                }
+            }
+        }
+        return retValue;
+!!!2652955.java!!!	processBindingForKeyStrokeRecursive(inout elem : MenuElement, inout ks : KeyStroke, inout e : KeyEvent, in condition : int, inout pressed : boolean) : boolean
+        if (elem == null) {
+            return false;
+        }
+
+        Component c = elem.getComponent();
+        if (c != null && c instanceof JComponent &&
+            ((JComponent)c).processKeyBinding(ks, e, condition, pressed)) {
+
+            return true;
+        }
+
+        MenuElement[] subElements = elem.getSubElements();
+        for(int i=0; i<subElements.length; i++) {
+            if (processBindingForKeyStrokeRecursive(subElements[i], ks, e,
+                                                    condition, pressed)) {
+                return true;
+                // We don't, pass along to children JMenu's
+            }
+        }
+        return false;
+!!!2653083.java!!!	addNotify() : void
+        super.addNotify();
+	KeyboardManager.getCurrentManager().registerMenuBar(this);
+!!!2653211.java!!!	removeNotify() : void
+        super.removeNotify();
+	KeyboardManager.getCurrentManager().unregisterMenuBar(this);
+!!!2653339.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+
+        Object[] kvData = new Object[4];
+        int n = 0;
+
+        if (selectionModel instanceof Serializable) {
+            kvData[n++] = "selectionModel";
+            kvData[n++] = selectionModel;
+        }
+
+        s.writeObject(kvData);
+!!!2653467.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+        Object[] kvData = (Object[])(s.readObject());
+
+        for(int i = 0; i < kvData.length; i += 2) {
+            if (kvData[i] == null) {
+                break;
+            }
+            else if (kvData[i].equals("selectionModel")) {
+                selectionModel = (SingleSelectionModel)kvData[i + 1];
+            }
+        }
+

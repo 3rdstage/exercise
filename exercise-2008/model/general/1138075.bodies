@@ -1,0 +1,145 @@
+class DefaultRGBChooserPanel
+!!!9342363.java!!!	DefaultRGBChooserPanel()
+        super();
+!!!9342491.java!!!	setColor(inout newColor : Color) : void
+        int red = newColor.getRed();
+        int blue = newColor.getBlue();
+        int green = newColor.getGreen();
+
+        if (redSlider.getValue() != red) {
+            redSlider.setValue(red);
+        }
+        if (greenSlider.getValue() != green) {
+            greenSlider.setValue(green);
+        }
+        if (blueSlider.getValue() != blue) {
+            blueSlider.setValue(blue);
+        }
+
+        if (((Integer)redField.getValue()).intValue() != red)
+            redField.setValue(new Integer(red));
+        if (((Integer)greenField.getValue()).intValue() != green)
+            greenField.setValue(new Integer(green));
+        if (((Integer)blueField.getValue()).intValue() != blue )
+            blueField.setValue(new Integer(blue));
+!!!9342619.java!!!	getDisplayName() : String
+        return UIManager.getString("ColorChooser.rgbNameText");
+!!!9342747.java!!!	getMnemonic() : int
+        return getInt("ColorChooser.rgbMnemonic", -1);
+!!!9342875.java!!!	getDisplayedMnemonicIndex() : int
+        return getInt("ColorChooser.rgbDisplayedMnemonicIndex", -1);
+!!!9343003.java!!!	getSmallDisplayIcon() : Icon
+        return null;
+!!!9343131.java!!!	getLargeDisplayIcon() : Icon
+        return null;
+!!!9343259.java!!!	installChooserPanel(inout enclosingChooser : JColorChooser) : void
+        super.installChooserPanel(enclosingChooser);
+!!!9343387.java!!!	buildChooser() : void
+      
+        String redString = UIManager.getString("ColorChooser.rgbRedText");
+        String greenString = UIManager.getString("ColorChooser.rgbGreenText");
+        String blueString = UIManager.getString("ColorChooser.rgbBlueText");
+
+        setLayout( new BorderLayout() );
+        Color color = getColorFromModel();
+
+
+        JPanel enclosure = new JPanel();
+        enclosure.setLayout( new SmartGridLayout( 3, 3 ) );
+
+        // The panel that holds the sliders
+
+        add( enclosure, BorderLayout.CENTER );
+        //        sliderPanel.setBorder(new LineBorder(Color.black));
+
+        // The row for the red value
+        JLabel l = new JLabel(redString);
+        l.setDisplayedMnemonic(AbstractColorChooserPanel.getInt("ColorChooser.rgbRedMnemonic", -1));
+        enclosure.add(l);
+        redSlider = new JSlider(JSlider.HORIZONTAL, 0, 255, color.getRed());
+        redSlider.setMajorTickSpacing( 85 );
+        redSlider.setMinorTickSpacing( 17 );
+        redSlider.setPaintTicks( true );
+        redSlider.setPaintLabels( true );
+        enclosure.add( redSlider );
+        redField = new JSpinner(
+            new SpinnerNumberModel(color.getRed(), minValue, maxValue, 1));
+        l.setLabelFor(redSlider);
+        JPanel redFieldHolder = new JPanel(new CenterLayout());
+        redField.addChangeListener(this);
+        redFieldHolder.add(redField);
+        enclosure.add(redFieldHolder);
+
+
+        // The row for the green value
+        l = new JLabel(greenString);
+        l.setDisplayedMnemonic(AbstractColorChooserPanel.getInt("ColorChooser.rgbGreenMnemonic", -1));
+        enclosure.add(l);
+        greenSlider = new JSlider(JSlider.HORIZONTAL, 0, 255, color.getGreen());
+        greenSlider.setMajorTickSpacing( 85 );
+        greenSlider.setMinorTickSpacing( 17 );
+        greenSlider.setPaintTicks( true );
+        greenSlider.setPaintLabels( true );
+        enclosure.add(greenSlider);
+        greenField = new JSpinner(
+            new SpinnerNumberModel(color.getGreen(), minValue, maxValue, 1));
+        l.setLabelFor(greenSlider);
+        JPanel greenFieldHolder = new JPanel(new CenterLayout());
+        greenFieldHolder.add(greenField);
+        greenField.addChangeListener(this);
+        enclosure.add(greenFieldHolder);
+
+        // The slider for the blue value
+        l = new JLabel(blueString);
+        l.setDisplayedMnemonic(AbstractColorChooserPanel.getInt("ColorChooser.rgbBlueMnemonic", -1));
+        enclosure.add(l);
+        blueSlider = new JSlider(JSlider.HORIZONTAL, 0, 255, color.getBlue());
+        blueSlider.setMajorTickSpacing( 85 );
+        blueSlider.setMinorTickSpacing( 17 );
+        blueSlider.setPaintTicks( true );
+        blueSlider.setPaintLabels( true );
+        enclosure.add(blueSlider);
+        blueField = new JSpinner(
+            new SpinnerNumberModel(color.getBlue(), minValue, maxValue, 1));
+        l.setLabelFor(blueSlider);
+        JPanel blueFieldHolder = new JPanel(new CenterLayout());
+        blueFieldHolder.add(blueField);
+        blueField.addChangeListener(this);
+        enclosure.add(blueFieldHolder);
+
+        redSlider.addChangeListener( this );
+        greenSlider.addChangeListener( this );
+        blueSlider.addChangeListener( this );  
+        
+        redSlider.putClientProperty("JSlider.isFilled", Boolean.TRUE);
+        greenSlider.putClientProperty("JSlider.isFilled", Boolean.TRUE);
+        blueSlider.putClientProperty("JSlider.isFilled", Boolean.TRUE);
+!!!9343515.java!!!	uninstallChooserPanel(inout enclosingChooser : JColorChooser) : void
+        super.uninstallChooserPanel(enclosingChooser);
+        removeAll();
+!!!9343643.java!!!	updateChooser() : void
+        if (!isAdjusting) {
+            isAdjusting = true;
+
+            setColor(getColorFromModel());
+
+            isAdjusting = false;
+        }
+!!!9343771.java!!!	stateChanged(inout e : ChangeEvent) : void
+        if ( e.getSource() instanceof JSlider && !isAdjusting) {
+
+            int red = redSlider.getValue();
+            int green = greenSlider.getValue();
+            int blue = blueSlider.getValue() ;
+            Color color = new Color (red, green, blue);
+    
+            getColorSelectionModel().setSelectedColor(color);
+        } else if (e.getSource() instanceof JSpinner && !isAdjusting) {
+
+            int red = ((Integer)redField.getValue()).intValue();
+            int green = ((Integer)greenField.getValue()).intValue();
+            int blue = ((Integer)blueField.getValue()).intValue();
+            Color color = new Color (red, green, blue);
+            
+            getColorSelectionModel().setSelectedColor(color);
+        }

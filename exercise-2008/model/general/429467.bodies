@@ -1,0 +1,98 @@
+class CompoundEdit
+!!!2566811.java!!!	CompoundEdit()
+	super();
+	inProgress = true;
+	edits = new Vector<UndoableEdit>();
+!!!2566939.java!!!	undo() : void
+	super.undo();
+	int i = edits.size();
+	while (i-- > 0) {
+	    UndoableEdit e = (UndoableEdit)edits.elementAt(i);
+	    e.undo();
+	}
+!!!2567067.java!!!	redo() : void
+	super.redo();
+	Enumeration cursor = edits.elements();
+	while (cursor.hasMoreElements()) {
+	    ((UndoableEdit)cursor.nextElement()).redo();
+	}
+!!!2567195.java!!!	lastEdit() : UndoableEdit
+	int count = edits.size();
+	if (count > 0)
+	    return (UndoableEdit)edits.elementAt(count-1);
+	else
+	    return null;
+!!!2567323.java!!!	die() : void
+	int size = edits.size();
+	for (int i = size-1; i >= 0; i--)
+	{
+	    UndoableEdit e = (UndoableEdit)edits.elementAt(i);
+// 	    System.out.println("CompoundEdit(" + i + "): Discarding " +
+// 			       e.getUndoPresentationName());
+	    e.die();
+	}
+	super.die();
+!!!2567451.java!!!	addEdit(inout anEdit : UndoableEdit) : boolean
+	if (!inProgress) {
+	    return false;
+	} else {
+	    UndoableEdit last = lastEdit();
+
+	    // If this is the first subedit received, just add it.
+	    // Otherwise, give the last one a chance to absorb the new
+	    // one.  If it won't, give the new one a chance to absorb
+	    // the last one.
+
+	    if (last == null) {
+		edits.addElement(anEdit);
+	    }
+	    else if (!last.addEdit(anEdit)) {
+		if (anEdit.replaceEdit(last)) {
+		    edits.removeElementAt(edits.size()-1);
+		}
+		edits.addElement(anEdit);
+	    }
+
+	    return true;
+	}
+!!!2567579.java!!!	end() : void
+	inProgress = false;
+!!!2567707.java!!!	canUndo() : boolean
+	return !isInProgress() && super.canUndo();
+!!!2567835.java!!!	canRedo() : boolean
+	return !isInProgress() && super.canRedo();
+!!!2567963.java!!!	isInProgress() : boolean
+	return inProgress;
+!!!2568091.java!!!	isSignificant() : boolean
+	Enumeration cursor = edits.elements();
+	while (cursor.hasMoreElements()) {
+	    if (((UndoableEdit)cursor.nextElement()).isSignificant()) {
+		return true;
+	    }
+	}
+	return false;
+!!!2568219.java!!!	getPresentationName() : String
+	UndoableEdit last = lastEdit();
+	if (last != null) {
+	    return last.getPresentationName();
+	} else {
+	    return super.getPresentationName();
+	}
+!!!2568347.java!!!	getUndoPresentationName() : String
+	UndoableEdit last = lastEdit();
+	if (last != null) {
+	    return last.getUndoPresentationName();
+	} else {
+	    return super.getUndoPresentationName();
+	}
+!!!2568475.java!!!	getRedoPresentationName() : String
+	UndoableEdit last = lastEdit();
+	if (last != null) {
+	    return last.getRedoPresentationName();
+	} else {
+	    return super.getRedoPresentationName();
+	}
+!!!2568603.java!!!	toString() : String
+	return super.toString()
+	    + " inProgress: " + inProgress
+	    + " edits: " + edits;

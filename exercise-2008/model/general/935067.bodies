@@ -1,0 +1,127 @@
+class LongBuffer
+!!!7353499.java!!!	LongBuffer(in mark : int, in pos : int, in lim : int, in cap : int, in hb : long, in offset : int)
+
+	super(mark, pos, lim, cap);
+	this.hb = hb;
+	this.offset = offset;
+!!!7353627.java!!!	LongBuffer(in mark : int, in pos : int, in lim : int, in cap : int)
+	// package-private
+	this(mark, pos, lim, cap, null, 0);
+!!!7353755.java!!!	allocate(in capacity : int) : LongBuffer
+
+	if (capacity < 0)
+	    throw new IllegalArgumentException();
+	return new HeapLongBuffer(capacity, capacity);
+!!!7353883.java!!!	wrap(in array : long, in offset : int, in length : int) : LongBuffer
+
+	try {
+	    return new HeapLongBuffer(array, offset, length);
+	} catch (IllegalArgumentException x) {
+	    throw new IndexOutOfBoundsException();
+	}
+!!!7354011.java!!!	wrap(in array : long) : LongBuffer
+
+	return wrap(array, 0, array.length);
+!!!7355035.java!!!	get(in dst : long, in offset : int, in length : int) : LongBuffer
+
+	checkBounds(offset, length, dst.length);
+	if (length > remaining())
+	    throw new BufferUnderflowException();
+	int end = offset + length;
+	for (int i = offset; i < end; i++)
+	    dst[i] = get();
+	return this;
+!!!7355163.java!!!	get(in dst : long) : LongBuffer
+
+	return get(dst, 0, dst.length);
+!!!7355291.java!!!	put(inout src : LongBuffer) : LongBuffer
+
+	if (src == this)
+	    throw new IllegalArgumentException();
+	int n = src.remaining();
+	if (n > remaining())
+	    throw new BufferOverflowException();
+	for (int i = 0; i < n; i++)
+	    put(src.get());
+	return this;
+!!!7355419.java!!!	put(in src : long, in offset : int, in length : int) : LongBuffer
+
+	checkBounds(offset, length, src.length);
+	if (length > remaining())
+	    throw new BufferOverflowException();
+	int end = offset + length;
+	for (int i = offset; i < end; i++)
+	    this.put(src[i]);
+	return this;
+!!!7355547.java!!!	put(in src : long) : LongBuffer
+
+	return put(src, 0, src.length);
+!!!7355675.java!!!	hasArray() : boolean
+
+	return (hb != null) && !isReadOnly;
+!!!7355803.java!!!	array() : long
+
+	if (hb == null)
+	    throw new UnsupportedOperationException();
+	if (isReadOnly)
+	    throw new ReadOnlyBufferException();
+	return hb;
+!!!7355931.java!!!	arrayOffset() : int
+
+	if (hb == null)
+	    throw new UnsupportedOperationException();
+	if (isReadOnly)
+	    throw new ReadOnlyBufferException();
+	return offset;
+!!!7356315.java!!!	toString() : String
+
+	StringBuffer sb = new StringBuffer();
+	sb.append(getClass().getName());
+	sb.append("[pos=");
+	sb.append(position());
+	sb.append(" lim=");
+	sb.append(limit());
+	sb.append(" cap=");
+	sb.append(capacity());
+	sb.append("]");
+	return sb.toString();
+!!!7356443.java!!!	hashCode() : int
+
+	int h = 1;
+	int p = position();
+	for (int i = limit() - 1; i >= p; i--)
+	    h = 31 * h + (int)get(i);
+	return h;
+!!!7356571.java!!!	equals(inout ob : Object) : boolean
+
+	if (!(ob instanceof LongBuffer))
+	    return false;
+	LongBuffer that = (LongBuffer)ob;
+	if (this.remaining() != that.remaining())
+	    return false;
+	int p = this.position();
+	for (int i = this.limit() - 1, j = that.limit() - 1; i >= p; i--, j--) {
+	    long v1 = this.get(i);
+	    long v2 = that.get(j);
+	    if (v1 != v2) {
+		if ((v1 != v1) && (v2 != v2))	// For float and double
+		    continue;
+		return false;
+	    }
+	}
+	return true;
+!!!7356699.java!!!	compareTo(inout that : LongBuffer) : int
+
+	int n = this.position() + Math.min(this.remaining(), that.remaining());
+	for (int i = this.position(), j = that.position(); i < n; i++, j++) {
+	    long v1 = this.get(i);
+	    long v2 = that.get(j);
+	    if (v1 == v2)
+		continue;
+	    if ((v1 != v1) && (v2 != v2)) 	// For float and double
+		continue;
+	    if (v1 < v2)
+		return -1;
+	    return +1;
+	}
+	return this.remaining() - that.remaining();

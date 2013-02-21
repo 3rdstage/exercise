@@ -1,0 +1,93 @@
+class KeyImpl
+!!!8669851.java!!!	KeyImpl(in keyBytes : byte, in keyType : int)
+	this.keyBytes = (byte[]) keyBytes.clone();
+	this.keyType = keyType;
+!!!8669979.java!!!	KeyImpl(inout principal : KerberosPrincipal, in password : char, in algorithm : String)
+
+	try {
+	    PrincipalName princ = new PrincipalName(principal.getName());
+	    EncryptionKey key = 
+		new EncryptionKey(password, princ.getSalt(),algorithm);
+	    this.keyBytes = key.getBytes();
+	    this.keyType = key.getEType();
+	} catch (KrbException e) {
+	    throw new IllegalArgumentException(e.getMessage());
+	}
+!!!8670107.java!!!	getKeyType() : int
+	if (destroyed)
+	    throw new IllegalStateException("This key is no longer valid");
+	return keyType;
+!!!8670235.java!!!	getAlgorithm() : String
+	return getAlgorithmName(keyType);
+!!!8670363.java!!!	getAlgorithmName(in eType : int) : String
+	if (destroyed)
+	    throw new IllegalStateException("This key is no longer valid");
+
+	switch (eType) {
+	case EncryptedData.ETYPE_DES_CBC_CRC:
+	case EncryptedData.ETYPE_DES_CBC_MD5:
+	    return "DES";
+
+	case EncryptedData.ETYPE_DES3_CBC_HMAC_SHA1_KD:
+	    return "DESede";
+
+        case EncryptedData.ETYPE_ARCFOUR_HMAC:
+            return "ArcFourHmac";
+
+	case EncryptedData.ETYPE_AES128_CTS_HMAC_SHA1_96:
+            return "AES128";
+ 
+        case EncryptedData.ETYPE_AES256_CTS_HMAC_SHA1_96:
+            return "AES256";	    
+	    
+	case EncryptedData.ETYPE_NULL:
+	    return "NULL";
+
+	default:
+	    throw new IllegalArgumentException(
+		"Unsupported encryption type: " + eType);
+	}
+!!!8670491.java!!!	getFormat() : String
+	if (destroyed)
+	    throw new IllegalStateException("This key is no longer valid");
+	return "RAW";
+!!!8670619.java!!!	getEncoded() : byte
+	if (destroyed)
+	    throw new IllegalStateException("This key is no longer valid");
+	return (byte[])keyBytes.clone();
+!!!8670747.java!!!	destroy() : void
+	if (!destroyed) {
+	    Arrays.fill(keyBytes, (byte) 0);
+	    destroyed = true;
+	}
+!!!8670875.java!!!	isDestroyed() : boolean
+	return destroyed;
+!!!8671003.java!!!	writeObject(inout ois : ObjectOutputStream) : void
+	if (destroyed) {
+	   throw new IOException ("This key is no longer valid");
+	}
+
+	try {
+	   ois.writeObject((new EncryptionKey(keyType,keyBytes)).asn1Encode());
+	} catch (Asn1Exception ae) {
+	   throw new IOException(ae.getMessage());
+	}
+!!!8671131.java!!!	readObject(inout ois : ObjectInputStream) : void
+	try {
+	    EncryptionKey encKey = new EncryptionKey(new 
+				     DerValue((byte[])ois.readObject()));
+	    keyType = encKey.getEType();
+	    keyBytes = encKey.getBytes();
+	} catch (Asn1Exception ae) {
+	    throw new IOException (ae.getMessage());
+	}
+!!!8671259.java!!!	toString() : String
+	HexDumpEncoder hd = new HexDumpEncoder();	
+	return new String("EncryptionKey: keyType=" + keyType
+                          + " keyBytes (hex dump)="
+                          + (keyBytes == null || keyBytes.length == 0 ?
+                             " Empty Key" :
+                             '\n' + hd.encode(keyBytes)
+                          + '\n'));
+
+	

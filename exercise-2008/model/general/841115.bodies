@@ -1,0 +1,409 @@
+class PolicyParser
+!!!6097051.java!!!	expand(in value : String) : String
+	if (expandProp)
+	    return PropertyExpander.expand(value);
+	else 
+	    return value;
+!!!6097179.java!!!	PolicyParser()
+	grantEntries = new Vector();
+!!!6097307.java!!!	PolicyParser(inout expandProp : boolean)
+	this();
+	this.expandProp = expandProp;
+!!!6097435.java!!!	read(inout policy : Reader) : void
+	if (!(policy instanceof BufferedReader)) {
+	    policy = new BufferedReader(policy);
+	}
+
+	/**
+	 * Configure the stream tokenizer:
+	 * 	Recognize strings between "..."
+	 * 	Don't convert words to lowercase
+	 * 	Recognize both C-style and C++-style comments
+	 * 	Treat end-of-line as white space, not as a token
+	 */
+	st   = new StreamTokenizer(policy);
+
+	st.resetSyntax();
+	st.wordChars('a', 'z');
+	st.wordChars('A', 'Z');
+	st.wordChars('.', '.');
+	st.wordChars('0', '9');
+	st.wordChars('_', '_');
+	st.wordChars('$', '$');
+	st.wordChars(128 + 32, 255);
+	st.whitespaceChars(0, ' ');
+	st.commentChar('/');
+	st.quoteChar('\'');
+	st.quoteChar('"');
+	st.lowerCaseMode(false);
+	st.ordinaryChar('/');
+	st.slashSlashComments(true);
+	st.slashStarComments(true);
+
+	/**
+	 * The main parsing loop.  The loop is executed once
+	 * for each entry in the config file.      The entries
+	 * are delimited by semicolons.   Once we've read in
+	 * the information for an entry, go ahead and try to
+	 * add it to the policy vector. 
+	 * 
+	 */ 
+
+	lookahead = st.nextToken();
+	while (lookahead != StreamTokenizer.TT_EOF) {
+	    if (peek("grant")) {
+		GrantEntry ge = parseGrantEntry();
+		// could be null if we couldn't expand a property
+		if (ge != null)
+		    add(ge);
+	    } else if (peek("keystore") && keyStoreUrlString==null) {
+		// only one keystore entry per policy file, others will be
+		// ignored
+		parseKeyStoreEntry();
+	    } else {
+		// error?
+	    }
+	    match(";");
+	}
+!!!6097563.java!!!	add(inout ge : GrantEntry) : void
+	grantEntries.addElement(ge);
+!!!6097691.java!!!	replace(inout origGe : GrantEntry, inout newGe : GrantEntry) : void
+	grantEntries.setElementAt(newGe, grantEntries.indexOf(origGe));
+!!!6097819.java!!!	remove(inout ge : GrantEntry) : boolean
+	return grantEntries.removeElement(ge);
+!!!6097947.java!!!	getKeyStoreUrl() : String
+	try {
+	    if (keyStoreUrlString!=null && keyStoreUrlString.length()!=0) {
+		return expand(keyStoreUrlString).replace(File.separatorChar,
+							 '/');
+	    }
+	} catch (PropertyExpander.ExpandException peee) {
+	    return null;
+	}
+	return null;
+!!!6098075.java!!!	setKeyStoreUrl(in url : String) : void
+	keyStoreUrlString = url;
+!!!6098203.java!!!	getKeyStoreType() : String
+	return keyStoreType;
+!!!6098331.java!!!	setKeyStoreType(in type : String) : void
+	keyStoreType = type;
+!!!6098459.java!!!	grantElements() : Enumeration
+	return grantEntries.elements();
+!!!6098587.java!!!	write(inout policy : Writer) : void
+	PrintWriter out = new PrintWriter(new BufferedWriter(policy));
+
+	Enumeration enum_ = grantElements();
+
+	out.println("/* AUTOMATICALLY GENERATED ON "+
+		    (new java.util.Date()) + "*/");
+	out.println("/* DO NOT EDIT */");
+	out.println();
+
+	// write the (unexpanded) keystore entry as the first entry of the
+	// policy file
+	if (keyStoreUrlString != null) {
+	    writeKeyStoreEntry(out);
+	}
+
+	// write "grant" entries
+	while (enum_.hasMoreElements()) {
+	    GrantEntry ge = (GrantEntry) enum_.nextElement();
+	    ge.write(out);
+	    out.println();
+	}
+	out.flush();
+!!!6098715.java!!!	parseKeyStoreEntry() : void
+	match("keystore");
+	keyStoreUrlString = match("quoted string");
+
+	// parse keystore type
+	if (!peek(",")) {
+	    return; // default type
+	}
+	match(",");
+
+	if (peek("\"")) {
+	    keyStoreType = match("quoted string");
+	} else {
+	    throw new ParsingException(st.lineno(),
+			rb.getString("expected keystore type"));
+	}
+!!!6098843.java!!!	writeKeyStoreEntry(inout out : PrintWriter) : void
+	out.print("keystore \"");
+	out.print(keyStoreUrlString);
+	out.print('"');
+	if (keyStoreType != null && keyStoreType.length() > 0)
+	    out.print(", \"" + keyStoreType + "\"");
+	out.println(";");
+	out.println();
+!!!6098971.java!!!	parseGrantEntry() : GrantEntry
+	GrantEntry e = new GrantEntry();
+	LinkedList principals = null;
+	boolean ignoreEntry = false;
+
+	match("grant");
+
+	while(!peek("{")) {
+
+	    if (peekAndMatch("Codebase")) {
+		e.codeBase = match("quoted string");
+		peekAndMatch(",");
+	    } else if (peekAndMatch("SignedBy")) {
+		e.signedBy = match("quoted string");
+		peekAndMatch(",");
+	    } else if (peekAndMatch("Principal")) {
+		if (principals == null) {
+		    principals = new LinkedList();
+		}
+
+		// check for principalClass wildcard
+		String principalClass;
+		if (peek("*")) {
+		    match("*");
+		    principalClass = PrincipalEntry.WILDCARD_CLASS;
+		} else {
+		    principalClass = match("principal type");
+		}
+
+		// check for principalName wildcard
+		String principalName;
+		if (peek("*")) {
+		    match("*");
+		    principalName = PrincipalEntry.WILDCARD_NAME;
+		} else {
+		    principalName = match("quoted string");
+		}
+
+		// disallow WILDCARD_CLASS && actual name
+		if (principalClass.equals(PrincipalEntry.WILDCARD_CLASS) &&
+		    !principalName.equals(PrincipalEntry.WILDCARD_NAME)) {
+		    if (debug != null)
+			debug.println("disallowing principal that has " +
+				"WILDCARD class but no WILDCARD name");
+		    throw new ParsingException
+			(st.lineno(),
+			rb.getString("can not specify Principal with a ") +
+			rb.getString("wildcard class without a wildcard name"));
+		}
+
+		try {
+		    principalName = expand(principalName);
+		    principals.add
+			(new PrincipalEntry(principalClass, principalName));
+		} catch (PropertyExpander.ExpandException peee) {
+		    // ignore the entire policy entry 
+		    // but continue parsing all the info
+		    // so we can get to the next entry
+		    if (debug != null)
+			debug.println("principal name expansion failed: " +
+					principalName);
+		    ignoreEntry = true;
+		}
+		peekAndMatch(",");
+	    } else {
+		throw new 
+		 ParsingException(st.lineno(),
+			rb.getString("expected codeBase or SignedBy"));
+	    }
+	}
+
+	// disallow non principal-based grant entries
+	if (principals == null) {
+	    throw new ParsingException
+		(st.lineno(),
+		rb.getString("only Principal-based grant entries permitted"));
+	}
+
+	e.principals = principals;
+	match("{");
+
+	while(!peek("}")) {
+ 	    if (peek("Permission")) {
+		try {
+		    PermissionEntry pe = parsePermissionEntry();
+		    e.add(pe);
+		} catch (PropertyExpander.ExpandException peee) {
+		    // ignore. The add never happened
+		    skipEntry();  // BugId 4219343
+		}
+		match(";");
+  	    } else {
+		throw new 
+		    ParsingException(st.lineno(),
+		    rb.getString("expected permission entry"));
+	    }
+	}
+	match("}");
+
+	try {
+	    if (e.codeBase != null)
+	      e.codeBase = expand(e.codeBase).replace(File.separatorChar, '/');
+	    e.signedBy = expand(e.signedBy);
+	} catch (PropertyExpander.ExpandException peee) {
+	    return null;
+	}
+
+	return (ignoreEntry == true) ? null : e;
+!!!6099099.java!!!	parsePermissionEntry() : PermissionEntry
+	PermissionEntry e = new PermissionEntry();
+
+	// Permission
+	match("Permission"); 
+	e.permission = match("permission type");
+
+	if (peek("\"")) {
+	    // Permission name
+	    e.name = expand(match("quoted string")); 
+	}
+
+	if (!peek(",")) {
+	    return e;
+	}
+	match(",");
+
+	if (peek("\"")) {
+		e.action = expand(match("quoted string"));
+		if (!peek(",")) {
+		    return e;
+		}
+		match(",");
+	}
+
+	if (peekAndMatch("SignedBy")) {
+	    e.signedBy = expand(match("quoted string"));
+	}
+	return e;
+!!!6099227.java!!!	peekAndMatch(in expect : String) : boolean
+	if (peek(expect)) {
+	    match(expect);
+	    return true;
+	} else {
+	    return false;
+	}
+!!!6099355.java!!!	peek(in expect : String) : boolean
+	boolean found = false;
+
+	switch (lookahead) {
+
+	case StreamTokenizer.TT_WORD:
+	    if (expect.equalsIgnoreCase(st.sval)) 
+		found = true;
+	    break;
+	case ',':
+	    if (expect.equalsIgnoreCase(","))
+		found = true;
+	    break;
+	case '{':
+	    if (expect.equalsIgnoreCase("{"))
+		found = true;
+	    break;
+	case '}':
+	    if (expect.equalsIgnoreCase("}"))
+		found = true;
+	    break;
+	case '"':
+	    if (expect.equalsIgnoreCase("\""))
+		found = true;
+	    break;
+	case '*':
+	    if (expect.equalsIgnoreCase("*"))
+		found = true;
+	    break;
+	default:
+	    
+	}	
+	return found; 
+!!!6099483.java!!!	match(in expect : String) : String
+	String value = null;
+
+	switch (lookahead) {
+	case StreamTokenizer.TT_NUMBER:
+	    throw new ParsingException(st.lineno(), expect, 
+					rb.getString("number ") +
+					String.valueOf(st.nval));
+	case StreamTokenizer.TT_EOF:
+	   throw new ParsingException
+		(rb.getString("expected ") + expect +
+		rb.getString(", read end of file"));
+	case StreamTokenizer.TT_WORD:
+	    if (expect.equalsIgnoreCase(st.sval)) {
+		lookahead = st.nextToken();
+	    } else if (expect.equalsIgnoreCase("permission type")) {
+		value = st.sval;
+		lookahead = st.nextToken();
+	    } else if (expect.equalsIgnoreCase("principal type")) {
+		value = st.sval;
+		lookahead = st.nextToken();
+	    } else {
+		throw new ParsingException(st.lineno(), expect, st.sval);
+	    }
+	    break;
+	case '"':
+	    if (expect.equalsIgnoreCase("quoted string")) {
+		value = st.sval;
+		lookahead = st.nextToken();
+	    } else if (expect.equalsIgnoreCase("permission type")) {
+		value = st.sval;
+		lookahead = st.nextToken();
+	    } else if (expect.equalsIgnoreCase("principal type")) {
+		value = st.sval;
+		lookahead = st.nextToken();
+	    } else {
+		throw new ParsingException(st.lineno(), expect, st.sval);
+	    }
+	    break;
+	case ',':
+	    if (expect.equalsIgnoreCase(","))
+		lookahead = st.nextToken();
+	    else
+		throw new ParsingException(st.lineno(), expect, ",");
+	    break;
+	case '{':
+	    if (expect.equalsIgnoreCase("{"))
+		lookahead = st.nextToken();
+	    else
+		throw new ParsingException(st.lineno(), expect, "{");
+	    break;
+	case '}':
+	    if (expect.equalsIgnoreCase("}"))
+		lookahead = st.nextToken();
+	    else
+		throw new ParsingException(st.lineno(), expect, "}");
+	    break;
+	case ';':
+	    if (expect.equalsIgnoreCase(";"))
+		lookahead = st.nextToken();
+	    else
+		throw new ParsingException(st.lineno(), expect, ";");
+	    break;
+	case '*':
+	    if (expect.equalsIgnoreCase("*"))
+		lookahead = st.nextToken();
+	    else
+		throw new ParsingException(st.lineno(), expect, "*");
+	    break;
+	default:
+	    throw new ParsingException(st.lineno(), expect, 
+			       new String(new char[] {(char)lookahead}));
+	}
+	return value;
+!!!6099611.java!!!	skipEntry() : void
+      while(lookahead != ';') {
+	switch (lookahead) {
+	case StreamTokenizer.TT_NUMBER:
+	    throw new ParsingException(st.lineno(), ";",
+				       rb.getString("number ") +
+					String.valueOf(st.nval));
+	case StreamTokenizer.TT_EOF:
+	  throw new ParsingException
+		(rb.getString("expected ';', read end of file"));
+	default:
+	  lookahead = st.nextToken();
+	}
+      }
+!!!6102555.java!!!	main(in arg : String) : void
+	PolicyParser pp = new PolicyParser(true);
+	pp.read(new FileReader(arg[0]));
+	FileWriter fr = new FileWriter(arg[1]);
+	pp.write(fr);
+        fr.close();

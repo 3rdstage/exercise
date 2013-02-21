@@ -1,0 +1,98 @@
+class ScrollPaneAdjustable
+!!!6360731.java!!!	ScrollPaneAdjustable(inout sp : ScrollPane, inout l : AdjustmentListener, in orientation : int)
+        this.sp = sp;
+        this.orientation = orientation;
+	addAdjustmentListener(l);
+!!!6360859.java!!!	setSpan(in min : int, in max : int, in visible : int) : void
+	// adjust the values to be reasonable
+	minimum = min;
+	maximum = Math.max(max, minimum + 1);
+	visibleAmount = Math.min(visible, maximum - minimum);
+	visibleAmount = Math.max(visibleAmount, 1);
+        blockIncrement = Math.max((int)(visible * .90), 1);
+	setValue(value);
+!!!6360987.java!!!	getOrientation() : int
+        return orientation;
+!!!6361115.java!!!	setMinimum(in min : int) : void
+	throw new AWTError(SCROLLPANE_ONLY);
+!!!6361243.java!!!	getMinimum() : int
+	// XXX: This relies on setSpan always being called with 0 for
+	// the minimum (which is currently true).
+        return 0;
+!!!6361371.java!!!	setMaximum(in max : int) : void
+	throw new AWTError(SCROLLPANE_ONLY);
+!!!6361499.java!!!	getMaximum() : int
+        return maximum;
+!!!6361627.java!!!	setUnitIncrement(in u : int) : void
+	if (u != unitIncrement) {
+	    unitIncrement = u;
+	    if (sp.peer != null) {
+		ScrollPanePeer peer = (ScrollPanePeer) sp.peer;
+		peer.setUnitIncrement(this, u);
+	    }
+	}
+!!!6361755.java!!!	getUnitIncrement() : int
+        return unitIncrement;
+!!!6361883.java!!!	setBlockIncrement(in b : int) : void
+        blockIncrement = b;
+!!!6362011.java!!!	getBlockIncrement() : int
+        return blockIncrement;
+!!!6362139.java!!!	setVisibleAmount(in v : int) : void
+	throw new AWTError(SCROLLPANE_ONLY);
+!!!6362267.java!!!	getVisibleAmount() : int
+        return visibleAmount;
+!!!6362395.java!!!	setValueIsAdjusting(inout b : boolean) : void
+	if (isAdjusting != b) {
+	    isAdjusting = b;
+	    AdjustmentEvent e =
+		new AdjustmentEvent(this,
+		        AdjustmentEvent.ADJUSTMENT_VALUE_CHANGED,
+			AdjustmentEvent.TRACK, value, b);
+	    adjustmentListener.adjustmentValueChanged(e);
+	}
+!!!6362523.java!!!	getValueIsAdjusting() : boolean
+	return isAdjusting;
+!!!6362651.java!!!	setValue(in v : int) : void
+        setTypedValue(v, AdjustmentEvent.TRACK);
+!!!6362779.java!!!	setTypedValue(in v : int, in type : int) : void
+        v = Math.max(v, minimum);
+        v = Math.min(v, maximum - visibleAmount);
+
+        if (v != value) {
+            value = v;
+            // Synchronously notify the listeners so that they are
+            // guaranteed to be up-to-date with the Adjustable before
+            // it is mutated again.
+            AdjustmentEvent e =
+                new AdjustmentEvent(this,
+                        AdjustmentEvent.ADJUSTMENT_VALUE_CHANGED,
+                        type, value, isAdjusting);
+            adjustmentListener.adjustmentValueChanged(e);
+        }
+!!!6362907.java!!!	getValue() : int
+        return value;
+!!!6363035.java!!!	addAdjustmentListener(inout l : AdjustmentListener) : void
+	if (l == null) {
+	    return;
+	}
+	adjustmentListener = AWTEventMulticaster.add(adjustmentListener, l);
+!!!6363163.java!!!	removeAdjustmentListener(inout l : AdjustmentListener) : void
+	if (l == null) {
+	    return;
+	}
+	adjustmentListener = AWTEventMulticaster.remove(adjustmentListener, l);
+!!!6363291.java!!!	getAdjustmentListeners() : AdjustmentListener
+        return (AdjustmentListener[])(AWTEventMulticaster.getListeners(
+                                      adjustmentListener,
+                                      AdjustmentListener.class));
+!!!6363419.java!!!	toString() : String
+	return getClass().getName() + "[" + paramString() + "]";
+!!!6363547.java!!!	paramString() : String
+        return ((orientation == Adjustable.VERTICAL ? "vertical,"
+		                                    :"horizontal,")
+		+ "[0.."+maximum+"]"
+		+ ",val=" + value
+		+ ",vis=" + visibleAmount
+		+ ",unit=" + unitIncrement
+		+ ",block=" + blockIncrement
+		+ ",isAdjusting=" + isAdjusting);

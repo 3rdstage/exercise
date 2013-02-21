@@ -1,0 +1,104 @@
+class NamedStyle
+!!!2584603.java!!!	NamedStyle(in name : String, inout parent : Style)
+            attributes = getEmptySet();
+            if (name != null) {
+                setName(name);
+            }
+            if (parent != null) {
+                setResolveParent(parent);
+            }
+!!!2584731.java!!!	NamedStyle(inout parent : Style)
+            this(null, parent);
+!!!2584859.java!!!	NamedStyle()
+            attributes = getEmptySet();
+!!!2584987.java!!!	toString() : String
+            return "NamedStyle:" + getName() + " " + attributes;
+!!!2585115.java!!!	getName() : String
+            if (isDefined(StyleConstants.NameAttribute)) {
+                return getAttribute(StyleConstants.NameAttribute).toString();
+            }
+            return null;
+!!!2585243.java!!!	setName(in name : String) : void
+            if (name != null) {
+                this.addAttribute(StyleConstants.NameAttribute, name);
+            }
+!!!2585371.java!!!	addChangeListener(inout l : ChangeListener) : void
+            listenerList.add(ChangeListener.class, l);
+!!!2585499.java!!!	removeChangeListener(inout l : ChangeListener) : void
+            listenerList.remove(ChangeListener.class, l);
+!!!2585627.java!!!	getChangeListeners() : ChangeListener
+            return (ChangeListener[])listenerList.getListeners(
+                    ChangeListener.class);
+!!!2585755.java!!!	fireStateChanged() : void
+            // Guaranteed to return a non-null array
+            Object[] listeners = listenerList.getListenerList();
+            // Process the listeners last to first, notifying
+            // those that are interested in this event
+            for (int i = listeners.length-2; i>=0; i-=2) {
+                if (listeners[i]==ChangeListener.class) {
+                    // Lazily create the event:
+                    if (changeEvent == null)
+                        changeEvent = new ChangeEvent(this);
+                    ((ChangeListener)listeners[i+1]).stateChanged(changeEvent);
+                }              
+            }
+!!!2585883.java!!!	getListeners(inout listenerType : Class) : T
+ 
+	    return listenerList.getListeners(listenerType); 
+!!!2586011.java!!!	getAttributeCount() : int
+            return attributes.getAttributeCount();
+!!!2586139.java!!!	isDefined(inout attrName : Object) : boolean
+            return attributes.isDefined(attrName);
+!!!2586267.java!!!	isEqual(inout attr : AttributeSet) : boolean
+            return attributes.isEqual(attr);
+!!!2586395.java!!!	copyAttributes() : AttributeSet
+            NamedStyle a = new NamedStyle();
+            a.attributes = attributes.copyAttributes();
+            return a;
+!!!2586523.java!!!	getAttribute(inout attrName : Object) : Object
+            return attributes.getAttribute(attrName);
+!!!2586651.java!!!	getAttributeNames() : Enumeration
+            return attributes.getAttributeNames();
+!!!2586779.java!!!	containsAttribute(inout name : Object, inout value : Object) : boolean
+            return attributes.containsAttribute(name, value);
+!!!2586907.java!!!	containsAttributes(inout attrs : AttributeSet) : boolean
+            return attributes.containsAttributes(attrs);
+!!!2587035.java!!!	getResolveParent() : AttributeSet
+            return attributes.getResolveParent();
+!!!2587163.java!!!	addAttribute(inout name : Object, inout value : Object) : void
+            StyleContext context = StyleContext.this;
+            attributes = context.addAttribute(attributes, name, value);
+            fireStateChanged();
+!!!2587291.java!!!	addAttributes(inout attr : AttributeSet) : void
+            StyleContext context = StyleContext.this;
+            attributes = context.addAttributes(attributes, attr);
+            fireStateChanged();
+!!!2587419.java!!!	removeAttribute(inout name : Object) : void
+            StyleContext context = StyleContext.this;
+            attributes = context.removeAttribute(attributes, name);
+            fireStateChanged();
+!!!2587547.java!!!	removeAttributes(inout names : Enumeration) : void
+            StyleContext context = StyleContext.this;
+            attributes = context.removeAttributes(attributes, names);
+            fireStateChanged();
+!!!2587675.java!!!	removeAttributes(inout attrs : AttributeSet) : void
+            StyleContext context = StyleContext.this;
+            if (attrs == this) {
+                attributes = context.getEmptySet();
+            } else {
+                attributes = context.removeAttributes(attributes, attrs);
+            }
+            fireStateChanged();
+!!!2587803.java!!!	setResolveParent(inout parent : AttributeSet) : void
+            if (parent != null) {
+                addAttribute(StyleConstants.ResolveAttribute, parent);
+            } else {
+                removeAttribute(StyleConstants.ResolveAttribute);
+            }
+!!!2587931.java!!!	writeObject(inout s : ObjectOutputStream) : void
+            s.defaultWriteObject();
+            writeAttributeSet(s, attributes);
+!!!2588059.java!!!	readObject(inout s : ObjectInputStream) : void
+            s.defaultReadObject();
+            attributes = SimpleAttributeSet.EMPTY;
+            readAttributeSet(s, this);

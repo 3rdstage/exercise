@@ -1,0 +1,123 @@
+class SubmitThread
+!!!9946907.java!!!	SubmitThread(inout elem : Element, in data : String)
+	    this.data = data;
+	    hdoc = (HTMLDocument)elem.getDocument();
+            Element formE = getFormElement();
+            if (formE != null) {
+                formAttr = formE.getAttributes();
+            }
+
+	    method = getMethod();
+
+	    try {
+		
+		String action = getAction();
+		method = getMethod();
+		target = getTarget();		
+		
+		/* if action is null use the base url and ensure that
+		   the file name excludes any parameters that may be attached */
+		URL baseURL = hdoc.getBase();
+		if (action == null) {
+		    
+		    String file = baseURL.getFile();
+		    actionURL = new URL(baseURL.getProtocol(), 
+					baseURL.getHost(), 
+					baseURL.getPort(), 
+					file);
+		} else {
+			actionURL = new URL(baseURL, action);
+		}
+	    } catch (MalformedURLException m) {
+		actionURL = null;
+	    }
+!!!9947035.java!!!	run() : void
+
+	    if (data.length() > 0) {
+
+		try {
+
+		    URLConnection connection;
+
+		    // safe assumption since we are in an html document
+                    JEditorPane c = (JEditorPane)getContainer();
+                    HTMLEditorKit kit = (HTMLEditorKit)c.getEditorKit();
+                    if (kit.isAutoFormSubmission()) {
+                        if ("post".equals(method)) {
+                            url = actionURL;
+                            connection = url.openConnection();
+                            postData(connection, data);
+                        } else {
+                            /* the default, GET */
+                            url = new URL(actionURL+"?"+data);
+                        }
+        
+                        Runnable callLoadDocument = new Runnable() {
+                            public void run() {
+				JEditorPane c = (JEditorPane)getContainer();
+                                if (hdoc.isFrameDocument()) {
+                                    c.fireHyperlinkUpdate(createFormSubmitEvent());
+                                } else {
+                                    try {
+                                        c.setPage(url);
+                                    } catch (IOException e) {
+                                    }
+                                }
+                            }
+                        };
+                        SwingUtilities.invokeLater(callLoadDocument);
+                    } else {
+                        c.fireHyperlinkUpdate(createFormSubmitEvent());
+                    }
+                } catch (MalformedURLException m) {
+                    // REMIND how do we deal with exceptions ??
+                } catch (IOException e) {
+                    // REMIND how do we deal with exceptions ??
+                }
+	    }
+!!!9947163.java!!!	createFormSubmitEvent() : FormSubmitEvent
+	    FormSubmitEvent.MethodType formMethod = 
+		"post".equals(method) ? FormSubmitEvent.MethodType.POST : 
+                                        FormSubmitEvent.MethodType.GET;
+	    return new FormSubmitEvent(FormView.this, 
+				       HyperlinkEvent.EventType.ACTIVATED, 
+				       actionURL, 
+				       getElement(),
+				       target, 
+				       formMethod, 
+				       data);	    
+!!!9947291.java!!!	getTarget() : String
+	    if (formAttr != null) {
+		String target = (String)formAttr.getAttribute(HTML.Attribute.TARGET);
+		if (target != null) {
+		    return target.toLowerCase();
+		}
+	    }
+	    return "_self";
+!!!9947419.java!!!	getAction() : String
+	    if (formAttr == null) { 
+		return null;
+	    }
+	    return (String)formAttr.getAttribute(HTML.Attribute.ACTION);
+!!!9947547.java!!!	getMethod() : String
+	    if (formAttr != null) {
+		String method = (String)formAttr.getAttribute(HTML.Attribute.METHOD);
+		if (method != null) {
+		    return method.toLowerCase();
+		}
+	    }
+	    return null;
+!!!9947675.java!!!	postData(inout connection : URLConnection, in data : String) : void
+	    connection.setDoOutput(true);
+ 	    PrintWriter out = null;
+	    try {
+		out = new PrintWriter(new OutputStreamWriter(connection.getOutputStream()));
+		out.print(data);
+		out.flush();
+	    } catch (IOException e) {
+		// REMIND: should do something reasonable!
+	    } finally {
+		if (out != null) {
+		    out.close();
+		}
+	    }

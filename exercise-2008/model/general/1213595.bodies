@@ -1,0 +1,73 @@
+class VisibleTreeStateNodeEnumeration
+!!!10070299.java!!!	VisibleTreeStateNodeEnumeration(inout node : TreeStateNode)
+	    this(node, -1);
+!!!10070427.java!!!	VisibleTreeStateNodeEnumeration(inout parent : TreeStateNode, in startIndex : int)
+	    this.parent = parent;
+	    this.nextIndex = startIndex;
+	    this.childCount = this.parent.getChildCount();
+!!!10070555.java!!!	hasMoreElements() : boolean
+	    return (parent != null);
+!!!10070683.java!!!	nextElement() : TreePath
+	    if(!hasMoreElements())
+		throw new NoSuchElementException("No more visible paths");
+
+	    TreePath                retObject;
+
+	    if(nextIndex == -1) {
+		retObject = parent.getTreePath();
+	    }
+	    else {
+		TreeStateNode   node = (TreeStateNode)parent.
+		                        getChildAt(nextIndex);
+
+		retObject = node.getTreePath();
+	    }
+	    updateNextObject();
+	    return retObject;
+!!!10070811.java!!!	updateNextObject() : void
+	    if(!updateNextIndex()) {
+		findNextValidParent();
+	    }
+!!!10070939.java!!!	findNextValidParent() : boolean
+	    if(parent == root) {
+		// mark as invalid!
+		parent = null;
+		return false;
+	    }
+	    while(parent != null) {
+		TreeStateNode      newParent = (TreeStateNode)parent.
+		                                  getParent();
+
+		if(newParent != null) {
+		    nextIndex = newParent.getIndex(parent);
+		    parent = newParent;
+		    childCount = parent.getChildCount();
+		    if(updateNextIndex())
+			return true;
+		}
+		else
+		    parent = null;
+	    }
+	    return false;
+!!!10071067.java!!!	updateNextIndex() : boolean
+	    // nextIndex == -1 identifies receiver, make sure is expanded
+	    // before descend.
+	    if(nextIndex == -1 && !parent.isExpanded())
+		return false;
+
+	    // Check that it can have kids
+	    if(childCount == 0)
+		return false;
+	    // Make sure next index not beyond child count.
+	    else if(++nextIndex >= childCount)
+		return false;
+
+	    TreeStateNode       child = (TreeStateNode)parent.
+		                        getChildAt(nextIndex);
+
+	    if(child != null && child.isExpanded()) {
+		parent = child;
+		nextIndex = -1;
+		childCount = child.getChildCount();
+	    }
+	    return true;

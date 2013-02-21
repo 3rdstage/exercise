@@ -1,0 +1,51 @@
+class Policy
+!!!6092571.java!!!	getPolicy() : Policy
+	java.lang.SecurityManager sm = System.getSecurityManager();
+	if (sm != null) sm.checkPermission(new AuthPermission("getPolicy"));
+	return getPolicyNoCheck();
+!!!6092699.java!!!	getPolicyNoCheck() : Policy
+	if (policy == null) {
+ 
+	    synchronized(Policy.class) {
+ 
+		if (policy == null) {
+		    String policy_class = null;
+		    policy_class = (String)
+			java.security.AccessController.doPrivileged
+			(new java.security.PrivilegedAction() {
+			public Object run() {
+			    return java.security.Security.getProperty
+				("auth.policy.provider");
+			}
+		    });
+		    if (policy_class == null) {
+			policy_class = "com.sun.security.auth.PolicyFile";
+		    }
+ 
+		    try {
+			final String finalClass = policy_class;
+			policy = (Policy)
+			    java.security.AccessController.doPrivileged
+			    (new java.security.PrivilegedExceptionAction() {
+			    public Object run() throws ClassNotFoundException,
+						InstantiationException,
+						IllegalAccessException {
+				return Class.forName
+					(finalClass,
+					true,
+					contextClassLoader).newInstance();
+			    }
+			});
+		    } catch (Exception e) {
+			throw new SecurityException
+				(sun.security.util.ResourcesMgr.getString
+				("unable to instantiate Subject-based policy"));
+		    }
+		}
+	    }
+	}
+	return policy;
+!!!6092827.java!!!	setPolicy(inout policy : Policy) : void
+	java.lang.SecurityManager sm = System.getSecurityManager();
+	if (sm != null) sm.checkPermission(new AuthPermission("setPolicy"));
+	Policy.policy = policy;

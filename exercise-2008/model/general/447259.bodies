@@ -1,0 +1,60 @@
+class DefaultTransferHandler
+!!!2717595.java!!!	exportToClipboard(inout comp : JComponent, inout clipboard : Clipboard, in action : int) : void
+            if (comp instanceof JTextComponent) {
+                JTextComponent text = (JTextComponent)comp;
+                int p0 = text.getSelectionStart();
+                int p1 = text.getSelectionEnd();
+                if (p0 != p1) {
+                    try {
+                        Document doc = text.getDocument();
+                        String srcData = doc.getText(p0, p1 - p0);
+                        StringSelection contents =new StringSelection(srcData);
+
+                        // this may throw an IllegalStateException,
+                        // but it will be caught and handled in the
+                        // action that invoked this method
+                        clipboard.setContents(contents, null);
+
+                        if (action == TransferHandler.MOVE) {
+                            doc.remove(p0, p1 - p0);
+                        }
+                    } catch (BadLocationException ble) {}
+                }
+            }
+!!!2717723.java!!!	importData(inout comp : JComponent, inout t : Transferable) : boolean
+            if (comp instanceof JTextComponent) {
+                DataFlavor flavor = getFlavor(t.getTransferDataFlavors());
+
+                if (flavor != null) {
+		    InputContext ic = comp.getInputContext();
+		    if (ic != null) {
+			ic.endComposition();
+		    }
+                    try {
+                        String data = (String)t.getTransferData(flavor);
+
+                        ((JTextComponent)comp).replaceSelection(data);
+                        return true;
+                    } catch (UnsupportedFlavorException ufe) {
+                    } catch (IOException ioe) {
+                    }
+                }
+            }
+            return false;
+!!!2717851.java!!!	canImport(inout comp : JComponent, inout transferFlavors : DataFlavor) : boolean
+            JTextComponent c = (JTextComponent)comp;
+            if (!(c.isEditable() && c.isEnabled())) {
+                return false;
+            }
+            return (getFlavor(transferFlavors) != null);
+!!!2717979.java!!!	getSourceActions(inout c : JComponent) : int
+            return NONE;
+!!!2718107.java!!!	getFlavor(inout flavors : DataFlavor) : DataFlavor
+            if (flavors != null) {
+                for (int counter = 0; counter < flavors.length; counter++) {
+                    if (flavors[counter].equals(DataFlavor.stringFlavor)) {
+                        return flavors[counter];
+                    }
+                }
+            }
+            return null;

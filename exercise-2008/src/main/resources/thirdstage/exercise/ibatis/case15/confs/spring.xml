@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop" 
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="
+	   http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.5.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd"
+	default-lazy-init="false">
+
+
+	<!-- General Definitions -->
+	<bean id="requiredAnnotationEnbabler"
+	      class="org.springframework.beans.factory.annotation.RequiredAnnotationBeanPostProcessor">
+		<description>@Require annotation enabler</description>
+	</bean>
+
+	<tx:annotation-driven 
+		transaction-manager="transactionManager"
+		mode="proxy"
+		proxy-target-class="true"
+	/>
+
+	<aop:aspectj-autoproxy>
+		<!-- @AspectJ support enabler -->
+	</aop:aspectj-autoproxy>
+
+		
+		
+	<!-- Data Access Common Definitions -->
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+		<property name="driverClassName" value="oracle.jdbc.OracleDriver"></property>
+		<property name="url" value="jdbc:oracle:thin:@127.0.0.1:1521:XE"></property>
+		<property name="username" value="exercise"></property>
+		<property name="password" value="exercisedev"></property>
+
+		<property name="defaultAutoCommit" value="false"></property>
+		<property name="maxActive" value="5"></property>
+		<property name="maxIdle" value="5" />
+		<property name="minIdle" value="0" />
+		<property name="initialSize" value="5"></property>
+	</bean>
+	
+<!--	<bean id="spiedDataSource" class="com.p6spy.engine.spy.P6DataSource">-->
+<!--		<constructor-arg><ref local="dataSource"/></constructor-arg>-->
+<!--	</bean>-->
+
+	<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource"></property>
+		<property name="defaultTimeout" value="120"/>
+	</bean>
+	
+
+
+	
+	<bean id="sqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean">
+		<description>SqlMap setup for iBATIS database layer</description>
+		<property name="configLocation" value="classpath:thirdstage/exercise/ibatis/case15/confs/sql-map.xml" />
+		<property name="dataSource" ref="dataSource" />
+		<!-- Default setting is specified for clarity. -->
+		<property name="useTransactionAwareDataSource" value="true"/>
+		<!-- Default setting is specified for clarity. -->
+		<property name="transactionConfigClass">
+			<value type="java.lang.Class">com.ibatis.sqlmap.engine.transaction.external.ExternalTransactionConfig</value>
+		</property>
+		<property name="transactionConfigProperties">
+			<value>
+				DefaultAutoCommit=true
+			</value>
+		</property>
+	</bean>
+	<!-- Data Access Common Definitions : end -->
+
+
+
+	
+	<!-- DAO Definitions Set1 : iBATIS implementations -->
+	<bean id="employeeDaoIBatis" class="thirdstage.exercise.ibatis.case15.EmployeeDaoIBatis">
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+	</bean>
+
+	<bean id="employeeDaoJdbcSimple" class="thirdstage.exercise.ibatis.case15.EmployeeDaoJdbcSimple">
+		<property name="dataSource" ref="dataSource"></property>
+	</bean>
+
+	<bean id="employeeDaoJdbcPrepared" class="thirdstage.exercise.ibatis.case15.EmployeeDaoJdbcPrepared">
+		<property name="dataSource" ref="dataSource"></property>
+	</bean>
+	<!-- DAO Definitions Set1 : end -->
+
+
+	<!-- Aspect Bean Definitions -->
+	<!-- @FIXME 2009-09-05, Sangmoon Oh, producing exception but cann't be solved -->
+	<bean id="simpleAspect" class="thirdstage.exercise.ibatis.case15.aspect.SimpleAspect">
+	</bean>
+	<!-- Aspect Bean Definitions : end  -->
+
+
+
+</beans>

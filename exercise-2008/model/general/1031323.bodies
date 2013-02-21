@@ -1,0 +1,67 @@
+class MBeanOperationInfo
+!!!8241307.java!!!	MBeanOperationInfo(in description : String, inout method : Method)
+
+	this(method.getName(),
+	     description,
+	     methodSignature(method),
+	     method.getReturnType().getName(),
+	     UNKNOWN);
+!!!8241435.java!!!	MBeanOperationInfo(in name : String, in description : String, inout signature : MBeanParameterInfo, in type : String, in impact : int)
+
+	super(name, description);
+
+	if (signature == null || signature.length == 0)
+	    signature = MBeanParameterInfo.NO_PARAMS;
+	else
+	    signature = (MBeanParameterInfo[]) signature.clone();
+	this.signature = signature;
+	this.type = type;
+	this.impact = impact;
+	this.immutable =
+	    MBeanInfo.isImmutableClass(this.getClass(),
+				       MBeanOperationInfo.class);
+!!!8241563.java!!!	clone() : Object
+	 try {
+	     return  super.clone() ;
+	 } catch (CloneNotSupportedException e) {
+	     // should not happen as this class is cloneable
+	     return null;
+	 }
+!!!8241691.java!!!	getReturnType() : String
+	return type;
+!!!8241819.java!!!	getSignature() : MBeanParameterInfo
+	if (signature.length == 0)
+	    return signature;
+	else
+	    return (MBeanParameterInfo[]) signature.clone();
+!!!8241947.java!!!	fastGetSignature() : MBeanParameterInfo
+	if (immutable)
+	    return signature;
+	else
+	    return getSignature();
+!!!8242075.java!!!	getImpact() : int
+	return impact;
+!!!8242203.java!!!	equals(inout o : Object) : boolean
+	if (o == this)
+	    return true;
+	if (!(o instanceof MBeanOperationInfo))
+	    return false;
+	MBeanOperationInfo p = (MBeanOperationInfo) o;
+	return (p.getName().equals(getName()) &&
+		p.getReturnType().equals(getReturnType()) &&
+		p.getDescription().equals(getDescription()) &&
+		p.getImpact() == getImpact() &&
+		Arrays.equals(p.fastGetSignature(), fastGetSignature()));
+!!!8242331.java!!!	hashCode() : int
+	return getName().hashCode() ^ getReturnType().hashCode();
+!!!8242459.java!!!	methodSignature(inout method : Method) : MBeanParameterInfo
+	final Class[] classes = method.getParameterTypes();
+	final MBeanParameterInfo[] params =
+	    new MBeanParameterInfo[classes.length];
+
+	for (int i = 0; i < classes.length; i++) {
+	    final String pn = "p" + (i + 1);
+	    params[i] = new MBeanParameterInfo(pn, classes[i].getName(), "");
+	}
+
+	return params;

@@ -1,0 +1,243 @@
+class Signature
+!!!7615771.java!!!	Signature(in algorithm : String)
+	this.algorithm = algorithm;
+!!!7615899.java!!!	getInstance(in algorithm : String) : Signature
+	List list;
+	if (algorithm.equalsIgnoreCase(RSA_SIGNATURE)) {
+	    list = GetInstance.getServices(rsaIds);
+	} else {
+	    list = GetInstance.getServices("Signature", algorithm);
+	}
+	Iterator t = list.iterator();
+	if (t.hasNext() == false) {
+	    throw new NoSuchAlgorithmException
+	    	(algorithm + " Signature not available");
+	}
+	// try services until we find an Spi or a working Signature subclass
+	NoSuchAlgorithmException failure;
+	do {
+	    Service s = (Service)t.next();
+	    if (isSpi(s)) {
+		return new Delegate(s, t, algorithm);
+	    } else {
+		// must be a subclass of Signature, disable dynamic selection
+		try {
+		    Instance instance = 
+		    	GetInstance.getInstance(s, SignatureSpi.class);
+		    return getInstance(instance, algorithm);
+		} catch (NoSuchAlgorithmException e) {
+		    failure = e;
+		}
+	    }
+	} while (t.hasNext());
+	throw failure;
+!!!7616027.java!!!	getInstance(inout instance : Instance, in algorithm : String) : Signature
+	Signature sig;
+	if (instance.impl instanceof Signature) {
+	    sig = (Signature)instance.impl;
+	} else {
+	    SignatureSpi spi = (SignatureSpi)instance.impl;
+	    sig = new Delegate(spi, algorithm);
+	}
+	sig.provider = instance.provider;
+	return sig;
+!!!7616155.java!!!	isSpi(inout s : Service) : boolean
+	if (s.getType().equals("Cipher")) {
+	    // must be a CipherSpi, which we can wrap with the CipherAdapter
+	    return true;
+	}
+	String className = s.getClassName();
+	Boolean result = signatureInfo.get(className);
+	if (result == null) {
+	    try {
+		Object instance = s.newInstance(null);
+		// Signature extends SignatureSpi
+		// so it is a "real" Spi if it is an 
+		// instance of SignatureSpi but not Signature
+		boolean r = (instance instanceof SignatureSpi) 
+				&& (instance instanceof Signature == false);
+		if ((debug != null) && (r == false)) {
+		    debug.println("Not a SignatureSpi " + className);
+		    debug.println("Delayed provider selection may not be "
+		    	+ "available for algorithm " + s.getAlgorithm());
+		}
+		result = Boolean.valueOf(r);
+		signatureInfo.put(className, result);
+	    } catch (Exception e) {
+		// something is wrong, assume not an SPI
+		return false;
+	    }
+	}
+	return result.booleanValue();
+!!!7616283.java!!!	getInstance(in algorithm : String, in provider : String) : Signature
+	if (algorithm.equalsIgnoreCase(RSA_SIGNATURE)) {
+	    // exception compatibility with existing code
+	    if ((provider == null) || (provider.length() == 0)) {
+		throw new IllegalArgumentException("missing provider");
+	    }
+	    Provider p = Security.getProvider(provider);
+	    if (p == null) {
+		throw new NoSuchProviderException
+		    ("no such provider: " + provider);
+	    }
+	    return getInstanceRSA(p);
+	}
+	Instance instance = GetInstance.getInstance
+		("Signature", SignatureSpi.class, algorithm, provider);
+	return getInstance(instance, algorithm);
+!!!7616411.java!!!	getInstance(in algorithm : String, inout provider : Provider) : Signature
+	if (algorithm.equalsIgnoreCase(RSA_SIGNATURE)) {
+	    // exception compatibility with existing code
+	    if (provider == null) {
+		throw new IllegalArgumentException("missing provider");
+	    }
+	    return getInstanceRSA(provider);
+	}
+	Instance instance = GetInstance.getInstance
+		("Signature", SignatureSpi.class, algorithm, provider);
+	return getInstance(instance, algorithm);
+!!!7616539.java!!!	getInstanceRSA(inout p : Provider) : Signature
+	// try Signature first
+	Service s = p.getService("Signature", RSA_SIGNATURE);
+	if (s != null) {
+	    Instance instance = GetInstance.getInstance(s, SignatureSpi.class);
+	    return getInstance(instance, RSA_SIGNATURE);
+	}
+	// check Cipher
+	try {
+	    Cipher c = Cipher.getInstance(RSA_CIPHER, p);
+	    return new Delegate(new CipherAdapter(c), RSA_SIGNATURE);
+	} catch (GeneralSecurityException e) {
+	    // throw Signature style exception message to avoid confusion,
+	    // but append Cipher exception as cause
+	    throw new NoSuchAlgorithmException("no such algorithm: "
+		+ RSA_SIGNATURE + " for provider " + p.getName(), e);
+	}
+!!!7616667.java!!!	getProvider() : Provider
+	chooseFirstProvider();
+	return this.provider;
+!!!7616795.java!!!	chooseFirstProvider() : void
+	// empty, overridden in Delegate
+!!!7616923.java!!!	initVerify(inout publicKey : PublicKey) : void
+	engineInitVerify(publicKey);
+	state = VERIFY;
+!!!7617051.java!!!	initVerify(inout certificate : Certificate) : void
+	// If the certificate is of type X509Certificate,
+	// we should check whether it has a Key Usage
+	// extension marked as critical.
+	if (certificate instanceof java.security.cert.X509Certificate) {
+	    // Check whether the cert has a key usage extension
+	    // marked as a critical extension.
+	    // The OID for KeyUsage extension is 2.5.29.15.
+	    X509Certificate cert = (X509Certificate)certificate;
+	    Set critSet = cert.getCriticalExtensionOIDs();
+
+	    if (critSet != null && !critSet.isEmpty()
+		&& critSet.contains("2.5.29.15")) {
+		boolean[] keyUsageInfo = cert.getKeyUsage();
+		// keyUsageInfo[0] is for digitalSignature.
+		if ((keyUsageInfo != null) && (keyUsageInfo[0] == false))
+		    throw new InvalidKeyException("Wrong key usage");
+	    }
+	}
+	    
+	PublicKey publicKey = certificate.getPublicKey();
+	engineInitVerify(publicKey);
+	state = VERIFY;
+!!!7617179.java!!!	initSign(inout privateKey : PrivateKey) : void
+	engineInitSign(privateKey);
+	state = SIGN;
+!!!7617307.java!!!	initSign(inout privateKey : PrivateKey, inout random : SecureRandom) : void
+	engineInitSign(privateKey, random);
+	state = SIGN;
+!!!7617435.java!!!	sign() : byte
+	if (state == SIGN) {
+	    return engineSign();
+	}
+	throw new SignatureException("object not initialized for " +
+				     "signing");
+!!!7617563.java!!!	sign(in outbuf : byte, in offset : int, in len : int) : int
+	if (outbuf == null) {
+	    throw new IllegalArgumentException("No output buffer given");
+	}
+	if (outbuf.length - offset < len) {
+	    throw new IllegalArgumentException
+		("Output buffer too small for specified offset and length");
+	}
+	if (state != SIGN) {
+	    throw new SignatureException("object not initialized for " +
+					 "signing");
+	}
+	return engineSign(outbuf, offset, len);
+!!!7617691.java!!!	verify(in signature : byte) : boolean
+	if (state == VERIFY) {
+	    return engineVerify(signature);
+	}
+	throw new SignatureException("object not initialized for " +
+				     "verification");
+!!!7617819.java!!!	verify(in signature : byte, in offset : int, in length : int) : boolean
+	if (state == VERIFY) {
+	    if ((signature == null) || (offset < 0) || (length < 0) ||
+		(offset + length > signature.length)) {
+		throw new IllegalArgumentException("Bad arguments");
+	    }
+
+	    return engineVerify(signature, offset, length);
+	}
+	throw new SignatureException("object not initialized for " +
+				     "verification");
+!!!7617947.java!!!	update(in b : byte) : void
+	if (state == VERIFY || state == SIGN) {
+	    engineUpdate(b);
+	} else {
+	    throw new SignatureException("object not initialized for "
+					 + "signature or verification");
+	}
+!!!7618075.java!!!	update(in data : byte) : void
+	update(data, 0, data.length);
+!!!7618203.java!!!	update(in data : byte, in off : int, in len : int) : void
+	if (state == SIGN || state == VERIFY) {
+	    engineUpdate(data, off, len);
+	} else {
+	    throw new SignatureException("object not initialized for "
+					 + "signature or verification");
+	}
+!!!7618331.java!!!	update(inout data : ByteBuffer) : void
+	if ((state != SIGN) && (state != VERIFY)) {
+	    throw new SignatureException("object not initialized for "
+					 + "signature or verification");
+	}
+	if (data == null) {
+	    throw new NullPointerException();
+	}
+	engineUpdate(data);
+!!!7618459.java!!!	getAlgorithm() : String
+	return this.algorithm;
+!!!7618587.java!!!	toString() : String
+	String initState = "";
+	switch (state) {
+	case UNINITIALIZED:
+	    initState = "<not initialized>";
+	    break;
+	case VERIFY:
+	    initState = "<initialized for verifying>";
+	    break;	      
+	case SIGN:
+	    initState = "<initialized for signing>";
+	    break;	      
+	}
+	return "Signature object: " + getAlgorithm() + initState;
+!!!7618715.java!!!	setParameter(in param : String, inout value : Object) : void
+	engineSetParameter(param, value);
+!!!7618843.java!!!	setParameter(inout params : AlgorithmParameterSpec) : void
+	engineSetParameter(params);
+!!!7618971.java!!!	getParameters() : AlgorithmParameters
+	return engineGetParameters();
+!!!7619099.java!!!	getParameter(in param : String) : Object
+	return engineGetParameter(param);
+!!!7619227.java!!!	clone() : Object
+	if (this instanceof Cloneable) {
+	    return super.clone();
+	} else {
+	    throw new CloneNotSupportedException();
+	}

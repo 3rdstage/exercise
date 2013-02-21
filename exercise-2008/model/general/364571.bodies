@@ -1,0 +1,108 @@
+class GTKStateInfo
+!!!2089371.java!!!	GTKStateInfo(in state : int, inout font : Font, inout colors : Color, inout backgroundImage : Object)
+            super(state, font, colors);
+            this.backgroundImage = backgroundImage;
+!!!2089499.java!!!	GTKStateInfo(inout info : StateInfo)
+            super(info);
+            if (info instanceof GTKStateInfo) {
+                backgroundImage = ((GTKStateInfo)info).backgroundImage;
+            }
+!!!2089627.java!!!	setColor(inout type : ColorType, inout color : Color) : void
+            Color[] colors = getColors();
+            if (colors == null) {
+                if (color == null) {
+                    return;
+                }
+                colors = new Color[GTKColorType.MAX_COUNT];
+                setColors(colors);
+            }
+            colors[type.getID()] = color;
+!!!2089755.java!!!	getColor(inout type : ColorType) : Color
+            Color color = super.getColor(type);
+
+            if (color == null) {
+                Color[] colors = getColors();
+                Color bg;
+
+                if (colors != null && (bg = super.getColor(
+                                        GTKColorType.BACKGROUND)) != null) {
+                    if (type == GTKColorType.LIGHT) {
+                        color = colors[GTKColorType.LIGHT.getID()] =
+                                  calculateLightColor(bg);
+                    }
+                    else if (type == GTKColorType.MID) {
+                        color = colors[GTKColorType.MID.getID()] =
+                                       calculateMidColor(bg);
+                    }
+                    else if (type == GTKColorType.DARK) {
+                        color = colors[GTKColorType.DARK.getID()] =
+                                       calculateDarkColor(bg);
+                    }
+                }
+            }
+            return color;
+!!!2089883.java!!!	getBackgroundImage() : Object
+            if (backgroundImage == null ||
+                     (backgroundImage instanceof Image) ||
+                     backgroundImage == "<none>" ||
+                     backgroundImage == "<parent>") {
+                return backgroundImage;
+            }
+
+            ImageIcon ii = (ImageIcon)AccessController.doPrivileged(new PrivilegedAction() {
+                public Object run() {
+                    return new ImageIcon((String)backgroundImage);
+                }
+            });
+
+            if (ii.getIconWidth() > 0 && ii.getIconHeight() > 0) {
+                backgroundImage = ii.getImage();
+            } else {
+                backgroundImage = null;
+            }
+
+            return backgroundImage;
+!!!2090011.java!!!	clone() : Object
+            return new GTKStateInfo(this);
+!!!2090139.java!!!	addTo(inout info : StateInfo) : StateInfo
+            if (!(info instanceof GTKStateInfo)) {
+                info = new GTKStateInfo(info);
+            }
+            else {
+                super.addTo(info);
+            }
+            GTKStateInfo gInfo = (GTKStateInfo)info;
+
+            if (backgroundImage != null) {
+                gInfo.backgroundImage = backgroundImage;
+            }
+            return gInfo;
+!!!2090267.java!!!	toString() : String
+            StringBuffer buf = new StringBuffer();
+            
+            buf.append(getStateName(getComponentState(), "UNDEFINED")).append(":\n");
+            
+            if (getColor(GTKColorType.FOREGROUND) != null) {
+                buf.append("    fg=").append(getColor(GTKColorType.FOREGROUND)).append('\n');
+            }
+            
+            if (getColor(GTKColorType.BACKGROUND) != null) {
+                buf.append("    bg=").append(getColor(GTKColorType.BACKGROUND)).append('\n');
+            }
+            
+            if (getColor(GTKColorType.TEXT_FOREGROUND) != null) {
+                buf.append("    text=").append(getColor(GTKColorType.TEXT_FOREGROUND)).append('\n');
+            }
+            
+            if (getColor(GTKColorType.TEXT_BACKGROUND) != null) {
+                buf.append("    base=").append(getColor(GTKColorType.TEXT_BACKGROUND)).append('\n');
+            }
+            
+            if (backgroundImage != null) {
+                buf.append("    pmn=").append(backgroundImage).append('\n');
+            }
+            
+            // remove last newline
+            buf.deleteCharAt(buf.length() - 1);
+
+            return buf.toString();

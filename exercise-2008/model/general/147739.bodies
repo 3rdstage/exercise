@@ -1,0 +1,171 @@
+class Formatter
+!!!264219.java!!!	init(inout a : Appendable, inout l : Locale) : void
+	this.a = a;
+	this.l = l;
+	setZero();
+!!!264347.java!!!	Formatter()
+	init(new StringBuilder(), Locale.getDefault());
+!!!264475.java!!!	Formatter(inout a : Appendable)
+	init(a, Locale.getDefault());
+!!!264603.java!!!	Formatter(inout l : Locale)
+	init(new StringBuilder(), l);
+!!!264731.java!!!	Formatter(inout a : Appendable, inout l : Locale)
+	if (a == null)
+	    a = new StringBuilder();
+	init(a, l);
+!!!264859.java!!!	Formatter(in fileName : String)
+	init(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileName))),
+	     Locale.getDefault());
+!!!264987.java!!!	Formatter(in fileName : String, in csn : String)
+	this(fileName, csn, Locale.getDefault());
+!!!265115.java!!!	Formatter(in fileName : String, in csn : String, inout l : Locale)
+	init(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileName), csn)),
+	     l);
+!!!265243.java!!!	Formatter(inout file : File)
+	init(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file))),
+	     Locale.getDefault());
+!!!265371.java!!!	Formatter(inout file : File, in csn : String)
+	this(file, csn, Locale.getDefault());
+!!!265499.java!!!	Formatter(inout file : File, in csn : String, inout l : Locale)
+	init(new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), csn)),
+	     l);
+!!!265627.java!!!	Formatter(inout ps : PrintStream)
+	if (ps == null)
+	    throw new NullPointerException();
+	init((Appendable)ps, Locale.getDefault());
+!!!265755.java!!!	Formatter(inout os : OutputStream)
+	init(new BufferedWriter(new OutputStreamWriter(os)),
+	     Locale.getDefault());
+!!!265883.java!!!	Formatter(inout os : OutputStream, in csn : String)
+	this(os, csn, Locale.getDefault());
+!!!266011.java!!!	Formatter(inout os : OutputStream, in csn : String, inout l : Locale)
+	init(new BufferedWriter(new OutputStreamWriter(os, csn)), l);
+!!!266139.java!!!	setZero() : void
+	if ((l != null) && !l.equals(Locale.US)) {
+	    DecimalFormatSymbols dfs = new DecimalFormatSymbols(l);
+	    zero = dfs.getZeroDigit();
+	}
+!!!266267.java!!!	locale() : Locale
+	ensureOpen();
+	return l;
+!!!266395.java!!!	out() : Appendable
+	ensureOpen();
+	return a;
+!!!266523.java!!!	toString() : String
+	ensureOpen();
+	return a.toString();
+!!!266651.java!!!	flush() : void
+	ensureOpen();
+	if (a instanceof Flushable) {
+	    try {
+                ((Flushable)a).flush();
+            } catch (IOException ioe) {
+                lastException = ioe;
+            }
+        }
+!!!266779.java!!!	close() : void
+	if (a == null)
+	    return;
+	try {
+	    if (a instanceof Closeable)
+                ((Closeable)a).close();
+	} catch (IOException ioe) {
+	    lastException = ioe;
+	} finally {
+	    a = null;
+        }
+!!!266907.java!!!	ensureOpen() : void
+	if (a == null)
+	    throw new FormatterClosedException();
+!!!267035.java!!!	ioException() : IOException
+        return lastException;
+!!!267163.java!!!	format(in format : String, inout args : Object) : Formatter
+	return format(l, format, args);
+!!!267291.java!!!	format(inout l : Locale, in format : String, inout args : Object) : Formatter
+	ensureOpen();
+
+	// index of last argument referenced
+	int last = -1;
+	// last ordinary index
+	int lasto = -1;
+
+	FormatString[] fsa = parse(format);
+	for (int i = 0; i < fsa.length; i++) {
+	    FormatString fs = fsa[i];
+	    int index = fs.index();
+	    try {
+		switch (index) {
+		case -2:  // fixed string, "%n", or "%%"
+		    fs.print(null, l);
+		    break;
+		case -1:  // relative index
+		    if (last < 0 || (args != null && last > args.length - 1))
+			throw new MissingFormatArgumentException(fs.toString());
+		    fs.print((args == null ? null : args[last]), l);
+		    break;
+		case 0:  // ordinary index
+		    lasto++;
+ 		    last = lasto;
+		    if (args != null && lasto > args.length - 1)
+			throw new MissingFormatArgumentException(fs.toString());
+ 		    fs.print((args == null ? null : args[lasto]), l);
+		    break;
+		default:  // explicit index
+		    last = index - 1;
+		    if (args != null && last > args.length - 1)
+			throw new MissingFormatArgumentException(fs.toString());
+ 		    fs.print((args == null ? null : args[last]), l);
+		    break;
+		}
+	    } catch (IOException x) {
+		lastException = x;
+	    }
+	}
+	return this;
+!!!267419.java!!!	parse(in s : String) : FormatString
+	ArrayList al = new ArrayList();
+	Matcher m = fsPattern.matcher(s);
+	int i = 0;
+	while (i < s.length()) {
+	    if (m.find(i)) {
+		// Anything between the start of the string and the beginning
+		// of the format specifier is either fixed text or contains
+		// an invalid format string.
+		if (m.start() != i) {
+		    // Make sure we didn't miss any invalid format specifiers
+		    checkText(s.substring(i, m.start()));
+		    // Assume previous characters were fixed text
+		    al.add(new FixedString(s.substring(i, m.start())));
+		}
+
+		// Expect 6 groups in regular expression
+		String[] sa = new String[6];
+		for (int j = 0; j < m.groupCount(); j++)
+		    {
+		    sa[j] = m.group(j + 1);
+// 		    System.out.print(sa[j] + " ");
+		    }
+// 		System.out.println();
+		al.add(new FormatSpecifier(this, sa));
+		i = m.end();
+	    } else {
+		// No more valid format specifiers.  Check for possible invalid
+		// format specifiers.
+		checkText(s.substring(i));
+		// The rest of the string is fixed text
+		al.add(new FixedString(s.substring(i)));
+		break;
+	    }
+	}
+//   	FormatString[] fs = new FormatString[al.size()];
+//   	for (int j = 0; j < al.size(); j++)
+//   	    System.out.println(((FormatString) al.get(j)).toString());
+ 	return (FormatString[]) al.toArray(new FormatString[0]);
+!!!267547.java!!!	checkText(in s : String) : void
+	int idx;
+	// If there are any '%' in the given string, we got a bad format
+	// specifier.
+	if ((idx = s.indexOf('%')) != -1) {
+	    char c = (idx > s.length() - 2 ? '%' : s.charAt(idx + 1));
+	    throw new UnknownFormatConversionException(String.valueOf(c));
+	}

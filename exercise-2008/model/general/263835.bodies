@@ -1,0 +1,46 @@
+class POAPolicyMediatorImpl_R_UDS
+!!!1346459.java!!!	POAPolicyMediatorImpl_R_UDS(inout policies : Policies, inout poa : POAImpl)
+	// assert policies.retainServants() 
+	super( policies, poa ) ;
+	defaultServant = null ;
+
+	// policies.useDefaultServant()
+	if (!policies.useDefaultServant())
+	    throw poa.invocationWrapper().policyMediatorBadPolicyInFactory() ;
+!!!1346587.java!!!	internalGetServant(in id : byte, in operation : String) : Object
+ 
+	Servant servant = internalIdToServant( id ) ;
+	if (servant == null)
+	    servant = defaultServant ;
+
+	if (servant == null)
+	    throw poa.invocationWrapper().poaNoDefaultServant() ;
+
+	return servant ;
+!!!1346715.java!!!	etherealizeAll() : void
+	
+	// NO-OP
+!!!1346843.java!!!	getServantManager() : ServantManager
+	throw new WrongPolicy();
+!!!1346971.java!!!	setServantManager(inout servantManager : ServantManager) : void
+	throw new WrongPolicy();
+!!!1347099.java!!!	getDefaultServant() : Servant
+	if (defaultServant == null)
+	    throw new NoServant();
+	else
+	    return defaultServant;
+!!!1347227.java!!!	setDefaultServant(inout servant : Servant) : void
+	defaultServant = servant;
+	setDelegate(defaultServant, "DefaultServant".getBytes());
+!!!1347355.java!!!	idToServant(in id : byte) : Servant
+	ActiveObjectMap.Key key = new ActiveObjectMap.Key( id ) ;
+	Servant s = internalKeyToServant(key);
+	
+	if (s == null)
+	    if (defaultServant != null)
+		s = defaultServant;
+
+	if (s == null)
+	    throw new ObjectNotActive() ;
+
+	return s;

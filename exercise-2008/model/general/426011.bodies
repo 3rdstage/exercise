@@ -1,0 +1,47 @@
+class TransferAction
+!!!2534555.java!!!	TransferAction(in name : String)
+	    super(name);
+!!!2534683.java!!!	actionPerformed(inout e : ActionEvent) : void
+	    Object src = e.getSource();
+	    if (src instanceof JComponent) {
+		JComponent c = (JComponent) src;
+		TransferHandler th = c.getTransferHandler();
+		Clipboard clipboard = getClipboard(c);
+		String name = (String) getValue(Action.NAME);
+
+                Transferable trans = null;
+
+                // any of these calls may throw IllegalStateException
+                try {
+                    if ((clipboard != null) && (th != null) && (name != null)) {
+                        if ("cut".equals(name)) {
+                            th.exportToClipboard(c, clipboard, MOVE);
+                        } else if ("copy".equals(name)) {
+                            th.exportToClipboard(c, clipboard, COPY);
+                        } else if ("paste".equals(name)) {
+                            trans = clipboard.getContents(null);
+                        }
+                    }
+                } catch (IllegalStateException ise) {
+                    // clipboard was unavailable
+                    UIManager.getLookAndFeel().provideErrorFeedback(c);
+                    return;
+                }
+
+                // this is a paste action, import data into the component
+                if (trans != null) {
+                    th.importData(c, trans);
+                }
+	    }
+!!!2534811.java!!!	getClipboard(inout c : JComponent) : Clipboard
+	    if (SwingUtilities2.canAccessSystemClipboard()) {
+		return c.getToolkit().getSystemClipboard();
+	    }
+	    Clipboard clipboard = (Clipboard)sun.awt.AppContext.getAppContext().
+		get(SandboxClipboardKey);
+	    if (clipboard == null) {
+		clipboard = new Clipboard("Sandboxed Component Clipboard");
+		sun.awt.AppContext.getAppContext().put(SandboxClipboardKey,
+						       clipboard);
+	    }
+	    return clipboard;

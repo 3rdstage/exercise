@@ -1,0 +1,46 @@
+class AccessibleBundle
+!!!8154011.java!!!	toDisplayString(in resourceBundleName : String, inout locale : Locale) : String
+
+	// loads the resource bundle if necessary
+	loadResourceBundle(resourceBundleName, locale);
+
+	// returns the localized string
+	Object o = table.get(locale);
+	if (o != null && o instanceof Hashtable) {
+                Hashtable resourceTable = (Hashtable) o;
+                o = resourceTable.get(key);
+                
+                if (o != null && o instanceof String) {
+                    return (String)o;
+                }
+	}
+	return key;
+!!!8154139.java!!!	toDisplayString(inout locale : Locale) : String
+        return toDisplayString(defaultResourceBundleName, locale);
+!!!8154267.java!!!	toDisplayString() : String
+        return toDisplayString(Locale.getDefault());
+!!!8154395.java!!!	toString() : String
+        return toDisplayString();
+!!!8154523.java!!!	loadResourceBundle(in resourceBundleName : String, inout locale : Locale) : void
+	if (! table.contains(locale)) {
+                
+	    try {
+                Hashtable resourceTable = new Hashtable();
+		
+                ResourceBundle bundle = ResourceBundle.getBundle(resourceBundleName, locale);
+		
+                Enumeration iter = bundle.getKeys();
+		while(iter.hasMoreElements()) {
+		    String key = (String)iter.nextElement();
+		    resourceTable.put(key, bundle.getObject(key));
+		}
+
+                table.put(locale, resourceTable);
+	    } 
+            catch (MissingResourceException e) {
+                System.err.println("loadResourceBundle: " + e);
+		// Just return so toDisplayString() returns the
+		// non-localized key.
+		return;
+	    }
+	}

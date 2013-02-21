@@ -1,0 +1,65 @@
+class SimpleDoc
+!!!8566555.java!!!	SimpleDoc(inout printData : Object, inout flavor : DocFlavor, inout attributes : DocAttributeSet)
+
+       if (flavor == null || printData == null) {
+           throw new IllegalArgumentException("null argument(s)");
+       }
+
+       Class repClass = null;
+       try {
+            repClass = Class.forName(flavor.getRepresentationClassName());
+       } catch (Throwable e) {
+           throw new IllegalArgumentException("unknown representation class");
+       }
+  
+       if (!repClass.isInstance(printData)) {
+           throw new IllegalArgumentException("data is not of declared type");
+       }
+
+       this.flavor = flavor;
+       if (attributes != null) {
+           this.attributes = AttributeSetUtilities.unmodifiableView(attributes);
+       }
+       this.printData = printData;
+!!!8566683.java!!!	getDocFlavor() : DocFlavor
+ 
+        return flavor;
+!!!8566811.java!!!	getAttributes() : DocAttributeSet
+        return attributes;
+!!!8566939.java!!!	getPrintData() : Object
+        return printData;
+!!!8567067.java!!!	getReaderForText() : Reader
+    
+        if (printData instanceof Reader) {
+            return (Reader)printData; 
+        }
+
+        synchronized (this) {
+            if (reader != null) {
+                return reader;
+            } 
+
+            if (printData instanceof char[]) {
+               reader = new CharArrayReader((char[])printData);
+            }
+            else if (printData instanceof String) {
+                reader = new StringReader((String)printData);
+            }
+        }
+        return reader;
+!!!8567195.java!!!	getStreamForBytes() : InputStream
+      
+        if (printData instanceof InputStream) {
+            return (InputStream)printData; 
+        }
+
+        synchronized (this) {
+            if (inStream != null) {
+                return inStream;
+            } 
+
+            if (printData instanceof byte[]) {
+               inStream = new ByteArrayInputStream((byte[])printData);
+            }
+        }
+        return inStream;

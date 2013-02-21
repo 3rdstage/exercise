@@ -1,0 +1,61 @@
+class PUSH
+!!!3852315.java!!!	PUSH(inout cp : ConstantPoolGen, in value : int)
+    if((value >= -1) && (value <= 5)) // Use ICONST_n
+      instruction = INSTRUCTIONS[Constants.ICONST_0 + value];
+    else if((value >= -128) && (value <= 127)) // Use BIPUSH
+      instruction = new BIPUSH((byte)value);
+    else if((value >= -32768) && (value <= 32767)) // Use SIPUSH
+      instruction = new SIPUSH((short)value);
+    else // If everything fails create a Constant pool entry
+      instruction = new LDC(cp.addInteger(value));
+!!!3852443.java!!!	PUSH(inout cp : ConstantPoolGen, inout value : boolean)
+    instruction = INSTRUCTIONS[Constants.ICONST_0 + (value? 1 : 0)];
+!!!3852571.java!!!	PUSH(inout cp : ConstantPoolGen, in value : float)
+    if(value == 0.0)
+      instruction = FCONST_0;
+    else if(value == 1.0)
+      instruction = FCONST_1;
+    else if(value == 2.0)
+      instruction = FCONST_2;
+    else // Create a Constant pool entry
+      instruction = new LDC(cp.addFloat(value));
+!!!3852699.java!!!	PUSH(inout cp : ConstantPoolGen, in value : long)
+    if(value == 0)
+      instruction = LCONST_0;
+    else if(value == 1)
+      instruction = LCONST_1;
+    else // Create a Constant pool entry
+      instruction = new LDC2_W(cp.addLong(value));
+!!!3852827.java!!!	PUSH(inout cp : ConstantPoolGen, in value : double)
+    if(value == 0.0)
+      instruction = DCONST_0;
+    else if(value == 1.0)
+      instruction = DCONST_1;
+    else // Create a Constant pool entry
+      instruction = new LDC2_W(cp.addDouble(value));
+!!!3852955.java!!!	PUSH(inout cp : ConstantPoolGen, in value : String)
+    if(value == null)
+      instruction = ACONST_NULL;
+    else // Create a Constant pool entry
+      instruction = new LDC(cp.addString(value));
+!!!3853083.java!!!	PUSH(inout cp : ConstantPoolGen, inout value : Number)
+    if((value instanceof Integer) || (value instanceof Short) || (value instanceof Byte))
+      instruction = new PUSH(cp, value.intValue()).instruction;
+    else if(value instanceof Double)
+      instruction = new PUSH(cp, value.doubleValue()).instruction;
+    else if(value instanceof Float)
+      instruction = new PUSH(cp, value.floatValue()).instruction;
+    else if(value instanceof Long)
+      instruction = new PUSH(cp, value.longValue()).instruction;
+    else
+      throw new ClassGenException("What's this: " + value);
+!!!3853211.java!!!	PUSH(inout cp : ConstantPoolGen, inout value : Character)
+    this(cp, (int)value.charValue());
+!!!3853339.java!!!	PUSH(inout cp : ConstantPoolGen, inout value : Boolean)
+    this(cp, value.booleanValue());
+!!!3853467.java!!!	getInstructionList() : InstructionList
+    return new InstructionList(instruction);
+!!!3853595.java!!!	getInstruction() : Instruction
+    return instruction;
+!!!3853723.java!!!	toString() : String
+    return instruction.toString() + " (PUSH)";

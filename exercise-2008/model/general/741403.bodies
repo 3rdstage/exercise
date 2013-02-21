@@ -1,0 +1,32 @@
+class DateDV
+!!!5068315.java!!!	getActualValue(in content : String) : Object
+        try{
+            return new DateTimeData(parse(content), this);
+        } catch(Exception ex){
+            throw new InvalidDatatypeValueException("cvc-datatype-valid.1.2.1", new Object[]{content, "date"});
+        }
+!!!5068443.java!!!	parse(in str : String) : int
+        int len = str.length();
+        int[] date = new int[TOTAL_SIZE];
+        int[] timeZone = new int[2];
+
+        int end = getDate(str, 0, len, date);
+        parseTimeZone (str, end, len, date, timeZone);
+
+        //validate and normalize
+        //REVISIT: do we need SchemaDateTimeException?
+        validateDateTime(date, timeZone);
+
+        if ( date[utc]!=0 && date[utc]!='Z' ) {
+            normalize(date, timeZone);
+        }
+        return date;
+!!!5068571.java!!!	dateToString(in date : int) : String
+        StringBuffer message = new StringBuffer(25);
+        append(message, date[CY], 4);
+        message.append('-');
+        append(message, date[M], 2);
+        message.append('-');
+        append(message, date[D], 2);
+        append(message, (char)date[utc], 0);
+        return message.toString();

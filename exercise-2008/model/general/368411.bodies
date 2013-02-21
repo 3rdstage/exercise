@@ -1,0 +1,145 @@
+class BlueprintStyle
+!!!2108187.java!!!	BlueprintStyle(inout style : DefaultSynthStyle)
+        super(style);
+        if (style instanceof BlueprintStyle) {
+            BlueprintStyle bpStyle = (BlueprintStyle)style;
+            this.info = bpStyle.info;
+            this.iconColorize = bpStyle.iconColorize;
+            this.iconAncestorTypes = bpStyle.iconAncestorTypes;
+            this.colorizeColor = bpStyle.colorizeColor;
+        }
+!!!2108315.java!!!	BlueprintStyle(inout states : StateInfo, inout classSpecificValues : CircularIdentityList, inout font : Font, in xThickness : int, in yThickness : int, inout icons : GTKStockIconInfo, inout info : Info, inout iconColorize : boolean, in iconAncestorTypes : String, inout colorizeColor : Color)
+        super(states, classSpecificValues, font, xThickness, yThickness, icons);
+        this.info = info;
+        this.iconColorize = iconColorize;
+        this.iconAncestorTypes = iconAncestorTypes;
+        this.colorizeColor = colorizeColor;
+!!!2108443.java!!!	getGraphicsUtils(inout context : SynthContext) : SynthGraphicsUtils
+        return BLUEPRINT_GRAPHICS;
+!!!2108571.java!!!	addTo(inout s : DefaultSynthStyle) : DefaultSynthStyle
+        if (!(s instanceof BlueprintStyle)) {
+            s = new BlueprintStyle(s);
+        }
+        BlueprintStyle style = (BlueprintStyle)super.addTo(s);
+        if (info != null) {
+            if (style.info == null) {
+                style.info = info;
+            }
+            else {
+                // Place the more specific first.
+                Info[] merged = new Info[style.info.length + info.length];
+                System.arraycopy(info, 0, merged, 0, info.length);
+                System.arraycopy(style.info, 0, merged, info.length,
+                                 style.info.length);
+                style.info = merged;
+            }
+        }
+        
+        // like the real blueprint, we only overwrite when iconColorize is true
+
+        if (iconColorize) {
+            style.iconColorize = true;
+            style.colorizeColor = colorizeColor;
+        }
+
+        // like the real blueprint, we always overwrite
+
+        style.iconAncestorTypes = iconAncestorTypes;
+
+        return style;
+!!!2108699.java!!!	clone() : Object
+        BlueprintStyle style = (BlueprintStyle)super.clone();
+
+        // These fields are immutable, no need to clone them
+        style.info = this.info;
+        style.iconAncestorTypes = this.iconAncestorTypes;
+        style.colorizeColor = this.colorizeColor;
+
+        return style;
+!!!2108827.java!!!	getEngine(inout context : SynthContext) : GTKEngine
+        return BLUEPRINT_ENGINE;
+!!!2108955.java!!!	getInfo(in function : String, in detail : String, in componentState : int, in shadow : int, in orientation : int, in gapSide : int, in arrowDirection : int, in parentType : String) : Info
+        if (info != null) {
+            for (int counter = 0, max = info.length; counter < max;counter++) {
+                if (info[counter].getFunction() == function && info[counter].
+                              getMatchCount(detail, componentState, shadow,
+                              orientation, gapSide, arrowDirection,
+                              parentType) != -1) {
+                    return info[counter];
+                }
+            }
+        }
+        return null;
+!!!2109083.java!!!	getMaxMatchCount(in componentState : int, in shadow : int, in orientation : int, in gapSide : int, in arrowDirection : int, in detail : String) : int
+        int count = 0;
+
+        if (detail != null) {
+            count++;
+        }
+        if (componentState != UNDEFINED) {
+            count++;
+        }
+        if (shadow != UNDEFINED) {
+            count++;
+        }
+        if (orientation != UNDEFINED) {
+            count++;
+        }
+        if (gapSide != UNDEFINED) {
+            count++;
+        }
+        if (arrowDirection != UNDEFINED) {
+            count++;
+        }
+        return count;
+!!!2113563.java!!!	getColorStringWithAlpha(inout c : Color) : String
+        if (c == null) {
+            return "null";
+        }
+
+        StringBuffer buf = new StringBuffer();
+        buf.append('{');
+        buf.append(c.getRed()).append(", ");
+        buf.append(c.getGreen()).append(", ");
+        buf.append(c.getBlue()).append(", ");
+        buf.append(c.getAlpha()).append("}");
+        return buf.toString();
+!!!2113691.java!!!	toString() : String
+        StringBuffer buf = new StringBuffer(super.toString());
+
+        if (buf.length() > 0) {
+            buf.append('\n');
+        }
+
+        buf.append("*** Blueprint Engine Info ***\n");
+
+        buf.append("icon_colorize = " + iconColorize + '\n');
+        buf.append("icon_colorize_ancestor_type = ");
+        if (iconAncestorTypes == null) {
+            buf.append("null\n");
+        } else {
+            buf.append('{');
+            for (int i = 0; i < iconAncestorTypes.length; i++) {
+                buf.append(iconAncestorTypes[i] + ", ");
+            }
+
+            buf.deleteCharAt(buf.length() - 1);
+            buf.deleteCharAt(buf.length() - 1);
+
+            buf.append("}\n");
+        }
+
+        buf.append("colorize_color = ");
+        buf.append(getColorStringWithAlpha(colorizeColor));
+        buf.append('\n');
+
+        if (info != null) {
+            for (int i = 0; i < info.length; i++) {
+                buf.append(info[i].toString()).append('\n');
+            }
+        }
+
+        // remove last newline
+        buf.deleteCharAt(buf.length() - 1);
+
+        return buf.toString();

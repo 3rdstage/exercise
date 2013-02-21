@@ -1,0 +1,46 @@
+class EntryIterator
+!!!300955.java!!!	next() : Entry
+            nextIndex();
+            return this;
+!!!301083.java!!!	getKey() : K
+            // Provide a better exception than out of bounds index
+            if (lastReturnedIndex < 0)
+                throw new IllegalStateException("Entry was removed");
+
+            return (K) unmaskNull(traversalTable[lastReturnedIndex]);
+!!!301211.java!!!	getValue() : V
+            // Provide a better exception than out of bounds index
+            if (lastReturnedIndex < 0)
+                throw new IllegalStateException("Entry was removed");
+
+            return (V) traversalTable[lastReturnedIndex+1];
+!!!301339.java!!!	setValue(inout value : V) : V
+            // It would be mean-spirited to proceed here if remove() called
+            if (lastReturnedIndex < 0)
+                throw new IllegalStateException("Entry was removed");
+	    V oldValue = (V) traversalTable[lastReturnedIndex+1];
+            traversalTable[lastReturnedIndex+1] = value;
+            // if shadowing, force into main table
+            if (traversalTable != IdentityHashMap.this.table)
+                put((K) traversalTable[lastReturnedIndex], value);
+            return oldValue;
+!!!301467.java!!!	equals(inout o : Object) : boolean
+            if (lastReturnedIndex < 0)
+                return super.equals(o);
+
+            if (!(o instanceof Map.Entry))
+                return false;
+            Map.Entry e = (Map.Entry)o;
+            return e.getKey()   == getKey() &&
+                   e.getValue() == getValue();
+!!!301595.java!!!	hashCode() : int
+            if (lastReturnedIndex < 0)
+                return super.hashCode();
+
+            return System.identityHashCode(getKey()) ^
+                   System.identityHashCode(getValue());
+!!!301723.java!!!	toString() : String
+            if (lastReturnedIndex < 0)
+                return super.toString();
+
+            return getKey() + "=" + getValue();

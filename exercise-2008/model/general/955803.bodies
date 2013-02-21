@@ -1,0 +1,62 @@
+class UID
+!!!7549211.java!!!	UID()
+	
+	synchronized (lock) {
+	    if (!hostUniqueSet) {
+		hostUnique = (new SecureRandom()).nextInt();
+		hostUniqueSet = true;
+	    }
+	    unique = hostUnique;
+	    if (lastCount == Short.MAX_VALUE) {
+		boolean done = false;
+		while (!done) {
+		    long now = System.currentTimeMillis();
+		    if (now < lastTime + ONE_SECOND) {
+			// pause for a second to wait for time to change
+			try {
+			    Thread.currentThread().sleep(ONE_SECOND);
+			} catch (java.lang.InterruptedException e) {
+			}	// ignore exception
+			continue;
+		    } else {
+			lastTime = now;
+			lastCount = Short.MIN_VALUE;
+			done = true;
+		    }
+		}
+	    }
+	    time = lastTime;
+	    count = lastCount++;
+	}
+!!!7549339.java!!!	UID(in num : short)
+	unique = 0;
+	time = 0;
+	count = num;
+!!!7549467.java!!!	UID(in unique : int, in time : long, in count : short)
+	this.unique = unique;
+	this.time = time;
+	this.count = count;
+!!!7549595.java!!!	hashCode() : int
+	return (int) time + (int) count;
+!!!7549723.java!!!	equals(inout obj : Object) : boolean
+	if (obj instanceof UID) {
+	    UID uid = (UID)obj;
+	    return (unique == uid.unique &&
+		    count == uid.count &&
+		    time == uid.time);
+	} else {
+	    return false;
+	}
+!!!7549851.java!!!	toString() : String
+	return Integer.toString(unique,16) + ":" +
+	    Long.toString(time,16) + ":" +
+	    Integer.toString(count,16);
+!!!7549979.java!!!	write(inout out : DataOutput) : void
+	out.writeInt(unique);
+	out.writeLong(time);
+	out.writeShort(count);
+!!!7550107.java!!!	read(inout in : DataInput) : UID
+	int unique = in.readInt();
+	long time = in.readLong();
+	short count = in.readShort();
+	return new UID(unique, time, count);

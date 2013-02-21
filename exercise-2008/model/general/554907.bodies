@@ -1,0 +1,146 @@
+class NetMaskImpl
+!!!3524635.java!!!	extractSubNet(in b : byte) : byte
+	int addrLength = b.length;
+	byte[] subnet = null;
+	if(isDebugOn()) {
+	    debug("extractSubNet","BINARY ARRAY :");
+	    StringBuffer buff = new StringBuffer();
+	    for(int i =0; i < addrLength; i++) {
+		buff.append((int)(b[i] &0xFF) +":");
+	    }
+	    debug("extractSubNet", buff.toString());
+	}
+	
+	// 8 is a byte size. Common to any InetAddress (V4 or V6).
+	int fullyCoveredByte = prefix / 8;
+	if(fullyCoveredByte == addrLength) {
+	    if(isDebugOn()) {
+		debug("extractSubNet"," The mask is the complete address, strange..." + addrLength);
+	    }
+	    subnet = b;
+	    return subnet;
+	}
+	if(fullyCoveredByte > addrLength) {
+	    if(isDebugOn()) {
+		debug("extractSubNet"," The number of covered byte is longer than the address. BUG");
+	    }
+	    throw new IllegalArgumentException("The number of covered byte is longer than the address.");
+	}
+	int partialyCoveredIndex = fullyCoveredByte;
+	if(isDebugOn()) {
+	    debug("extractSubNet"," Partialy covered index : " + partialyCoveredIndex);
+	}
+	byte toDeal = b[partialyCoveredIndex];
+	if(isDebugOn()) {
+	    debug("extractSubNet"," Partialy covered byte : " + toDeal);
+	}
+	
+	// 8 is a byte size. Common to any InetAddress (V4 or V6).
+	int nbbits = prefix % 8;
+	int subnetSize = 0;
+	
+	if(nbbits == 0) 
+	subnetSize = partialyCoveredIndex;
+	else
+	subnetSize = partialyCoveredIndex + 1;
+	
+	if(isDebugOn()) {
+	    debug("extractSubNet"," Remains : " + nbbits);
+	}
+	
+	byte mask = 0;
+	for(int i = 0; i < nbbits; i++) {
+	    mask |= (1 << (7 - i));
+	}
+	if(isDebugOn()) {
+	    debug("extractSubNet","Mask value" + (int) (mask & 0xFF));
+	}
+	
+	byte maskedValue = (byte) ((int)toDeal & (int)mask);
+	
+	if(isDebugOn()) {
+	    debug("extractSubNet","Masked byte :"  + (int) (maskedValue &0xFF));
+	}
+	subnet = new byte[subnetSize];
+	if(isDebugOn()) {
+	    debug("extractSubNet","Resulting subnet : ");
+	}
+	for(int i = 0; i < partialyCoveredIndex; i++) {
+	    subnet[i] = b[i];
+	    
+	    if(isDebugOn()) {
+		debug("extractSubNet",(int) (subnet[i] & 0xFF) +":");
+	    }
+	}
+	
+	if(nbbits != 0) {
+	    subnet[partialyCoveredIndex] = maskedValue;
+	    if(isDebugOn()) {
+		debug("extractSubNet"," Last subnet byte : " + (int) (subnet[partialyCoveredIndex] &0xFF));
+	    }
+	}
+	return subnet;
+!!!3524763.java!!!	NetMaskImpl(in a : String, in prefix : int)
+	super(a);
+	this.prefix = prefix;
+	subnet = extractSubNet(getAddress().getAddress());
+!!!3524891.java!!!	addMember(inout p : Principal) : boolean
+	// we don't need to add members because the ip address is a subnet mask 
+	return true;	
+!!!3525019.java!!!	hashCode() : int
+	return super.hashCode();	
+!!!3525147.java!!!	equals(inout p : Object) : boolean
+	if (p instanceof PrincipalImpl || p instanceof NetMaskImpl){
+	    PrincipalImpl received = (PrincipalImpl) p;
+	    InetAddress addr = received.getAddress();
+	    if(isDebugOn()) {
+		debug("equals","Received Address : " + addr);
+	    }
+	    byte[] recAddr = addr.getAddress();
+	    for(int i = 0; i < subnet.length; i++) {
+		if(isDebugOn()) {
+		    debug("equals","(recAddr[i]) :" + (recAddr[i] & 0xFF)); 
+		    debug("equals","(recAddr[i] & subnet[i]) :" +
+			  ( (int) (recAddr[i] & (int)subnet[i]) &0xFF) +
+			  "subnet[i] :" + (int) (subnet[i] &0xFF));
+		}
+		if((recAddr[i] & subnet[i]) != subnet[i]) {
+		    if(isDebugOn()) {
+			debug("equals","FALSE");
+		    }
+		    return false;
+		}
+	    }
+	    if(isDebugOn()) {
+		debug("equals","TRUE");
+	    }
+	    return true;
+	} else
+	    return false;
+!!!3525275.java!!!	isMember(inout p : Principal) : boolean
+	if ((p.hashCode() & super.hashCode()) == p.hashCode()) return true;
+	else return false;
+!!!3525403.java!!!	members() : Enumeration
+	Vector v = new Vector(1);
+	v.addElement(this);
+	return v.elements();
+!!!3525531.java!!!	removeMember(inout p : Principal) : boolean
+	return true;
+!!!3525659.java!!!	toString() : String
+	return ("NetMaskImpl :"+ super.getAddress().toString() + "/" + prefix);
+!!!3525787.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_SNMP);
+!!!3525915.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_SNMP, clz, func, info);
+!!!3526043.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!3526171.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_SNMP);
+!!!3526299.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_SNMP, clz, func, info);
+!!!3526427.java!!!	debug(in clz : String, in func : String, inout exception : Throwable) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_SNMP, clz, func, exception);
+!!!3526555.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);
+!!!3526683.java!!!	debug(in func : String, inout exception : Throwable) : void
+        debug(dbgTag, func, exception);

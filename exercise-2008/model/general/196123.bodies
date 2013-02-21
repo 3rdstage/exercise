@@ -1,0 +1,114 @@
+class CachedCodeBase
+!!!595995.java!!!	CachedCodeBase(inout connection : CorbaConnection)
+        conn = connection;
+!!!596123.java!!!	get_ir() : com.sun.org.omg.CORBA.Repository
+        return null;
+!!!596251.java!!!	implementation(in repId : String) : String
+        String urlResult = null;
+
+        if (implementations == null)
+            implementations = new Hashtable();
+        else
+            urlResult = (String)implementations.get(repId);
+
+        if (urlResult == null && connectedCodeBase()) {
+            urlResult = delegate.implementation(repId);
+
+            if (urlResult != null)
+                implementations.put(repId, urlResult);
+        }
+
+        return urlResult;
+!!!596379.java!!!	implementations(in repIds : String) : String
+        String[] urlResults = new String[repIds.length];
+
+        for (int i = 0; i < urlResults.length; i++)
+            urlResults[i] = implementation(repIds[i]);
+
+        return urlResults;
+!!!596507.java!!!	meta(in repId : String) : FullValueDescription
+        FullValueDescription result = null;
+
+        if (fvds == null)
+            fvds = new Hashtable();
+        else
+            result = (FullValueDescription)fvds.get(repId);
+
+        if (result == null && connectedCodeBase()) {
+            result = delegate.meta(repId);
+
+            if (result != null)
+                fvds.put(repId, result);
+        }
+
+        return result;
+!!!596635.java!!!	metas(in repIds : String) : FullValueDescription
+        FullValueDescription[] results 
+            = new FullValueDescription[repIds.length];
+
+        for (int i = 0; i < results.length; i++)
+            results[i] = meta(repIds[i]);
+
+        return results;
+!!!596763.java!!!	bases(in repId : String) : String
+
+        String[] results = null;
+
+        if (bases == null)
+            bases = new Hashtable();
+        else
+            results = (String[])bases.get(repId);
+
+        if (results == null && connectedCodeBase()) {
+            results = delegate.bases(repId);
+
+            if (results != null)
+                bases.put(repId, results);
+        }
+
+        return results;
+!!!596891.java!!!	connectedCodeBase() : boolean
+        if (delegate != null)
+            return true;
+
+        // The delegate was null, so see if the connection's
+        // IOR was set.  If so, then we just need to connect
+        // it.  Otherwise, there is no hope of checking the
+        // remote code base.  That could be bug if the
+        // service context processing didn't occur, or it
+        // could be that we're talking to a foreign ORB which
+        // doesn't include this optional service context.
+        if (conn.getCodeBaseIOR() == null) {
+            // REVISIT.  Use Merlin logging service to report that
+            // codebase functionality was requested but unavailable.
+            if (conn.getBroker().transportDebugFlag)
+                conn.dprint("CodeBase unavailable on connection: " + conn);
+
+            return false;
+        }
+
+        synchronized(this) {
+
+            // Recheck the condition to make sure another
+            // thread didn't already do this while we waited
+            if (delegate != null)
+                return true;
+
+            // Do we have a reference initialized by another connection?
+            delegate = (CodeBase)CachedCodeBase.iorToCodeBaseObjMap.get(conn.getCodeBaseIOR());
+            if (delegate != null)
+                return true;
+            
+            // Connect the delegate and update the cache
+            delegate = CodeBaseHelper.narrow(getObjectFromIOR());
+            
+            // Save it for the benefit of other connections
+            CachedCodeBase.iorToCodeBaseObjMap.put(conn.getCodeBaseIOR(), 
+                                                   delegate);
+        }
+
+        // It's now safe to use the delegate
+        return true;
+!!!597019.java!!!	getObjectFromIOR() : Object
+        return CDRInputStream_1_0.internalIORToObject(
+	    conn.getCodeBaseIOR(), null /*stubFactory*/, conn.getBroker());

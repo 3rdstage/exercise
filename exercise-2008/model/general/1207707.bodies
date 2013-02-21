@@ -1,0 +1,52 @@
+class CellView
+!!!9996699.java!!!	CellView(inout elem : Element)
+	    super(elem, Y_AXIS);
+!!!9996827.java!!!	layoutMajorAxis(in targetSpan : int, in axis : int, in offsets : int, in spans : int) : void
+	    super.layoutMajorAxis(targetSpan, axis, offsets, spans);
+
+	    // calculate usage
+	    int used = 0;
+	    int n = spans.length;
+	    for (int i = 0; i < n; i++) {
+		used += spans[i];
+	    }
+
+	    // calculate adjustments
+	    int adjust = 0;
+	    if (used < targetSpan) {
+		// PENDING(prinz) change to use the css alignment.
+		String valign = (String) getElement().getAttributes().getAttribute(
+		    HTML.Attribute.VALIGN);
+		if (valign == null) {
+		    AttributeSet rowAttr = getElement().getParentElement().getAttributes();
+		    valign = (String) rowAttr.getAttribute(HTML.Attribute.VALIGN);
+		}
+		if ((valign == null) || valign.equals("middle")) {
+		    adjust = (targetSpan - used) / 2;
+		} else if (valign.equals("bottom")) {
+		    adjust = targetSpan - used;
+		}
+	    }
+
+	    // make adjustments.
+	    if (adjust != 0) {
+		for (int i = 0; i < n; i++) {
+		    offsets[i] += adjust;
+		}
+	    }
+!!!9996955.java!!!	calculateMajorAxisRequirements(in axis : int, inout r : SizeRequirements) : SizeRequirements
+	    SizeRequirements req = super.calculateMajorAxisRequirements(axis, r);
+	    req.maximum = Integer.MAX_VALUE;
+	    return req;
+!!!9997083.java!!!	calculateMinorAxisRequirements(in axis : int, inout r : SizeRequirements) : SizeRequirements
+            SizeRequirements rv = super.calculateMinorAxisRequirements(axis, r);
+            //for the cell the minimum should be derived from the child views 
+            //the parent behaviour is to use CSS for that
+            int n = getViewCount();
+            int min = 0;
+            for (int i = 0; i < n; i++) {
+                View v = getView(i);
+                min = Math.max((int) v.getMinimumSpan(axis), min);                
+            }            
+            rv.minimum = Math.min(rv.minimum, min);
+            return rv;

@@ -1,0 +1,82 @@
+class WindowsMenuBarUI
+!!!2984347.java!!!	createUI(inout x : JComponent) : ComponentUI
+	return new WindowsMenuBarUI();
+!!!2984475.java!!!	uninstallListeners() : void
+        uninstallWindowListener();
+        if (hierarchyListener != null) {
+            menuBar.removeHierarchyListener(hierarchyListener);
+            hierarchyListener = null;   
+        }
+        super.uninstallListeners();
+!!!2984603.java!!!	installWindowListener() : void
+        if (windowListener == null) {
+            Component component = menuBar.getTopLevelAncestor();
+            if (component instanceof Window) {
+                window = (Window) component;
+                windowListener = new WindowAdapter() {
+                    @Override
+                    public void windowActivated(WindowEvent e) {
+                        menuBar.repaint();
+                    }
+                    @Override
+                    public void windowDeactivated(WindowEvent e) {
+                        menuBar.repaint();
+                    }
+                };
+                ((Window) component).addWindowListener(windowListener);
+            }
+        }
+!!!2984731.java!!!	uninstallWindowListener() : void
+        if (windowListener != null && window != null) {
+            window.removeWindowListener(windowListener);
+        }
+        window = null;
+        windowListener = null;
+!!!2984859.java!!!	installListeners() : void
+        if (WindowsLookAndFeel.isOnVista()) {
+            installWindowListener();
+            hierarchyListener = 
+                new HierarchyListener() {
+                    public void hierarchyChanged(HierarchyEvent e) {
+                        if ((e.getChangeFlags() 
+                                & HierarchyEvent.DISPLAYABILITY_CHANGED) != 0) {
+                            if (menuBar.isDisplayable()) {
+                                installWindowListener();
+                            } else {
+                                uninstallWindowListener();
+                            }
+                        }
+                    }
+            };
+            menuBar.addHierarchyListener(hierarchyListener);
+        }
+        super.installListeners();
+!!!2984987.java!!!	installKeyboardActions() : void
+        super.installKeyboardActions();
+	ActionMap map = SwingUtilities.getUIActionMap(menuBar);
+        if (map == null) {
+            map = new ActionMapUIResource();
+            SwingUtilities.replaceUIActionMap(menuBar, map);
+        }
+        map.put("takeFocus", new TakeFocus());
+!!!2985243.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        if (WindowsMenuItemUI.isVistaPainting()) {
+            XPStyle xp = XPStyle.getXP();
+            Skin skin;
+            skin = xp.getSkin(c, Part.MP_BARBACKGROUND);
+            int width = c.getWidth();
+            int height = c.getHeight();
+            State state =  isActive(c) ? State.ACTIVE : State.INACTIVE;
+            skin.paintSkin(g, 0, 0, width, height, state);
+        } else {
+            super.paint(g, c);
+        }
+!!!2985371.java!!!	isActive(inout c : JComponent) : boolean
+        JRootPane rootPane = c.getRootPane();
+        if (rootPane != null) {
+            Component component = rootPane.getParent();
+            if (component instanceof Window) {
+                return ((Window) component).isActive();
+            }
+        }
+        return true;

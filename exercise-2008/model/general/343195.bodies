@@ -1,0 +1,128 @@
+class ImageReaderWriterSpi
+!!!1908763.java!!!	ImageReaderWriterSpi(in vendorName : String, in version : String, in names : String, in suffixes : String, in MIMETypes : String, in pluginClassName : String, inout supportsStandardStreamMetadataFormat : boolean, in nativeStreamMetadataFormatName : String, in nativeStreamMetadataFormatClassName : String, in extraStreamMetadataFormatNames : String, in extraStreamMetadataFormatClassNames : String, inout supportsStandardImageMetadataFormat : boolean, in nativeImageMetadataFormatName : String, in nativeImageMetadataFormatClassName : String, in extraImageMetadataFormatNames : String, in extraImageMetadataFormatClassNames : String)
+        super(vendorName, version);
+        if (names == null) {
+            throw new IllegalArgumentException("names == null!");
+        }
+        if (names.length == 0) {
+            throw new IllegalArgumentException("names.length == 0!");
+        }
+        if (pluginClassName == null) {
+            throw new IllegalArgumentException("pluginClassName == null!");
+        }
+
+        this.names = (String[])names.clone();
+        // If length == 0, leave it null
+        if (suffixes != null && suffixes.length > 0) {
+            this.suffixes = (String[])suffixes.clone();
+        }
+        // If length == 0, leave it null
+        if (MIMETypes != null && MIMETypes.length > 0) {
+            this.MIMETypes = (String[])MIMETypes.clone();
+        }
+        this.pluginClassName = pluginClassName;
+
+        this.supportsStandardStreamMetadataFormat = 
+            supportsStandardStreamMetadataFormat;
+        this.nativeStreamMetadataFormatName = nativeStreamMetadataFormatName;
+        this.nativeStreamMetadataFormatClassName = 
+            nativeStreamMetadataFormatClassName;
+        // If length == 0, leave it null
+        if (extraStreamMetadataFormatNames != null &&
+            extraStreamMetadataFormatNames.length > 0) {
+            this.extraStreamMetadataFormatNames =
+                (String[])extraStreamMetadataFormatNames.clone();
+        }
+        // If length == 0, leave it null
+        if (extraStreamMetadataFormatClassNames != null &&
+            extraStreamMetadataFormatClassNames.length > 0) {
+            this.extraStreamMetadataFormatClassNames =
+                (String[])extraStreamMetadataFormatClassNames.clone();
+        }
+        this.supportsStandardImageMetadataFormat = 
+            supportsStandardImageMetadataFormat;
+        this.nativeImageMetadataFormatName = nativeImageMetadataFormatName;
+        this.nativeImageMetadataFormatClassName = 
+            nativeImageMetadataFormatClassName;
+        // If length == 0, leave it null
+        if (extraImageMetadataFormatNames != null &&
+            extraImageMetadataFormatNames.length > 0) {
+            this.extraImageMetadataFormatNames =
+                (String[])extraImageMetadataFormatNames.clone();
+        }
+        // If length == 0, leave it null
+        if (extraImageMetadataFormatClassNames != null &&
+            extraImageMetadataFormatClassNames.length > 0) {
+            this.extraImageMetadataFormatClassNames =
+                (String[])extraImageMetadataFormatClassNames.clone();
+        }
+!!!1909019.java!!!	getFormatNames() : String
+        return (String[])names.clone();
+!!!1909147.java!!!	getFileSuffixes() : String
+        return suffixes == null ? null : (String[])suffixes.clone();
+!!!1909275.java!!!	getMIMETypes() : String
+        return MIMETypes == null ? null : (String[])MIMETypes.clone();
+!!!1909403.java!!!	getPluginClassName() : String
+        return pluginClassName;
+!!!1909531.java!!!	isStandardStreamMetadataFormatSupported() : boolean
+        return supportsStandardStreamMetadataFormat;
+!!!1909659.java!!!	getNativeStreamMetadataFormatName() : String
+        return nativeStreamMetadataFormatName;
+!!!1909787.java!!!	getExtraStreamMetadataFormatNames() : String
+        return extraStreamMetadataFormatNames == null ?
+            null : (String[])extraStreamMetadataFormatNames.clone();
+!!!1909915.java!!!	isStandardImageMetadataFormatSupported() : boolean
+        return supportsStandardImageMetadataFormat;
+!!!1910043.java!!!	getNativeImageMetadataFormatName() : String
+        return nativeImageMetadataFormatName;
+!!!1910171.java!!!	getExtraImageMetadataFormatNames() : String
+        return extraImageMetadataFormatNames == null ?
+            null : (String[])extraImageMetadataFormatNames.clone();
+!!!1910299.java!!!	getStreamMetadataFormat(in formatName : String) : IIOMetadataFormat
+        return getMetadataFormat(formatName,
+                                 supportsStandardStreamMetadataFormat,
+                                 nativeStreamMetadataFormatName,
+                                 nativeStreamMetadataFormatClassName,
+                                 extraStreamMetadataFormatNames,
+                                 extraStreamMetadataFormatClassNames);
+!!!1910427.java!!!	getImageMetadataFormat(in formatName : String) : IIOMetadataFormat
+        return getMetadataFormat(formatName,
+                                 supportsStandardImageMetadataFormat,
+                                 nativeImageMetadataFormatName,
+                                 nativeImageMetadataFormatClassName,
+                                 extraImageMetadataFormatNames,
+                                 extraImageMetadataFormatClassNames);
+!!!1910555.java!!!	getMetadataFormat(in formatName : String, inout supportsStandard : boolean, in nativeName : String, in nativeClassName : String, in extraNames : String, in extraClassNames : String) : IIOMetadataFormat
+        if (formatName == null) {
+            throw new IllegalArgumentException("formatName == null!");
+        }
+        if (supportsStandard && formatName.equals
+                (IIOMetadataFormatImpl.standardMetadataFormatName)) {
+
+            return IIOMetadataFormatImpl.getStandardFormatInstance();
+        }
+        String formatClassName = null;
+        if (formatName.equals(nativeName)) {
+            formatClassName = nativeClassName; 
+        } else if (extraNames != null) {
+            for (int i = 0; i < extraNames.length; i++) {
+                if (formatName.equals(extraNames[i])) {
+                    formatClassName = extraClassNames[i];
+                    break;  // out of for
+                }
+            }
+        }
+        if (formatClassName == null) {
+            throw new IllegalArgumentException("Unsupported format name");
+        }
+        try {
+            Class cls = Class.forName(formatClassName, true,
+                                      ClassLoader.getSystemClassLoader());
+            Method meth = cls.getMethod("getInstance", null);
+            return (IIOMetadataFormat) meth.invoke(null, null);
+        } catch (Exception e) {
+            RuntimeException ex = 
+                new IllegalStateException ("Can't obtain format");
+            ex.initCause(e);
+            throw ex;
+        }

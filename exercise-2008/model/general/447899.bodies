@@ -1,0 +1,125 @@
+class InputMethodRequestsHandler
+!!!2729499.java!!!	cancelLatestCommittedText(inout attributes : Attribute) : AttributedCharacterIterator
+	    Document doc = getDocument();
+	    if ((doc != null) && (latestCommittedTextStart != null) 
+                && (!latestCommittedTextStart.equals(latestCommittedTextEnd))) {
+		try {
+		    int startIndex = latestCommittedTextStart.getOffset();
+                    int endIndex = latestCommittedTextEnd.getOffset();
+		    String latestCommittedText = 
+                        doc.getText(startIndex, endIndex - startIndex);
+		    doc.remove(startIndex, endIndex - startIndex);
+		    return new AttributedString(latestCommittedText).getIterator();
+		} catch (BadLocationException ble) {}
+	    }
+	    return null;
+!!!2729627.java!!!	getCommittedText(in beginIndex : int, in endIndex : int, inout attributes : Attribute) : AttributedCharacterIterator
+	    int composedStartIndex = 0;
+	    int composedEndIndex = 0;
+	    if (composedTextExists()) {
+		composedStartIndex = composedTextStart.getOffset();
+		composedEndIndex = composedTextEnd.getOffset();
+	    }
+
+	    String committed;
+	    try {
+		if (beginIndex < composedStartIndex) {
+		    if (endIndex <= composedStartIndex) {
+			committed = getText(beginIndex, endIndex - beginIndex);
+		    } else {
+			int firstPartLength = composedStartIndex - beginIndex;
+			committed = getText(beginIndex, firstPartLength) +
+			    getText(composedEndIndex, endIndex - beginIndex - firstPartLength);
+		    }
+		} else {
+		    committed = getText(beginIndex + (composedEndIndex - composedStartIndex),
+		                        endIndex - beginIndex);
+		}
+	    } catch (BadLocationException ble) {
+		throw new IllegalArgumentException("Invalid range");
+	    }
+	    return new AttributedString(committed).getIterator();
+!!!2729755.java!!!	getCommittedTextLength() : int
+	    Document doc = getDocument();
+	    int length = 0;
+	    if (doc != null) {
+		length = doc.getLength();
+		if (composedTextContent != null) {
+                    if (composedTextEnd == null
+                          || composedTextStart == null) {
+                        /* 
+                         * fix for : 6355666
+                         * this is the case when this method is invoked
+                         * from DocumentListener. At this point 
+                         * composedTextEnd and composedTextStart are
+                         * not defined yet.
+                         */ 
+                        length -= composedTextContent.length();
+                    } else {
+                        length -= composedTextEnd.getOffset() - 
+                            composedTextStart.getOffset();
+                    }
+		}
+            }
+	    return length;
+!!!2729883.java!!!	getInsertPositionOffset() : int
+	    int composedStartIndex = 0;
+	    int composedEndIndex = 0;
+	    if (composedTextExists()) {
+		composedStartIndex = composedTextStart.getOffset();
+		composedEndIndex = composedTextEnd.getOffset();
+	    }
+	    int caretIndex = getCaretPosition();
+
+	    if (caretIndex < composedStartIndex) {
+		return caretIndex;
+	    } else if (caretIndex < composedEndIndex) {
+		return composedStartIndex;
+	    } else {
+		return caretIndex - (composedEndIndex - composedStartIndex);
+	    }
+!!!2730011.java!!!	getLocationOffset(in x : int, in y : int) : TextHitInfo
+	    if (composedTextAttribute == null) {
+	        return null;
+	    } else { 
+	        Point p = getLocationOnScreen();
+	        p.x = x - p.x;
+	        p.y = y - p.y;
+	        int pos = viewToModel(p);
+	        if ((pos >= composedTextStart.getOffset()) && 
+		    (pos <= composedTextEnd.getOffset())) {
+	            return TextHitInfo.leading(pos - composedTextStart.getOffset());
+	        } else {
+	            return null;
+	        }
+	    }	
+!!!2730139.java!!!	getTextLocation(inout offset : TextHitInfo) : Rectangle
+	    Rectangle r;
+		
+	    try {
+	        r = modelToView(getCaretPosition());
+		if (r != null) {
+		    Point p = getLocationOnScreen();
+		    r.translate(p.x, p.y);
+		}
+	    } catch (BadLocationException ble) {
+	        r = null;
+	    }
+
+	    if (r == null)
+	        r = new Rectangle();
+
+	    return r;
+!!!2730267.java!!!	getSelectedText(inout attributes : Attribute) : AttributedCharacterIterator
+	    String selection = JTextComponent.this.getSelectedText();
+	    if (selection != null) {
+	        return new AttributedString(selection).getIterator();
+	    } else {
+	        return null;
+	    }
+!!!2730395.java!!!	changedUpdate(inout e : DocumentEvent) : void
+	    latestCommittedTextStart = latestCommittedTextEnd = null;
+!!!2730523.java!!!	insertUpdate(inout e : DocumentEvent) : void
+	    latestCommittedTextStart = latestCommittedTextEnd = null;
+!!!2730651.java!!!	removeUpdate(inout e : DocumentEvent) : void
+	    latestCommittedTextStart = latestCommittedTextEnd = null;

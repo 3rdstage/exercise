@@ -1,0 +1,53 @@
+class Node
+!!!7969435.java!!!	Node(inout x : Object)
+ item = x;
+!!!7969563.java!!!	Node(inout x : Object, inout n : Node)
+ item = x; next = n;
+!!!7969691.java!!!	tryAcquire(in ignore : int) : boolean
+            return getState() != 0;
+!!!7969819.java!!!	tryRelease(in newState : int) : boolean
+            return compareAndSetState(0, newState);
+!!!7969947.java!!!	extract() : Object
+            Object x = item;
+            item = null;
+            return x;
+!!!7970075.java!!!	checkCancellationOnInterrupt(inout ie : InterruptedException) : void
+            if (release(CANCEL)) 
+                throw ie;
+            Thread.currentThread().interrupt();
+!!!7970203.java!!!	setItem(inout x : Object) : boolean
+            item = x; // can place in slot even if cancelled
+            return release(ACK);
+!!!7970331.java!!!	getItem() : Object
+            return (release(ACK))? extract() : null;
+!!!7970459.java!!!	waitForTake() : void
+            try {
+                acquireInterruptibly(0);
+            } catch (InterruptedException ie) {
+                checkCancellationOnInterrupt(ie);
+            }
+!!!7970587.java!!!	waitForPut() : Object
+            try {
+                acquireInterruptibly(0);
+            } catch (InterruptedException ie) {
+                checkCancellationOnInterrupt(ie);
+            }
+            return extract();
+!!!7970715.java!!!	waitForTake(in nanos : long) : boolean
+            try {
+                if (!tryAcquireNanos(0, nanos) &&
+                    release(CANCEL))
+                    return false;
+            } catch (InterruptedException ie) {
+                checkCancellationOnInterrupt(ie);
+            }
+            return true;
+!!!7970843.java!!!	waitForPut(in nanos : long) : Object
+            try {
+                if (!tryAcquireNanos(0, nanos) &&
+                    release(CANCEL))
+                    return null;
+            } catch (InterruptedException ie) {
+                checkCancellationOnInterrupt(ie);
+            }
+            return extract();

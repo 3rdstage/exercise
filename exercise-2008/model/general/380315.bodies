@@ -1,0 +1,92 @@
+class ActionMap
+!!!2724251.java!!!	setParent(inout map : ActionMap) : void
+	this.parent = map;
+!!!2724379.java!!!	getParent() : ActionMap
+	return parent;
+!!!2724507.java!!!	put(inout key : Object, inout action : Action) : void
+	if (key == null) {
+	    return;
+	}
+	if (action == null) {
+	    remove(key);
+	}
+	else {
+	    if (arrayTable == null) {
+		arrayTable = new ArrayTable();
+	    }
+	    arrayTable.put(key, action);
+	}
+!!!2724635.java!!!	get(inout key : Object) : Action
+	Action value = (arrayTable == null) ? null :
+	               (Action)arrayTable.get(key);
+
+	if (value == null) {
+	    ActionMap    parent = getParent();
+
+	    if (parent != null) {
+		return parent.get(key);
+	    }
+	}
+	return value;
+!!!2724763.java!!!	remove(inout key : Object) : void
+	if (arrayTable != null) {
+	    arrayTable.remove(key);
+	}
+!!!2724891.java!!!	clear() : void
+	if (arrayTable != null) {
+	    arrayTable.clear();
+	}
+!!!2725019.java!!!	keys() : Object
+	if (arrayTable == null) {
+	    return null;
+	}
+	return arrayTable.getKeys(null);
+!!!2725147.java!!!	size() : int
+	if (arrayTable == null) {
+	    return 0;
+	}
+	return arrayTable.size();
+!!!2725275.java!!!	allKeys() : Object
+	int           count = size();
+	ActionMap     parent = getParent();
+
+	if (count == 0) {
+	    if (parent != null) {
+		return parent.allKeys();
+	    }
+	    return keys();
+	}
+	if (parent == null) {
+	    return keys();
+	}
+	Object[]    keys = keys();
+	Object[]    pKeys =  parent.allKeys();
+
+	if (pKeys == null) {
+	    return keys;
+	}
+	if (keys == null) {
+	    // Should only happen if size() != keys.length, which should only
+	    // happen if mutated from multiple threads (or a bogus subclass).
+	    return pKeys;
+	}
+
+	HashMap        keyMap = new HashMap();
+	int            counter;
+
+	for (counter = keys.length - 1; counter >= 0; counter--) {
+	    keyMap.put(keys[counter], keys[counter]);
+	}
+	for (counter = pKeys.length - 1; counter >= 0; counter--) {
+	    keyMap.put(pKeys[counter], pKeys[counter]);
+	}
+	return keyMap.keySet().toArray();
+!!!2725403.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+
+        ArrayTable.writeArrayTable(s, arrayTable);
+!!!2725531.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+	for (int counter = s.readInt() - 1; counter >= 0; counter--) {
+	    put(s.readObject(), (Action)s.readObject());
+	}

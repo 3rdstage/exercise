@@ -1,0 +1,88 @@
+class DirectoryComboBoxModel
+!!!9489691.java!!!	DirectoryComboBoxModel()
+	    // Add the current directory to the model, and make it the
+	    // selectedDirectory
+	    File dir = getFileChooser().getCurrentDirectory();
+	    if(dir != null) {
+		addItem(dir);
+	    }
+!!!9489819.java!!!	addItem(inout directory : File) : void
+
+	    if(directory == null) {
+		return;
+	    }
+
+	    directories.clear();
+
+	    File[] baseFolders;
+	    if (useShellFolder) {
+		baseFolders = (File[])ShellFolder.get("fileChooserComboBoxFolders");
+	    } else {
+		baseFolders = fsv.getRoots();
+	    }
+	    directories.addAll(Arrays.asList(baseFolders));
+
+	    // Get the canonical (full) path. This has the side
+	    // benefit of removing extraneous chars from the path,
+	    // for example /foo/bar/ becomes /foo/bar
+	    File canonical = null;
+	    try {
+		canonical = directory.getCanonicalFile();
+	    } catch (IOException e) {
+		// Maybe drive is not ready. Can't abort here.
+		canonical = directory;
+	    }
+
+	    // create File instances of each directory leading up to the top
+	    try {
+		File sf = useShellFolder ? ShellFolder.getShellFolder(canonical)
+					 : canonical;
+		File f = sf;
+		Vector path = new Vector(10);
+		do {
+		    path.addElement(f);
+		} while ((f = f.getParentFile()) != null);
+
+		int pathCount = path.size();
+		// Insert chain at appropriate place in vector
+		for (int i = 0; i < pathCount; i++) {
+		    f = (File)path.get(i);
+		    if (directories.contains(f)) {
+			int topIndex = directories.indexOf(f);
+			for (int j = i-1; j >= 0; j--) {
+			    directories.insertElementAt(path.get(j), topIndex+i-j);
+			}
+			break;
+		    }
+		}
+		calculateDepths();
+		setSelectedItem(sf);
+	    } catch (FileNotFoundException ex) {
+		calculateDepths();
+	    }
+!!!9489947.java!!!	calculateDepths() : void
+	    depths = new int[directories.size()];
+	    for (int i = 0; i < depths.length; i++) {
+		File dir = (File)directories.get(i);
+		File parent = dir.getParentFile();
+		depths[i] = 0;
+		if (parent != null) {
+		    for (int j = i-1; j >= 0; j--) {
+			if (parent.equals((File)directories.get(j))) {
+			    depths[i] = depths[j] + 1;
+			    break;
+			}
+		    }
+		}
+	    }
+!!!9490075.java!!!	getDepth(in i : int) : int
+	    return (depths != null && i >= 0 && i < depths.length) ? depths[i] : 0;
+!!!9490203.java!!!	setSelectedItem(inout selectedDirectory : Object) : void
+	    this.selectedDirectory = (File)selectedDirectory;
+            fireContentsChanged(this, -1, -1);
+!!!9490331.java!!!	getSelectedItem() : Object
+	    return selectedDirectory;
+!!!9490459.java!!!	getSize() : int
+	    return directories.size();
+!!!9490587.java!!!	getElementAt(in index : int) : Object
+	    return directories.elementAt(index);

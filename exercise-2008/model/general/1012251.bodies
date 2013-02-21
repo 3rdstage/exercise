@@ -1,0 +1,29 @@
+class StartS
+!!!8110747.java!!!	StartS(inout node : Node)
+	    super(node);
+!!!8110875.java!!!	match(inout matcher : Matcher, in i : int, inout seq : CharSequence) : boolean
+            if (i > matcher.to - minLength) {
+                matcher.hitEnd = true;
+                return false;
+            }
+            boolean ret = false;
+            int guard = matcher.to - minLength;
+            while (i <= guard) {
+                if ((ret = next.match(matcher, i, seq)) || i == guard)
+                    break;
+		// Optimization to move to the next character. This is
+		// faster than countChars(seq, i, 1).
+		if (Character.isHighSurrogate(seq.charAt(i++))) {
+		    if (i < seq.length() && Character.isLowSurrogate(seq.charAt(i))) {
+			i++;
+		    }
+		}
+                if (i == guard)
+                    matcher.hitEnd = true;
+            }
+            if (ret) {
+                matcher.first = i;
+                matcher.groups[0] = matcher.first;
+                matcher.groups[1] = matcher.last;
+            }
+            return ret;

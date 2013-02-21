@@ -1,0 +1,104 @@
+class HTMLOptionElementImpl
+!!!4148763.java!!!	getDefaultSelected() : boolean
+        // ! NOT FULLY IMPLEMENTED !
+        return getBinary( "default-selected" );
+!!!4148891.java!!!	setDefaultSelected(inout defaultSelected : boolean) : void
+        // ! NOT FULLY IMPLEMENTED !
+        setAttribute( "default-selected", defaultSelected );
+!!!4149019.java!!!	getText() : String
+        Node    child;
+        String    text;
+        
+        // Find the Text nodes contained within this element and return their
+        // concatenated value. Required to go around comments, entities, etc.
+        child = getFirstChild();
+        text = "";
+        while ( child != null )
+        {
+            if ( child instanceof Text )
+                text = text + ( (Text) child ).getData();
+            child = child.getNextSibling();
+        }
+        return text;
+!!!4149147.java!!!	setText(in text : String) : void
+        Node    child;
+        Node    next;
+        
+        // Delete all the nodes and replace them with a single Text node.
+        // This is the only approach that can handle comments and other nodes.
+        child = getFirstChild();
+        while ( child != null )
+        {
+            next = child.getNextSibling();
+            removeChild( child );
+            child = next;
+        }
+        insertBefore( getOwnerDocument().createTextNode( text ), getFirstChild() );
+!!!4149275.java!!!	getIndex() : int
+        Node        parent;
+        NodeList    options;
+        int            i;
+        
+        // Locate the parent SELECT. Note that this OPTION might be inside a
+        // OPTGROUP inside the SELECT. Or it might not have a parent SELECT.
+        // Everything is possible. If no parent is found, return -1.
+        parent = getParentNode();
+        while ( parent != null && ! ( parent instanceof HTMLSelectElement ) )
+            parent = parent.getParentNode();
+        if ( parent != null )
+        {
+            // Use getElementsByTagName() which creates a snapshot of all the
+            // OPTION elements under the SELECT. Access to the returned NodeList
+            // is very fast and the snapshot solves many synchronization problems.
+            options = ( (HTMLElement) parent ).getElementsByTagName( "OPTION" );
+            for ( i = 0 ; i < options.getLength() ; ++i )
+                if ( options.item( i ) == this )
+                    return i;
+        }
+        return -1;
+!!!4149403.java!!!	setIndex(in index : int) : void
+        Node        parent;
+        NodeList    options;
+        Node        item;
+        
+        // Locate the parent SELECT. Note that this OPTION might be inside a
+        // OPTGROUP inside the SELECT. Or it might not have a parent SELECT.
+        // Everything is possible. If no parent is found, just return.
+        parent = getParentNode();
+        while ( parent != null && ! ( parent instanceof HTMLSelectElement ) )
+            parent = parent.getParentNode();
+        if ( parent != null )
+        {
+            // Use getElementsByTagName() which creates a snapshot of all the
+            // OPTION elements under the SELECT. Access to the returned NodeList
+            // is very fast and the snapshot solves many synchronization problems.
+            // Make sure this OPTION is not replacing itself.
+            options = ( (HTMLElement) parent ).getElementsByTagName( "OPTION" );
+            if ( options.item( index ) != this )
+            {
+                // Remove this OPTION from its parent. Place this OPTION right
+                // before indexed OPTION underneath it's direct parent (might
+                // be an OPTGROUP).
+                getParentNode().removeChild( this );
+                item = options.item( index );
+                item.getParentNode().insertBefore( this, item );
+            }
+        }
+!!!4149531.java!!!	getDisabled() : boolean
+        return getBinary( "disabled" );
+!!!4149659.java!!!	setDisabled(inout disabled : boolean) : void
+        setAttribute( "disabled", disabled );
+!!!4149787.java!!!	getLabel() : String
+        return capitalize( getAttribute( "label" ) );
+!!!4149915.java!!!	setLabel(in label : String) : void
+        setAttribute( "label", label );
+!!!4150043.java!!!	getSelected() : boolean
+        return getBinary( "selected" );
+!!!4150171.java!!!	setSelected(inout selected : boolean) : void
+        setAttribute( "selected", selected );
+!!!4150299.java!!!	getValue() : String
+        return getAttribute( "value" );
+!!!4150427.java!!!	setValue(in value : String) : void
+        setAttribute( "value", value );
+!!!4150555.java!!!	HTMLOptionElementImpl(inout owner : HTMLDocumentImpl, in name : String)
+        super( owner, name );

@@ -1,0 +1,421 @@
+class DatagramSocket
+!!!7181467.java!!!	connectInternal(inout address : InetAddress, in port : int) : void
+        if (port < 0 || port > 0xFFFF) {
+            throw new IllegalArgumentException("connect: " + port);
+        }
+        if (address == null) {
+            throw new IllegalArgumentException("connect: null address");
+        }
+        if (isClosed())
+            return;
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+            if (address.isMulticastAddress()) {
+                security.checkMulticast(address);
+            } else {
+                security.checkConnect(address.getHostAddress(), port);
+                security.checkAccept(address.getHostAddress(), port);
+            }
+        }
+
+	if (!isBound())
+	  bind(new InetSocketAddress(0));
+
+	// old impls do not support connect/disconnect
+	if (oldImpl) {
+	    connectState = ST_CONNECTED_NO_IMPL;
+	} else {
+	    try {
+	        getImpl().connect(address, port);
+
+		// socket is now connected by the impl
+		connectState = ST_CONNECTED;
+	    } catch (SocketException se) {
+
+		// connection will be emulated by DatagramSocket
+		connectState = ST_CONNECTED_NO_IMPL;
+	    }
+	}
+
+        connectedAddress = address;
+        connectedPort = port;
+!!!7181595.java!!!	DatagramSocket()
+	// create a datagram socket.
+	createImpl();
+	try {
+	    bind(new InetSocketAddress(0));
+	} catch (SocketException se) {
+	    throw se;
+	} catch(IOException e) {
+	    throw new SocketException(e.getMessage());
+	}
+!!!7181723.java!!!	DatagramSocket(inout impl : DatagramSocketImpl)
+        if (impl == null)
+            throw new NullPointerException();
+	this.impl = impl;
+	checkOldImpl();
+!!!7181851.java!!!	DatagramSocket(inout bindaddr : SocketAddress)
+	// create a datagram socket.
+	createImpl();
+	if (bindaddr != null) {
+	    bind(bindaddr);
+	}
+!!!7181979.java!!!	DatagramSocket(in port : int)
+	this(port, null);
+!!!7182107.java!!!	DatagramSocket(in port : int, inout laddr : InetAddress)
+	this(new InetSocketAddress(laddr, port));
+!!!7182235.java!!!	checkOldImpl() : void
+	if (impl == null)
+	    return;
+	// DatagramSocketImpl.peekdata() is a protected method, therefore we need to use
+	// getDeclaredMethod, therefore we need permission to access the member
+	try {
+	    AccessController.doPrivileged(new PrivilegedExceptionAction() {
+		    public Object run() throws NoSuchMethodException {
+			Class[] cl = new Class[1];
+			cl[0] = DatagramPacket.class;
+			impl.getClass().getDeclaredMethod("peekData", cl);
+			return null;
+		    }
+		});
+	} catch (java.security.PrivilegedActionException e) {
+	    oldImpl = true;
+	}
+!!!7182363.java!!!	createImpl() : void
+	if (impl == null) {
+	    if (factory != null) {
+		impl = factory.createDatagramSocketImpl();
+		checkOldImpl();
+	    } else {
+		if (implClass == null) {
+		    String prefix = null;
+		    try {
+			prefix = (String) AccessController.doPrivileged(
+			    new sun.security.action.GetPropertyAction("impl.prefix", "Plain"));
+			implClass = Class.forName("java.net."+prefix+"DatagramSocketImpl");
+		    } catch (Exception e) {
+			System.err.println("Can't find class: java.net." + 
+					   prefix +
+					   "DatagramSocketImpl: check impl.prefix property");
+		    }
+		    if (implClass == null)
+			implClass = java.net.PlainDatagramSocketImpl.class;
+		}
+		try {
+		    impl = (DatagramSocketImpl) implClass.newInstance();
+		} catch (Exception e) {
+		    throw new SocketException("can't instantiate DatagramSocketImpl");
+		}
+		// No need to do a checkOldImpl() here, we know it's an up to date
+		// SocketImpl!
+		if (!(impl instanceof java.net.PlainDatagramSocketImpl))
+		    checkOldImpl();
+	    }
+	}
+	// creates a udp socket
+	impl.create();
+	created = true;
+!!!7182491.java!!!	getImpl() : DatagramSocketImpl
+	if (!created)
+	    createImpl();
+	return impl;
+!!!7182619.java!!!	bind(inout addr : SocketAddress) : void
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	if (isBound())
+	    throw new SocketException("already bound");
+	if (addr == null)
+	    addr = new InetSocketAddress(0);
+	if (!(addr instanceof InetSocketAddress))
+	    throw new IllegalArgumentException("Unsupported address type!");
+	InetSocketAddress epoint = (InetSocketAddress) addr;
+	if (epoint.isUnresolved())
+	    throw new SocketException("Unresolved address");
+	SecurityManager sec = System.getSecurityManager();
+	if (sec != null) {
+	    sec.checkListen(epoint.getPort());
+	}
+	try {
+	    getImpl().bind(epoint.getPort(), 
+			   epoint.getAddress());
+	} catch (SocketException e) {
+	    getImpl().close();
+	    throw e;
+	}
+	bound = true;
+!!!7182747.java!!!	connect(inout address : InetAddress, in port : int) : void
+	try {
+	    connectInternal(address, port);
+	} catch (SocketException se) { 
+	    throw new Error("connect failed", se);
+	}
+!!!7182875.java!!!	connect(inout addr : SocketAddress) : void
+	if (addr == null)
+	    throw new IllegalArgumentException("Address can't be null");
+	if (!(addr instanceof InetSocketAddress))
+	    throw new IllegalArgumentException("Unsupported address type");
+	InetSocketAddress epoint = (InetSocketAddress) addr;
+	if (epoint.isUnresolved())
+	    throw new SocketException("Unresolved address");
+	connectInternal(epoint.getAddress(), epoint.getPort());
+!!!7183003.java!!!	disconnect() : void
+	synchronized (this) {
+	    if (isClosed())
+		return;
+	    if (connectState == ST_CONNECTED) {
+	    	impl.disconnect ();
+	    }
+	    connectedAddress = null;
+	    connectedPort = -1;
+	    connectState = ST_NOT_CONNECTED;
+	}
+!!!7183131.java!!!	isBound() : boolean
+	return bound;
+!!!7183259.java!!!	isConnected() : boolean
+	return connectState != ST_NOT_CONNECTED;
+!!!7183387.java!!!	getInetAddress() : InetAddress
+	return connectedAddress;
+!!!7183515.java!!!	getPort() : int
+	return connectedPort;
+!!!7183643.java!!!	getRemoteSocketAddress() : SocketAddress
+	if (!isConnected())
+	    return null;
+	return new InetSocketAddress(getInetAddress(), getPort());
+!!!7183771.java!!!	getLocalSocketAddress() : SocketAddress
+	if (!isBound())
+	    return null;
+	return new InetSocketAddress(getLocalAddress(), getLocalPort());
+!!!7183899.java!!!	send(inout p : DatagramPacket) : void
+	InetAddress packetAddress = null;
+	synchronized (p) {
+	    if (isClosed())
+		throw new SocketException("Socket is closed");
+	    if (connectState == ST_NOT_CONNECTED) {
+		// check the address is ok wiht the security manager on every send.
+		SecurityManager security = System.getSecurityManager();
+
+		// The reason you want to synchronize on datagram packet
+		// is because you dont want an applet to change the address 
+		// while you are trying to send the packet for example 
+		// after the security check but before the send.
+		if (security != null) {
+		    if (p.getAddress().isMulticastAddress()) {
+			security.checkMulticast(p.getAddress());
+		    } else {
+			security.checkConnect(p.getAddress().getHostAddress(), 
+					      p.getPort());
+		    }
+		}
+	    } else {
+		// we're connected
+		packetAddress = p.getAddress();
+		if (packetAddress == null) {
+		    p.setAddress(connectedAddress);
+		    p.setPort(connectedPort);
+		} else if ((!packetAddress.equals(connectedAddress)) ||
+			   p.getPort() != connectedPort) {
+		    throw new IllegalArgumentException("connected address " +
+						       "and packet address" +
+						       " differ");
+		}
+	    }
+	    // Check whether the socket is bound
+	    if (!isBound())
+		bind(new InetSocketAddress(0));
+	    // call the  method to send
+	    getImpl().send(p);
+        }
+!!!7184027.java!!!	receive(inout p : DatagramPacket) : void
+      	synchronized (p) {
+	    if (!isBound())
+		bind(new InetSocketAddress(0));
+	    if (connectState == ST_NOT_CONNECTED) {
+		// check the address is ok with the security manager before every recv.
+		SecurityManager security = System.getSecurityManager();
+		if (security != null) {
+		    while(true) {
+			String peekAd = null;
+			int peekPort = 0;
+			// peek at the packet to see who it is from.
+			if (!oldImpl) {
+			    // We can use the new peekData() API
+			    DatagramPacket peekPacket = new DatagramPacket(new byte[1], 1);
+			    peekPort = getImpl().peekData(peekPacket);
+			    peekAd = peekPacket.getAddress().getHostAddress();
+			} else {
+			    InetAddress adr = new InetAddress();
+			    peekPort = getImpl().peek(adr);
+			    peekAd = adr.getHostAddress();
+			}
+			try {
+			    security.checkAccept(peekAd, peekPort);
+			    // security check succeeded - so now break
+			    // and recv the packet.
+			    break;
+			} catch (SecurityException se) {
+			    // Throw away the offending packet by consuming
+			    // it in a tmp buffer.
+			    DatagramPacket tmp = new DatagramPacket(new byte[1], 1);
+			    getImpl().receive(tmp);
+			
+			    // silently discard the offending packet
+			    // and continue: unknown/malicious
+			    // entities on nets should not make
+			    // runtime throw security exception and
+			    // disrupt the applet by sending random
+			    // datagram packets.
+			    continue;
+			} 
+		    } // end of while
+		}
+	    }
+	    if (connectState == ST_CONNECTED_NO_IMPL) {
+		// We have to do the filtering the old fashioned way since
+		// the native impl doesn't support connect or the connect
+		// via the impl failed.
+		boolean stop = false;
+		while (!stop) {
+		    // peek at the packet to see who it is from.
+		    InetAddress peekAddress = new InetAddress();
+		    int peekPort = getImpl().peek(peekAddress);
+		    if ((!connectedAddress.equals(peekAddress)) ||
+			(connectedPort != peekPort)) {
+			// throw the packet away and silently continue
+			DatagramPacket tmp = new DatagramPacket(new byte[1], 1);
+			getImpl().receive(tmp);
+		    } else {
+			stop = true;
+		    }
+		}
+	    }
+	    // If the security check succeeds, or the datagram is
+	    // connected then receive the packet
+	    getImpl().receive(p);
+	}
+!!!7184155.java!!!	getLocalAddress() : InetAddress
+	if (isClosed())
+	    return null;
+	InetAddress in = null;
+	try {
+	    in = (InetAddress) getImpl().getOption(SocketOptions.SO_BINDADDR);
+	    if (in.isAnyLocalAddress()) {
+		in = InetAddress.anyLocalAddress();
+	    }
+	    SecurityManager s = System.getSecurityManager();
+	    if (s != null) {
+		s.checkConnect(in.getHostAddress(), -1);
+	    }
+	} catch (Exception e) {
+	    in = InetAddress.anyLocalAddress(); // "0.0.0.0"
+	}
+	return in;
+!!!7184283.java!!!	getLocalPort() : int
+	if (isClosed())
+	    return -1;
+	try {
+	    return getImpl().getLocalPort();
+	} catch (Exception e) {
+	    return 0;
+	}
+!!!7184411.java!!!	setSoTimeout(in timeout : int) : void
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	getImpl().setOption(SocketOptions.SO_TIMEOUT, new Integer(timeout));
+!!!7184539.java!!!	getSoTimeout() : int
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	if (getImpl() == null)
+	    return 0;
+	Object o = getImpl().getOption(SocketOptions.SO_TIMEOUT);
+	/* extra type safety */
+	if (o instanceof Integer) {
+	    return ((Integer) o).intValue();
+	} else {
+	    return 0;
+	}
+!!!7184667.java!!!	setSendBufferSize(in size : int) : void
+	if (!(size > 0)) {
+	    throw new IllegalArgumentException("negative send size");
+	}
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	getImpl().setOption(SocketOptions.SO_SNDBUF, new Integer(size));
+!!!7184795.java!!!	getSendBufferSize() : int
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	int result = 0;
+	Object o = getImpl().getOption(SocketOptions.SO_SNDBUF);
+	if (o instanceof Integer) {
+	    result = ((Integer)o).intValue();
+	}
+	return result;
+!!!7184923.java!!!	setReceiveBufferSize(in size : int) : void
+	if (size <= 0) {
+	    throw new IllegalArgumentException("invalid receive size");
+	}
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	getImpl().setOption(SocketOptions.SO_RCVBUF, new Integer(size));
+!!!7185051.java!!!	getReceiveBufferSize() : int
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	int result = 0;
+	Object o = getImpl().getOption(SocketOptions.SO_RCVBUF);
+	if (o instanceof Integer) {
+	    result = ((Integer)o).intValue();
+	}
+	return result;
+!!!7185179.java!!!	setReuseAddress(inout on : boolean) : void
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	// Integer instead of Boolean for compatibility with older DatagramSocketImpl
+        if (oldImpl)
+	    getImpl().setOption(SocketOptions.SO_REUSEADDR, new Integer(on?-1:0));
+	else
+	    getImpl().setOption(SocketOptions.SO_REUSEADDR, Boolean.valueOf(on));
+!!!7185307.java!!!	getReuseAddress() : boolean
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+	Object o = getImpl().getOption(SocketOptions.SO_REUSEADDR);
+	return ((Boolean)o).booleanValue();
+!!!7185435.java!!!	setBroadcast(inout on : boolean) : void
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+        getImpl().setOption(SocketOptions.SO_BROADCAST, Boolean.valueOf(on));
+!!!7185563.java!!!	getBroadcast() : boolean
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+        return ((Boolean)(getImpl().getOption(SocketOptions.SO_BROADCAST))).booleanValue();
+!!!7185691.java!!!	setTrafficClass(in tc : int) : void
+	if (tc < 0 || tc > 255)
+	    throw new IllegalArgumentException("tc is not in range 0 -- 255");
+
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+        getImpl().setOption(SocketOptions.IP_TOS, new Integer(tc));
+!!!7185819.java!!!	getTrafficClass() : int
+	if (isClosed())
+	    throw new SocketException("Socket is closed");
+        return ((Integer)(getImpl().getOption(SocketOptions.IP_TOS))).intValue();
+!!!7185947.java!!!	close() : void
+	synchronized(closeLock) {
+	    if (isClosed())
+		return;
+	    impl.close();
+	    closed = true;
+	}
+!!!7186075.java!!!	isClosed() : boolean
+	synchronized(closeLock) {
+	    return closed;
+	}
+!!!7186203.java!!!	getChannel() : DatagramChannel
+	return null;
+!!!7186331.java!!!	setDatagramSocketImplFactory(inout fac : DatagramSocketImplFactory) : void
+        if (factory != null) {
+	    throw new SocketException("factory already defined");
+	}
+ 	SecurityManager security = System.getSecurityManager();
+ 	if (security != null) {
+	    security.checkSetFactory();
+ 	}
+ 	factory = fac;

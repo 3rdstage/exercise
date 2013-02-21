@@ -1,0 +1,38 @@
+class KeymapWrapper
+!!!2723611.java!!!	KeymapWrapper(inout keymap : Keymap)
+	    this.keymap = keymap;
+!!!2723739.java!!!	keys() : KeyStroke
+	    KeyStroke[] sKeys = super.keys();
+	    KeyStroke[] keymapKeys = keymap.getBoundKeyStrokes();
+	    int sCount = (sKeys == null) ? 0 : sKeys.length;
+	    int keymapCount = (keymapKeys == null) ? 0 : keymapKeys.length;
+	    if (sCount == 0) {
+		return keymapKeys;
+	    }
+	    if (keymapCount == 0) {
+		return sKeys;
+	    }
+	    KeyStroke[] retValue = new KeyStroke[sCount + keymapCount];
+	    // There may be some duplication here...
+	    System.arraycopy(sKeys, 0, retValue, 0, sCount);
+	    System.arraycopy(keymapKeys, 0, retValue, sCount, keymapCount);
+	    return retValue;
+!!!2723867.java!!!	size() : int
+	    // There may be some duplication here...
+	    KeyStroke[] keymapStrokes = keymap.getBoundKeyStrokes();
+	    int keymapCount = (keymapStrokes == null) ? 0:
+		               keymapStrokes.length;
+	    return super.size() + keymapCount;
+!!!2723995.java!!!	get(inout keyStroke : KeyStroke) : Object
+	    Object retValue = keymap.getAction(keyStroke);
+            if (retValue == null) {
+		retValue = super.get(keyStroke);
+		if (retValue == null &&
+		    keyStroke.getKeyChar() != KeyEvent.CHAR_UNDEFINED &&
+		    keymap.getDefaultAction() != null) {
+		    // Implies this is a KeyTyped event, use the default
+		    // action.
+		    retValue = DefaultActionKey;
+		}
+	    }
+	    return retValue;

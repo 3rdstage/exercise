@@ -1,0 +1,672 @@
+class Timer
+!!!8444827.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_TIMER);
+!!!8444955.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_TIMER, clz, func, info);
+!!!8445083.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!8445211.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_TIMER);
+!!!8445339.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_TIMER, clz, func, info);
+!!!8445467.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);
+!!!8445723.java!!!	preRegister(inout server : MBeanServer, inout name : ObjectName) : ObjectName
+        return name;
+!!!8445979.java!!!	preDeregister() : void
+        
+        if (isTraceOn()) {
+            trace("preDeregister", "stop the timer");
+        }
+        
+        // Stop the timer.
+        //
+        stop();
+!!!8446235.java!!!	getNotificationInfo() : MBeanNotificationInfo
+	Set/*<String>*/ notifTypes = new TreeSet();
+	for (Iterator it = timerTable.values().iterator(); it.hasNext(); ) {
+	    Object[] entry = (Object[]) it.next();
+	    TimerNotification notif = (TimerNotification)
+		entry[TIMER_NOTIF_INDEX];
+	    notifTypes.add(notif.getType());
+	}
+	String[] notifTypesArray = (String[])
+	    notifTypes.toArray(new String[0]);
+	return new MBeanNotificationInfo[] {
+	    new MBeanNotificationInfo(notifTypesArray,
+				      TimerNotification.class.getName(),
+				      "Notification sent by Timer MBean")
+	};
+!!!8446363.java!!!	start() : void
+        
+        if (isTraceOn()) {
+            trace("start", "starting the timer");
+        }
+        
+        // Start the TimerAlarmClock.
+        //   
+        if (isActive == false) {
+          
+	    timer = new java.util.Timer();
+
+            TimerAlarmClock alarmClock;
+            Object[] obj;
+            Date date;
+        
+            Date currentDate = new Date();
+           
+            // Send or not past notifications depending on the flag.
+            // Update the date and the number of occurrences of past notifications
+            // to make them later than the current date.
+            //
+            sendPastNotifications(currentDate, sendPastNotifications);
+           
+            // Update and start all the TimerAlarmClocks.
+            // Here, all the notifications in the timer table are later than the current date.
+            //   
+            Enumeration e = timerTable.elements();
+            while (e.hasMoreElements()) {
+                 
+                obj = (Object[])e.nextElement();
+                 
+                // Retrieve the date notification and the TimerAlarmClock.
+                //
+                date = (Date)obj[TIMER_DATE_INDEX];
+                 
+                // Update all the TimerAlarmClock timeouts and start them.
+                //
+                boolean fixedRate = ((Boolean)obj[FIXED_RATE_INDEX]).booleanValue();
+                if (fixedRate)
+                {
+                  alarmClock = new TimerAlarmClock(this, date);
+                  obj[ALARM_CLOCK_INDEX] = (Object)alarmClock;
+                  timer.schedule(alarmClock, alarmClock.next);
+                }
+                else
+                {
+                  alarmClock = new TimerAlarmClock(this, (date.getTime() - currentDate.getTime()));
+                  obj[ALARM_CLOCK_INDEX] = (Object)alarmClock;
+                  timer.schedule(alarmClock, alarmClock.timeout);
+                }
+            }
+           
+            // Set the state to ON.
+            //
+            isActive = true;
+        
+            if (isTraceOn()) {
+                trace("start", "timer started");
+            }
+        } else {
+            if (isTraceOn()) {
+                trace("start", "the timer is already activated");
+            }
+        }
+!!!8446491.java!!!	stop() : void
+        
+        if (isTraceOn()) {
+            trace("stop", "stoping the timer");
+        }
+        
+        // Stop the TimerAlarmClock.
+        //
+        if (isActive == true) {
+          
+            TimerAlarmClock alarmClock;
+            Object[] obj;
+          
+            Enumeration e = timerTable.elements();
+            while (e.hasMoreElements()) {
+                
+                obj = (Object[])e.nextElement();
+                
+                // Stop all the TimerAlarmClock.
+                //
+                alarmClock = (TimerAlarmClock)obj[ALARM_CLOCK_INDEX];
+                if (alarmClock != null) {
+//                     alarmClock.interrupt();
+//                     try {
+//                         // Wait until the thread die.
+//                         //
+//                         alarmClock.join();
+//                     } catch (InterruptedException ex) {
+//                         // Ignore...
+//                     }
+//                     // Remove the reference on the TimerAlarmClock.
+//                     //
+
+		    alarmClock.cancel();
+                    alarmClock = null;
+                }
+            }
+          
+            timer.cancel();
+
+            // Set the state to OFF.
+            //
+            isActive = false;
+            
+            if (isTraceOn()) {
+                trace("stop", "timer stopped");
+            }
+        } else {
+            if (isTraceOn()) {
+                trace("stop", "the timer is already deactivated");
+            }
+        }
+!!!8446619.java!!!	addNotification(in type : String, in message : String, inout userData : Object, inout date : Date, in period : long, in nbOccurences : long, inout fixedRate : boolean) : Integer
+        
+        if (date == null) {
+            throw new java.lang.IllegalArgumentException("Timer notification date cannot be null.");
+        }
+        
+        // Check that all the timer notification attributes are valid.
+        // 
+        
+        // Invalid timer period value exception:
+        // Check that the period and the nbOccurences are POSITIVE VALUES.
+        // 
+        if ((period < 0) || (nbOccurences < 0)) {
+            throw new java.lang.IllegalArgumentException("Negative values for the periodicity");
+        }
+        
+        Date currentDate = new Date();
+                        
+        // Update the date if it is before the current date.
+        // 
+        if (currentDate.after(date)) {
+            
+          date.setTime(currentDate.getTime());
+          if (isTraceOn()) {
+            trace("addNotification", "update timer notification to add with:" +
+                  "\n\tNotification date = " + date);
+          }
+        }
+          
+        // Create and add the timer notification into the timer table.
+        //
+        Integer notifID = null;
+        notifID = new Integer(++counterID);
+        
+        // The sequenceNumber and the timeStamp attributes are updated 
+        // when the notification is emitted by the timer.
+        //
+        TimerNotification notif = new TimerNotification(type, this, 0, 0, message, notifID);
+        notif.setUserData(userData);
+        
+        Object[] obj = new Object[6];
+        
+        TimerAlarmClock alarmClock;
+        if (fixedRate)
+        {
+          alarmClock = new TimerAlarmClock(this, date);
+        }
+        else
+        {
+          alarmClock = new TimerAlarmClock(this, (date.getTime() - currentDate.getTime()));
+        }
+
+        // Fix bug 00417.B
+        // The date registered into the timer is a clone from the date parameter.
+        //
+        Date d = new Date(date.getTime());
+                
+        obj[TIMER_NOTIF_INDEX] = (Object)notif;
+        obj[TIMER_DATE_INDEX] = (Object)d;
+        obj[TIMER_PERIOD_INDEX] = (Object) new Long(period);
+        obj[TIMER_NB_OCCUR_INDEX] = (Object) new Long(nbOccurences);
+        obj[ALARM_CLOCK_INDEX] = (Object)alarmClock;
+        obj[FIXED_RATE_INDEX] = new Boolean(fixedRate);
+                
+        if (isTraceOn()) {
+            trace("addNotification", "adding timer notification:" + 
+                  "\n\tNotification source = " + notif.getSource() +
+                  "\n\tNotification type = " + notif.getType() +
+                  "\n\tNotification ID = " + notifID +
+                  "\n\tNotification date = " + d +
+                  "\n\tNotification period = " + period +
+                  "\n\tNotification nb of occurrences = " + nbOccurences +
+                  "\n\tNotification executes at fixed rate = " + fixedRate);
+        }
+        
+        timerTable.put(notifID, obj);
+        
+        // Update and start the TimerAlarmClock.
+        //
+        if (isActive == true) {
+          if (fixedRate)
+          {
+	    timer.schedule(alarmClock, alarmClock.next);
+          }
+          else
+          {
+            timer.schedule(alarmClock, alarmClock.timeout);
+          }
+        }
+        
+        if (isTraceOn()) {
+            trace("addNotification", "timer notification added");
+        }
+        return notifID;
+!!!8446747.java!!!	addNotification(in type : String, in message : String, inout userData : Object, inout date : Date, in period : long, in nbOccurences : long) : Integer
+        
+      return addNotification(type, message, userData, date, period, nbOccurences, false);
+!!!8446875.java!!!	addNotification(in type : String, in message : String, inout userData : Object, inout date : Date, in period : long) : Integer
+        
+        return (addNotification(type, message, userData, date, period, 0));
+!!!8447003.java!!!	addNotification(in type : String, in message : String, inout userData : Object, inout date : Date) : Integer
+
+        
+        return (addNotification(type, message, userData, date, 0, 0));
+!!!8447131.java!!!	removeNotification(inout id : Integer) : void
+  
+        // Check that the notification to remove is effectively in the timer table.
+        //
+        if (timerTable.containsKey(id) == false) {
+            throw new InstanceNotFoundException("Timer notification to remove not in the list of notifications");
+        }
+                
+        // Stop the TimerAlarmClock.
+        //
+        Object[] obj = (Object[])timerTable.get(id);
+        TimerAlarmClock alarmClock = (TimerAlarmClock)obj[ALARM_CLOCK_INDEX];
+        if (alarmClock != null) {
+//             alarmClock.interrupt();
+//             try {
+//                 // Wait until the thread die.
+//                 //
+//                 alarmClock.join();
+//             } catch (InterruptedException e) {
+//                 // Ignore...
+//             }
+//             // Remove the reference on the TimerAlarmClock.
+//             //
+	    alarmClock.cancel();
+            alarmClock = null;
+        }
+        
+        // Remove the timer notification from the timer table.
+        //
+        if (isTraceOn()) {
+            trace("removeNotification", "removing timer notification:" + 
+                  "\n\tNotification source = " + ((TimerNotification)obj[TIMER_NOTIF_INDEX]).getSource() +
+                  "\n\tNotification type = " + ((TimerNotification)obj[TIMER_NOTIF_INDEX]).getType() +
+                  "\n\tNotification ID = " + ((TimerNotification)obj[TIMER_NOTIF_INDEX]).getNotificationID() +
+                  "\n\tNotification date = " + obj[TIMER_DATE_INDEX] +
+                  "\n\tNotification period = " + obj[TIMER_PERIOD_INDEX] +
+                  "\n\tNotification nb of occurrences = " + obj[TIMER_NB_OCCUR_INDEX] +
+                  "\n\tNotification executes at fixed rate = " + obj[FIXED_RATE_INDEX]);
+        }
+        
+        timerTable.remove(id);
+        
+        if (isTraceOn()) {
+            trace("removeNotification", "timer notification removed");
+        }
+!!!8447259.java!!!	removeNotifications(in type : String) : void
+        
+        TimerNotification notif;
+        Integer id;
+	TimerAlarmClock alarmClock;
+	Object[] obj;
+        
+        Vector v = getNotificationIDs(type);
+        
+        // Check that the notification to remove is effectively in the timer table.
+        //
+        if (v.isEmpty()) {
+            throw new InstanceNotFoundException("Timer notifications to remove not in the list of notifications");
+        }
+        
+        Enumeration e = v.elements();
+        while (e.hasMoreElements()) {
+            notif = (TimerNotification)e.nextElement();
+            id = notif.getNotificationID();
+	    obj = (Object[])timerTable.get(id);
+
+            timerTable.remove(id);
+
+	    alarmClock = (TimerAlarmClock)obj[ALARM_CLOCK_INDEX];
+	    if (alarmClock != null) {
+		alarmClock.cancel();
+	    }
+        }
+!!!8447387.java!!!	removeAllNotifications() : void
+        
+        Object[] obj;
+        TimerAlarmClock alarmClock;
+
+	Enumeration e = timerTable.elements();
+        while (e.hasMoreElements()) {
+          
+            obj = (Object[])e.nextElement();
+          
+            // Stop the TimerAlarmClock.
+            //
+            alarmClock = (TimerAlarmClock)obj[ALARM_CLOCK_INDEX];
+//             if (alarmClock != null) {
+//                 alarmClock.interrupt();
+//                 try {
+//                     // Wait until the thread die.
+//                     //
+//                     alarmClock.join();
+//                 } catch (InterruptedException ex) {
+//                     // Ignore...
+//                 }
+	          // Remove the reference on the TimerAlarmClock.
+                  //
+// 	       }   
+            alarmClock.cancel();
+            alarmClock = null;
+        }
+                
+        // Remove all the timer notifications from the timer table.
+        //
+        if (isTraceOn()) {
+            trace("removeAllNotifications", "removing all timer notifications");
+        }
+        
+        timerTable.clear();
+        
+        if (isTraceOn()) {
+            trace("removeAllNotifications", "all timer notifications removed");
+        }
+        
+        // Reset the counterID.
+        //
+        counterID = 0;
+        
+        if (isTraceOn()) {
+            trace("removeAllNotifications", "timer notification counter ID resetted");
+        }
+!!!8447515.java!!!	getNbNotifications() : int
+        return timerTable.size();
+!!!8447643.java!!!	getAllNotificationIDs() : Vector
+        
+        Vector v = new Vector();
+        
+        Enumeration e = timerTable.keys();
+        while (e.hasMoreElements()) {
+          
+            v.addElement((Integer)e.nextElement());
+        }
+        return v;
+!!!8447771.java!!!	getNotificationIDs(in type : String) : Vector
+        
+        Object[] obj;
+        String s;
+        
+        Vector v = new Vector();
+        
+        Enumeration e = timerTable.elements();
+        
+        // If the specified type is null, retreive all the timer notificatiosn which type is null.
+        //
+        if (type == null) {
+            while (e.hasMoreElements()) {
+                obj = (Object[])e.nextElement();
+                s = ((TimerNotification)obj[TIMER_NOTIF_INDEX]).getType();
+            
+                if (s == null) {
+                    v.addElement((TimerNotification)obj[TIMER_NOTIF_INDEX]);
+                }
+            }
+        }
+        else {
+            while (e.hasMoreElements()) {
+                obj = (Object[])e.nextElement();
+                s = ((TimerNotification)obj[TIMER_NOTIF_INDEX]).getType();
+            
+                if (type.equals(s)) {
+                    v.addElement((TimerNotification)obj[TIMER_NOTIF_INDEX]);
+                }
+            }
+        }
+        return v;
+!!!8447899.java!!!	getNotificationType(inout id : Integer) : String
+        
+        Object[] obj = (Object[])timerTable.get(id);
+        if (obj != null) {
+            return ( (String)((TimerNotification)obj[TIMER_NOTIF_INDEX]).getType() );
+        }
+        return null;
+!!!8448027.java!!!	getNotificationMessage(inout id : Integer) : String
+        
+        Object[] obj = (Object[])timerTable.get(id);
+        if (obj != null) {
+            return ( (String)((TimerNotification)obj[TIMER_NOTIF_INDEX]).getMessage() );
+        }
+        return null;
+!!!8448155.java!!!	getNotificationUserData(inout id : Integer) : Object
+        
+        Object[] obj = (Object[])timerTable.get(id);
+        if (obj != null) {
+            return ( ((TimerNotification)obj[TIMER_NOTIF_INDEX]).getUserData() );
+        }
+        return null;
+!!!8448283.java!!!	getDate(inout id : Integer) : Date
+        
+        Object[] obj = (Object[])timerTable.get(id);
+        if (obj != null) {
+            Date date = (Date)obj[TIMER_DATE_INDEX];
+            return (new Date(date.getTime()));
+        }
+        return null;
+!!!8448411.java!!!	getPeriod(inout id : Integer) : Long
+        
+        Object[] obj = (Object[])timerTable.get(id);
+        if (obj != null) {
+            Long period = (Long)obj[TIMER_PERIOD_INDEX];
+            return (new Long(period.longValue()));
+        }
+        return null;
+!!!8448539.java!!!	getNbOccurences(inout id : Integer) : Long
+        
+        Object[] obj = (Object[])timerTable.get(id);
+        if (obj != null) {
+            Long nbOccurences = (Long)obj[TIMER_NB_OCCUR_INDEX];
+            return (new Long(nbOccurences.longValue()));
+        }
+        return null;
+!!!8448667.java!!!	getFixedRate(inout id : Integer) : Boolean
+
+      Object[] obj = (Object[])timerTable.get(id);
+      if (obj != null) {
+        Boolean fixedRate = (Boolean)obj[FIXED_RATE_INDEX];
+        return (new Boolean(fixedRate.booleanValue()));
+      }
+      return null;
+!!!8448795.java!!!	getSendPastNotifications() : boolean
+        return sendPastNotifications;
+!!!8448923.java!!!	setSendPastNotifications(inout value : boolean) : void
+        sendPastNotifications = value;
+!!!8449051.java!!!	isActive() : boolean
+        return isActive;
+!!!8449179.java!!!	isEmpty() : boolean
+        return (timerTable.isEmpty());
+!!!8449307.java!!!	sendPastNotifications(inout currentDate : Date, inout currentFlag : boolean) : void
+        
+        TimerNotification notif;
+        Integer notifID;
+        Date date;
+        Object[] obj;
+        
+        Enumeration e = timerTable.elements();
+        while (e.hasMoreElements()) {
+          
+            obj = (Object[])e.nextElement();
+          
+            // Retrieve the timer notification and the date notification.
+            //
+            notif = (TimerNotification)obj[TIMER_NOTIF_INDEX];
+            notifID = notif.getNotificationID();
+            date = (Date)obj[TIMER_DATE_INDEX];
+                  
+            // Update the timer notification while:
+            //  - the timer notification date is earlier than the current date
+            //  - the timer notification has not been removed from the timer table.
+            //
+            while ( (currentDate.after(date)) && (timerTable.containsKey(notifID)) ) {
+                                
+                if (currentFlag == true) {
+                    if (isTraceOn()) {
+                        trace("sendPastNotifications", "sending past timer notification:" + 
+                              "\n\tNotification source = " + notif.getSource() +
+                              "\n\tNotification type = " + notif.getType() +
+                              "\n\tNotification ID = " + notif.getNotificationID() +
+                              "\n\tNotification date = " + date +
+                              "\n\tNotification period = " + obj[TIMER_PERIOD_INDEX] +
+                              "\n\tNotification nb of occurrences = " + obj[TIMER_NB_OCCUR_INDEX] +
+                              "\n\tNotification executes at fixed rate = " + obj[FIXED_RATE_INDEX]);
+                    }
+                    sendNotification(date, notif);
+                    
+                    if (isTraceOn()) {
+                        trace("sendPastNotifications", "past timer notification sent");
+                    }
+                }
+                
+                // Update the date and the number of occurrences of the timer notification.
+                //
+                updateTimerTable(notif.getNotificationID());
+            }
+        }
+!!!8449435.java!!!	updateTimerTable(inout notifID : Integer) : void
+        
+        // Retrieve the timer notification and the TimerAlarmClock.
+        //      
+        Object[] obj = (Object[])timerTable.get(notifID);
+        Date date = (Date)obj[TIMER_DATE_INDEX];
+        Long period = (Long)obj[TIMER_PERIOD_INDEX];
+        Long nbOccurences = (Long)obj[TIMER_NB_OCCUR_INDEX];
+        Boolean fixedRate = (Boolean)obj[FIXED_RATE_INDEX];
+        TimerAlarmClock alarmClock = (TimerAlarmClock)obj[ALARM_CLOCK_INDEX];
+        
+        if (period.longValue() != 0) {
+          
+            // Update the date and the number of occurrences of the timer notification 
+            // and the TimerAlarmClock time out.
+            // NOTES :      
+            //   nbOccurences = 0 notifies an infinite periodicity.
+            //   nbOccurences = 1 notifies a finite periodicity that has reached its end.
+            //   nbOccurences > 1 notifies a finite periodicity that has not yet reached its end.
+            //
+            if ((nbOccurences.longValue() == 0) || (nbOccurences.longValue() > 1)) {
+                
+                date.setTime(date.getTime() + period.longValue());
+                obj[TIMER_NB_OCCUR_INDEX] = new Long(java.lang.Math.max(0L, (nbOccurences.longValue() - 1)));
+                nbOccurences = (Long)obj[TIMER_NB_OCCUR_INDEX];
+                                
+                if (isActive == true) {
+                  if (fixedRate.booleanValue())
+                  {
+                    alarmClock = new TimerAlarmClock(this, date);
+                    obj[ALARM_CLOCK_INDEX] = (Object)alarmClock;
+		    timer.schedule(alarmClock, alarmClock.next);
+                  }
+                  else
+                  {
+                    alarmClock = new TimerAlarmClock(this, period.longValue());
+                    obj[ALARM_CLOCK_INDEX] = (Object)alarmClock;
+		    timer.schedule(alarmClock, alarmClock.timeout);
+                  }
+                }
+                if (isTraceOn()) {
+                    TimerNotification notif = (TimerNotification)obj[TIMER_NOTIF_INDEX];
+                    trace("updateTimerTable", "update timer notification with:" +
+                          "\n\tNotification source = " + notif.getSource() +
+                          "\n\tNotification type = " + notif.getType() +
+                          "\n\tNotification ID = " + notifID +
+                          "\n\tNotification date = " + date +
+                          "\n\tNotification period = " + period +
+                          "\n\tNotification nb of occurrences = " + nbOccurences +
+                          "\n\tNotification executes at fixed rate = " + fixedRate);
+                }
+            }
+            else {
+                if (alarmClock != null) {
+//                     alarmClock.interrupt();
+//                     try {
+//                         // Wait until the thread die.
+//                         //
+//                         alarmClock.join();
+//                     } catch (InterruptedException e) {
+//                         // Ignore...
+//                     }
+		    alarmClock.cancel();
+                    // Remove the reference on the TimerAlarmClock.
+                    //
+                    alarmClock = null;
+                }
+                timerTable.remove(notifID);
+            }
+        }
+        else {
+            if (alarmClock != null) {
+//                 alarmClock.interrupt();
+//                 try {
+//                     // Wait until the thread die.
+//                     //
+//                     alarmClock.join();
+//                 } catch (InterruptedException e) {
+//                     // Ignore...
+//                 }
+
+		   alarmClock.cancel();
+
+                // Remove the reference on the TimerAlarmClock.
+                //
+                alarmClock = null;
+            }
+            timerTable.remove(notifID);
+        }
+!!!8449563.java!!!	notifyAlarmClock(inout notification : TimerAlarmClockNotification) : void
+                
+        Object[] obj;
+        TimerNotification timerNotification = null;
+        Date timerDate = null;
+        
+        // Retrieve the timer notification associated to the alarm-clock.
+        //
+        TimerAlarmClock alarmClock = (TimerAlarmClock)notification.getSource();
+        
+        Enumeration e = timerTable.elements();
+        while (e.hasMoreElements()) {
+            obj = (Object[])e.nextElement();
+            if (obj[ALARM_CLOCK_INDEX] == alarmClock) {
+                timerNotification = (TimerNotification)obj[TIMER_NOTIF_INDEX];
+                timerDate = (Date)obj[TIMER_DATE_INDEX];
+                break;
+            }
+        }
+        
+        // Notify the timer.
+        //
+        sendNotification(timerDate, timerNotification);
+        
+        // Update the notification and the TimerAlarmClock timeout.
+        //
+        updateTimerTable(timerNotification.getNotificationID());
+!!!8449691.java!!!	sendNotification(inout timeStamp : Date, inout notification : TimerNotification) : void
+                
+        if (isTraceOn()) {
+            trace("sendNotification", "sending timer notification:" + 
+                  "\n\tNotification source = " + notification.getSource() +
+                  "\n\tNotification type = " + notification.getType() +
+                  "\n\tNotification ID = " + notification.getNotificationID() +
+                  "\n\tNotification date = " + timeStamp);
+        }
+        long curSeqNumber; 
+        synchronized(this) {
+            sequenceNumber = sequenceNumber + 1;
+	    curSeqNumber = sequenceNumber;
+        }
+        synchronized (notification) {
+            notification.setTimeStamp(timeStamp.getTime());
+            notification.setSequenceNumber(curSeqNumber);
+            this.sendNotification((TimerNotification)notification.cloneTimerNotification());
+        }
+        
+        if (isTraceOn()) {
+            trace("sendNotification", "timer notification sent");
+        }

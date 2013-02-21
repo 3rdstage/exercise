@@ -1,0 +1,59 @@
+class SAX2XNI
+!!!5376411.java!!!	characters(in ch : char, in start : int, in len : int) : void
+            try {
+                handler().characters(new XMLString(ch,start,len),aug());
+            } catch( XNIException e ) {
+                throw toSAXException(e);
+            }
+!!!5376539.java!!!	ignorableWhitespace(in ch : char, in start : int, in len : int) : void
+            try {
+                handler().ignorableWhitespace(new XMLString(ch,start,len),aug());
+            } catch( XNIException e ) {
+                throw toSAXException(e);
+            }
+!!!5376667.java!!!	startElement(in uri : String, in localName : String, in qname : String, inout atts : Attributes) : void
+            try {
+                updateAttributes(atts);
+                
+                handler().startElement(toQName(uri,localName,qname), fCurrentAttributes, elementAug());
+            } catch( XNIException e ) {
+                throw toSAXException(e);
+            }
+!!!5376795.java!!!	endElement(in uri : String, in localName : String, in qname : String) : void
+            try {
+                handler().endElement(toQName(uri,localName,qname),aug());
+            } catch( XNIException e ) {
+                throw toSAXException(e);
+            }
+!!!5376923.java!!!	elementAug() : Augmentations
+            Augmentations aug = aug();
+            aug.putItem(Constants.TYPEINFO,typeInfoProvider.getElementTypeInfo());
+            return aug;
+!!!5377051.java!!!	aug() : Augmentations
+            if( fCurrentAug!=null ) {
+                Augmentations r = fCurrentAug;
+                fCurrentAug = null; // we "consumed" this augmentation.
+                return r;
+            }
+            fAugmentations.removeAllItems();
+            return fAugmentations;
+!!!5377179.java!!!	handler() : XMLDocumentHandler
+            return JAXPValidatorComponent.this.getDocumentHandler();
+!!!5377307.java!!!	toSAXException(inout xe : XNIException) : SAXException
+            Exception e = xe.getException();
+            if( e==null )   e = xe;
+            if( e instanceof SAXException )  return (SAXException)e;
+            return new SAXException(e);
+!!!5377435.java!!!	toQName(in uri : String, in localName : String, in qname : String) : QName
+            String prefix = null;
+            int idx = qname.indexOf(':');
+            if( idx>0 )
+                prefix = symbolize(qname.substring(0,idx));
+            
+            localName = symbolize(localName);
+            qname = symbolize(qname);
+            uri = symbolize(uri);
+
+            // notify handlers
+            fQName.setValues(prefix, localName, qname, uri);
+            return fQName;

@@ -1,0 +1,45 @@
+class Itr
+!!!329627.java!!!	hasNext() : boolean
+            return cursor <= size || forgetMeNot != null;
+!!!329755.java!!!	next() : E
+            checkForComodification();
+            E result;
+            if (cursor <= size) {
+                result = (E) queue[cursor];
+                lastRet = cursor++;
+            }
+            else if (forgetMeNot == null)
+                throw new NoSuchElementException();
+            else {
+                int remaining = forgetMeNot.size();
+                result = forgetMeNot.remove(remaining - 1);
+                if (remaining == 1) 
+                    forgetMeNot = null;
+                lastRet = 0;
+                lastRetElt = result;
+            }
+            return result;
+!!!329883.java!!!	remove() : void
+            checkForComodification();
+
+            if (lastRet != 0) {
+                E moved = PriorityQueue.this.removeAt(lastRet);
+                lastRet = 0;
+                if (moved == null) {
+                    cursor--;
+                } else {
+                    if (forgetMeNot == null)
+                        forgetMeNot = new ArrayList<E>();
+                    forgetMeNot.add(moved);
+                }
+            } else if (lastRetElt != null) {
+                PriorityQueue.this.remove(lastRetElt);
+                lastRetElt = null;
+            } else {
+                throw new IllegalStateException();
+            }
+
+            expectedModCount = modCount;
+!!!330011.java!!!	checkForComodification() : void
+            if (modCount != expectedModCount)
+                throw new ConcurrentModificationException();

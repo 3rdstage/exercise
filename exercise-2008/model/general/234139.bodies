@@ -1,0 +1,122 @@
+class Stub
+!!!8642331.java!!!	hashCode() : int
+
+	if (stubDelegate == null) {
+	    setDefaultDelegate();
+	}
+
+	if (stubDelegate != null) {
+	    return stubDelegate.hashCode(this);
+	}
+
+	return 0;
+!!!8642459.java!!!	equals(inout obj : Object) : boolean
+
+	if (stubDelegate == null) {
+	    setDefaultDelegate();
+	}
+
+	if (stubDelegate != null) {
+	    return stubDelegate.equals(this, obj);
+	}
+
+        return false;
+!!!8642587.java!!!	toString() : String
+
+
+	if (stubDelegate == null) {
+	    setDefaultDelegate();
+	}
+
+	String ior;
+	if (stubDelegate != null) {
+	    ior = stubDelegate.toString(this);
+	    if (ior == null) {
+	        return super.toString();
+	    } else {
+	        return ior;
+	    }
+	}
+        return super.toString();
+!!!8642715.java!!!	connect(inout orb : ORB) : void
+        
+	if (stubDelegate == null) {
+	    setDefaultDelegate();
+	}
+
+	if (stubDelegate != null) {
+	    stubDelegate.connect(this, orb);
+	}
+
+!!!8642843.java!!!	readObject(inout stream : ObjectInputStream) : void
+
+	if (stubDelegate == null) {
+	    setDefaultDelegate();
+	}
+
+	if (stubDelegate != null) {
+	    stubDelegate.readObject(this, stream);
+	} 
+
+!!!8642971.java!!!	writeObject(inout stream : ObjectOutputStream) : void
+
+	if (stubDelegate == null) {
+	    setDefaultDelegate();
+	}
+
+	if (stubDelegate != null) {
+	    stubDelegate.writeObject(this, stream);
+	} 
+!!!8643099.java!!!	setDefaultDelegate() : void
+        if (stubDelegateClass != null) {
+            try {
+                 stubDelegate = (javax.rmi.CORBA.StubDelegate) stubDelegateClass.newInstance();
+	    } catch (Exception ex) {
+	    // what kind of exception to throw
+	    // delegate not set therefore it is null and will return default
+            // values
+            }
+ 	}
+!!!8643227.java!!!	createDelegateIfSpecified(in classKey : String, in defaultClassName : String) : Object
+        String className = (String)
+            AccessController.doPrivileged(new GetPropertyAction(classKey));
+        if (className == null) {
+            Properties props = getORBPropertiesFile();
+            if (props != null) {
+                className = props.getProperty(classKey);
+            }
+        }
+
+	if (className == null) {
+	    className = defaultClassName;
+	}
+
+        try {
+            return loadDelegateClass(className).newInstance();
+        } catch (ClassNotFoundException ex) {
+	    INITIALIZE exc = new INITIALIZE( "Cannot instantiate " + className);
+	    exc.initCause( ex ) ;
+	    throw exc ;
+        } catch (Exception ex) {
+	    INITIALIZE exc = new INITIALIZE( "Error while instantiating" + className);
+	    exc.initCause( ex ) ;
+	    throw exc ;
+        }
+
+!!!8643355.java!!!	loadDelegateClass(in className : String) : Class
+	try {
+	    ClassLoader loader = Thread.currentThread().getContextClassLoader();
+	    return Class.forName(className, false, loader);
+	} catch (ClassNotFoundException e) {
+	    // ignore, then try RMIClassLoader
+	}
+
+	try {
+	    return RMIClassLoader.loadClass(className);
+	} catch (MalformedURLException e) {
+	    String msg = "Could not load " + className + ": " + e.toString();
+	    ClassNotFoundException exc = new ClassNotFoundException( msg ) ; 
+	    throw exc ;
+	}
+!!!8643483.java!!!	getORBPropertiesFile() : Properties
+        return (Properties) AccessController.doPrivileged(new GetORBPropertiesFileAction());

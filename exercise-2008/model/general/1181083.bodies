@@ -1,0 +1,109 @@
+class SynthComboBoxUI
+!!!9668251.java!!!	createUI(inout c : JComponent) : ComponentUI
+        return new SynthComboBoxUI();
+!!!9668379.java!!!	installDefaults() : void
+        updateStyle(comboBox);
+!!!9668507.java!!!	updateStyle(inout comboBox : JComboBox) : void
+        SynthStyle oldStyle = style;
+        SynthContext context = getContext(comboBox, ENABLED);
+
+        style = SynthLookAndFeel.updateStyle(context, this);
+        if (style != oldStyle) {
+            useListColors = style.getBoolean(context,
+                                  "ComboBox.rendererUseListColors", true);
+            if (oldStyle != null) {
+                uninstallKeyboardActions();
+                installKeyboardActions();
+            }
+        }
+        context.dispose();
+!!!9668635.java!!!	installListeners() : void
+        comboBox.addPropertyChangeListener(this);
+        super.installListeners();
+!!!9668763.java!!!	uninstallDefaults() : void
+        SynthContext context = getContext(comboBox, ENABLED);
+
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+!!!9668891.java!!!	uninstallListeners() : void
+        comboBox.removePropertyChangeListener(this);
+        super.uninstallListeners();
+!!!9669019.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9669147.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c,
+                    SynthLookAndFeel.getRegion(c), style, state);
+!!!9669275.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9669403.java!!!	getComponentState(inout c : JComponent) : int
+        return SynthLookAndFeel.getComponentState(c);
+!!!9669531.java!!!	createPopup() : ComboPopup
+        SynthComboPopup popup = new SynthComboPopup( comboBox );
+        return popup;
+!!!9669659.java!!!	createRenderer() : ListCellRenderer
+        return new SynthComboBoxRenderer();
+!!!9669787.java!!!	createEditor() : ComboBoxEditor
+        return new SynthComboBoxEditor();
+!!!9669915.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+        if (SynthLookAndFeel.shouldUpdateStyle(e)) {
+            updateStyle(comboBox);
+        }
+!!!9670043.java!!!	createArrowButton() : JButton
+        SynthArrowButton button = new SynthArrowButton(SwingConstants.SOUTH);
+        button.setName("ComboBox.arrowButton");
+        return button;
+!!!9670171.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintComboBoxBackground(context, g, 0, 0,
+                                                  c.getWidth(), c.getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9670299.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9670427.java!!!	paint(inout context : SynthContext, inout g : Graphics) : void
+        hasFocus = comboBox.hasFocus();
+        if ( !comboBox.isEditable() ) {
+            Rectangle r = rectangleForCurrentValue();
+            paintCurrentValue(g,r,hasFocus);
+        }
+!!!9670555.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        context.getPainter().paintComboBoxBorder(context, g, x, y, w, h);
+!!!9670683.java!!!	paintCurrentValue(inout g : Graphics, inout bounds : Rectangle, inout hasFocus : boolean) : void
+        ListCellRenderer renderer = comboBox.getRenderer();
+        Component c;
+
+        if ( hasFocus && !isPopupVisible(comboBox) ) {
+            c = renderer.getListCellRendererComponent( listBox,
+                                                       comboBox.getSelectedItem(),
+                                                       -1,
+                                                       false,
+                                                       false );
+        }
+        else {
+            c = renderer.getListCellRendererComponent( listBox,
+                                                       comboBox.getSelectedItem(),
+                                                       -1,
+                                                       false,
+                                                       false );
+        }
+        // Fix for 4238829: should lay out the JPanel.
+        boolean shouldValidate = false;
+        if (c instanceof JPanel)  {
+            shouldValidate = true;
+        }
+
+        if (c instanceof UIResource) {
+            c.setName("ComboBox.renderer");
+            currentValuePane.paintComponent(g,c,comboBox,bounds.x,bounds.y,
+                                        bounds.width,bounds.height, shouldValidate);
+        }
+        else {
+            currentValuePane.paintComponent(g,c,comboBox,bounds.x,bounds.y,
+                                        bounds.width,bounds.height, shouldValidate);
+        }

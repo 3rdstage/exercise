@@ -1,0 +1,612 @@
+class AccessibleJTreeNode
+!!!9221787.java!!!	AccessibleJTreeNode(inout t : JTree, inout p : TreePath, inout ap : Accessible)
+                tree = t;
+                path = p;
+                accessibleParent = ap;
+                treeModel = t.getModel();
+                obj = p.getLastPathComponent();
+                if (treeModel != null) {
+                    isLeaf = treeModel.isLeaf(obj);
+                }
+!!!9221915.java!!!	getChildTreePath(in i : int) : TreePath
+                // Tree nodes can't be so complex that they have
+                // two sets of children -> we're ignoring that case
+                if (i < 0 || i >= getAccessibleChildrenCount()) {
+                    return null;
+                } else {
+                    Object childObj = treeModel.getChild(obj, i);
+                    Object[] objPath = path.getPath();
+                    Object[] objChildPath = new Object[objPath.length+1];
+                    java.lang.System.arraycopy(objPath, 0, objChildPath, 0, objPath.length);
+                    objChildPath[objChildPath.length-1] = childObj;
+                    return new TreePath(objChildPath);
+                }
+!!!9222043.java!!!	getAccessibleContext() : AccessibleContext
+                return this;
+!!!9222171.java!!!	getCurrentAccessibleContext() : AccessibleContext
+                Component c = getCurrentComponent();
+                if (c instanceof Accessible) {
+                    return (((Accessible) c).getAccessibleContext());
+                } else {
+                    return null;
+                }
+!!!9222299.java!!!	getCurrentComponent() : Component
+                // is the object visible?
+                // if so, get row, selected, focus & leaf state, 
+                // and then get the renderer component and return it
+                if (tree.isVisible(path)) {
+                    TreeCellRenderer r = tree.getCellRenderer();
+		    if (r == null) {
+			return null;
+		    }
+                    TreeUI ui = tree.getUI();
+                    if (ui != null) {
+                        int row = ui.getRowForPath(JTree.this, path);
+                        boolean selected = tree.isPathSelected(path);
+                        boolean expanded = tree.isExpanded(path);
+                        boolean hasFocus = false; // how to tell?? -PK
+                        return r.getTreeCellRendererComponent(tree, obj, 
+                            selected, expanded, isLeaf, row, hasFocus);
+                    }
+                } 
+                return null;
+!!!9222427.java!!!	getAccessibleName() : String
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    String name = ac.getAccessibleName();
+                    if ((name != null) && (name != "")) {
+                        return ac.getAccessibleName();
+                    } else {
+                        return null;
+                    }
+                }
+                if ((accessibleName != null) && (accessibleName != "")) {
+                    return accessibleName;
+                } else {
+                    return null;
+                }
+!!!9222555.java!!!	setAccessibleName(in s : String) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    ac.setAccessibleName(s);
+                } else {
+                    super.setAccessibleName(s);
+                }
+!!!9222683.java!!!	getAccessibleDescription() : String
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    return ac.getAccessibleDescription();
+                } else {
+                    return super.getAccessibleDescription();
+                }
+!!!9222811.java!!!	setAccessibleDescription(in s : String) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    ac.setAccessibleDescription(s);
+                } else {
+                    super.setAccessibleDescription(s);
+                }
+!!!9222939.java!!!	getAccessibleRole() : AccessibleRole
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    return ac.getAccessibleRole();
+                } else {
+                    return AccessibleRole.UNKNOWN;
+                }
+!!!9223067.java!!!	getAccessibleStateSet() : AccessibleStateSet
+                AccessibleContext ac = getCurrentAccessibleContext();
+                AccessibleStateSet states;
+		int row = tree.getUI().getRowForPath(tree,path);
+		int lsr = tree.getLeadSelectionRow();
+                if (ac != null) {
+                    states = ac.getAccessibleStateSet();
+                } else {
+                    states = new AccessibleStateSet();
+                }
+                // need to test here, 'cause the underlying component 
+                // is a cellRenderer, which is never showing...
+                if (isShowing()) {
+                    states.add(AccessibleState.SHOWING);
+                } else if (states.contains(AccessibleState.SHOWING)) {
+                    states.remove(AccessibleState.SHOWING);
+                }
+                if (isVisible()) {
+                    states.add(AccessibleState.VISIBLE);
+                } else if (states.contains(AccessibleState.VISIBLE)) {
+                    states.remove(AccessibleState.VISIBLE);
+                }
+                if (tree.isPathSelected(path)){
+                    states.add(AccessibleState.SELECTED);
+                }
+		if (lsr == row) {
+                    states.add(AccessibleState.ACTIVE);
+                }
+                if (!isLeaf) {
+                    states.add(AccessibleState.EXPANDABLE);
+                }
+                if (tree.isExpanded(path)) {
+                    states.add(AccessibleState.EXPANDED);
+                } else {
+                    states.add(AccessibleState.COLLAPSED);
+                }
+                if (tree.isEditable()) {
+                    states.add(AccessibleState.EDITABLE);
+                }
+                return states;
+!!!9223195.java!!!	getAccessibleParent() : Accessible
+		// someone wants to know, so we need to create our parent
+		// if we don't have one (hey, we're a talented kid!)
+		if (accessibleParent == null) {
+		    Object[] objPath = path.getPath();
+		    if (objPath.length > 1) {
+			Object objParent = objPath[objPath.length-2];
+			if (treeModel != null) {
+			    index = treeModel.getIndexOfChild(objParent, obj);
+			}
+			Object[] objParentPath = new Object[objPath.length-1];
+			java.lang.System.arraycopy(objPath, 0, objParentPath,
+						   0, objPath.length-1);
+			TreePath parentPath = new TreePath(objParentPath);
+			accessibleParent = new AccessibleJTreeNode(tree, 
+								   parentPath, 
+								   null);
+			this.setAccessibleParent(accessibleParent);
+		    } else if (treeModel != null) {
+			accessibleParent = tree; // we're the top!
+			index = 0; // we're an only child!
+			this.setAccessibleParent(accessibleParent);
+		    }
+		}
+                return accessibleParent;
+!!!9223323.java!!!	getAccessibleIndexInParent() : int
+		// index is invalid 'till we have an accessibleParent...
+		if (accessibleParent == null) {
+		    getAccessibleParent();
+		}
+		Object[] objPath = path.getPath();
+		if (objPath.length > 1) {
+		    Object objParent = objPath[objPath.length-2];
+		    if (treeModel != null) {
+			index = treeModel.getIndexOfChild(objParent, obj);
+		    }
+		}
+                return index;
+!!!9223451.java!!!	getAccessibleChildrenCount() : int
+                // Tree nodes can't be so complex that they have 
+                // two sets of children -> we're ignoring that case
+                return treeModel.getChildCount(obj);
+!!!9223579.java!!!	getAccessibleChild(in i : int) : Accessible
+                // Tree nodes can't be so complex that they have 
+                // two sets of children -> we're ignoring that case
+                if (i < 0 || i >= getAccessibleChildrenCount()) {
+                    return null;
+                } else {
+                    Object childObj = treeModel.getChild(obj, i);
+                    Object[] objPath = path.getPath();
+                    Object[] objChildPath = new Object[objPath.length+1];
+                    java.lang.System.arraycopy(objPath, 0, objChildPath, 0, objPath.length);
+                    objChildPath[objChildPath.length-1] = childObj;
+                    TreePath childPath = new TreePath(objChildPath);
+                    return new AccessibleJTreeNode(JTree.this, childPath, this);
+                }
+!!!9223707.java!!!	getLocale() : Locale
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    return ac.getLocale();
+                } else {
+                    return tree.getLocale();
+                }
+!!!9223835.java!!!	addPropertyChangeListener(inout l : PropertyChangeListener) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    ac.addPropertyChangeListener(l);
+                } else {
+                    super.addPropertyChangeListener(l);
+                }
+!!!9223963.java!!!	removePropertyChangeListener(inout l : PropertyChangeListener) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    ac.removePropertyChangeListener(l);
+                } else {
+                    super.removePropertyChangeListener(l);
+                }
+!!!9224091.java!!!	getAccessibleAction() : AccessibleAction
+                return this;
+!!!9224219.java!!!	getAccessibleComponent() : AccessibleComponent
+                return this; // to override getBounds()
+!!!9224347.java!!!	getAccessibleSelection() : AccessibleSelection
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null && isLeaf) {
+                    return getCurrentAccessibleContext().getAccessibleSelection();
+                } else {
+                    return this;
+                }
+!!!9224475.java!!!	getAccessibleText() : AccessibleText
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    return getCurrentAccessibleContext().getAccessibleText();
+                } else {
+                    return null;
+                }
+!!!9224603.java!!!	getAccessibleValue() : AccessibleValue
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    return getCurrentAccessibleContext().getAccessibleValue();
+                } else {
+                    return null;
+                }
+!!!9224731.java!!!	getBackground() : Color
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).getBackground();
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.getBackground();
+                    } else {
+                        return null;
+                    }
+                }
+!!!9224859.java!!!	setBackground(inout c : Color) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).setBackground(c);
+                } else {
+                    Component cp = getCurrentComponent();
+                    if (cp != null) {
+                        cp.setBackground(c);
+                    }
+                }
+!!!9224987.java!!!	getForeground() : Color
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).getForeground();
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.getForeground();
+                    } else {
+                        return null;
+                    }
+                }
+!!!9225115.java!!!	setForeground(inout c : Color) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).setForeground(c);
+                } else {
+                    Component cp = getCurrentComponent();
+                    if (cp != null) {
+                        cp.setForeground(c);
+                    }
+                }
+!!!9225243.java!!!	getCursor() : Cursor
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).getCursor();
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.getCursor();
+                    } else {
+                        Accessible ap = getAccessibleParent();
+                        if (ap instanceof AccessibleComponent) {
+                            return ((AccessibleComponent) ap).getCursor();
+                        } else {
+                            return null;
+                        }
+                    }
+                }
+!!!9225371.java!!!	setCursor(inout c : Cursor) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).setCursor(c);
+                } else {
+                    Component cp = getCurrentComponent();
+                    if (cp != null) {
+                        cp.setCursor(c);
+                    }
+                }
+!!!9225499.java!!!	getFont() : Font
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).getFont();
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.getFont();
+                    } else {
+                        return null;
+                    }
+                }
+!!!9225627.java!!!	setFont(inout f : Font) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).setFont(f);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        c.setFont(f);
+                    }
+                }
+!!!9225755.java!!!	getFontMetrics(inout f : Font) : FontMetrics
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).getFontMetrics(f);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.getFontMetrics(f);
+                    } else {
+                        return null;
+                    }
+                }
+!!!9225883.java!!!	isEnabled() : boolean
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).isEnabled();
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.isEnabled();
+                    } else {
+                        return false;
+                    }
+                }
+!!!9226011.java!!!	setEnabled(inout b : boolean) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).setEnabled(b);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        c.setEnabled(b);
+                    }
+                }
+!!!9226139.java!!!	isVisible() : boolean
+                Rectangle pathBounds = tree.getPathBounds(path);
+                Rectangle parentBounds = tree.getVisibleRect();
+                if (pathBounds != null && parentBounds != null && 
+                    parentBounds.intersects(pathBounds)) {
+                    return true;
+                } else {
+                    return false;
+                }
+!!!9226395.java!!!	isShowing() : boolean
+                return (tree.isShowing() && isVisible());
+!!!9226523.java!!!	contains(inout p : Point) : boolean
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    Rectangle r = ((AccessibleComponent) ac).getBounds();
+                    return r.contains(p);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        Rectangle r = c.getBounds();
+                        return r.contains(p);
+                    } else {
+                        return getBounds().contains(p);
+                    }
+                }
+!!!9226651.java!!!	getLocationOnScreen() : Point
+                if (tree != null) {
+                    Point treeLocation = tree.getLocationOnScreen();
+                    Rectangle pathBounds = tree.getPathBounds(path);
+                    if (treeLocation != null && pathBounds != null) {
+                        Point nodeLocation = new Point(pathBounds.x,
+                                                       pathBounds.y);
+                        nodeLocation.translate(treeLocation.x, treeLocation.y);
+                        return nodeLocation;
+                    } else {
+                        return null;
+                    }
+                } else {
+                    return null;
+                }
+!!!9226779.java!!!	getLocationInJTree() : Point
+                Rectangle r = tree.getPathBounds(path);
+                if (r != null) {
+                    return r.getLocation();
+                } else {
+                    return null;
+                }
+!!!9226907.java!!!	getLocation() : Point
+                Rectangle r = getBounds();
+                if (r != null) {
+                    return r.getLocation();
+                } else {
+                    return null;
+                }
+!!!9227163.java!!!	getBounds() : Rectangle
+                Rectangle r = tree.getPathBounds(path);
+                Accessible parent = getAccessibleParent();
+                if (parent != null) {
+                    if (parent instanceof AccessibleJTreeNode) {
+                        Point parentLoc = ((AccessibleJTreeNode) parent).getLocationInJTree();
+                        if (parentLoc != null && r != null) {
+                            r.translate(-parentLoc.x, -parentLoc.y);
+                        } else {
+                            return null;        // not visible!
+                        }
+                    } 
+                }
+                return r;
+!!!9227291.java!!!	setBounds(inout r : Rectangle) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).setBounds(r);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        c.setBounds(r);
+                    }
+                }
+!!!9227419.java!!!	getSize() : Dimension
+                return getBounds().getSize();
+!!!9227547.java!!!	setSize(inout d : Dimension) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).setSize(d);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        c.setSize(d);
+                    }
+                }
+!!!9227675.java!!!	getAccessibleAt(inout p : Point) : Accessible
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).getAccessibleAt(p);
+                } else {
+                    return null;
+                }
+!!!9227803.java!!!	isFocusTraversable() : boolean
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).isFocusTraversable();
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.isFocusTraversable();
+                    } else {
+                        return false;
+                    }
+                }
+!!!9227931.java!!!	requestFocus() : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).requestFocus();
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        c.requestFocus();
+                    }
+                }
+!!!9228059.java!!!	addFocusListener(inout l : FocusListener) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).addFocusListener(l);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        c.addFocusListener(l);
+                    }
+                }
+!!!9228187.java!!!	removeFocusListener(inout l : FocusListener) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).removeFocusListener(l);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        c.removeFocusListener(l);
+                    }
+                }
+!!!9228315.java!!!	getAccessibleSelectionCount() : int
+                int count = 0;
+                int childCount = getAccessibleChildrenCount();
+                for (int i = 0; i < childCount; i++) {
+                    TreePath childPath = getChildTreePath(i);
+                    if (tree.isPathSelected(childPath)) {
+                       count++;
+                    }
+                } 
+                return count;
+!!!9228443.java!!!	getAccessibleSelection(in i : int) : Accessible
+                int childCount = getAccessibleChildrenCount();
+                if (i < 0 || i >= childCount) {
+                    return null;        // out of range
+                }
+                int count = 0;
+                for (int j = 0; j < childCount && i >= count; j++) {
+                    TreePath childPath = getChildTreePath(j);
+                    if (tree.isPathSelected(childPath)) { 
+                        if (count == i) {
+                            return new AccessibleJTreeNode(tree, childPath, this);
+                        } else {
+                            count++;
+                        }
+                    }
+                }
+                return null;
+!!!9228571.java!!!	isAccessibleChildSelected(in i : int) : boolean
+                int childCount = getAccessibleChildrenCount();
+                if (i < 0 || i >= childCount) {
+                    return false;       // out of range
+                } else {
+                    TreePath childPath = getChildTreePath(i);
+                    return tree.isPathSelected(childPath);
+                }
+!!!9228699.java!!!	addAccessibleSelection(in i : int) : void
+               TreeModel model = JTree.this.getModel();
+               if (model != null) {
+                   if (i >= 0 && i < getAccessibleChildrenCount()) {
+                       TreePath path = getChildTreePath(i);
+                       JTree.this.addSelectionPath(path);
+                    }
+                }
+!!!9228827.java!!!	removeAccessibleSelection(in i : int) : void
+               TreeModel model = JTree.this.getModel();
+               if (model != null) {
+                   if (i >= 0 && i < getAccessibleChildrenCount()) {
+                       TreePath path = getChildTreePath(i);
+                       JTree.this.removeSelectionPath(path);
+                    }
+                }
+!!!9228955.java!!!	clearAccessibleSelection() : void
+                int childCount = getAccessibleChildrenCount();
+                for (int i = 0; i < childCount; i++) {
+                    removeAccessibleSelection(i);
+                }
+!!!9229083.java!!!	selectAllAccessibleSelection() : void
+               TreeModel model = JTree.this.getModel();
+               if (model != null) {
+                   int childCount = getAccessibleChildrenCount();
+                   TreePath path;
+                   for (int i = 0; i < childCount; i++) {
+                       path = getChildTreePath(i);
+                       JTree.this.addSelectionPath(path);
+                   }
+                }
+!!!9229211.java!!!	getAccessibleActionCount() : int
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    AccessibleAction aa = ac.getAccessibleAction();
+                    if (aa != null) {
+                        return (aa.getAccessibleActionCount() + (isLeaf ? 0 : 1));
+                    }
+                }
+                return isLeaf ? 0 : 1;
+!!!9229339.java!!!	getAccessibleActionDescription(in i : int) : String
+                if (i < 0 || i >= getAccessibleActionCount()) {
+                    return null;
+                }
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (i == 0) {
+                    // TIGER - 4766636
+                    return AccessibleAction.TOGGLE_EXPAND;
+                } else if (ac != null) {
+                    AccessibleAction aa = ac.getAccessibleAction();
+                    if (aa != null) {
+                        return aa.getAccessibleActionDescription(i - 1);
+                    }
+                }
+                return null;
+!!!9229467.java!!!	doAccessibleAction(in i : int) : boolean
+                if (i < 0 || i >= getAccessibleActionCount()) {
+                    return false;
+                }
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (i == 0) {
+                    if (JTree.this.isExpanded(path)) {
+                        JTree.this.collapsePath(path);
+                    } else {
+                        JTree.this.expandPath(path);
+                    }
+                    return true;
+                } else if (ac != null) {
+                    AccessibleAction aa = ac.getAccessibleAction();
+                    if (aa != null) {
+                        return aa.doAccessibleAction(i - 1);
+                    }
+                }
+                return false;

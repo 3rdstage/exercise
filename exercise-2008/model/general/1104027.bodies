@@ -1,0 +1,80 @@
+class LayoutFocusTraversalPolicy
+!!!8878363.java!!!	LayoutFocusTraversalPolicy()
+	super(new LayoutComparator());
+!!!8878491.java!!!	LayoutFocusTraversalPolicy(inout c : Comparator)
+	super(c);
+!!!8878619.java!!!	getComponentAfter(inout aContainer : Container, inout aComponent : Component) : Component
+        if (aContainer == null || aComponent == null) {
+            throw new IllegalArgumentException("aContainer and aComponent cannot be null");
+        }
+	Comparator comparator = getComparator();
+	if (comparator instanceof LayoutComparator) {
+	    ((LayoutComparator)comparator).
+                setComponentOrientation(aContainer.
+					getComponentOrientation());
+	}
+        return super.getComponentAfter(aContainer, aComponent);
+!!!8878747.java!!!	getComponentBefore(inout aContainer : Container, inout aComponent : Component) : Component
+        if (aContainer == null || aComponent == null) {
+            throw new IllegalArgumentException("aContainer and aComponent cannot be null");
+        }
+	Comparator comparator = getComparator();
+	if (comparator instanceof LayoutComparator) {
+	    ((LayoutComparator)comparator).
+                setComponentOrientation(aContainer.
+					getComponentOrientation());
+	}
+        return super.getComponentBefore(aContainer, aComponent);
+!!!8878875.java!!!	getFirstComponent(inout aContainer : Container) : Component
+        if (aContainer == null) {
+            throw new IllegalArgumentException("aContainer cannot be null");
+        }
+	Comparator comparator = getComparator();
+	if (comparator instanceof LayoutComparator) {
+	    ((LayoutComparator)comparator).
+                setComponentOrientation(aContainer.
+					getComponentOrientation());
+	}
+        return super.getFirstComponent(aContainer);
+!!!8879003.java!!!	getLastComponent(inout aContainer : Container) : Component
+        if (aContainer == null) {
+            throw new IllegalArgumentException("aContainer cannot be null");
+        }
+	Comparator comparator = getComparator();
+	if (comparator instanceof LayoutComparator) {
+	    ((LayoutComparator)comparator).
+                setComponentOrientation(aContainer.
+					getComponentOrientation());
+	}
+        return super.getLastComponent(aContainer);
+!!!8879131.java!!!	accept(inout aComponent : Component) : boolean
+	if (!super.accept(aComponent)) {
+	    return false;
+	} else if (aComponent instanceof JTable) {
+            // JTable only has ancestor focus bindings, we thus force it
+            // to be focusable by returning true here.
+	    return true;
+	} else if (aComponent instanceof JComboBox) {
+	    JComboBox box = (JComboBox)aComponent;
+	    return box.getUI().isFocusTraversable(box);
+	} else if (aComponent instanceof JComponent) {
+	    JComponent jComponent = (JComponent)aComponent;
+	    InputMap inputMap = jComponent.getInputMap(JComponent.WHEN_FOCUSED,
+						       false);
+	    while (inputMap != null && inputMap.size() == 0) {
+		inputMap = inputMap.getParent();
+	    }
+            if (inputMap != null) {
+                return true;
+            }
+            // Delegate to the fitnessTestPolicy, this will test for the
+            // case where the developer has overriden isFocusTraversable to
+            // return true.
+        }
+        return fitnessTestPolicy.accept(aComponent);
+!!!8879259.java!!!	writeObject(inout out : ObjectOutputStream) : void
+	out.writeObject(getComparator());
+	out.writeBoolean(getImplicitDownCycleTraversal());
+!!!8879387.java!!!	readObject(inout in : ObjectInputStream) : void
+	setComparator((Comparator)in.readObject());
+	setImplicitDownCycleTraversal(in.readBoolean());

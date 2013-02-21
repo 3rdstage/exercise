@@ -1,0 +1,156 @@
+class HeapFloatBuffer
+!!!7455771.java!!!	HeapFloatBuffer(in cap : int, in lim : int)
+		// package-private
+
+	super(-1, 0, lim, cap, new float[cap], 0);
+	/*
+	hb = new float[cap];
+	offset = 0;
+	*/
+
+
+
+
+!!!7455899.java!!!	HeapFloatBuffer(in buf : float, in off : int, in len : int)
+ // package-private
+
+	super(-1, off, off + len, buf.length, buf, 0);
+	/*
+	hb = buf;
+	offset = 0;
+	*/
+
+
+
+
+!!!7456027.java!!!	HeapFloatBuffer(in buf : float, in mark : int, in pos : int, in lim : int, in cap : int, in off : int)
+
+
+	super(mark, pos, lim, cap, buf, off);
+	/*
+	hb = buf;
+	offset = off;
+	*/
+
+
+
+
+!!!7456155.java!!!	slice() : FloatBuffer
+
+	return new HeapFloatBuffer(hb,
+					-1,
+					0,
+					this.remaining(),
+					this.remaining(),
+					this.position() + offset);
+!!!7456283.java!!!	duplicate() : FloatBuffer
+
+	return new HeapFloatBuffer(hb,
+					this.markValue(),
+					this.position(),
+					this.limit(),
+					this.capacity(),
+					offset);
+!!!7456411.java!!!	asReadOnlyBuffer() : FloatBuffer
+
+
+	return new HeapFloatBufferR(hb,
+				     this.markValue(),
+				     this.position(),
+				     this.limit(),
+				     this.capacity(),
+				     offset);
+
+
+
+!!!7456539.java!!!	ix(in i : int) : int
+
+	return i + offset;
+!!!7456667.java!!!	get() : float
+
+	return hb[ix(nextGetIndex())];
+!!!7456795.java!!!	get(in i : int) : float
+
+	return hb[ix(checkIndex(i))];
+!!!7456923.java!!!	get(in dst : float, in offset : int, in length : int) : FloatBuffer
+
+	checkBounds(offset, length, dst.length);
+	if (length > remaining())
+	    throw new BufferUnderflowException();
+	System.arraycopy(hb, ix(position()), dst, offset, length);
+	position(position() + length);
+	return this;
+!!!7457051.java!!!	isDirect() : boolean
+
+	return false;
+!!!7457179.java!!!	isReadOnly() : boolean
+
+	return false;
+!!!7457307.java!!!	put(in x : float) : FloatBuffer
+
+
+	hb[ix(nextPutIndex())] = x;
+	return this;
+
+
+
+!!!7457435.java!!!	put(in i : int, in x : float) : FloatBuffer
+
+
+	hb[ix(checkIndex(i))] = x;
+	return this;
+
+
+
+!!!7457563.java!!!	put(in src : float, in offset : int, in length : int) : FloatBuffer
+
+
+	checkBounds(offset, length, src.length);
+	if (length > remaining())
+	    throw new BufferOverflowException();
+	System.arraycopy(src, offset, hb, ix(position()), length);
+	position(position() + length);
+	return this;
+
+
+
+!!!7457691.java!!!	put(inout src : FloatBuffer) : FloatBuffer
+
+
+	if (src instanceof HeapFloatBuffer) {
+	    if (src == this)
+		throw new IllegalArgumentException();
+	    HeapFloatBuffer sb = (HeapFloatBuffer)src;
+	    int n = sb.remaining();
+	    if (n > remaining())
+		throw new BufferOverflowException();
+	    System.arraycopy(sb.hb, sb.ix(sb.position()),
+			     hb, ix(position()), n);
+	    sb.position(sb.position() + n);
+	    position(position() + n);
+	} else if (src.isDirect()) {
+	    int n = src.remaining();
+	    if (n > remaining())
+		throw new BufferOverflowException();
+	    src.get(hb, ix(position()), n);
+	    position(position() + n);
+	} else {
+	    super.put(src);
+	}
+	return this;
+
+
+
+!!!7457819.java!!!	compact() : FloatBuffer
+
+
+	System.arraycopy(hb, ix(position()), hb, ix(0), remaining());
+	position(remaining());
+	limit(capacity());
+	return this;
+
+
+
+!!!7457947.java!!!	order() : ByteOrder
+
+	return ByteOrder.nativeOrder();

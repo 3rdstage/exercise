@@ -1,0 +1,71 @@
+class Float
+!!!6987547.java!!!	toString(in f : float) : String
+	return new FloatingDecimal(f).toJavaFormatString();
+!!!6987675.java!!!	toHexString(in f : float) : String
+	if (Math.abs(f) < FloatConsts.MIN_NORMAL
+	    &&  f != 0.0f ) {// float subnormal
+	    // Adjust exponent to create subnormal double, then
+	    // replace subnormal double exponent with subnormal float
+	    // exponent
+	    String s = Double.toHexString(FpUtils.scalb((double)f,
+							/* -1022+126 */
+							DoubleConsts.MIN_EXPONENT- 
+							FloatConsts.MIN_EXPONENT));
+	    return s.replaceFirst("p-1022$", "p-126");
+	}
+	else // double string will be the same as float string
+	    return Double.toHexString(f);
+!!!6987803.java!!!	valueOf(in s : String) : Float
+	return new Float(FloatingDecimal.readJavaFormatString(s).floatValue());
+!!!6987931.java!!!	valueOf(in f : float) : Float
+        return new Float(f);
+!!!6988059.java!!!	parseFloat(in s : String) : float
+	return FloatingDecimal.readJavaFormatString(s).floatValue();
+!!!6988187.java!!!	isNaN(in v : float) : boolean
+	return (v != v);
+!!!6988315.java!!!	isInfinite(in v : float) : boolean
+	return (v == POSITIVE_INFINITY) || (v == NEGATIVE_INFINITY);
+!!!6988443.java!!!	Float(in value : float)
+	this.value = value;
+!!!6988571.java!!!	Float(in value : double)
+	this.value = (float)value;
+!!!6988699.java!!!	Float(in s : String)
+	// REMIND: this is inefficient
+	this(valueOf(s).floatValue());
+!!!6988827.java!!!	isNaN() : boolean
+	return isNaN(value);
+!!!6988955.java!!!	isInfinite() : boolean
+	return isInfinite(value);
+!!!6989083.java!!!	toString() : String
+	return String.valueOf(value);
+!!!6989211.java!!!	byteValue() : byte
+	return (byte)value;
+!!!6989339.java!!!	shortValue() : short
+	return (short)value;
+!!!6989467.java!!!	intValue() : int
+	return (int)value;
+!!!6989595.java!!!	longValue() : long
+	return (long)value;
+!!!6989723.java!!!	floatValue() : float
+	return value;
+!!!6989851.java!!!	doubleValue() : double
+	return (double)value;
+!!!6989979.java!!!	hashCode() : int
+	return floatToIntBits(value);
+!!!6990107.java!!!	equals(inout obj : Object) : boolean
+	return (obj instanceof Float)
+	       && (floatToIntBits(((Float)obj).value) == floatToIntBits(value));
+!!!6990619.java!!!	compareTo(inout anotherFloat : Float) : int
+        return Float.compare(value, anotherFloat.value);
+!!!6990747.java!!!	compare(in f1 : float, in f2 : float) : int
+       if (f1 < f2)
+            return -1;		 // Neither val is NaN, thisVal is smaller
+        if (f1 > f2)
+            return 1;		 // Neither val is NaN, thisVal is larger
+
+        int thisBits = Float.floatToIntBits(f1);
+        int anotherBits = Float.floatToIntBits(f2);
+
+        return (thisBits == anotherBits ?  0 : // Values are equal
+                (thisBits < anotherBits ? -1 : // (-0.0, 0.0) or (!NaN, NaN)
+                 1));                          // (0.0, -0.0) or (NaN, !NaN)

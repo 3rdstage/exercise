@@ -1,0 +1,55 @@
+class CachedDocument
+!!!4613403.java!!!	CachedDocument(in uri : String)
+	    // Initialise statistics variables
+	    final long stamp = System.currentTimeMillis();
+	    _firstReferenced = stamp;
+	    _lastReferenced  = stamp;
+	    _accessCount     = 0;
+	    loadDocument(uri);
+
+	    _buildTime = System.currentTimeMillis() - stamp;
+!!!4613531.java!!!	loadDocument(in uri : String) : void
+
+	    try {
+		final long stamp = System.currentTimeMillis();
+                _dom = (DOMEnhancedForDTM)_dtmManager.getDTM(
+                                 new SAXSource(_reader, new InputSource(uri)),
+                                 false, null, true, false);
+		_dom.setDocumentURI(uri);
+
+		// The build time can be used for statistics for a better
+		// priority algorithm (currently round robin).
+		final long thisTime = System.currentTimeMillis() - stamp;
+		if (_buildTime > 0)
+		    _buildTime = (_buildTime + thisTime) >>> 1;
+		else
+		    _buildTime = thisTime;
+	    }
+	    catch (Exception e) {
+		_dom = null;
+	    }
+!!!4613659.java!!!	getDocument() : DOM
+ return(_dom);
+!!!4613787.java!!!	getFirstReferenced() : long
+ return(_firstReferenced);
+!!!4613915.java!!!	getLastReferenced() : long
+ return(_lastReferenced);
+!!!4614043.java!!!	getAccessCount() : long
+ return(_accessCount);
+!!!4614171.java!!!	incAccessCount() : void
+ _accessCount++;
+!!!4614299.java!!!	getLastModified() : long
+ return(_lastModified);
+!!!4614427.java!!!	setLastModified(in t : long) : void
+ _lastModified = t;
+!!!4614555.java!!!	getLatency() : long
+ return(_buildTime);
+!!!4614683.java!!!	getLastChecked() : long
+ return(_lastChecked);
+!!!4614811.java!!!	setLastChecked(in t : long) : void
+ _lastChecked = t;
+!!!4614939.java!!!	getEstimatedSize() : long
+	    if (_dom != null)
+		return(_dom.getSize() << 5); // ???
+	    else
+		return(0);

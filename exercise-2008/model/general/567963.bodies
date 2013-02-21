@@ -1,0 +1,74 @@
+class Method
+!!!3653275.java!!!	Method(inout c : Method)
+    super(c);
+!!!3653403.java!!!	Method(inout file : DataInputStream, inout constant_pool : ConstantPool)
+    super(file, constant_pool);
+!!!3653531.java!!!	Method(in access_flags : int, in name_index : int, in signature_index : int, inout attributes : Attribute, inout constant_pool : ConstantPool)
+    super(access_flags, name_index, signature_index, attributes, constant_pool);
+!!!3653659.java!!!	accept(inout v : Visitor) : void
+    v.visitMethod(this);
+!!!3653787.java!!!	getCode() : Code
+    for(int i=0; i < attributes_count; i++)
+      if(attributes[i] instanceof Code)
+	return (Code)attributes[i];
+
+    return null;
+!!!3653915.java!!!	getExceptionTable() : ExceptionTable
+    for(int i=0; i < attributes_count; i++)
+      if(attributes[i] instanceof ExceptionTable)
+	return (ExceptionTable)attributes[i];
+
+    return null;
+!!!3654043.java!!!	getLocalVariableTable() : LocalVariableTable
+    Code code = getCode();
+
+    if(code != null)
+      return code.getLocalVariableTable();
+    else
+      return null;
+!!!3654171.java!!!	getLineNumberTable() : LineNumberTable
+    Code code = getCode();
+
+    if(code != null)
+      return code.getLineNumberTable();
+    else
+      return null;
+!!!3654299.java!!!	toString() : String
+    ConstantUtf8  c;
+    ConstantValue cv;
+    String        name, signature, access; // Short cuts to constant pool
+    String        exceptions;
+    StringBuffer  buf;
+    Attribute[]   attr;
+
+    access = Utility.accessToString(access_flags);
+
+    // Get name and signature from constant pool
+    c = (ConstantUtf8)constant_pool.getConstant(signature_index, 
+						Constants.CONSTANT_Utf8);
+    signature = c.getBytes();
+
+    c = (ConstantUtf8)constant_pool.getConstant(name_index, Constants.CONSTANT_Utf8);
+    name = c.getBytes();
+
+    signature = Utility.methodSignatureToString(signature, name, access, true,
+						getLocalVariableTable());
+    buf = new StringBuffer(signature);
+
+    for(int i=0; i < attributes_count; i++) {
+      Attribute a = attributes[i];
+
+      if(!((a instanceof Code) || (a instanceof ExceptionTable)))
+	buf.append(" [" + a.toString() + "]");
+    }
+
+    ExceptionTable e = getExceptionTable();
+    if(e != null) {
+      String str = e.toString();
+      if(!str.equals(""))
+	buf.append("\n\t\tthrows " + str);
+    }
+ 
+    return buf.toString();
+!!!3654427.java!!!	copy(inout constant_pool : ConstantPool) : Method
+    return (Method)copy_(constant_pool);

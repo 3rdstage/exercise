@@ -1,0 +1,36 @@
+class RemoveUndo
+!!!9863963.java!!!	RemoveUndo(in offset : int, in string : String)
+	    super();
+	    this.offset = offset;
+	    this.string = string;
+	    this.length = string.length();
+	    if(marks != null)
+		posRefs = getPositionsInRange(null, offset, length);
+!!!9864091.java!!!	undo() : void
+	    super.undo();
+	    try {
+		synchronized(StringContent.this) {
+		    insertString(offset, string);
+		    // Update the Positions that were in the range removed.
+		    if(posRefs != null) {
+			updateUndoPositions(posRefs);
+			posRefs = null;
+		    }
+		    string = null;
+		}
+	    } catch (BadLocationException bl) {
+	      throw new CannotUndoException();
+	    }
+!!!9864219.java!!!	redo() : void
+	    super.redo();
+	    try {
+		synchronized(StringContent.this) {
+		    string = getString(offset, length);
+		    // Get the Positions in the range being removed.
+		    if(marks != null)
+			posRefs = getPositionsInRange(null, offset, length);
+		    remove(offset, length);
+		}
+	    } catch (BadLocationException bl) {
+	      throw new CannotRedoException();
+	    }

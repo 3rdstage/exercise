@@ -1,0 +1,41 @@
+class HashIterator
+!!!7900443.java!!!	HashIterator()
+            nextSegmentIndex = segments.length - 1;
+            nextTableIndex = -1;
+            advance();
+!!!7900571.java!!!	hasMoreElements() : boolean
+ return hasNext();
+!!!7900699.java!!!	advance() : void
+            if (nextEntry != null && (nextEntry = nextEntry.next) != null)
+                return;
+
+            while (nextTableIndex >= 0) {
+                if ( (nextEntry = (HashEntry<K,V>)currentTable[nextTableIndex--]) != null)
+                    return;
+            }
+
+            while (nextSegmentIndex >= 0) {
+                Segment<K,V> seg = (Segment<K,V>)segments[nextSegmentIndex--];
+                if (seg.count != 0) {
+                    currentTable = seg.table;
+                    for (int j = currentTable.length - 1; j >= 0; --j) {
+                        if ( (nextEntry = (HashEntry<K,V>)currentTable[j]) != null) {
+                            nextTableIndex = j - 1;
+                            return;
+                        }
+                    }
+                }
+            }
+!!!7900827.java!!!	hasNext() : boolean
+ return nextEntry != null;
+!!!7900955.java!!!	nextEntry() : HashEntry
+            if (nextEntry == null)
+                throw new NoSuchElementException();
+            lastReturned = nextEntry;
+            advance();
+            return lastReturned;
+!!!7901083.java!!!	remove() : void
+            if (lastReturned == null)
+                throw new IllegalStateException();
+            ConcurrentHashMap.this.remove(lastReturned.key);
+            lastReturned = null;

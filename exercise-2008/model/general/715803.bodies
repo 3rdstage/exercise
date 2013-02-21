@@ -1,0 +1,99 @@
+class SymbolTable
+!!!5505051.java!!!	SymbolTable()
+        this(TABLE_SIZE);
+!!!5505179.java!!!	SymbolTable(in tableSize : int)
+        fTableSize = tableSize;
+        fBuckets = new Entry[fTableSize];
+!!!5505307.java!!!	addSymbol(in symbol : String) : String
+
+        // search for identical symbol
+        int bucket = hash(symbol) % fTableSize;
+        int length = symbol.length();
+        OUTER: for (Entry entry = fBuckets[bucket]; entry != null; entry = entry.next) {
+            if (length == entry.characters.length) {
+                for (int i = 0; i < length; i++) {
+                    if (symbol.charAt(i) != entry.characters[i]) {
+                        continue OUTER;
+                    }
+                }
+                return entry.symbol;
+            }
+        }
+
+        // create new entry
+        Entry entry = new Entry(symbol, fBuckets[bucket]);
+        fBuckets[bucket] = entry;
+        return entry.symbol;
+
+!!!5505435.java!!!	addSymbol(in buffer : char, in offset : int, in length : int) : String
+
+        // search for identical symbol
+        int bucket = hash(buffer, offset, length) % fTableSize;
+        OUTER: for (Entry entry = fBuckets[bucket]; entry != null; entry = entry.next) {
+            if (length == entry.characters.length) {
+                for (int i = 0; i < length; i++) {
+                    if (buffer[offset + i] != entry.characters[i]) {
+                        continue OUTER;
+                    }
+                }
+                return entry.symbol;
+            }
+        }
+
+        // add new entry
+        Entry entry = new Entry(buffer, offset, length, fBuckets[bucket]);
+        fBuckets[bucket] = entry;
+        return entry.symbol;
+
+!!!5505563.java!!!	hash(in symbol : String) : int
+
+        int code = 0;
+        int length = symbol.length();
+        for (int i = 0; i < length; i++) {
+            code = code * 37 + symbol.charAt(i);
+        }
+        return code & 0x7FFFFFF;
+
+!!!5505691.java!!!	hash(in buffer : char, in offset : int, in length : int) : int
+
+        int code = 0;
+        for (int i = 0; i < length; i++) {
+            code = code * 37 + buffer[offset + i];
+        }
+        return code & 0x7FFFFFF;
+
+!!!5505819.java!!!	containsSymbol(in symbol : String) : boolean
+
+        // search for identical symbol
+        int bucket = hash(symbol) % fTableSize;
+        int length = symbol.length();
+        OUTER: for (Entry entry = fBuckets[bucket]; entry != null; entry = entry.next) {
+            if (length == entry.characters.length) {
+                for (int i = 0; i < length; i++) {
+                    if (symbol.charAt(i) != entry.characters[i]) {
+                        continue OUTER;
+                    }
+                }
+                return true;
+            }
+        }
+
+        return false;
+
+!!!5505947.java!!!	containsSymbol(in buffer : char, in offset : int, in length : int) : boolean
+
+        // search for identical symbol
+        int bucket = hash(buffer, offset, length) % fTableSize;
+        OUTER: for (Entry entry = fBuckets[bucket]; entry != null; entry = entry.next) {
+            if (length == entry.characters.length) {
+                for (int i = 0; i < length; i++) {
+                    if (buffer[offset + i] != entry.characters[i]) {
+                        continue OUTER;
+                    }
+                }
+                return true;
+            }
+        }
+
+        return false;
+

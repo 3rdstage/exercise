@@ -1,0 +1,124 @@
+class IIOParam
+!!!2034843.java!!!	IIOParam()
+        controller = defaultController;
+!!!2034971.java!!!	setSourceRegion(inout sourceRegion : Rectangle) : void
+        if (sourceRegion == null) {
+            this.sourceRegion = null;
+            return;
+        }
+
+        if (sourceRegion.x < 0) {
+            throw new IllegalArgumentException("sourceRegion.x < 0!");
+        }
+        if (sourceRegion.y < 0){
+            throw new IllegalArgumentException("sourceRegion.y < 0!");
+        }
+        if (sourceRegion.width <= 0) {
+            throw new IllegalArgumentException("sourceRegion.width <= 0!");
+        }
+        if (sourceRegion.height <= 0) {
+            throw new IllegalArgumentException("sourceRegion.height <= 0!");
+        }
+
+        // Throw an IllegalStateException if region falls between subsamples
+        if (sourceRegion.width <= subsamplingXOffset) {
+            throw new IllegalStateException
+                ("sourceRegion.width <= subsamplingXOffset!");
+        }
+        if (sourceRegion.height <= subsamplingYOffset) {
+            throw new IllegalStateException
+                ("sourceRegion.height <= subsamplingYOffset!");
+        }
+
+        this.sourceRegion = (Rectangle)sourceRegion.clone();
+!!!2035099.java!!!	getSourceRegion() : Rectangle
+        if (sourceRegion == null) {
+            return null;
+        }
+        return (Rectangle)sourceRegion.clone();
+!!!2035227.java!!!	setSourceSubsampling(in sourceXSubsampling : int, in sourceYSubsampling : int, in subsamplingXOffset : int, in subsamplingYOffset : int) : void
+        if (sourceXSubsampling <= 0) {
+            throw new IllegalArgumentException("sourceXSubsampling <= 0!");
+        }
+        if (sourceYSubsampling <= 0) {
+            throw new IllegalArgumentException("sourceYSubsampling <= 0!");
+        }
+        if (subsamplingXOffset < 0 ||
+            subsamplingXOffset >= sourceXSubsampling) {
+            throw new IllegalArgumentException
+                ("subsamplingXOffset out of range!");
+        }
+        if (subsamplingYOffset < 0 ||
+            subsamplingYOffset >= sourceYSubsampling) {
+            throw new IllegalArgumentException
+                ("subsamplingYOffset out of range!");
+        }
+        
+        // Throw an IllegalStateException if region falls between subsamples
+        if (sourceRegion != null) {
+            if (subsamplingXOffset >= sourceRegion.width ||
+                subsamplingYOffset >= sourceRegion.height) {
+                throw new IllegalStateException("region contains no pixels!");
+            }
+        }
+
+        this.sourceXSubsampling = sourceXSubsampling;
+        this.sourceYSubsampling = sourceYSubsampling;
+        this.subsamplingXOffset = subsamplingXOffset;
+        this.subsamplingYOffset = subsamplingYOffset;
+!!!2035355.java!!!	getSourceXSubsampling() : int
+        return sourceXSubsampling;
+!!!2035483.java!!!	getSourceYSubsampling() : int
+        return sourceYSubsampling;
+!!!2035611.java!!!	getSubsamplingXOffset() : int
+        return subsamplingXOffset;
+!!!2035739.java!!!	getSubsamplingYOffset() : int
+        return subsamplingYOffset;
+!!!2035867.java!!!	setSourceBands(in sourceBands : int) : void
+        if (sourceBands == null) {
+            this.sourceBands = null;
+        } else {
+            int numBands = sourceBands.length;
+            for (int i = 0; i < numBands; i++) {
+                int band = sourceBands[i];
+                if (band < 0) {
+                    throw new IllegalArgumentException("Band value < 0!");
+                }
+                for (int j = i + 1; j < numBands; j++) {
+                    if (band == sourceBands[j]) {
+                        throw new IllegalArgumentException("Duplicate band value!");
+                    }
+                }
+                
+            }
+            this.sourceBands = (int[])(sourceBands.clone());
+        }
+!!!2035995.java!!!	getSourceBands() : int
+        if (sourceBands == null) {
+            return null;
+        }
+        return (int[])(sourceBands.clone());
+!!!2036123.java!!!	setDestinationType(inout destinationType : ImageTypeSpecifier) : void
+        this.destinationType = destinationType;
+!!!2036251.java!!!	getDestinationType() : ImageTypeSpecifier
+        return destinationType;
+!!!2036379.java!!!	setDestinationOffset(inout destinationOffset : Point) : void
+        if (destinationOffset == null) {
+            throw new IllegalArgumentException("destinationOffset == null!");
+        }
+        this.destinationOffset = (Point)destinationOffset.clone();
+!!!2036507.java!!!	getDestinationOffset() : Point
+        return (Point)destinationOffset.clone();
+!!!2036635.java!!!	setController(inout controller : IIOParamController) : void
+        this.controller = controller;
+!!!2036763.java!!!	getController() : IIOParamController
+        return controller;
+!!!2036891.java!!!	getDefaultController() : IIOParamController
+        return defaultController;
+!!!2037019.java!!!	hasController() : boolean
+        return (controller != null);
+!!!2037147.java!!!	activateController() : boolean
+        if (!hasController()) {
+            throw new IllegalStateException("hasController() == false!");
+        }
+        return getController().activate(this);

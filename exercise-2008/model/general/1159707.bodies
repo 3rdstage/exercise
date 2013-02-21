@@ -1,0 +1,76 @@
+class MetalBumps
+!!!9470107.java!!!	MetalBumps(inout bumpArea : Dimension)
+        this( bumpArea.width, bumpArea.height );
+!!!9470235.java!!!	MetalBumps(in width : int, in height : int)
+        this(width, height, MetalLookAndFeel.getPrimaryControlHighlight(),
+             MetalLookAndFeel.getPrimaryControlDarkShadow(),
+             MetalLookAndFeel.getPrimaryControlShadow());
+!!!9470363.java!!!	MetalBumps(in width : int, in height : int, inout newTopColor : Color, inout newShadowColor : Color, inout newBackColor : Color)
+        setBumpArea( width, height );
+	setBumpColors( newTopColor, newShadowColor, newBackColor );
+!!!9470491.java!!!	getBuffer(inout gc : GraphicsConfiguration, inout aTopColor : Color, inout aShadowColor : Color, inout aBackColor : Color) : BumpBuffer
+        if (buffer != null && buffer.hasSameConfiguration(
+                              gc, aTopColor, aShadowColor, aBackColor)) {
+            return buffer;
+        }
+        BumpBuffer result = null;
+
+        Enumeration elements = buffers.elements();
+
+	while ( elements.hasMoreElements() ) {
+	    BumpBuffer aBuffer = (BumpBuffer)elements.nextElement();
+	    if ( aBuffer.hasSameConfiguration(gc, aTopColor, aShadowColor,
+                                              aBackColor)) {
+	        result = aBuffer;
+		break;
+	    }
+	}
+        if (result == null) {
+            result = new BumpBuffer(gc, topColor, shadowColor, backColor);
+            buffers.addElement(result);
+        }
+	return result;
+!!!9470619.java!!!	setBumpArea(inout bumpArea : Dimension) : void
+        setBumpArea( bumpArea.width, bumpArea.height );
+!!!9470747.java!!!	setBumpArea(in width : int, in height : int) : void
+        xBumps = width / 2;
+	yBumps = height / 2;
+!!!9470875.java!!!	setBumpColors(inout newTopColor : Color, inout newShadowColor : Color, inout newBackColor : Color) : void
+        topColor = newTopColor;
+	shadowColor = newShadowColor;
+        if (newBackColor == null) {
+            backColor = ALPHA;
+        }
+        else {
+            backColor = newBackColor;
+        }
+!!!9471003.java!!!	paintIcon(inout c : Component, inout g : Graphics, in x : int, in y : int) : void
+        GraphicsConfiguration gc = (g instanceof Graphics2D) ?
+                                     (GraphicsConfiguration)((Graphics2D)g).
+                                     getDeviceConfiguration() : null;
+
+        buffer = getBuffer(gc, topColor, shadowColor, backColor);
+
+	int bufferWidth = buffer.getImageSize().width;
+	int bufferHeight = buffer.getImageSize().height;
+	int iconWidth = getIconWidth();
+	int iconHeight = getIconHeight();
+	int x2 = x + iconWidth;
+	int y2 = y + iconHeight;
+	int savex = x;
+
+	while (y < y2) {
+	    int h = Math.min(y2 - y, bufferHeight);
+	    for (x = savex; x < x2; x += bufferWidth) {
+		int w = Math.min(x2 - x, bufferWidth);
+		g.drawImage(buffer.getImage(),
+			    x, y, x+w, y+h,
+			    0, 0, w, h,
+			    null);
+	    }
+	    y += bufferHeight;
+	}
+!!!9471131.java!!!	getIconWidth() : int
+        return xBumps * 2;
+!!!9471259.java!!!	getIconHeight() : int
+        return yBumps * 2;

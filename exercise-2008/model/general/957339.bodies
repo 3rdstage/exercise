@@ -1,0 +1,84 @@
+class RemoteObjectInvocationHandler
+!!!7542299.java!!!	RemoteObjectInvocationHandler(inout ref : RemoteRef)
+	super(ref);
+	if (ref == null) {
+	    throw new NullPointerException();
+	}
+!!!7542427.java!!!	invoke(inout proxy : Object, inout method : Method, inout args : Object) : Object
+	if (method.getDeclaringClass() == Object.class) {
+	    return invokeObjectMethod(proxy, method, args);
+	} else {
+	    return invokeRemoteMethod(proxy, method, args);
+	}
+!!!7542555.java!!!	invokeObjectMethod(inout proxy : Object, inout method : Method, inout args : Object) : Object
+	String name = method.getName();
+
+	if (name.equals("hashCode")) {
+	    return new Integer(hashCode());
+
+	} else if (name.equals("equals")) {
+	    Object obj = args[0];
+	    boolean b =
+		proxy == obj ||
+		(obj != null &&
+		 Proxy.isProxyClass(obj.getClass()) &&
+		 equals(Proxy.getInvocationHandler(obj)));
+	    return Boolean.valueOf(b);
+
+	} else if (name.equals("toString")) {
+	    return proxyToString(proxy);
+
+	} else {
+	    throw new IllegalArgumentException(
+		"unexpected Object method: " + method);
+	}
+!!!7542683.java!!!	invokeRemoteMethod(inout proxy : Object, inout method : Method, inout args : Object) : Object
+	try {
+	    if (!(proxy instanceof Remote)) {
+		throw new IllegalArgumentException(
+		    "proxy not Remote instance");
+	    }
+	    return ref.invoke((Remote) proxy, method, args,
+			      getMethodHash(method));
+	} catch (Exception e) {
+	    if (!(e instanceof RuntimeException)) {
+		Class cl = proxy.getClass();
+		try {
+		    method = cl.getMethod(method.getName(),
+					  method.getParameterTypes());
+		} catch (NoSuchMethodException nsme) {
+		    throw (IllegalArgumentException)
+			new IllegalArgumentException().initCause(nsme);
+		}
+		Class[] exTypes = method.getExceptionTypes();
+		Class thrownType = e.getClass();
+		for (int i = 0; i < exTypes.length; i++) {
+		    if (exTypes[i].isAssignableFrom(thrownType)) {
+			throw e;
+		    }
+		}
+		e = new UnexpectedException("unexpected exception", e);
+	    }
+	    throw e;
+	}
+!!!7542811.java!!!	proxyToString(inout proxy : Object) : String
+	Class[] interfaces = proxy.getClass().getInterfaces();
+	if (interfaces.length == 0) {
+	    return "Proxy[" + this + "]";
+	}
+	String iface = interfaces[0].getName();
+	if (iface.equals("java.rmi.Remote") && interfaces.length > 1) {
+	    iface = interfaces[1].getName();
+	}
+	int dot = iface.lastIndexOf('.');
+	if (dot >= 0) {
+	    iface = iface.substring(dot + 1);
+	}
+	return "Proxy[" + iface + "," + this + "]";
+!!!7542939.java!!!	readObjectNoData() : void
+        throw new InvalidObjectException("no data in stream; class: " +
+                                         this.getClass().getName());
+!!!7543067.java!!!	getMethodHash(inout method : Method) : long
+	Map map = methodToHash_Maps.getMap(method.getDeclaringClass());
+	Long hash = (Long) map.get(method);
+	return hash.longValue();

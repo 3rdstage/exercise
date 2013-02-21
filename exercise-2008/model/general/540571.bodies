@@ -1,0 +1,68 @@
+class AcmChecker
+!!!3363483.java!!!	AcmChecker(inout req : SnmpMibRequest)
+	engine = (SnmpEngineImpl) req.getEngine();
+	//We are in V3 architecture, ACM is in the picture.
+	if(engine != null) {	    
+	    if(engine.isCheckOidActivated()) {
+		try {
+		    if (isDebugOn()) 
+			debug("AcmChecker",
+			      " SNMP V3 Access Control to be done.");
+		    model = (SnmpAccessControlModel) 
+			engine.getAccessControlSubSystem().
+			getModel(SnmpDefinitions.snmpVersionThree);
+		    principal = req.getPrincipal();
+		    securityLevel = req.getSecurityLevel();
+		    pduType = req.getPdu().type;
+		    version = req.getRequestPduVersion();
+		    securityModel = req.getSecurityModel();
+		    contextName = req.getAccessContextName();
+		    l = new LongList();
+		    if (isDebugOn()) 
+			debug("AcmChecker",
+			      "Will check oid for : principal : " + principal +
+			      ";securityLevel : " + 
+			      securityLevel +";pduType : " + pduType + 
+			      ";version : "
+			      + version + ";securityModel : " + 
+			      securityModel +";contextName : " + 
+			      (contextName == null ? null : 
+			       new String(contextName)));
+		}catch(SnmpUnknownModelException e) {
+		    if (isDebugOn()) 
+			debug("AcmChecker", 
+			      " Unknown Model, no ACM check.");
+		}
+	    }
+	}
+!!!3363611.java!!!	add(in index : int, in arc : long) : void
+	if(model != null)
+	    l.add(index, arc);
+!!!3363739.java!!!	remove(in index : int) : void
+	if(model != null)
+	    l.remove(index);
+!!!3363867.java!!!	add(in at : int, in src : long, in from : int, in count : int) : void
+	if(model != null)
+	    l.add(at,src,from,count);
+!!!3363995.java!!!	remove(in from : int, in count : int) : void
+	if(model != null)
+	    l.remove(from,count);
+!!!3364123.java!!!	checkCurrentOid() : void
+	if(model != null) {
+	    SnmpOid oid = new SnmpOid(l.toArray());
+	    if (isDebugOn()) 
+		debug("check",
+		      " Checking access for : " + oid);
+	    model.checkAccess(version,
+			      principal,
+			      securityLevel,
+			      pduType,
+			      securityModel,
+			      contextName,
+			      oid);
+	}
+!!!3364251.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_ADAPTOR_SNMP);
+!!!3364379.java!!!	debug(in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_ADAPTOR_SNMP, 
+		   "AcmChecker", func, info);

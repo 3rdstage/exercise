@@ -1,0 +1,81 @@
+class SnmpTimerServer
+!!!3470107.java!!!	SnmpTimerServer(inout grp : ThreadGroup, inout q : SnmpQManager)
+        super(grp, "SnmpTimerServer") ;
+        setName(dbgTag) ;
+        snmpq = q ;
+        start() ;
+!!!3470235.java!!!	stopTimerServer() : void
+                
+        if (isAlive()) {
+            interrupt();
+            try {
+                // Wait until the thread die.
+                //
+                join();
+            } catch (InterruptedException e) {
+                // Ignore...
+            }
+        }
+!!!3470363.java!!!	run() : void
+        Thread.currentThread().setPriority(Thread.NORM_PRIORITY);
+        
+        if (isTraceOn()) {
+            trace("run", "Timer Thread started");
+        }
+
+        while (true) {
+                        
+            try {
+                if (isTraceOn()) {
+                    trace("run", "Blocking for inform requests");
+                }
+                if (req == null) {
+                    req = snmpq.getTimeoutRequests() ;
+                }
+                if (req != null && req.inProgress()) {
+                    if (isTraceOn()) {
+                        trace("run", "Handle timeout inform request " + req.getRequestId());
+                    }
+                    req.action() ;
+                    req = null ;
+                }
+                if (isBeingDestroyed == true)
+                    break;
+            } catch (Exception e) {
+                if (isDebugOn()) {
+                    debug("run", e.getMessage());
+                }
+            } catch (ThreadDeath d) {
+                if (isDebugOn()) {
+                    debug("run", "Timer server unexpectedly shutting down");
+                    debug("run", d);
+                }
+                throw d ;
+            } catch (OutOfMemoryError ome) {
+                if (isDebugOn()) {
+                    debug("run", "Received OutOfMemory");
+                }
+                yield();
+            } catch (Error err) {
+                if (isDebugOn()) {
+                    debug("run", "Received Internal error");
+                    debug("run", err);
+                }
+            }
+        }
+!!!3470491.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_ADAPTOR_SNMP);
+!!!3470619.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_ADAPTOR_SNMP, clz, func, info);
+!!!3470747.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!3470875.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_ADAPTOR_SNMP);
+!!!3471003.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_ADAPTOR_SNMP, clz, func, info);
+!!!3471131.java!!!	debug(in clz : String, in func : String, inout exception : Throwable) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_ADAPTOR_SNMP, clz, func, exception);
+!!!3471259.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);
+!!!3471387.java!!!	debug(in func : String, inout exception : Throwable) : void
+        debug(dbgTag, func, exception);

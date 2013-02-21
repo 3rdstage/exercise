@@ -1,0 +1,54 @@
+class ReferenceQueue
+!!!7113115.java!!!	enqueue(inout r : Reference) : boolean
+	/* Called only by Reference class */
+	synchronized (r) {
+	    if (r.queue == ENQUEUED) return false;
+	    synchronized (lock) {
+		r.queue = ENQUEUED;
+		r.next = (head == null) ? r : head;
+		head = r;
+		queueLength++;
+		if (queueEmpty) queueEmpty = false;
+                if (r instanceof FinalReference) {
+                    sun.misc.VM.addFinalRefCount(1);
+                }
+		lock.notifyAll();
+		return true;
+	    }
+	}
+!!!7113243.java!!!	reallyPoll() : Reference
+	/* Must hold lock */
+	if (head != null) {
+	    Reference<? extends T> r = head;
+	    head = (r.next == r) ? null : r.next;
+	    r.queue = NULL;
+	    r.next = r;
+	    queueLength--;
+        if (queueLength <= 0) queueEmpty = true;
+            if (r instanceof FinalReference) {
+                sun.misc.VM.addFinalRefCount(-1);
+            }
+	    return r;
+	}
+	return null;
+!!!7113371.java!!!	poll() : Reference
+	if(queueEmpty) return null;
+	synchronized (lock) {
+	    return reallyPoll();
+	}
+!!!7113499.java!!!	remove(in timeout : long) : Reference
+	if (timeout < 0) {
+	    throw new IllegalArgumentException("Negative timeout value");
+	}
+	synchronized (lock) {
+	    Reference<? extends T> r = reallyPoll();
+	    if (r != null) return r;
+	    for (;;) {
+		lock.wait(timeout);
+		r = reallyPoll();
+		if (r != null) return r;
+		if (timeout != 0) return null;
+	    }
+	}
+!!!7113627.java!!!	remove() : Reference
+	return remove(0);

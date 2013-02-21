@@ -1,0 +1,78 @@
+class RenderingHints
+!!!6344091.java!!!	RenderingHints(inout init : Map)
+	if (init != null) {
+	    hintmap.putAll(init);
+	}
+!!!6344219.java!!!	RenderingHints(inout key : Key, inout value : Object)
+	hintmap.put(key, value);
+!!!6344347.java!!!	size() : int
+	return hintmap.size();
+!!!6344475.java!!!	isEmpty() : boolean
+	return hintmap.isEmpty();
+!!!6344603.java!!!	containsKey(inout key : Object) : boolean
+	return hintmap.containsKey((Key) key);
+!!!6344731.java!!!	containsValue(inout value : Object) : boolean
+	return hintmap.containsValue(value);
+!!!6344859.java!!!	get(inout key : Object) : Object
+	return hintmap.get((Key) key);
+!!!6344987.java!!!	put(inout key : Object, inout value : Object) : Object
+	if (!((Key) key).isCompatibleValue(value)) {
+	    throw new IllegalArgumentException(value+
+					       " incompatible with "+
+					       key);
+	}
+        return hintmap.put((Key) key, value);
+!!!6345115.java!!!	add(inout hints : RenderingHints) : void
+	hintmap.putAll(hints.hintmap);
+!!!6345243.java!!!	clear() : void
+	hintmap.clear();
+!!!6345371.java!!!	remove(inout key : Object) : Object
+	return hintmap.remove((Key) key);
+!!!6345499.java!!!	putAll(inout m : Map) : void
+	// ## javac bug?
+	//if (m instanceof RenderingHints) {
+	if (RenderingHints.class.isInstance(m)) {
+	    //hintmap.putAll(((RenderingHints) m).hintmap);
+	    for (Map.Entry<?,?> entry : m.entrySet())
+		hintmap.put(entry.getKey(), entry.getValue());
+	} else {
+	    // Funnel each key/value pair through our protected put method
+	    for (Map.Entry<?,?> entry : m.entrySet())
+		put(entry.getKey(), entry.getValue());
+	}
+!!!6345627.java!!!	keySet() : Set
+	return hintmap.keySet();
+!!!6345755.java!!!	values() : Collection
+	return hintmap.values();
+!!!6345883.java!!!	entrySet() : Set
+	return Collections.unmodifiableMap(hintmap).entrySet();
+!!!6346011.java!!!	equals(inout o : Object) : boolean
+	if (o instanceof RenderingHints) {
+	    return hintmap.equals(((RenderingHints) o).hintmap);
+	} else if (o instanceof Map) {
+	    return hintmap.equals(o);
+	}
+	return false;
+!!!6346139.java!!!	hashCode() : int
+	return hintmap.hashCode();
+!!!6346267.java!!!	clone() : Object
+        RenderingHints rh;
+        try {
+            rh = (RenderingHints) super.clone();
+	    if (hintmap != null) {
+		rh.hintmap = (HashMap) hintmap.clone();
+	    }
+        } catch (CloneNotSupportedException e) {
+	    // this shouldn't happen, since we are Cloneable
+	    throw new InternalError();
+	}
+
+        return rh;
+!!!6346395.java!!!	toString() : String
+        if (hintmap == null) {
+            return getClass().getName() + "@" +
+                Integer.toHexString(hashCode()) +
+                " (0 hints)";
+        }
+
+        return hintmap.toString();

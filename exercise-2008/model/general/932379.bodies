@@ -1,0 +1,50 @@
+class SocketOutputStream
+!!!7253659.java!!!	SocketOutputStream(inout impl : PlainSocketImpl)
+	super(impl.getFileDescriptor());
+	this.impl = impl;
+	socket = impl.getSocket();
+!!!7253787.java!!!	getChannel() : FileChannel
+        return null;
+!!!7254043.java!!!	socketWrite(in b : byte, in off : int, in len : int) : void
+
+	if (len <= 0 || off < 0 || off + len > b.length) {
+	    if (len == 0) {
+		return;
+	    }
+	    throw new ArrayIndexOutOfBoundsException();
+	}
+
+	FileDescriptor fd = impl.acquireFD();
+	try {
+	    socketWrite0(fd, b, off, len);
+	} catch (SocketException se) {
+	    if (se instanceof sun.net.ConnectionResetException) {
+		impl.setConnectionResetPending();
+		se = new SocketException("Connection reset");
+	    }
+	    if (impl.isClosedOrPending()) {
+                throw new SocketException("Socket closed");
+            } else {
+		throw se;
+	    }
+	} finally {
+	    impl.releaseFD();
+	}
+!!!7254171.java!!!	write(in b : int) : void
+	temp[0] = (byte)b;
+	socketWrite(temp, 0, 1);
+!!!7254299.java!!!	write(in b : byte) : void
+	socketWrite(b, 0, b.length);
+!!!7254427.java!!!	write(in b : byte, in off : int, in len : int) : void
+	socketWrite(b, off, len);
+!!!7254555.java!!!	close() : void
+	// Prevent recursion. See BugId 4484411
+	if (closing)
+	    return;
+	closing = true;
+	if (socket != null) {
+	    if (!socket.isClosed())
+		socket.close();
+	} else
+	    impl.close();
+	closing = false;

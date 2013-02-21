@@ -1,0 +1,58 @@
+class FlowList
+!!!4378011.java!!!	FlowList()
+	_elements = null;
+!!!4378139.java!!!	FlowList(inout bh : InstructionHandle)
+	_elements = new Vector();
+	_elements.addElement(bh);
+!!!4378267.java!!!	FlowList(inout list : FlowList)
+	_elements = list._elements;
+!!!4378395.java!!!	add(inout bh : InstructionHandle) : FlowList
+	if (_elements == null) {
+	    _elements = new Vector();
+	}
+	_elements.addElement(bh);
+	return this;
+!!!4378523.java!!!	append(inout right : FlowList) : FlowList
+	if (_elements == null) {
+	    _elements = right._elements;
+	}
+	else {
+	    final Vector temp = right._elements;
+	    if (temp != null) {
+		final int n = temp.size();
+		for (int i = 0; i < n; i++) {
+		    _elements.addElement(temp.elementAt(i));
+		}
+	    }
+	}
+	return this;
+!!!4378651.java!!!	backPatch(inout target : InstructionHandle) : void
+	if (_elements != null) {
+	    final int n = _elements.size();
+	    for (int i = 0; i < n; i++) {
+		BranchHandle bh = (BranchHandle)_elements.elementAt(i);
+		bh.setTarget(target);
+	    }
+	    _elements.clear();		// avoid backpatching more than once
+	}
+!!!4378779.java!!!	copyAndRedirect(inout oldList : InstructionList, inout newList : InstructionList) : FlowList
+	final FlowList result = new FlowList();
+	if (_elements == null) {
+	    return result;
+	}
+
+	final int n = _elements.size();
+	final Iterator oldIter = oldList.iterator();
+	final Iterator newIter = newList.iterator();
+	
+	while (oldIter.hasNext()) {
+	    final InstructionHandle oldIh = (InstructionHandle) oldIter.next();
+	    final InstructionHandle newIh = (InstructionHandle) newIter.next();
+
+	    for (int i = 0; i < n; i++) {
+		if (_elements.elementAt(i) == oldIh) {
+		    result.add(newIh);
+		}
+	    }
+	}
+	return result;

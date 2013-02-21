@@ -1,0 +1,190 @@
+class DragSource
+!!!6426907.java!!!	load(in name : String) : Cursor
+        if (GraphicsEnvironment.isHeadless()) {
+            return null;
+        }
+
+	try {
+	    return (Cursor)Toolkit.getDefaultToolkit().getDesktopProperty(name);
+	} catch (Exception e) {
+	    e.printStackTrace();
+
+	    throw new RuntimeException("failed to load system cursor: " + name + " : " + e.getMessage());
+	}
+!!!6427035.java!!!	getDefaultDragSource() : DragSource
+        if (GraphicsEnvironment.isHeadless()) {
+            throw new HeadlessException();
+        } else {
+            return dflt;
+        }
+!!!6427163.java!!!	isDragImageSupported() : boolean
+	Toolkit t = Toolkit.getDefaultToolkit();
+
+	Boolean supported;
+
+	try {
+	    supported = (Boolean)Toolkit.getDefaultToolkit().getDesktopProperty("DnD.isDragImageSupported");
+
+	    return supported.booleanValue();
+	} catch (Exception e) {
+	    return false;
+	}
+!!!6427291.java!!!	DragSource()
+        if (GraphicsEnvironment.isHeadless()) {
+            throw new HeadlessException();
+        }
+!!!6427419.java!!!	startDrag(inout trigger : DragGestureEvent, inout dragCursor : Cursor, inout dragImage : Image, inout imageOffset : Point, inout transferable : Transferable, inout dsl : DragSourceListener, inout flavorMap : FlavorMap) : void
+
+        SunDragSourceContextPeer.setDragDropInProgress(true);
+
+        try {
+            if (flavorMap != null) this.flavorMap = flavorMap;
+
+            DragSourceContextPeer dscp = Toolkit.getDefaultToolkit().createDragSourceContextPeer(trigger);
+
+            DragSourceContext     dsc = createDragSourceContext(dscp,
+                                                                trigger,
+                                                                dragCursor,
+                                                                dragImage,
+                                                                imageOffset,
+                                                                transferable,
+                                                                dsl
+                                                                );
+            
+            if (dsc == null) {
+                throw new InvalidDnDOperationException();
+            }
+							    
+            dscp.startDrag(dsc, dsc.getCursor(), dragImage, imageOffset); // may throw
+        } catch (RuntimeException e) {
+            SunDragSourceContextPeer.setDragDropInProgress(false);
+            throw e;
+        }
+!!!6427547.java!!!	startDrag(inout trigger : DragGestureEvent, inout dragCursor : Cursor, inout transferable : Transferable, inout dsl : DragSourceListener, inout flavorMap : FlavorMap) : void
+	startDrag(trigger, dragCursor, null, null, transferable, dsl, flavorMap);
+!!!6427675.java!!!	startDrag(inout trigger : DragGestureEvent, inout dragCursor : Cursor, inout dragImage : Image, inout dragOffset : Point, inout transferable : Transferable, inout dsl : DragSourceListener) : void
+	startDrag(trigger, dragCursor, dragImage, dragOffset, transferable, dsl, null);
+!!!6427803.java!!!	startDrag(inout trigger : DragGestureEvent, inout dragCursor : Cursor, inout transferable : Transferable, inout dsl : DragSourceListener) : void
+	startDrag(trigger, dragCursor, null, null, transferable, dsl, null);
+!!!6427931.java!!!	createDragSourceContext(inout dscp : DragSourceContextPeer, inout dgl : DragGestureEvent, inout dragCursor : Cursor, inout dragImage : Image, inout imageOffset : Point, inout t : Transferable, inout dsl : DragSourceListener) : DragSourceContext
+	return new DragSourceContext(dscp, dgl, dragCursor, dragImage, imageOffset, t, dsl);
+!!!6428059.java!!!	getFlavorMap() : FlavorMap
+ return flavorMap;
+!!!6428187.java!!!	createDragGestureRecognizer(inout recognizerAbstractClass : Class, inout c : Component, in actions : int, inout dgl : DragGestureListener) : T
+	return Toolkit.getDefaultToolkit().createDragGestureRecognizer(recognizerAbstractClass, this, c, actions, dgl);
+!!!6428315.java!!!	createDefaultDragGestureRecognizer(inout c : Component, in actions : int, inout dgl : DragGestureListener) : DragGestureRecognizer
+	return Toolkit.getDefaultToolkit().createDragGestureRecognizer(MouseDragGestureRecognizer.class, this, c, actions, dgl);
+!!!6428443.java!!!	addDragSourceListener(inout dsl : DragSourceListener) : void
+	if (dsl != null) {
+            synchronized (this) {
+                listener = DnDEventMulticaster.add(listener, dsl);
+            }
+        }
+!!!6428571.java!!!	removeDragSourceListener(inout dsl : DragSourceListener) : void
+        if (dsl != null) {
+            synchronized (this) {
+                listener = DnDEventMulticaster.remove(listener, dsl);
+            }
+        }
+!!!6428699.java!!!	getDragSourceListeners() : DragSourceListener
+        return (DragSourceListener[])getListeners(DragSourceListener.class);
+!!!6428827.java!!!	addDragSourceMotionListener(inout dsml : DragSourceMotionListener) : void
+	if (dsml != null) {
+            synchronized (this) {
+                motionListener = DnDEventMulticaster.add(motionListener, dsml);
+            }
+        }
+!!!6428955.java!!!	removeDragSourceMotionListener(inout dsml : DragSourceMotionListener) : void
+        if (dsml != null) {
+            synchronized (this) {
+                motionListener = DnDEventMulticaster.remove(motionListener, dsml);
+            }
+        }
+!!!6429083.java!!!	getDragSourceMotionListeners() : DragSourceMotionListener
+        return (DragSourceMotionListener[])
+            getListeners(DragSourceMotionListener.class); 
+!!!6429211.java!!!	getListeners(inout listenerType : Class) : T
+ 
+        EventListener l = null; 
+        if (listenerType == DragSourceListener.class) { 
+            l = listener;
+        } else if (listenerType == DragSourceMotionListener.class) {
+            l = motionListener;
+        }
+        return DnDEventMulticaster.getListeners(l, listenerType);
+!!!6429339.java!!!	processDragEnter(inout dsde : DragSourceDragEvent) : void
+        DragSourceListener dsl = listener;
+        if (dsl != null) {
+            dsl.dragEnter(dsde);
+        }
+!!!6429467.java!!!	processDragOver(inout dsde : DragSourceDragEvent) : void
+        DragSourceListener dsl = listener;
+        if (dsl != null) {
+            dsl.dragOver(dsde);
+        }
+!!!6429595.java!!!	processDropActionChanged(inout dsde : DragSourceDragEvent) : void
+        DragSourceListener dsl = listener;
+        if (dsl != null) {
+            dsl.dropActionChanged(dsde);
+        }
+!!!6429723.java!!!	processDragExit(inout dse : DragSourceEvent) : void
+        DragSourceListener dsl = listener;
+        if (dsl != null) {
+            dsl.dragExit(dse);
+        }
+!!!6429851.java!!!	processDragDropEnd(inout dsde : DragSourceDropEvent) : void
+        DragSourceListener dsl = listener;
+        if (dsl != null) {
+            dsl.dragDropEnd(dsde);
+        }
+!!!6429979.java!!!	processDragMouseMoved(inout dsde : DragSourceDragEvent) : void
+        DragSourceMotionListener dsml = motionListener;
+        if (dsml != null) {
+            dsml.dragMouseMoved(dsde);
+        }
+!!!6430107.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+
+        s.writeObject(SerializationTester.test(flavorMap) ? flavorMap : null);
+
+        DnDEventMulticaster.save(s, dragSourceListenerK, listener);
+        DnDEventMulticaster.save(s, dragSourceMotionListenerK, motionListener);
+        s.writeObject(null);
+!!!6430235.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+
+        // 'flavorMap' was written explicitly
+        flavorMap = (FlavorMap)s.readObject();
+
+        // Implementation assumes 'flavorMap' is never null.
+        if (flavorMap == null) {
+            flavorMap = SystemFlavorMap.getDefaultFlavorMap();
+        }
+
+        Object keyOrNull;
+        while (null != (keyOrNull = s.readObject())) {
+            String key = ((String)keyOrNull).intern();
+
+            if (dragSourceListenerK == key) {
+                addDragSourceListener((DragSourceListener)(s.readObject()));
+            } else if (dragSourceMotionListenerK == key) {
+                addDragSourceMotionListener(
+                    (DragSourceMotionListener)(s.readObject()));
+            } else { 
+                // skip value for unrecognized key
+                s.readObject();
+            }
+        }
+!!!6430363.java!!!	getDragThreshold() : int
+        int ts = ((Integer)AccessController.doPrivileged(
+                new GetIntegerAction("awt.dnd.drag.threshold", 0))).intValue();
+        if (ts > 0) {
+            return ts;
+        } else {
+            Integer td = (Integer)Toolkit.getDefaultToolkit().
+                    getDesktopProperty("DnD.gestureMotionThreshold");
+            if (td != null) {
+                return td.intValue();
+            }
+        }
+        return 5;

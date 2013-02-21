@@ -1,0 +1,349 @@
+class File
+!!!6840987.java!!!	getPrefixLength() : int
+	return prefixLength;
+!!!6841115.java!!!	File(in pathname : String, in prefixLength : int)
+	this.path = pathname;
+	this.prefixLength = prefixLength;
+!!!6841243.java!!!	File(in child : String, inout parent : File)
+        assert parent.path != null;
+        assert (!parent.path.equals(""));
+        this.path = fs.resolve(parent.path, child);
+	this.prefixLength = parent.prefixLength;
+!!!6841371.java!!!	File(in pathname : String)
+	if (pathname == null) {
+	    throw new NullPointerException();
+	}
+	this.path = fs.normalize(pathname);
+	this.prefixLength = fs.prefixLength(this.path);
+!!!6841499.java!!!	File(in parent : String, in child : String)
+	if (child == null) {
+	    throw new NullPointerException();
+	}
+	if (parent != null) {
+	    if (parent.equals("")) {
+		this.path = fs.resolve(fs.getDefaultParent(),
+				       fs.normalize(child));
+	    } else {
+		this.path = fs.resolve(fs.normalize(parent),
+				       fs.normalize(child));
+	    }
+	} else {
+	    this.path = fs.normalize(child);
+	}
+	this.prefixLength = fs.prefixLength(this.path);
+!!!6841627.java!!!	File(inout parent : File, in child : String)
+	if (child == null) {
+	    throw new NullPointerException();
+	}
+	if (parent != null) {
+	    if (parent.path.equals("")) {
+		this.path = fs.resolve(fs.getDefaultParent(),
+				       fs.normalize(child));
+	    } else {
+		this.path = fs.resolve(parent.path,
+				       fs.normalize(child));
+	    }
+	} else {
+	    this.path = fs.normalize(child);
+	}
+	this.prefixLength = fs.prefixLength(this.path);
+!!!6841755.java!!!	File(inout uri : URI)
+
+	// Check our many preconditions
+	if (!uri.isAbsolute())
+	    throw new IllegalArgumentException("URI is not absolute");
+	if (uri.isOpaque())
+	    throw new IllegalArgumentException("URI is not hierarchical");
+	String scheme = uri.getScheme();
+	if ((scheme == null) || !scheme.equalsIgnoreCase("file"))
+	    throw new IllegalArgumentException("URI scheme is not \"file\"");
+	if (uri.getAuthority() != null)
+	    throw new IllegalArgumentException("URI has an authority component");
+	if (uri.getFragment() != null)
+	    throw new IllegalArgumentException("URI has a fragment component");
+	if (uri.getQuery() != null)
+	    throw new IllegalArgumentException("URI has a query component");
+	String p = uri.getPath();
+	if (p.equals(""))
+	    throw new IllegalArgumentException("URI path component is empty");
+
+	// Okay, now initialize
+	p = fs.fromURIPath(p);
+	if (File.separatorChar != '/')
+	    p = p.replace('/', File.separatorChar);
+	this.path = fs.normalize(p);
+	this.prefixLength = fs.prefixLength(this.path);
+!!!6841883.java!!!	getName() : String
+	int index = path.lastIndexOf(separatorChar);
+	if (index < prefixLength) return path.substring(prefixLength);
+	return path.substring(index + 1);
+!!!6842011.java!!!	getParent() : String
+	int index = path.lastIndexOf(separatorChar);
+	if (index < prefixLength) {
+	    if ((prefixLength > 0) && (path.length() > prefixLength))
+		return path.substring(0, prefixLength);
+	    return null;
+	}
+	return path.substring(0, index);
+!!!6842139.java!!!	getParentFile() : File
+	String p = this.getParent();
+	if (p == null) return null;
+	return new File(p, this.prefixLength);
+!!!6842267.java!!!	getPath() : String
+	return path;
+!!!6842395.java!!!	isAbsolute() : boolean
+	return fs.isAbsolute(this);
+!!!6842523.java!!!	getAbsolutePath() : String
+	return fs.resolve(this);
+!!!6842651.java!!!	getAbsoluteFile() : File
+        String absPath = getAbsolutePath();
+	return new File(absPath, fs.prefixLength(absPath));
+!!!6842779.java!!!	getCanonicalPath() : String
+	return fs.canonicalize(fs.resolve(this));
+!!!6842907.java!!!	getCanonicalFile() : File
+        String canonPath = getCanonicalPath();
+	return new File(canonPath, fs.prefixLength(canonPath));
+!!!6843035.java!!!	slashify(in path : String, inout isDirectory : boolean) : String
+	String p = path;
+	if (File.separatorChar != '/')
+	    p = p.replace(File.separatorChar, '/');
+	if (!p.startsWith("/"))
+	    p = "/" + p;
+	if (!p.endsWith("/") && isDirectory)
+	    p = p + "/";
+	return p;
+!!!6843163.java!!!	toURL() : URL
+	return new URL("file", "", slashify(getAbsolutePath(), isDirectory()));
+!!!6843291.java!!!	toURI() : URI
+	try {
+	    File f = getAbsoluteFile();
+	    String sp = slashify(f.getPath(), f.isDirectory());
+	    if (sp.startsWith("//"))
+		sp = "//" + sp;
+	    return new URI("file", null, sp, null);
+	} catch (URISyntaxException x) {
+	    throw new Error(x);		// Can't happen
+	}
+!!!6843419.java!!!	canRead() : boolean
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkRead(path);
+	}
+	return fs.checkAccess(this, false);
+!!!6843547.java!!!	canWrite() : boolean
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkWrite(path);
+	}
+	return fs.checkAccess(this, true);
+!!!6843675.java!!!	exists() : boolean
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkRead(path);
+	}
+	return ((fs.getBooleanAttributes(this) & FileSystem.BA_EXISTS) != 0);
+!!!6843803.java!!!	isDirectory() : boolean
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkRead(path);
+	}
+	return ((fs.getBooleanAttributes(this) & FileSystem.BA_DIRECTORY)
+		!= 0);
+!!!6843931.java!!!	isFile() : boolean
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkRead(path);
+	}
+	return ((fs.getBooleanAttributes(this) & FileSystem.BA_REGULAR) != 0);
+!!!6844059.java!!!	isHidden() : boolean
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkRead(path);
+	}
+	return ((fs.getBooleanAttributes(this) & FileSystem.BA_HIDDEN) != 0);
+!!!6844187.java!!!	lastModified() : long
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkRead(path);
+	}
+	return fs.getLastModifiedTime(this);
+!!!6844315.java!!!	length() : long
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkRead(path);
+	}
+	return fs.getLength(this);
+!!!6844443.java!!!	createNewFile() : boolean
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) security.checkWrite(path);
+	return fs.createFileExclusively(path);
+!!!6844571.java!!!	delete() : boolean
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkDelete(path);
+	}
+	return fs.delete(this);
+!!!6844699.java!!!	deleteOnExit() : void
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkDelete(path);
+	}
+	fs.deleteOnExit(this);
+!!!6844827.java!!!	list() : String
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkRead(path);
+	}
+	return fs.list(this);
+!!!6844955.java!!!	list(inout filter : FilenameFilter) : String
+	String names[] = list();
+	if ((names == null) || (filter == null)) {
+	    return names;
+	}
+	ArrayList v = new ArrayList();
+	for (int i = 0 ; i < names.length ; i++) {
+	    if (filter.accept(this, names[i])) {
+		v.add(names[i]);
+	    }
+	}
+	return (String[])(v.toArray(new String[0]));
+!!!6845083.java!!!	listFiles() : File
+	String[] ss = list();
+	if (ss == null) return null;
+	int n = ss.length;
+	File[] fs = new File[n];
+	for (int i = 0; i < n; i++) {
+	    fs[i] = new File(ss[i], this);
+	}
+	return fs;
+!!!6845211.java!!!	listFiles(inout filter : FilenameFilter) : File
+	String ss[] = list();
+	if (ss == null) return null;
+	ArrayList v = new ArrayList();
+	for (int i = 0 ; i < ss.length ; i++) {
+	    if ((filter == null) || filter.accept(this, ss[i])) {
+		v.add(new File(ss[i], this));
+	    }
+	}
+	return (File[])(v.toArray(new File[0]));
+!!!6845339.java!!!	listFiles(inout filter : FileFilter) : File
+	String ss[] = list();
+	if (ss == null) return null;
+	ArrayList v = new ArrayList();
+	for (int i = 0 ; i < ss.length ; i++) {
+	    File f = new File(ss[i], this);
+	    if ((filter == null) || filter.accept(f)) {
+		v.add(f);
+	    }
+	}
+	return (File[])(v.toArray(new File[0]));
+!!!6845467.java!!!	mkdir() : boolean
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkWrite(path);
+	}
+	return fs.createDirectory(this);
+!!!6845595.java!!!	mkdirs() : boolean
+	if (exists()) {
+	    return false;
+	}
+	if (mkdir()) {
+ 	    return true;
+ 	}
+        File canonFile = null;
+        try {
+            canonFile = getCanonicalFile();
+        } catch (IOException e) {
+            return false;
+        }
+	String parent = canonFile.getParent();
+        return (parent != null) && 
+               (new File(parent, fs.prefixLength(parent)).mkdirs() &&
+                                    canonFile.mkdir());
+!!!6845723.java!!!	renameTo(inout dest : File) : boolean
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkWrite(path);
+	    security.checkWrite(dest.path);
+	}
+	return fs.rename(this, dest);
+!!!6845851.java!!!	setLastModified(in time : long) : boolean
+	if (time < 0) throw new IllegalArgumentException("Negative time");
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkWrite(path);
+	}
+	return fs.setLastModifiedTime(this, time);
+!!!6845979.java!!!	setReadOnly() : boolean
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkWrite(path);
+	}
+	return fs.setReadOnly(this);
+!!!6846107.java!!!	listRoots() : File
+	return fs.listRoots();
+!!!6846235.java!!!	generateFile(in prefix : String, in suffix : String, inout dir : File) : File
+	if (counter == -1) {
+	    counter = new Random().nextInt() & 0xffff;
+	}
+	counter++;
+	return new File(dir, prefix + Integer.toString(counter) + suffix);
+!!!6846363.java!!!	getTempDir() : String
+	if (tmpdir == null) {
+	    GetPropertyAction a = new GetPropertyAction("java.io.tmpdir");
+	    tmpdir = ((String) AccessController.doPrivileged(a));
+            tmpdir = fs.normalize(tmpdir);
+	}
+	return tmpdir;
+!!!6846491.java!!!	checkAndCreate(in filename : String, inout sm : SecurityManager) : boolean
+	if (sm != null) {
+	    try {
+		sm.checkWrite(filename);
+	    } catch (AccessControlException x) {
+		/* Throwing the original AccessControlException could disclose
+		   the location of the default temporary directory, so we
+		   re-throw a more innocuous SecurityException */
+		throw new SecurityException("Unable to create temporary file");
+	    }
+	}
+	return fs.createFileExclusively(filename);
+!!!6846619.java!!!	createTempFile(in prefix : String, in suffix : String, inout directory : File) : File
+	if (prefix == null) throw new NullPointerException();
+	if (prefix.length() < 3)
+	    throw new IllegalArgumentException("Prefix string too short");
+	String s = (suffix == null) ? ".tmp" : suffix;
+	synchronized (tmpFileLock) {
+	    if (directory == null) {
+                String tmpDir = getTempDir();
+		directory = new File(tmpDir, fs.prefixLength(tmpDir));
+	    }
+	    SecurityManager sm = System.getSecurityManager();
+	    File f;
+	    do {
+		f = generateFile(prefix, s, directory);
+	    } while (!checkAndCreate(f.getPath(), sm));
+	    return f;
+	}
+!!!6846747.java!!!	createTempFile(in prefix : String, in suffix : String) : File
+	return createTempFile(prefix, suffix, null);
+!!!6846875.java!!!	compareTo(inout pathname : File) : int
+	return fs.compare(this, pathname);
+!!!6847003.java!!!	equals(inout obj : Object) : boolean
+	if ((obj != null) && (obj instanceof File)) {
+	    return compareTo((File)obj) == 0;
+	}
+	return false;
+!!!6847131.java!!!	hashCode() : int
+	return fs.hashCode(this);
+!!!6847259.java!!!	toString() : String
+	return getPath();
+!!!6847387.java!!!	writeObject(inout s : ObjectOutputStream) : void
+	s.defaultWriteObject();
+	s.writeChar(this.separatorChar); // Add the separator character
+!!!6847515.java!!!	readObject(inout s : ObjectInputStream) : void
+	s.defaultReadObject();
+	char sep = s.readChar(); // read the previous separator char
+	if (sep != separatorChar)
+	    this.path = this.path.replace(sep, separatorChar);
+	this.path = fs.normalize(this.path);
+	this.prefixLength = fs.prefixLength(this.path);

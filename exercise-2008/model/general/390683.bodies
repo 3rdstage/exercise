@@ -1,0 +1,364 @@
+class SynthLookAndFeel
+!!!2262939.java!!!	setSelectedUI(inout uix : ComponentUI, inout selected : boolean, inout focused : boolean, inout enabled : boolean) : void
+        selectedUI = uix;
+        selectedUIState = 0;
+        if (selected) {
+            selectedUIState = SynthConstants.SELECTED;
+            if (focused) {
+                selectedUIState |= SynthConstants.FOCUSED;
+            }
+        }
+        else {
+            selectedUIState = SynthConstants.FOCUSED;
+            if (enabled) {
+                selectedUIState |= SynthConstants.ENABLED;
+            }
+            else {
+                selectedUIState |= SynthConstants.DISABLED;
+            }
+        }
+!!!2263067.java!!!	resetSelectedUI() : void
+        selectedUI = null;
+!!!2263195.java!!!	setStyleFactory(inout cache : SynthStyleFactory) : void
+        // We assume the setter is called BEFORE the getter has been invoked
+        // for a particular AppContext.
+        synchronized(SynthLookAndFeel.class) {
+            AppContext context = AppContext.getAppContext();
+            if (!multipleApps && context != lastContext &&
+                                 lastContext != null) {
+                multipleApps = true;
+            }
+            lastFactory = cache;
+            lastContext = context;
+            context.put(STYLE_FACTORY_KEY, cache);
+        }
+!!!2263323.java!!!	getStyleFactory() : SynthStyleFactory
+        synchronized(SynthLookAndFeel.class) {
+            if (!multipleApps) {
+                return lastFactory;
+            }
+            AppContext context = AppContext.getAppContext();
+
+            if (lastContext == context) {
+                return lastFactory;
+            }
+            lastContext = context;
+            lastFactory = (SynthStyleFactory)AppContext.getAppContext().get
+                                           (STYLE_FACTORY_KEY);
+            return lastFactory;
+        }
+!!!2263451.java!!!	getComponentState(inout c : Component) : int
+        if (c.isEnabled()) {
+            if (c.isFocusOwner()) {
+                return SynthUI.ENABLED | SynthUI.FOCUSED;
+            }
+            return SynthUI.ENABLED;
+        }
+        return SynthUI.DISABLED;
+!!!2263579.java!!!	getStyle(inout c : JComponent, inout region : Region) : SynthStyle
+        return getStyleFactory().getStyle(c, region);
+!!!2263707.java!!!	shouldUpdateStyle(inout event : PropertyChangeEvent) : boolean
+        String eName = event.getPropertyName();
+        if ("name" == eName) {
+            // Always update on a name change
+            return true;
+        }
+        if ("ancestor" == eName && event.getNewValue() != null) {
+            // Only update on an ancestor change when getting a valid
+            // parent and the LookAndFeel wants this.
+            LookAndFeel laf = UIManager.getLookAndFeel();
+            return (laf instanceof SynthLookAndFeel &&
+                    ((SynthLookAndFeel)laf).
+                     shouldUpdateStyleOnAncestorChanged());
+        }
+        return false;
+!!!2263835.java!!!	updateStyle(inout context : SynthContext, inout ui : SynthUI) : SynthStyle
+        SynthStyle newStyle = getStyle(context.getComponent(),
+                                       context.getRegion());
+        SynthStyle oldStyle = context.getStyle();
+
+        if (newStyle != oldStyle) {
+            if (oldStyle != null) {
+                oldStyle.uninstallDefaults(context);
+            }
+            context.setStyle(newStyle);
+            newStyle.installDefaults(context, ui);
+        }
+        return newStyle;
+!!!2263963.java!!!	updateStyles(inout c : Component) : void
+        _updateStyles(c);
+        c.repaint();
+!!!2264091.java!!!	_updateStyles(inout c : Component) : void
+        if (c instanceof JComponent) {
+            // Yes, this is hacky. A better solution is to get the UI
+            // and cast, but JComponent doesn't expose a getter for the UI
+            // (each of the UIs do), making that approach impractical.
+            String name = c.getName();
+            c.setName(null);
+            if (name != null) {
+                c.setName(name);
+            }
+            ((JComponent)c).revalidate();
+        }
+        Component[] children = null;
+        if (c instanceof JMenu) {
+            children = ((JMenu)c).getMenuComponents();
+        }
+        else if (c instanceof Container) {
+            children = ((Container)c).getComponents();
+        }
+        if (children != null) {
+            for(int i = 0; i < children.length; i++) {
+                updateStyles(children[i]);
+            }
+        }
+!!!2264219.java!!!	getRegion(inout c : JComponent) : Region
+        return Region.getRegion(c);
+!!!2264347.java!!!	getPaintingInsets(inout state : SynthContext, inout insets : Insets) : Insets
+        if (state.isSubregion()) {
+            insets = state.getStyle().getInsets(state, insets);
+        }
+        else {
+            insets = state.getComponent().getInsets(insets);
+        }
+        return insets;
+!!!2264475.java!!!	update(inout state : SynthContext, inout g : Graphics) : void
+        paintRegion(state, g, null);
+!!!2264603.java!!!	updateSubregion(inout state : SynthContext, inout g : Graphics, inout bounds : Rectangle) : void
+        paintRegion(state, g, bounds);
+!!!2264731.java!!!	paintRegion(inout state : SynthContext, inout g : Graphics, inout bounds : Rectangle) : void
+        JComponent c = state.getComponent();
+        SynthStyle style = state.getStyle();
+        int x, y, width, height;
+
+        if (bounds == null) {
+            x = 0;
+            y = 0;
+            width = c.getWidth();
+            height = c.getHeight();
+        }
+        else {
+            x = bounds.x;
+            y = bounds.y;
+            width = bounds.width;
+            height = bounds.height;
+        }
+
+        // Fill in the background, if necessary.
+        boolean subregion = state.isSubregion();
+        if ((subregion && style.isOpaque(state)) ||
+                          (!subregion && c.isOpaque())) {
+            g.setColor(style.getColor(state, ColorType.BACKGROUND));
+            g.fillRect(x, y, width, height);
+        }
+!!!2264859.java!!!	isLeftToRight(inout c : Component) : boolean
+        return c.getComponentOrientation().isLeftToRight();
+!!!2264987.java!!!	getUIOfType(inout ui : ComponentUI, inout klass : Class) : Object
+        if (klass.isInstance(ui)) {
+            return ui;
+        }
+        return null;
+!!!2265115.java!!!	createUI(inout c : JComponent) : ComponentUI
+        String key = c.getUIClassID().intern();
+
+        if (key == "ButtonUI") {
+            return SynthButtonUI.createUI(c);
+        }
+        else if (key == "CheckBoxUI") {
+            return SynthCheckBoxUI.createUI(c);
+        }
+        else if (key == "CheckBoxMenuItemUI") {
+            return SynthCheckBoxMenuItemUI.createUI(c);
+        }
+        else if (key == "ColorChooserUI") {
+            return SynthColorChooserUI.createUI(c);
+        }
+        else if (key == "ComboBoxUI") {
+            return SynthComboBoxUI.createUI(c);
+        }
+        else if (key == "DesktopPaneUI") {
+            return SynthDesktopPaneUI.createUI(c);
+        }
+        else if (key == "DesktopIconUI") {
+            return SynthDesktopIconUI.createUI(c);
+        }
+        else if (key == "EditorPaneUI") {
+            return SynthEditorPaneUI.createUI(c);
+        }
+        else if (key == "FileChooserUI") {
+            return SynthFileChooserUI.createUI(c);
+        }
+        else if (key == "FormattedTextFieldUI") {
+            return SynthFormattedTextFieldUI.createUI(c);
+        }
+        else if (key == "InternalFrameUI") {
+            return SynthInternalFrameUI.createUI(c);
+        }
+        else if (key == "LabelUI") {
+            return SynthLabelUI.createUI(c);
+        }
+        else if (key == "ListUI") {
+            return SynthListUI.createUI(c);
+        }
+        else if (key == "MenuBarUI") {
+            return SynthMenuBarUI.createUI(c);
+        }
+        else if (key == "MenuUI") {
+            return SynthMenuUI.createUI(c);
+        }
+        else if (key == "MenuItemUI") {
+            return SynthMenuItemUI.createUI(c);
+        }
+        else if (key == "OptionPaneUI") {
+            return SynthOptionPaneUI.createUI(c);
+        }
+        else if (key == "PanelUI") {
+            return SynthPanelUI.createUI(c);
+        }
+        else if (key == "PasswordFieldUI") {
+            return SynthPasswordFieldUI.createUI(c);
+        }
+        else if (key == "PopupMenuSeparatorUI") {
+            return SynthSeparatorUI.createUI(c);
+        }
+        else if (key == "PopupMenuUI") {
+            return SynthPopupMenuUI.createUI(c);
+        }
+        else if (key == "ProgressBarUI") {
+            return SynthProgressBarUI.createUI(c);
+        }
+        else if (key == "RadioButtonUI") {
+            return SynthRadioButtonUI.createUI(c);
+        }
+        else if (key == "RadioButtonMenuItemUI") {
+            return SynthRadioButtonMenuItemUI.createUI(c);
+        }
+        else if (key == "RootPaneUI") {
+            return SynthRootPaneUI.createUI(c);
+        }
+        else if (key == "ScrollBarUI") {
+            return SynthScrollBarUI.createUI(c);
+        }
+        else if (key == "ScrollPaneUI") {
+            return SynthScrollPaneUI.createUI(c);
+        }
+        else if (key == "SeparatorUI") {
+            return SynthSeparatorUI.createUI(c);
+        }
+        else if (key == "SliderUI") {
+            return SynthSliderUI.createUI(c);
+        }
+        else if (key == "SpinnerUI") {
+            return SynthSpinnerUI.createUI(c);
+        }
+        else if (key == "SplitPaneUI") {
+            return SynthSplitPaneUI.createUI(c);
+        }
+        else if (key == "TabbedPaneUI") {
+            return SynthTabbedPaneUI.createUI(c);
+        }
+        else if (key == "TableUI") {
+            return SynthTableUI.createUI(c);
+        }
+        else if (key == "TableHeaderUI") {
+            return SynthTableHeaderUI.createUI(c);
+        }
+        else if (key == "TextAreaUI") {
+            return SynthTextAreaUI.createUI(c);
+        }
+        else if (key == "TextFieldUI") {
+            return SynthTextFieldUI.createUI(c);
+        }
+        else if (key == "TextPaneUI") {
+            return SynthTextPaneUI.createUI(c);
+        }
+        else if (key == "ToggleButtonUI") {
+            return SynthToggleButtonUI.createUI(c);
+        }
+        else if (key == "ToolBarSeparatorUI") {
+            return SynthSeparatorUI.createUI(c);
+        }
+        else if (key == "ToolBarUI") {
+            return SynthToolBarUI.createUI(c);
+        }
+        else if (key == "ToolTipUI") {
+            return SynthToolTipUI.createUI(c);
+        }
+        else if (key == "TreeUI") {
+            return SynthTreeUI.createUI(c);
+        }
+        else if (key == "ViewportUI") {
+            return SynthViewportUI.createUI(c);
+        }
+        return null;
+!!!2265243.java!!!	SynthLookAndFeel()
+        factory = new DefaultSynthStyleFactory();
+!!!2265371.java!!!	load(inout input : InputStream, inout resourceBase : Class) : void
+        if (defaultsMap == null) {
+            defaultsMap = new HashMap();
+        }
+        new SynthParser().parse(input, (DefaultSynthStyleFactory)factory,
+                                resourceBase, defaultsMap);
+!!!2265499.java!!!	initialize() : void
+        super.initialize();
+        DefaultLookup.setDefaultLookup(new SynthDefaultLookup());
+        setStyleFactory(factory);
+!!!2265627.java!!!	uninitialize() : void
+        // We should uninstall the StyleFactory here, but unfortunately
+        // there are a handful of things that retain references to the
+        // LookAndFeel and expect things to work
+        super.uninitialize();
+!!!2265755.java!!!	getDefaults() : UIDefaults
+	UIDefaults table = new UIDefaults();
+        Region.registerUIs(table);
+        table.setDefaultLocale(Locale.getDefault());
+        table.addResourceBundle(
+              "com.sun.swing.internal.plaf.basic.resources.basic" );
+        table.addResourceBundle("com.sun.swing.internal.plaf.synth.resources.synth");
+
+        // These need to be defined for JColorChooser to work.
+        table.put("ColorChooser.swatchesRecentSwatchSize",
+                  new Dimension(10, 10));
+        table.put("ColorChooser.swatchesDefaultRecentColor", Color.RED);
+        table.put("ColorChooser.swatchesSwatchSize", new Dimension(10, 10));
+
+        // These are needed for PopupMenu.
+        table.put("PopupMenu.selectedWindowInputMapBindings", new Object[] {
+		  "ESCAPE", "cancel",
+                    "DOWN", "selectNext",
+		 "KP_DOWN", "selectNext",
+		      "UP", "selectPrevious",
+		   "KP_UP", "selectPrevious",
+		    "LEFT", "selectParent",
+		 "KP_LEFT", "selectParent",
+		   "RIGHT", "selectChild",
+		"KP_RIGHT", "selectChild",
+		   "ENTER", "return",
+		   "SPACE", "return"
+        });
+        table.put("PopupMenu.selectedWindowInputMapBindings.RightToLeft",
+                  new Object[] {
+		    "LEFT", "selectChild",
+		 "KP_LEFT", "selectChild",
+		   "RIGHT", "selectParent",
+		"KP_RIGHT", "selectParent",
+                  });
+
+        if (defaultsMap != null) {
+            table.putAll(defaultsMap);
+        }
+        return table;
+!!!2265883.java!!!	isSupportedLookAndFeel() : boolean
+        return true;
+!!!2266011.java!!!	isNativeLookAndFeel() : boolean
+        return false;
+!!!2266139.java!!!	getDescription() : String
+        return "Synth look and feel";
+!!!2266267.java!!!	getName() : String
+        return "Synth look and feel";
+!!!2266395.java!!!	getID() : String
+        return "Synth";
+!!!2266523.java!!!	shouldUpdateStyleOnAncestorChanged() : boolean
+        return false;
+!!!2266651.java!!!	writeObject(inout out : ObjectOutputStream) : void
+        throw new NotSerializableException(this.getClass().getName());

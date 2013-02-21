@@ -1,0 +1,176 @@
+class ServerNotifForwarder
+!!!3241755.java!!!	ServerNotifForwarder(inout mbeanServer : MBeanServer, inout env : Map, inout notifBuffer : NotificationBuffer)
+	this.mbeanServer = mbeanServer;
+
+	this.notifBuffer = notifBuffer;
+
+
+	connectionTimeout = EnvHelp.getServerConnectionTimeout(env);
+!!!3241883.java!!!	addNotificationListener(in name : ObjectName, in filter : NotificationFilter) : Integer
+         
+        if (logger.traceOn()) {
+            logger.trace("addNotificationListener",
+                         "Add a listener at " + name);
+        }
+
+        checkState();
+
+        // Explicitly check MBeanPermission for addNotificationListener
+        //
+        checkMBeanPermission(name, "addNotificationListener");
+
+	try {
+	    Boolean instanceOf = (Boolean)
+		AccessController.doPrivileged(new PrivilegedExceptionAction() {
+			public Object run() throws InstanceNotFoundException {
+			    return new Boolean(
+					       mbeanServer.isInstanceOf(name,
+									broadcasterClass));
+			}
+                    });
+	    if (!instanceOf.booleanValue()) {
+		throw new IllegalArgumentException("The specified MBean [" +
+						   name + "] is not a " +
+						   "NotificationBroadcaster " +
+						   "object.");
+	    }
+	} catch (PrivilegedActionException e) {
+	    throw (InstanceNotFoundException) extractException(e);
+	}
+
+        final Integer id = getListenerID();
+        synchronized(listenerList) {
+            listenerList.add(new ListenerInfo(id, name, filter));
+        }
+
+        return id;
+!!!3242011.java!!!	removeNotificationListener(inout name : ObjectName, inout listenerIDs : Integer) : void
+
+        if (logger.traceOn()) {
+            logger.trace("removeNotificationListener",
+                         "Remove some listeners from " + name);
+        }
+
+        checkState();
+
+        // Explicitly check MBeanPermission for removeNotificationListener
+        //
+        checkMBeanPermission(name, "removeNotificationListener");
+
+        Exception re = null;
+        for (int i = 0 ; i < listenerIDs.length ; i++) {
+            try {
+                removeNotificationListener(name, listenerIDs[i]);
+            } catch (Exception e) {
+                // Give back the first exception
+                //
+                if (re != null) {
+                    re = e;
+                }
+            }
+        }
+        if (re != null) {
+            throw re;
+        }
+!!!3242139.java!!!	removeNotificationListener(inout name : ObjectName, inout listenerID : Integer) : void
+
+        if (logger.traceOn()) {
+            logger.trace("removeNotificationListener",
+                         "Remove the listener " + listenerID + " from " + name);
+        }
+
+        checkState();
+
+	if (name != null && !name.isPattern()) {
+	    if (!mbeanServer.isRegistered(name)) {
+		throw new InstanceNotFoundException("The MBean " + name +
+						    " is not registered.");
+	    }
+	}
+
+        synchronized(listenerList) {
+            if (!listenerList.remove(new ListenerInfo(listenerID,name,null))) {
+                throw new ListenerNotFoundException("Listener not found!");
+            }
+        }
+!!!3242267.java!!!	fetchNotifs(in startSequenceNumber : long, in timeout : long, in maxNotifications : int) : NotificationResult
+        if (logger.traceOn()) {
+            logger.trace("fetchNotifs", "Fetching notifications, the " +
+                         "startSequenceNumber is " + startSequenceNumber +
+                         ", the timeout is " + timeout +
+                         ", the maxNotifications is " + maxNotifications);
+        }
+
+        NotificationResult nr = null;
+	final long t = Math.min(connectionTimeout, timeout);
+        try {
+            nr = notifBuffer.fetchNotifications(listenerList,
+                                                startSequenceNumber,
+                                                t, maxNotifications);
+        } catch (InterruptedException ire) {
+            nr = new NotificationResult(0L, 0L, new TargetedNotification[0]);
+        }
+
+        if (logger.traceOn()) {
+            logger.trace("fetchNotifs", "Forwarding the notifs: "+nr);
+        }
+
+        return nr;
+!!!3242395.java!!!	terminate() : void
+        if (logger.traceOn()) {
+            logger.trace("terminate", "Be called.");
+        }
+
+        synchronized(terminationLock) {
+            if (terminated) {
+                return;
+            }
+
+            terminated = true;
+
+            synchronized(listenerList) {
+                listenerList.clear();
+            }
+        }
+
+        if (logger.traceOn()) {
+            logger.trace("terminate", "Terminated.");
+        }
+!!!3242523.java!!!	checkState() : void
+        synchronized(terminationLock) {
+            if (terminated) {
+                throw new IOException("The connection has been terminated.");
+            }
+        }
+!!!3242651.java!!!	getListenerID() : Integer
+        synchronized(listenerCounterLock) {
+            return new Integer(listenerCounter++);
+        }
+!!!3242779.java!!!	checkMBeanPermission(in name : ObjectName, in actions : String) : void
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            AccessControlContext acc = AccessController.getContext();
+            ObjectInstance oi = null;
+            try {
+                oi = (ObjectInstance) AccessController.doPrivileged(
+                    new PrivilegedExceptionAction() {
+                            public Object run()
+                                throws InstanceNotFoundException {
+                                return mbeanServer.getObjectInstance(name);
+                            }
+                        });
+            } catch (PrivilegedActionException e) {
+                throw (InstanceNotFoundException) extractException(e);
+            }
+            String classname = oi.getClassName();
+            MBeanPermission perm = new MBeanPermission(classname,
+                                                       null,
+                                                       name,
+                                                       actions);
+            sm.checkPermission(perm, acc);
+        }
+!!!3242907.java!!!	extractException(inout e : Exception) : Exception
+        while (e instanceof PrivilegedActionException) {
+            e = ((PrivilegedActionException)e).getException(); 
+        }
+        return e;

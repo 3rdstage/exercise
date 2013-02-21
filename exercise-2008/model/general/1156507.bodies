@@ -1,0 +1,63 @@
+class CachedPainter
+!!!9450395.java!!!	getCache(inout key : Object) : Cache
+        synchronized(cacheMap) {
+            Cache cache = cacheMap.get(key);
+            if (cache == null) {
+                cache = new Cache(1);
+                cacheMap.put(key, cache);
+            }
+            return cache;
+        }
+!!!9450523.java!!!	CachedPainter(in cacheCount : int)
+        getCache(getClass()).setMaxCount(cacheCount);
+!!!9450651.java!!!	paint(inout c : Component, inout g : Graphics, in x : int, in y : int, in w : int, in h : int, inout  : Object...args) : void
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        Object key = getClass();
+        GraphicsConfiguration config = c.getGraphicsConfiguration();
+        Cache cache = getCache(key);
+        Image image = cache.getImage(key, config, w, h, args);
+        int attempts = 0;
+        do {
+            boolean draw = false;
+            if (image instanceof VolatileImage) {
+                // See if we need to recreate the image
+                switch (((VolatileImage)image).validate(config)) {
+                case VolatileImage.IMAGE_INCOMPATIBLE:
+                    ((VolatileImage)image).flush();
+                    image = null;
+                    break;
+                case VolatileImage.IMAGE_RESTORED:
+                    draw = true;
+                    break;
+                }
+            }
+            if (image == null) {
+                // Recreate the image
+                image = createImage(c, w, h, config);
+                cache.setImage(key, config, w, h, args, image);
+                draw = true;
+            }
+            if (draw) {
+                // Render to the Image
+                Graphics g2 = image.getGraphics();
+                paintToImage(c, g2, w, h, args);
+                g2.dispose();
+            }
+
+            // Render to the passed in Graphics
+            paintImage(c, g, x, y, w, h, image, args);
+
+            // If we did this 3 times and the contents are still lost
+            // assume we're painting to a VolatileImage that is bogus and
+            // give up.  Presumably we'll be called again to paint.
+        } while ((image instanceof VolatileImage) &&
+                 ((VolatileImage)image).contentsLost() && ++attempts < 3);
+!!!9450907.java!!!	paintImage(inout c : Component, inout g : Graphics, in x : int, in y : int, in w : int, in h : int, inout image : Image, inout args : Object) : void
+        g.drawImage(image, x, y, null);
+!!!9451035.java!!!	createImage(inout c : Component, in w : int, in h : int, inout config : GraphicsConfiguration) : Image
+        if (config == null) {
+            return new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        }
+        return config.createCompatibleVolatileImage(w, h);

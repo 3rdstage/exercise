@@ -1,0 +1,770 @@
+class JOptionPane
+!!!9012635.java!!!	showInputDialog(inout message : Object) : String
+        return showInputDialog(null, message);
+!!!9012763.java!!!	showInputDialog(inout message : Object, inout initialSelectionValue : Object) : String
+        return showInputDialog(null, message, initialSelectionValue);
+!!!9012891.java!!!	showInputDialog(inout parentComponent : Component, inout message : Object) : String
+        return showInputDialog(parentComponent, message, UIManager.getString(
+            "OptionPane.inputDialogTitle", parentComponent), QUESTION_MESSAGE);
+!!!9013019.java!!!	showInputDialog(inout parentComponent : Component, inout message : Object, inout initialSelectionValue : Object) : String
+        return (String)showInputDialog(parentComponent, message,
+                      UIManager.getString("OptionPane.inputDialogTitle",
+                      parentComponent), QUESTION_MESSAGE, null, null,
+                      initialSelectionValue);
+!!!9013147.java!!!	showInputDialog(inout parentComponent : Component, inout message : Object, in title : String, in messageType : int) : String
+        return (String)showInputDialog(parentComponent, message, title,
+                                       messageType, null, null, null);
+!!!9013275.java!!!	showInputDialog(inout parentComponent : Component, inout message : Object, in title : String, in messageType : int, inout icon : Icon, inout selectionValues : Object, inout initialSelectionValue : Object) : Object
+        JOptionPane    pane = new JOptionPane(message, messageType,
+                                              OK_CANCEL_OPTION, icon,
+                                              null, null);
+
+        pane.setWantsInput(true);
+        pane.setSelectionValues(selectionValues);
+        pane.setInitialSelectionValue(initialSelectionValue);
+        pane.setComponentOrientation(((parentComponent == null) ?
+	    getRootFrame() : parentComponent).getComponentOrientation());
+
+        int style = styleFromMessageType(messageType);
+        JDialog dialog = pane.createDialog(parentComponent, title, style);
+
+        pane.selectInitialValue();
+        dialog.show();
+        dialog.dispose();
+
+        Object value = pane.getInputValue();
+
+        if (value == UNINITIALIZED_VALUE) {
+            return null;
+        }
+        return value;
+!!!9013403.java!!!	showMessageDialog(inout parentComponent : Component, inout message : Object) : void
+        showMessageDialog(parentComponent, message, UIManager.getString(
+                    "OptionPane.messageDialogTitle", parentComponent),
+                    INFORMATION_MESSAGE);
+!!!9013531.java!!!	showMessageDialog(inout parentComponent : Component, inout message : Object, in title : String, in messageType : int) : void
+        showMessageDialog(parentComponent, message, title, messageType, null);
+!!!9013659.java!!!	showMessageDialog(inout parentComponent : Component, inout message : Object, in title : String, in messageType : int, inout icon : Icon) : void
+        showOptionDialog(parentComponent, message, title, DEFAULT_OPTION, 
+                         messageType, icon, null, null);
+!!!9013787.java!!!	showConfirmDialog(inout parentComponent : Component, inout message : Object) : int
+        return showConfirmDialog(parentComponent, message,
+                                 UIManager.getString("OptionPane.titleText"),
+                                 YES_NO_CANCEL_OPTION);
+!!!9013915.java!!!	showConfirmDialog(inout parentComponent : Component, inout message : Object, in title : String, in optionType : int) : int
+        return showConfirmDialog(parentComponent, message, title, optionType,
+                                 QUESTION_MESSAGE);
+!!!9014043.java!!!	showConfirmDialog(inout parentComponent : Component, inout message : Object, in title : String, in optionType : int, in messageType : int) : int
+        return showConfirmDialog(parentComponent, message, title, optionType,
+                                messageType, null);
+!!!9014171.java!!!	showConfirmDialog(inout parentComponent : Component, inout message : Object, in title : String, in optionType : int, in messageType : int, inout icon : Icon) : int
+        return showOptionDialog(parentComponent, message, title, optionType,
+                                messageType, icon, null, null);
+!!!9014299.java!!!	showOptionDialog(inout parentComponent : Component, inout message : Object, in title : String, in optionType : int, in messageType : int, inout icon : Icon, inout options : Object, inout initialValue : Object) : int
+        JOptionPane             pane = new JOptionPane(message, messageType,
+                                                       optionType, icon,
+                                                       options, initialValue);
+
+        pane.setInitialValue(initialValue);
+        pane.setComponentOrientation(((parentComponent == null) ?
+	    getRootFrame() : parentComponent).getComponentOrientation());
+
+        int style = styleFromMessageType(messageType);
+        JDialog dialog = pane.createDialog(parentComponent, title, style);
+
+        pane.selectInitialValue();
+        dialog.show();
+        dialog.dispose();
+
+        Object        selectedValue = pane.getValue();
+
+        if(selectedValue == null)
+            return CLOSED_OPTION;
+        if(options == null) {
+            if(selectedValue instanceof Integer)
+                return ((Integer)selectedValue).intValue();
+            return CLOSED_OPTION;
+        }
+        for(int counter = 0, maxCounter = options.length;
+            counter < maxCounter; counter++) {
+            if(options[counter].equals(selectedValue))
+                return counter;
+        }
+        return CLOSED_OPTION;
+!!!9014427.java!!!	createDialog(inout parentComponent : Component, in title : String) : JDialog
+            int style = styleFromMessageType(getMessageType());
+            return createDialog(parentComponent, title, style);
+!!!9014555.java!!!	createDialog(inout parentComponent : Component, in title : String, in style : int) : JDialog
+
+        final JDialog dialog;
+
+        Window window = JOptionPane.getWindowForComponent(parentComponent);
+        if (window instanceof Frame) {
+            dialog = new JDialog((Frame)window, title, true);	
+        } else {
+            dialog = new JDialog((Dialog)window, title, true);
+        }
+        dialog.setComponentOrientation(this.getComponentOrientation());
+ 	if (window instanceof SwingUtilities.SharedOwnerFrame) {
+	    WindowListener ownerShutdownListener =
+		(WindowListener)SwingUtilities.getSharedOwnerFrameShutdownListener();
+ 	    dialog.addWindowListener(ownerShutdownListener);
+ 	}
+        Container             contentPane = dialog.getContentPane();
+
+        contentPane.setLayout(new BorderLayout());
+        contentPane.add(this, BorderLayout.CENTER);
+        dialog.setResizable(false);
+        if (JDialog.isDefaultLookAndFeelDecorated()) {
+            boolean supportsWindowDecorations = 
+            UIManager.getLookAndFeel().getSupportsWindowDecorations();
+            if (supportsWindowDecorations) {
+                dialog.setUndecorated(true);
+                getRootPane().setWindowDecorationStyle(style);
+            }
+        }
+        dialog.pack();
+        dialog.setLocationRelativeTo(parentComponent);
+        WindowAdapter adapter = new WindowAdapter() {
+            private boolean gotFocus = false;
+            public void windowClosing(WindowEvent we) {
+                setValue(null);
+            }
+            public void windowGainedFocus(WindowEvent we) {
+                // Once window gets focus, set initial focus
+                if (!gotFocus) {
+                    selectInitialValue();
+                    gotFocus = true;
+                }
+            }
+        };
+        dialog.addWindowListener(adapter);
+        dialog.addWindowFocusListener(adapter);
+	dialog.addComponentListener(new ComponentAdapter() {
+            public void componentShown(ComponentEvent ce) {
+	        // reset value to ensure closing works properly
+                setValue(JOptionPane.UNINITIALIZED_VALUE);
+            }
+	});
+        addPropertyChangeListener(new PropertyChangeListener() {
+            public void propertyChange(PropertyChangeEvent event) {
+                // Let the defaultCloseOperation handle the closing
+                // if the user closed the window without selecting a button
+                // (newValue = null in that case).  Otherwise, close the dialog.
+                if(dialog.isVisible() && event.getSource() == JOptionPane.this &&
+                   (event.getPropertyName().equals(VALUE_PROPERTY)) &&
+                    event.getNewValue() != null &&
+		    event.getNewValue() != JOptionPane.UNINITIALIZED_VALUE) {
+                    dialog.setVisible(false);               
+                }
+            }
+        });
+        return dialog;
+!!!9014683.java!!!	showInternalMessageDialog(inout parentComponent : Component, inout message : Object) : void
+        showInternalMessageDialog(parentComponent, message, UIManager.
+                                 getString("OptionPane.messageDialogTitle",
+                                 parentComponent), INFORMATION_MESSAGE);
+!!!9014811.java!!!	showInternalMessageDialog(inout parentComponent : Component, inout message : Object, in title : String, in messageType : int) : void
+        showInternalMessageDialog(parentComponent, message, title, messageType,null);
+!!!9014939.java!!!	showInternalMessageDialog(inout parentComponent : Component, inout message : Object, in title : String, in messageType : int, inout icon : Icon) : void
+        showInternalOptionDialog(parentComponent, message, title, DEFAULT_OPTION,
+                                 messageType, icon, null, null);
+!!!9015067.java!!!	showInternalConfirmDialog(inout parentComponent : Component, inout message : Object) : int
+        return showInternalConfirmDialog(parentComponent, message,
+                                 UIManager.getString("OptionPane.titleText"),
+                                 YES_NO_CANCEL_OPTION);
+!!!9015195.java!!!	showInternalConfirmDialog(inout parentComponent : Component, inout message : Object, in title : String, in optionType : int) : int
+        return showInternalConfirmDialog(parentComponent, message, title, optionType,
+                                         QUESTION_MESSAGE);
+!!!9015323.java!!!	showInternalConfirmDialog(inout parentComponent : Component, inout message : Object, in title : String, in optionType : int, in messageType : int) : int
+        return showInternalConfirmDialog(parentComponent, message, title, optionType,
+                                         messageType, null);
+!!!9015451.java!!!	showInternalConfirmDialog(inout parentComponent : Component, inout message : Object, in title : String, in optionType : int, in messageType : int, inout icon : Icon) : int
+        return showInternalOptionDialog(parentComponent, message, title, optionType,
+                                        messageType, icon, null, null);
+!!!9015579.java!!!	showInternalOptionDialog(inout parentComponent : Component, inout message : Object, in title : String, in optionType : int, in messageType : int, inout icon : Icon, inout options : Object, inout initialValue : Object) : int
+        JOptionPane pane = new JOptionPane(message, messageType,
+                optionType, icon, options, initialValue);
+        pane.putClientProperty(PopupFactory.forceHeavyWeightPopupKey,
+                Boolean.TRUE);
+        Component fo = KeyboardFocusManager.getCurrentKeyboardFocusManager().
+                getFocusOwner();
+
+        pane.setInitialValue(initialValue);
+
+        JInternalFrame dialog =
+            pane.createInternalFrame(parentComponent, title);
+        pane.selectInitialValue();
+        dialog.setVisible(true);
+
+	/* Since all input will be blocked until this dialog is dismissed,
+	 * make sure its parent containers are visible first (this component
+	 * is tested below).  This is necessary for JApplets, because
+	 * because an applet normally isn't made visible until after its
+	 * start() method returns -- if this method is called from start(),
+	 * the applet will appear to hang while an invisible modal frame
+	 * waits for input.
+	 */
+	if (dialog.isVisible() && !dialog.isShowing()) {
+	    Container parent = dialog.getParent();
+	    while (parent != null) {
+		if (parent.isVisible() == false) {
+		    parent.setVisible(true);
+		}
+		parent = parent.getParent();
+	    }
+	}
+
+        // Use reflection to get Container.startLWModal.
+        try {
+            Object obj;
+            obj = AccessController.doPrivileged(new ModalPrivilegedAction(
+                    Container.class, "startLWModal"));
+            if (obj != null) {
+                ((Method)obj).invoke(dialog, null);
+            }
+        } catch (IllegalAccessException ex) {
+        } catch (IllegalArgumentException ex) {
+        } catch (InvocationTargetException ex) {
+        }
+
+        if (parentComponent instanceof JInternalFrame) {
+            try {
+                ((JInternalFrame)parentComponent).setSelected(true);
+            } catch (java.beans.PropertyVetoException e) {
+            }
+        }
+
+        Object selectedValue = pane.getValue();
+
+        if (fo != null && fo.isShowing()) {
+            fo.requestFocus();
+        }
+        if (selectedValue == null) {
+            return CLOSED_OPTION;
+        }
+        if (options == null) {
+            if (selectedValue instanceof Integer) {
+                return ((Integer)selectedValue).intValue();
+            }
+            return CLOSED_OPTION;
+        }
+        for(int counter = 0, maxCounter = options.length;
+            counter < maxCounter; counter++) {
+            if (options[counter].equals(selectedValue)) {
+                return counter;
+            }
+        }
+        return CLOSED_OPTION;
+!!!9015707.java!!!	showInternalInputDialog(inout parentComponent : Component, inout message : Object) : String
+        return showInternalInputDialog(parentComponent, message, UIManager.
+               getString("OptionPane.inputDialogTitle", parentComponent),
+               QUESTION_MESSAGE);
+!!!9015835.java!!!	showInternalInputDialog(inout parentComponent : Component, inout message : Object, in title : String, in messageType : int) : String
+        return (String)showInternalInputDialog(parentComponent, message, title,
+                                       messageType, null, null, null);
+!!!9015963.java!!!	showInternalInputDialog(inout parentComponent : Component, inout message : Object, in title : String, in messageType : int, inout icon : Icon, inout selectionValues : Object, inout initialSelectionValue : Object) : Object
+        JOptionPane pane = new JOptionPane(message, messageType,
+                OK_CANCEL_OPTION, icon, null, null);
+        pane.putClientProperty(PopupFactory.forceHeavyWeightPopupKey,
+                Boolean.TRUE);
+        Component fo = KeyboardFocusManager.getCurrentKeyboardFocusManager().
+                getFocusOwner();
+
+        pane.setWantsInput(true);
+        pane.setSelectionValues(selectionValues);
+        pane.setInitialSelectionValue(initialSelectionValue);
+
+        JInternalFrame dialog =
+            pane.createInternalFrame(parentComponent, title);
+
+        pane.selectInitialValue();
+        dialog.setVisible(true);
+
+	/* Since all input will be blocked until this dialog is dismissed,
+	 * make sure its parent containers are visible first (this component
+	 * is tested below).  This is necessary for JApplets, because
+	 * because an applet normally isn't made visible until after its
+	 * start() method returns -- if this method is called from start(),
+	 * the applet will appear to hang while an invisible modal frame
+	 * waits for input.
+	 */
+	if (dialog.isVisible() && !dialog.isShowing()) {
+	    Container parent = dialog.getParent();
+	    while (parent != null) {
+		if (parent.isVisible() == false) {
+		    parent.setVisible(true);
+		}
+		parent = parent.getParent();
+	    }
+	}
+
+        // Use reflection to get Container.startLWModal.
+        try {
+            Object obj;
+            obj = AccessController.doPrivileged(new ModalPrivilegedAction(
+                    Container.class, "startLWModal"));
+            if (obj != null) {
+                ((Method)obj).invoke(dialog, null);
+            }
+        } catch (IllegalAccessException ex) {
+        } catch (IllegalArgumentException ex) {
+        } catch (InvocationTargetException ex) {
+        }
+
+        if (parentComponent instanceof JInternalFrame) {
+            try {
+                ((JInternalFrame)parentComponent).setSelected(true);
+            } catch (java.beans.PropertyVetoException e) {
+            }
+        }
+
+        if (fo != null && fo.isShowing()) {
+            fo.requestFocus();
+        }
+        Object value = pane.getInputValue();
+
+        if (value == UNINITIALIZED_VALUE) {
+            return null;
+        }
+        return value;
+!!!9016091.java!!!	createInternalFrame(inout parentComponent : Component, in title : String) : JInternalFrame
+        Container parent =
+                JOptionPane.getDesktopPaneForComponent(parentComponent);
+
+        if (parent == null && (parentComponent == null || 
+                (parent = parentComponent.getParent()) == null)) {
+            throw new RuntimeException("JOptionPane: parentComponent does " +
+                    "not have a valid parent");
+        }
+
+        // Option dialogs should be closable only
+        final JInternalFrame  iFrame = new JInternalFrame(title, false, true,
+                                                           false, false);
+
+        iFrame.putClientProperty("JInternalFrame.frameType", "optionDialog");
+        iFrame.putClientProperty("JInternalFrame.messageType", 
+                                 new Integer(getMessageType()));
+
+        iFrame.addInternalFrameListener(new InternalFrameAdapter() {
+            public void internalFrameClosing(InternalFrameEvent e) {
+                if (getValue() == UNINITIALIZED_VALUE) {
+                    setValue(null);
+                }
+            }
+        });
+        addPropertyChangeListener(new PropertyChangeListener() {
+            public void propertyChange(PropertyChangeEvent event) {
+                // Let the defaultCloseOperation handle the closing
+                // if the user closed the iframe without selecting a button
+                // (newValue = null in that case).  Otherwise, close the dialog.
+                if (iFrame.isVisible() &&
+                        event.getSource() == JOptionPane.this &&
+                        event.getPropertyName().equals(VALUE_PROPERTY)) {
+                // Use reflection to get Container.stopLWModal().
+                try {
+                    Object obj;
+                    obj = AccessController.doPrivileged(
+                        new ModalPrivilegedAction(
+                            Container.class, "stopLWModal"));
+                    if (obj != null) {
+                        ((Method)obj).invoke(iFrame, null);
+                    }
+                } catch (IllegalAccessException ex) {
+                } catch (IllegalArgumentException ex) {
+                } catch (InvocationTargetException ex) {
+                }
+
+                try {
+                    iFrame.setClosed(true);
+                } 
+                catch (java.beans.PropertyVetoException e) {
+                }
+
+                iFrame.setVisible(false);
+                }
+            }
+        });
+        iFrame.getContentPane().add(this, BorderLayout.CENTER);
+        if (parent instanceof JDesktopPane) {
+            parent.add(iFrame, JLayeredPane.MODAL_LAYER);
+        } else {
+            parent.add(iFrame, BorderLayout.CENTER);
+        }
+        Dimension iFrameSize = iFrame.getPreferredSize();
+        Dimension rootSize = parent.getSize();
+	Dimension parentSize = parentComponent.getSize();
+
+       	iFrame.setBounds((rootSize.width - iFrameSize.width) / 2,
+                         (rootSize.height - iFrameSize.height) / 2,
+                         iFrameSize.width, iFrameSize.height); 
+	// We want dialog centered relative to its parent component
+	Point iFrameCoord =
+	  SwingUtilities.convertPoint(parentComponent, 0, 0, parent);
+	int x = (parentSize.width - iFrameSize.width) / 2 + iFrameCoord.x;
+	int y = (parentSize.height - iFrameSize.height) / 2 + iFrameCoord.y;
+
+	// If possible, dialog should be fully visible
+	int ovrx = x + iFrameSize.width - rootSize.width;
+	int ovry = y + iFrameSize.height - rootSize.height;
+	x = Math.max((ovrx > 0? x - ovrx: x), 0);
+	y = Math.max((ovry > 0? y - ovry: y), 0);
+	iFrame.setBounds(x, y, iFrameSize.width, iFrameSize.height);
+
+       	parent.validate(); 
+        try {
+            iFrame.setSelected(true);
+        } catch (java.beans.PropertyVetoException e) {}
+ 
+        return iFrame; 
+!!!9016219.java!!!	getFrameForComponent(inout parentComponent : Component) : Frame
+        if (parentComponent == null)
+            return getRootFrame();
+        if (parentComponent instanceof Frame)
+            return (Frame)parentComponent;
+        return JOptionPane.getFrameForComponent(parentComponent.getParent());
+!!!9016347.java!!!	getWindowForComponent(inout parentComponent : Component) : Window
+        if (parentComponent == null)
+            return getRootFrame();
+        if (parentComponent instanceof Frame || parentComponent instanceof Dialog)
+            return (Window)parentComponent;
+        return JOptionPane.getWindowForComponent(parentComponent.getParent());
+!!!9016475.java!!!	getDesktopPaneForComponent(inout parentComponent : Component) : JDesktopPane
+        if(parentComponent == null)
+            return null;
+        if(parentComponent instanceof JDesktopPane)
+            return (JDesktopPane)parentComponent;
+        return getDesktopPaneForComponent(parentComponent.getParent());
+!!!9016603.java!!!	setRootFrame(inout newRootFrame : Frame) : void
+        if (newRootFrame != null) {
+            SwingUtilities.appContextPut(sharedFrameKey, newRootFrame);
+        } else {
+            SwingUtilities.appContextRemove(sharedFrameKey);
+        }
+!!!9016731.java!!!	getRootFrame() : Frame
+        Frame sharedFrame = 
+            (Frame)SwingUtilities.appContextGet(sharedFrameKey);
+        if (sharedFrame == null) {
+            sharedFrame = SwingUtilities.getSharedOwnerFrame();
+            SwingUtilities.appContextPut(sharedFrameKey, sharedFrame);
+        }
+        return sharedFrame;
+!!!9016859.java!!!	JOptionPane()
+        this("JOptionPane message");
+!!!9016987.java!!!	JOptionPane(inout message : Object)
+        this(message, PLAIN_MESSAGE);
+!!!9017115.java!!!	JOptionPane(inout message : Object, in messageType : int)
+        this(message, messageType, DEFAULT_OPTION);
+!!!9017243.java!!!	JOptionPane(inout message : Object, in messageType : int, in optionType : int)
+        this(message, messageType, optionType, null);
+!!!9017371.java!!!	JOptionPane(inout message : Object, in messageType : int, in optionType : int, inout icon : Icon)
+        this(message, messageType, optionType, icon, null);
+!!!9017499.java!!!	JOptionPane(inout message : Object, in messageType : int, in optionType : int, inout icon : Icon, inout options : Object)
+        this(message, messageType, optionType, icon, options, null);
+!!!9017627.java!!!	JOptionPane(inout message : Object, in messageType : int, in optionType : int, inout icon : Icon, inout options : Object, inout initialValue : Object)
+
+        this.message = message;
+        this.options = options;
+        this.initialValue = initialValue;
+        this.icon = icon;
+        setMessageType(messageType);
+        setOptionType(optionType);
+        value = UNINITIALIZED_VALUE;
+        inputValue = UNINITIALIZED_VALUE;
+        updateUI();
+!!!9017755.java!!!	setUI(inout ui : OptionPaneUI) : void
+        if ((OptionPaneUI)this.ui != ui) {
+            super.setUI(ui);
+            invalidate();
+        }
+!!!9017883.java!!!	getUI() : OptionPaneUI
+        return (OptionPaneUI)ui;
+!!!9018011.java!!!	updateUI() : void
+        setUI((OptionPaneUI)UIManager.getUI(this));
+!!!9018139.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!9018267.java!!!	setMessage(inout newMessage : Object) : void
+        Object           oldMessage = message;
+
+        message = newMessage;
+        firePropertyChange(MESSAGE_PROPERTY, oldMessage, message);
+!!!9018395.java!!!	getMessage() : Object
+        return message;
+!!!9018523.java!!!	setIcon(inout newIcon : Icon) : void
+        Object              oldIcon = icon;
+
+        icon = newIcon;
+        firePropertyChange(ICON_PROPERTY, oldIcon, icon);
+!!!9018651.java!!!	getIcon() : Icon
+        return icon;
+!!!9018779.java!!!	setValue(inout newValue : Object) : void
+        Object               oldValue = value;
+
+        value = newValue;
+        firePropertyChange(VALUE_PROPERTY, oldValue, value);
+!!!9018907.java!!!	getValue() : Object
+        return value;
+!!!9019035.java!!!	setOptions(inout newOptions : Object) : void
+        Object[]           oldOptions = options;
+
+        options = newOptions;
+        firePropertyChange(OPTIONS_PROPERTY, oldOptions, options);
+!!!9019163.java!!!	getOptions() : Object
+        if(options != null) {
+            int             optionCount = options.length;
+            Object[]        retOptions = new Object[optionCount];
+
+            System.arraycopy(options, 0, retOptions, 0, optionCount);
+            return retOptions;
+        }
+        return options;
+!!!9019291.java!!!	setInitialValue(inout newInitialValue : Object) : void
+        Object            oldIV = initialValue;
+
+        initialValue = newInitialValue;
+        firePropertyChange(INITIAL_VALUE_PROPERTY, oldIV, initialValue);
+!!!9019419.java!!!	getInitialValue() : Object
+        return initialValue;
+!!!9019547.java!!!	setMessageType(in newType : int) : void
+        if(newType != ERROR_MESSAGE && newType != INFORMATION_MESSAGE &&
+           newType != WARNING_MESSAGE && newType != QUESTION_MESSAGE &&
+           newType != PLAIN_MESSAGE)
+            throw new RuntimeException("JOptionPane: type must be one of JOptionPane.ERROR_MESSAGE, JOptionPane.INFORMATION_MESSAGE, JOptionPane.WARNING_MESSAGE, JOptionPane.QUESTION_MESSAGE or JOptionPane.PLAIN_MESSAGE");
+
+        int           oldType = messageType;
+
+        messageType = newType;
+        firePropertyChange(MESSAGE_TYPE_PROPERTY, oldType, messageType);
+!!!9019675.java!!!	getMessageType() : int
+        return messageType;
+!!!9019803.java!!!	setOptionType(in newType : int) : void
+        if(newType != DEFAULT_OPTION && newType != YES_NO_OPTION &&
+           newType != YES_NO_CANCEL_OPTION && newType != OK_CANCEL_OPTION)
+            throw new RuntimeException("JOptionPane: option type must be one of JOptionPane.DEFAULT_OPTION, JOptionPane.YES_NO_OPTION, JOptionPane.YES_NO_CANCEL_OPTION or JOptionPane.OK_CANCEL_OPTION");
+
+        int            oldType = optionType;
+
+        optionType = newType;
+        firePropertyChange(OPTION_TYPE_PROPERTY, oldType, optionType);
+!!!9019931.java!!!	getOptionType() : int
+        return optionType;
+!!!9020059.java!!!	setSelectionValues(inout newValues : Object) : void
+        Object[]           oldValues = selectionValues;
+
+        selectionValues = newValues;
+        firePropertyChange(SELECTION_VALUES_PROPERTY, oldValues, newValues);
+        if(selectionValues != null)
+            setWantsInput(true);
+!!!9020187.java!!!	getSelectionValues() : Object
+        return selectionValues;
+!!!9020315.java!!!	setInitialSelectionValue(inout newValue : Object) : void
+        Object          oldValue = initialSelectionValue;
+
+        initialSelectionValue = newValue;
+        firePropertyChange(INITIAL_SELECTION_VALUE_PROPERTY, oldValue,
+                           newValue);
+!!!9020443.java!!!	getInitialSelectionValue() : Object
+        return initialSelectionValue;
+!!!9020571.java!!!	setInputValue(inout newValue : Object) : void
+        Object              oldValue = inputValue;
+
+        inputValue = newValue;
+        firePropertyChange(INPUT_VALUE_PROPERTY, oldValue, newValue);
+!!!9020699.java!!!	getInputValue() : Object
+        return inputValue;
+!!!9020827.java!!!	getMaxCharactersPerLineCount() : int
+        return Integer.MAX_VALUE;
+!!!9020955.java!!!	setWantsInput(inout newValue : boolean) : void
+        boolean            oldValue = wantsInput;
+
+        wantsInput = newValue;
+        firePropertyChange(WANTS_INPUT_PROPERTY, oldValue, newValue);
+!!!9021083.java!!!	getWantsInput() : boolean
+        return wantsInput;
+!!!9021211.java!!!	selectInitialValue() : void
+        OptionPaneUI         ui = getUI();
+        if (ui != null) {
+            ui.selectInitialValue(this);
+        }
+!!!9021339.java!!!	styleFromMessageType(in messageType : int) : int
+        switch (messageType) {
+        case ERROR_MESSAGE:
+            return JRootPane.ERROR_DIALOG;
+        case QUESTION_MESSAGE:
+            return JRootPane.QUESTION_DIALOG;
+        case WARNING_MESSAGE:
+            return JRootPane.WARNING_DIALOG;
+        case INFORMATION_MESSAGE:
+            return JRootPane.INFORMATION_DIALOG;
+        case PLAIN_MESSAGE:
+        default:
+            return JRootPane.PLAIN_DIALOG;
+        }
+!!!9021467.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        Vector      values = new Vector();
+
+        s.defaultWriteObject();
+        // Save the icon, if its Serializable.
+        if(icon != null && icon instanceof Serializable) {
+            values.addElement("icon");
+            values.addElement(icon);
+        }
+        // Save the message, if its Serializable.
+        if(message != null && message instanceof Serializable) {
+            values.addElement("message");
+            values.addElement(message);
+        }
+        // Save the treeModel, if its Serializable.
+        if(options != null) {
+            Vector           serOptions = new Vector();
+
+            for(int counter = 0, maxCounter = options.length;
+                counter < maxCounter; counter++)
+                if(options[counter] instanceof Serializable)
+                    serOptions.addElement(options[counter]);
+            if(serOptions.size() > 0) {
+                int             optionCount = serOptions.size();
+                Object[]        arrayOptions = new Object[optionCount];
+
+                serOptions.copyInto(arrayOptions);
+                values.addElement("options");
+                values.addElement(arrayOptions);
+            }
+        }
+        // Save the initialValue, if its Serializable.
+        if(initialValue != null && initialValue instanceof Serializable) {
+            values.addElement("initialValue");
+            values.addElement(initialValue);
+        }
+        // Save the value, if its Serializable.
+        if(value != null && value instanceof Serializable) {
+            values.addElement("value");
+            values.addElement(value);
+        }
+        // Save the selectionValues, if its Serializable.
+        if(selectionValues != null) {
+            boolean            serialize = true;
+
+            for(int counter = 0, maxCounter = selectionValues.length;
+                counter < maxCounter; counter++) {
+                if(selectionValues[counter] != null &&
+                   !(selectionValues[counter] instanceof Serializable)) {
+                    serialize = false;
+                    break;
+                }
+            }
+            if(serialize) {
+                values.addElement("selectionValues");
+                values.addElement(selectionValues);
+            }
+        }
+        // Save the inputValue, if its Serializable.
+        if(inputValue != null && inputValue instanceof Serializable) {
+            values.addElement("inputValue");
+            values.addElement(inputValue);
+        }
+        // Save the initialSelectionValue, if its Serializable.
+        if(initialSelectionValue != null &&
+           initialSelectionValue instanceof Serializable) {
+            values.addElement("initialSelectionValue");
+            values.addElement(initialSelectionValue);
+        }
+        s.writeObject(values);
+!!!9021595.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+
+        Vector          values = (Vector)s.readObject();
+        int             indexCounter = 0;
+        int             maxCounter = values.size();
+
+        if(indexCounter < maxCounter && values.elementAt(indexCounter).
+           equals("icon")) {
+            icon = (Icon)values.elementAt(++indexCounter);
+            indexCounter++;
+        }
+        if(indexCounter < maxCounter && values.elementAt(indexCounter).
+           equals("message")) {
+            message = values.elementAt(++indexCounter);
+            indexCounter++;
+        }
+        if(indexCounter < maxCounter && values.elementAt(indexCounter).
+           equals("options")) {
+            options = (Object[])values.elementAt(++indexCounter);
+            indexCounter++;
+        }
+        if(indexCounter < maxCounter && values.elementAt(indexCounter).
+           equals("initialValue")) {
+            initialValue = values.elementAt(++indexCounter);
+            indexCounter++;
+        }
+        if(indexCounter < maxCounter && values.elementAt(indexCounter).
+           equals("value")) {
+            value = values.elementAt(++indexCounter);
+            indexCounter++;
+        }
+        if(indexCounter < maxCounter && values.elementAt(indexCounter).
+           equals("selectionValues")) {
+            selectionValues = (Object[])values.elementAt(++indexCounter);
+            indexCounter++;
+        }
+        if(indexCounter < maxCounter && values.elementAt(indexCounter).
+           equals("inputValue")) {
+            inputValue = values.elementAt(++indexCounter);
+            indexCounter++;
+        }
+        if(indexCounter < maxCounter && values.elementAt(indexCounter).
+           equals("initialSelectionValue")) {
+            initialSelectionValue = values.elementAt(++indexCounter);
+            indexCounter++;
+        }
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!9021723.java!!!	paramString() : String
+        String iconString = (icon != null ?
+			     icon.toString() : "");
+        String initialValueString = (initialValue != null ?
+				     initialValue.toString() : "");
+        String messageString = (message != null ?
+				message.toString() : "");
+        String messageTypeString;
+        if (messageType == ERROR_MESSAGE) {
+            messageTypeString = "ERROR_MESSAGE";
+        } else if (messageType == INFORMATION_MESSAGE) {
+            messageTypeString = "INFORMATION_MESSAGE";
+        } else if (messageType == WARNING_MESSAGE) {
+            messageTypeString = "WARNING_MESSAGE";
+        } else if (messageType == QUESTION_MESSAGE) {
+            messageTypeString = "QUESTION_MESSAGE";
+        } else if (messageType == PLAIN_MESSAGE)  {
+            messageTypeString = "PLAIN_MESSAGE";
+        } else messageTypeString = "";
+        String optionTypeString;
+        if (optionType == DEFAULT_OPTION) {
+            optionTypeString = "DEFAULT_OPTION";
+        } else if (optionType == YES_NO_OPTION) {
+            optionTypeString = "YES_NO_OPTION";
+        } else if (optionType == YES_NO_CANCEL_OPTION) {
+            optionTypeString = "YES_NO_CANCEL_OPTION";
+        } else if (optionType == OK_CANCEL_OPTION) {
+            optionTypeString = "OK_CANCEL_OPTION";
+        } else optionTypeString = "";
+        String wantsInputString = (wantsInput ?
+				   "true" : "false");
+
+        return super.paramString() +
+        ",icon=" + iconString +
+        ",initialValue=" + initialValueString +
+        ",message=" + messageString +
+        ",messageType=" + messageTypeString +
+        ",optionType=" + optionTypeString +
+        ",wantsInput=" + wantsInputString;
+!!!9022107.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJOptionPane();
+        }
+        return accessibleContext;

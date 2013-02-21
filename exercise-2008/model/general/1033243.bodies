@@ -1,0 +1,35 @@
+class QualifiedAttributeValueExp
+!!!8262171.java!!!	QualifiedAttributeValueExp()
+ 
+!!!8262299.java!!!	QualifiedAttributeValueExp(in className : String, in attr : String)
+ 
+	super(attr);
+	this.className = className;
+!!!8262427.java!!!	getAttrClassName() : String
+ 
+	return className;
+!!!8262555.java!!!	apply(inout name : ObjectName) : ValueExp
+	try {
+	    MBeanServer server = QueryEval.getMBeanServer();
+	    String v = server.getObjectInstance(name).getClassName();
+	    
+	    if (v.equals(className)) {
+		return super.apply(name);
+	    }
+	    throw new InvalidApplicationException("Class name is " + v +
+						  ", should be " + className);
+	    
+	} catch (Exception e) {
+	    throw new InvalidApplicationException("Qualified attribute: " + e);
+	    /* Can happen if MBean disappears between the time we
+	       construct the list of MBeans to query and the time we
+	       evaluate the query on this MBean, or if
+	       getObjectInstance throws SecurityException.  */
+	}
+!!!8262683.java!!!	toString() : String
+ 
+	if (className != null) {
+	    return className + "." + super.toString();
+	} else {
+	    return super.toString();
+	}

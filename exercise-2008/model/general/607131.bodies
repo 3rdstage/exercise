@@ -1,0 +1,234 @@
+class Dialog
+!!!3890459.java!!!	Dialog(inout owner : Frame)
+	this(owner, "", false);
+!!!3890587.java!!!	Dialog(inout owner : Frame, inout modal : boolean)
+	this(owner, "", modal);
+!!!3890715.java!!!	Dialog(inout owner : Frame, in title : String)
+	this(owner, title, false);
+!!!3890843.java!!!	Dialog(inout owner : Frame, in title : String, inout modal : boolean)
+	super(owner);
+
+	this.title = title;
+	this.modal = modal;
+        SunToolkit.checkAndSetPolicy(this, false);
+!!!3890971.java!!!	Dialog(inout owner : Frame, in title : String, inout modal : boolean, inout gc : GraphicsConfiguration)
+        super(owner, gc);
+
+        this.title = title;
+        this.modal = modal;
+        SunToolkit.checkAndSetPolicy(this, false);
+!!!3891099.java!!!	Dialog(inout owner : Dialog)
+	this(owner, "", false);
+!!!3891227.java!!!	Dialog(inout owner : Dialog, in title : String)
+	this(owner, title, false);
+!!!3891355.java!!!	Dialog(inout owner : Dialog, in title : String, inout modal : boolean)
+	super(owner);
+
+	this.title = title;
+	this.modal = modal;
+        SunToolkit.checkAndSetPolicy(this, false);
+!!!3891483.java!!!	Dialog(inout owner : Dialog, in title : String, inout modal : boolean, inout gc : GraphicsConfiguration)
+	super(owner, gc);
+	 
+	this.title = title;
+	this.modal = modal;
+        SunToolkit.checkAndSetPolicy(this, false);
+!!!3891611.java!!!	constructComponentName() : String
+        synchronized (getClass()) {
+	    return base + nameCounter++;
+	}
+!!!3891739.java!!!	addNotify() : void
+	synchronized (getTreeLock()) {
+	    if (parent != null && parent.getPeer() == null) {
+                parent.addNotify();
+	    }
+
+	    if (peer == null) {
+	        peer = getToolkit().createDialog(this);
+	    }
+	    super.addNotify();
+	}
+!!!3891867.java!!!	isModal() : boolean
+	return modal;
+!!!3891995.java!!!	setModal(inout b : boolean) : void
+	this.modal = b;
+!!!3892123.java!!!	getTitle() : String
+	return title;
+!!!3892251.java!!!	setTitle(in title : String) : void
+        String oldTitle = this.title;
+
+        synchronized(this) {
+            this.title = title;
+            DialogPeer peer = (DialogPeer)this.peer;
+            if (peer != null) {
+                peer.setTitle(title);
+            }
+        }
+        firePropertyChange("title", oldTitle, title);
+!!!3892379.java!!!	conditionalShow(inout toFocus : Component, inout time : AtomicLong) : boolean
+        boolean retval;
+
+        synchronized (getTreeLock()) {
+            if (peer == null) {
+                addNotify();
+            }
+            validate();
+            if (visible) {
+                toFront();
+                retval = false;
+            } else {
+                visible = retval = true;
+                if (toFocus != null && time != null && isFocusable() && isEnabled())
+                {
+                    // keep the KeyEvents from being dispatched
+                    // until the focus has been transfered
+                    time.set(Toolkit.getEventQueue().getMostRecentEventTimeEx());
+                    KeyboardFocusManager.getCurrentKeyboardFocusManager().
+                        enqueueKeyEvents(time.get(), toFocus);
+                }
+
+                peer.show(); // now guaranteed never to block
+
+                for (int i = 0; i < ownedWindowList.size(); i++) {
+                    Window child = ownedWindowList.elementAt(i).get();
+                    if ((child != null) && child.showWithParent) {
+                        child.show();
+                        child.showWithParent = false;
+                    }       // endif
+                }   // endfor
+                Window.updateChildFocusableWindowState(this);
+
+		createHierarchyEvents(HierarchyEvent.HIERARCHY_CHANGED,
+				      this, parent,
+				      HierarchyEvent.SHOWING_CHANGED,
+                                      Toolkit.enabledOnToolkit(AWTEvent.HIERARCHY_EVENT_MASK));
+            }
+	    if (retval && (componentListener != null ||
+			   (eventMask & AWTEvent.COMPONENT_EVENT_MASK) != 0 ||
+                           Toolkit.enabledOnToolkit(AWTEvent.COMPONENT_EVENT_MASK))) {
+	        ComponentEvent e =
+		    new ComponentEvent(this, ComponentEvent.COMPONENT_SHOWN);
+		Toolkit.getEventQueue().postEvent(e);
+	    }
+        }
+
+        if (retval && (state & OPENED) == 0) {
+            postWindowEvent(WindowEvent.WINDOW_OPENED);
+            state |= OPENED;
+        }
+
+        return retval;
+!!!3892507.java!!!	show() : void
+        beforeFirstShow = false;
+        if (!isModal()) {
+            conditionalShow(null, null);
+        } else {
+            // Set this variable before calling conditionalShow(). That
+            // way, if the Dialog is hidden right after being shown, we
+            // won't mistakenly block this thread.
+            keepBlocking = true;
+
+            // Store the app context on which this dialog is being shown.
+            // Event dispatch thread of this app context will be sleeping until
+            // we wake it by any event from hideAndDisposeHandler().
+            showAppContext = AppContext.getAppContext();
+
+            // keep the KeyEvents from being dispatched
+            // until the focus has been transfered
+            AtomicLong time = new AtomicLong();
+            Component predictedFocusOwner = getMostRecentFocusOwner();
+
+            try {
+                if (conditionalShow(predictedFocusOwner, time)) {
+                    // We have two mechanisms for blocking: 1. If we're on the
+                    // EventDispatchThread, start a new event pump. 2. If we're
+                    // on any other thread, call wait() on the treelock.
+
+                    final Runnable pumpEventsForHierarchy = new Runnable() {
+                            public void run() {
+                                EventDispatchThread dispatchThread =
+                                    (EventDispatchThread)Thread.currentThread();
+                                dispatchThread.pumpEventsForHierarchy(new Conditional() {
+                                        public boolean evaluate() {
+                                            return keepBlocking && windowClosingException == null;
+                                        }
+                                    }, Dialog.this);
+                            }
+                        };
+
+                    modalityPushed();
+                    try {
+                    if (EventQueue.isDispatchThread()) {
+                        /*
+                         * dispose SequencedEvent we are dispatching on current
+                         * AppContext, to prevent us from hang.
+                     *
+                     * BugId 4531693 (son@sparc.spb.su)
+                     */
+                        SequencedEvent currentSequencedEvent = KeyboardFocusManager.
+                            getCurrentKeyboardFocusManager().getCurrentSequencedEvent();
+                        if (currentSequencedEvent != null) {
+                            currentSequencedEvent.dispose();
+                        }
+
+                        /*
+                         * Event processing is done inside doPrivileged block so that
+                         * it wouldn't matter even if user code is on the stack
+                         * Fix for BugId 6300270 
+                         */
+                        AccessController.doPrivileged(new PrivilegedAction() {
+                                public Object run() {
+                                   pumpEventsForHierarchy.run();
+                                   return null;
+                                }
+                        });
+
+                    } else {
+                        synchronized (getTreeLock()) {
+                            Toolkit.getEventQueue().
+                                postEvent(new PeerEvent(this,
+                                                        pumpEventsForHierarchy,
+                                                        PeerEvent.PRIORITY_EVENT));
+                            while (keepBlocking && windowClosingException == null) {
+                                try {
+                                    getTreeLock().wait();
+                                } catch (InterruptedException e) {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    } finally {
+                        modalityPopped();
+                    }
+                    if (windowClosingException != null) {
+                        windowClosingException.fillInStackTrace();
+                        throw windowClosingException;
+                    }
+                }
+            } finally {
+                // Restore normal key event dispatching
+                KeyboardFocusManager.getCurrentKeyboardFocusManager().
+                    dequeueKeyEvents(time.get(), predictedFocusOwner);
+            }
+        }
+!!!3892635.java!!!	modalityPushed() : void
+        Toolkit tk = Toolkit.getDefaultToolkit();
+        if (tk instanceof SunToolkit) {
+            SunToolkit stk = (SunToolkit)tk;
+            stk.notifyModalityPushed(this);
+        }
+!!!3892763.java!!!	modalityPopped() : void
+        Toolkit tk = Toolkit.getDefaultToolkit();
+        if (tk instanceof SunToolkit) {
+            SunToolkit stk = (SunToolkit)tk;
+            stk.notifyModalityPopped(this);
+        }
+!!!3892891.java!!!	interruptBlocking() : void
+        if (modal) {
+            disposeImpl();
+        } else if (windowClosingException != null) {
+            windowClosingException.fillInStackTrace();
+            windowClosingException.printStackTrace();
+            windowClosingException = null;
+        }

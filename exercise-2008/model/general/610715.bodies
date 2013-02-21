@@ -1,0 +1,527 @@
+class InstOperandConstraintVisitor
+!!!3915931.java!!!	InstOperandConstraintVisitor(inout cpg : ConstantPoolGen)
+			this.cpg = cpg;
+!!!3916059.java!!!	max_locals() : int
+			return Repository.lookupClass(myOwner.getClassName()).getMethods()[method_no].getCode().getMaxLocals();
+!!!3916187.java!!!	constraintViolated(inout i : Instruction, in message : String) : void
+			throw new StaticCodeInstructionOperandConstraintException("Instruction "+i+" constraint violated: "+message);
+!!!3916315.java!!!	indexValid(inout i : Instruction, in idx : int) : void
+			if (idx < 0 || idx >= cpg.getSize()){
+				constraintViolated(i, "Illegal constant pool index '"+idx+"'.");
+			}
+!!!3916443.java!!!	visitLoadClass(inout o : LoadClass) : void
+			ObjectType t = o.getLoadClassType(cpg);
+			if (t != null){// null means "no class is loaded"
+				Verifier v = VerifierFactory.getVerifier(t.getClassName());
+				VerificationResult vr = v.doPass1();
+				if (vr.getStatus() != VerificationResult.VERIFIED_OK){
+					constraintViolated((Instruction) o, "Class '"+o.getLoadClassType(cpg).getClassName()+"' is referenced, but cannot be loaded: '"+vr+"'.");
+				}
+			}
+!!!3916571.java!!!	visitLDC(inout o : LDC) : void
+			indexValid(o, o.getIndex());
+			Constant c = cpg.getConstant(o.getIndex());
+			if (! ( (c instanceof ConstantInteger)	||
+							(c instanceof ConstantFloat) 		||
+							(c instanceof ConstantString) ) ){
+				constraintViolated(o, "Operand of LDC or LDC_W must be one of CONSTANT_Integer, CONSTANT_Float or CONSTANT_String, but is '"+c+"'.");
+			}
+!!!3916699.java!!!	visitLDC2_W(inout o : LDC2_W) : void
+			indexValid(o, o.getIndex());
+			Constant c = cpg.getConstant(o.getIndex());
+			if (! ( (c instanceof ConstantLong)	||
+							(c instanceof ConstantDouble) ) ){
+				constraintViolated(o, "Operand of LDC2_W must be CONSTANT_Long or CONSTANT_Double, but is '"+c+"'.");
+			}
+			try{
+				indexValid(o, o.getIndex()+1);
+			}
+			catch(StaticCodeInstructionOperandConstraintException e){
+				throw new AssertionViolatedException("OOPS: Does not BCEL handle that? LDC2_W operand has a problem.");
+			}
+!!!3916827.java!!!	visitFieldInstruction(inout o : FieldInstruction) : void
+			indexValid(o, o.getIndex());
+			Constant c = cpg.getConstant(o.getIndex());
+			if (! (c instanceof ConstantFieldref)){
+				constraintViolated(o, "Indexing a constant that's not a CONSTANT_Fieldref but a '"+c+"'.");
+			}
+!!!3916955.java!!!	visitInvokeInstruction(inout o : InvokeInstruction) : void
+			indexValid(o, o.getIndex());
+			if (	(o instanceof INVOKEVIRTUAL)	||
+						(o instanceof INVOKESPECIAL)	||
+						(o instanceof INVOKESTATIC)	){
+				Constant c = cpg.getConstant(o.getIndex());
+				if (! (c instanceof ConstantMethodref)){
+					constraintViolated(o, "Indexing a constant that's not a CONSTANT_Methodref but a '"+c+"'.");
+				}
+				else{
+					// Constants are okay due to pass2.
+					ConstantNameAndType cnat = (ConstantNameAndType) (cpg.getConstant(((ConstantMethodref) c).getNameAndTypeIndex()));
+					ConstantUtf8 cutf8 = (ConstantUtf8) (cpg.getConstant(cnat.getNameIndex()));
+					if (cutf8.getBytes().equals(Constants.CONSTRUCTOR_NAME) && (!(o instanceof INVOKESPECIAL)) ){
+						constraintViolated(o, "Only INVOKESPECIAL is allowed to invoke instance initialization methods.");
+					}
+					if ( (! (cutf8.getBytes().equals(Constants.CONSTRUCTOR_NAME)) ) && (cutf8.getBytes().startsWith("<")) ){
+						constraintViolated(o, "No method with a name beginning with '<' other than the instance initialization methods may be called by the method invocation instructions.");
+					}
+				}
+			}
+			else{ //if (o instanceof INVOKEINTERFACE){
+				Constant c = cpg.getConstant(o.getIndex());
+				if (! (c instanceof ConstantInterfaceMethodref)){
+					constraintViolated(o, "Indexing a constant that's not a CONSTANT_InterfaceMethodref but a '"+c+"'.");
+				}
+				// TODO: From time to time check if BCEL allows to detect if the
+				// 'count' operand is consistent with the information in the
+				// CONSTANT_InterfaceMethodref and if the last operand is zero.
+				// By now, BCEL hides those two operands because they're superfluous.
+				
+				// Invoked method must not be <init> or <clinit>
+				ConstantNameAndType cnat = (ConstantNameAndType) (cpg.getConstant(((ConstantInterfaceMethodref)c).getNameAndTypeIndex()));
+				String name = ((ConstantUtf8) (cpg.getConstant(cnat.getNameIndex()))).getBytes();
+				if (name.equals(Constants.CONSTRUCTOR_NAME)){
+					constraintViolated(o, "Method to invoke must not be '"+Constants.CONSTRUCTOR_NAME+"'.");
+				}
+				if (name.equals(Constants.STATIC_INITIALIZER_NAME)){
+					constraintViolated(o, "Method to invoke must not be '"+Constants.STATIC_INITIALIZER_NAME+"'.");
+				}
+			}
+		
+			// The LoadClassType is the method-declaring class, so we have to check the other types.
+			
+			Type t = o.getReturnType(cpg);
+			if (t instanceof ArrayType){
+				t = ((ArrayType) t).getBasicType();
+			}
+			if (t instanceof ObjectType){
+				Verifier v = VerifierFactory.getVerifier(((ObjectType) t).getClassName());
+				VerificationResult vr = v.doPass2();
+				if (vr.getStatus() != VerificationResult.VERIFIED_OK){
+					constraintViolated(o, "Return type class/interface could not be verified successfully: '"+vr.getMessage()+"'.");
+				}
+			}
+			
+			Type[] ts = o.getArgumentTypes(cpg);
+			for (int i=0; i<ts.length; i++){
+				t = ts[i];
+				if (t instanceof ArrayType){
+					t = ((ArrayType) t).getBasicType();
+				}
+				if (t instanceof ObjectType){
+					Verifier v = VerifierFactory.getVerifier(((ObjectType) t).getClassName());
+					VerificationResult vr = v.doPass2();
+					if (vr.getStatus() != VerificationResult.VERIFIED_OK){
+						constraintViolated(o, "Argument type class/interface could not be verified successfully: '"+vr.getMessage()+"'.");
+					}
+				}
+			}
+			
+!!!3917083.java!!!	visitINSTANCEOF(inout o : INSTANCEOF) : void
+			indexValid(o, o.getIndex());
+			Constant c = cpg.getConstant(o.getIndex());
+			if (!	(c instanceof ConstantClass)){
+				constraintViolated(o, "Expecting a CONSTANT_Class operand, but found a '"+c+"'.");
+			}
+!!!3917211.java!!!	visitCHECKCAST(inout o : CHECKCAST) : void
+			indexValid(o, o.getIndex());
+			Constant c = cpg.getConstant(o.getIndex());
+			if (!	(c instanceof ConstantClass)){
+				constraintViolated(o, "Expecting a CONSTANT_Class operand, but found a '"+c+"'.");
+			}
+!!!3917339.java!!!	visitNEW(inout o : NEW) : void
+			indexValid(o, o.getIndex());
+			Constant c = cpg.getConstant(o.getIndex());
+			if (!	(c instanceof ConstantClass)){
+				constraintViolated(o, "Expecting a CONSTANT_Class operand, but found a '"+c+"'.");
+			}
+			else{
+				ConstantUtf8 cutf8 = (ConstantUtf8) (cpg.getConstant( ((ConstantClass) c).getNameIndex() ));
+				Type t = Type.getType("L"+cutf8.getBytes()+";");
+				if (t instanceof ArrayType){
+					constraintViolated(o, "NEW must not be used to create an array.");
+				}
+			}
+			
+!!!3917467.java!!!	visitMULTIANEWARRAY(inout o : MULTIANEWARRAY) : void
+			indexValid(o, o.getIndex());
+			Constant c = cpg.getConstant(o.getIndex());
+			if (!	(c instanceof ConstantClass)){
+				constraintViolated(o, "Expecting a CONSTANT_Class operand, but found a '"+c+"'.");
+			}
+			int dimensions2create = o.getDimensions();
+			if (dimensions2create < 1){
+				constraintViolated(o, "Number of dimensions to create must be greater than zero.");
+			}
+			Type t = o.getType(cpg);
+			if (t instanceof ArrayType){
+				int dimensions = ((ArrayType) t).getDimensions();
+				if (dimensions < dimensions2create){
+					constraintViolated(o, "Not allowed to create array with more dimensions ('+dimensions2create+') than the one referenced by the CONSTANT_Class '"+t+"'.");
+				}
+			}
+			else{
+				constraintViolated(o, "Expecting a CONSTANT_Class referencing an array type. [Constraint not found in The Java Virtual Machine Specification, Second Edition, 4.8.1]");
+			}
+!!!3917595.java!!!	visitANEWARRAY(inout o : ANEWARRAY) : void
+			indexValid(o, o.getIndex());
+			Constant c = cpg.getConstant(o.getIndex());
+			if (!	(c instanceof ConstantClass)){
+				constraintViolated(o, "Expecting a CONSTANT_Class operand, but found a '"+c+"'.");
+			}
+			Type t = o.getType(cpg);
+			if (t instanceof ArrayType){
+				int dimensions = ((ArrayType) t).getDimensions();
+				if (dimensions >= 255){
+					constraintViolated(o, "Not allowed to create an array with more than 255 dimensions.");
+				}
+			}
+!!!3917723.java!!!	visitNEWARRAY(inout o : NEWARRAY) : void
+			byte t = o.getTypecode();
+			if (!	(	(t == Constants.T_BOOLEAN)	||
+							(t == Constants.T_CHAR)			||
+							(t == Constants.T_FLOAT)		||
+							(t == Constants.T_DOUBLE)		||
+							(t == Constants.T_BYTE)			||
+							(t == Constants.T_SHORT)		||
+							(t == Constants.T_INT)			||
+							(t == Constants.T_LONG)	)	){
+				constraintViolated(o, "Illegal type code '+t+' for 'atype' operand.");
+			}
+!!!3917851.java!!!	visitILOAD(inout o : ILOAD) : void
+			int idx = o.getIndex();
+			if (idx < 0){
+				constraintViolated(o, "Index '"+idx+"' must be non-negative.");
+			}
+			else{
+				int maxminus1 =  max_locals()-1;
+				if (idx > maxminus1){
+					constraintViolated(o, "Index '"+idx+"' must not be greater than max_locals-1 '"+maxminus1+"'.");
+				}
+			}
+!!!3917979.java!!!	visitFLOAD(inout o : FLOAD) : void
+			int idx = o.getIndex();
+			if (idx < 0){
+				constraintViolated(o, "Index '"+idx+"' must be non-negative.");
+			}
+			else{
+				int maxminus1 =  max_locals()-1;
+				if (idx > maxminus1){
+					constraintViolated(o, "Index '"+idx+"' must not be greater than max_locals-1 '"+maxminus1+"'.");
+				}
+			}
+!!!3918107.java!!!	visitALOAD(inout o : ALOAD) : void
+			int idx = o.getIndex();
+			if (idx < 0){
+				constraintViolated(o, "Index '"+idx+"' must be non-negative.");
+			}
+			else{
+				int maxminus1 =  max_locals()-1;
+				if (idx > maxminus1){
+					constraintViolated(o, "Index '"+idx+"' must not be greater than max_locals-1 '"+maxminus1+"'.");
+				}
+			}
+!!!3918235.java!!!	visitISTORE(inout o : ISTORE) : void
+			int idx = o.getIndex();
+			if (idx < 0){
+				constraintViolated(o, "Index '"+idx+"' must be non-negative.");
+			}
+			else{
+				int maxminus1 =  max_locals()-1;
+				if (idx > maxminus1){
+					constraintViolated(o, "Index '"+idx+"' must not be greater than max_locals-1 '"+maxminus1+"'.");
+				}
+			}
+!!!3918363.java!!!	visitFSTORE(inout o : FSTORE) : void
+			int idx = o.getIndex();
+			if (idx < 0){
+				constraintViolated(o, "Index '"+idx+"' must be non-negative.");
+			}
+			else{
+				int maxminus1 =  max_locals()-1;
+				if (idx > maxminus1){
+					constraintViolated(o, "Index '"+idx+"' must not be greater than max_locals-1 '"+maxminus1+"'.");
+				}
+			}
+!!!3918491.java!!!	visitASTORE(inout o : ASTORE) : void
+			int idx = o.getIndex();
+			if (idx < 0){
+				constraintViolated(o, "Index '"+idx+"' must be non-negative.");
+			}
+			else{
+				int maxminus1 =  max_locals()-1;
+				if (idx > maxminus1){
+					constraintViolated(o, "Index '"+idx+"' must not be greater than max_locals-1 '"+maxminus1+"'.");
+				}
+			}
+!!!3918619.java!!!	visitIINC(inout o : IINC) : void
+			int idx = o.getIndex();
+			if (idx < 0){
+				constraintViolated(o, "Index '"+idx+"' must be non-negative.");
+			}
+			else{
+				int maxminus1 =  max_locals()-1;
+				if (idx > maxminus1){
+					constraintViolated(o, "Index '"+idx+"' must not be greater than max_locals-1 '"+maxminus1+"'.");
+				}
+			}
+!!!3918747.java!!!	visitRET(inout o : RET) : void
+			int idx = o.getIndex();
+			if (idx < 0){
+				constraintViolated(o, "Index '"+idx+"' must be non-negative.");
+			}
+			else{
+				int maxminus1 =  max_locals()-1;
+				if (idx > maxminus1){
+					constraintViolated(o, "Index '"+idx+"' must not be greater than max_locals-1 '"+maxminus1+"'.");
+				}
+			}
+!!!3918875.java!!!	visitLLOAD(inout o : LLOAD) : void
+			int idx = o.getIndex();
+			if (idx < 0){
+				constraintViolated(o, "Index '"+idx+"' must be non-negative. [Constraint by JustIce as an analogon to the single-slot xLOAD/xSTORE instructions; may not happen anyway.]");
+			}
+			else{
+				int maxminus2 =  max_locals()-2;
+				if (idx > maxminus2){
+					constraintViolated(o, "Index '"+idx+"' must not be greater than max_locals-2 '"+maxminus2+"'.");
+				}
+			}
+!!!3919003.java!!!	visitDLOAD(inout o : DLOAD) : void
+			int idx = o.getIndex();
+			if (idx < 0){
+				constraintViolated(o, "Index '"+idx+"' must be non-negative. [Constraint by JustIce as an analogon to the single-slot xLOAD/xSTORE instructions; may not happen anyway.]");
+			}
+			else{
+				int maxminus2 =  max_locals()-2;
+				if (idx > maxminus2){
+					constraintViolated(o, "Index '"+idx+"' must not be greater than max_locals-2 '"+maxminus2+"'.");
+				}
+			}
+!!!3919131.java!!!	visitLSTORE(inout o : LSTORE) : void
+			int idx = o.getIndex();
+			if (idx < 0){
+				constraintViolated(o, "Index '"+idx+"' must be non-negative. [Constraint by JustIce as an analogon to the single-slot xLOAD/xSTORE instructions; may not happen anyway.]");
+			}
+			else{
+				int maxminus2 =  max_locals()-2;
+				if (idx > maxminus2){
+					constraintViolated(o, "Index '"+idx+"' must not be greater than max_locals-2 '"+maxminus2+"'.");
+				}
+			}
+!!!3919259.java!!!	visitDSTORE(inout o : DSTORE) : void
+			int idx = o.getIndex();
+			if (idx < 0){
+				constraintViolated(o, "Index '"+idx+"' must be non-negative. [Constraint by JustIce as an analogon to the single-slot xLOAD/xSTORE instructions; may not happen anyway.]");
+			}
+			else{
+				int maxminus2 =  max_locals()-2;
+				if (idx > maxminus2){
+					constraintViolated(o, "Index '"+idx+"' must not be greater than max_locals-2 '"+maxminus2+"'.");
+				}
+			}
+!!!3919387.java!!!	visitLOOKUPSWITCH(inout o : LOOKUPSWITCH) : void
+			int[] matchs = o.getMatchs();
+			int max = Integer.MIN_VALUE;
+			for (int i=0; i<matchs.length; i++){
+				if (matchs[i] == max && i != 0){
+					constraintViolated(o, "Match '"+matchs[i]+"' occurs more than once.");
+				}
+				if (matchs[i] < max){
+					constraintViolated(o, "Lookup table must be sorted but isn't.");
+				}
+				else{
+					max = matchs[i];
+				}
+			}
+!!!3919515.java!!!	visitTABLESWITCH(inout o : TABLESWITCH) : void
+ 	
+			// "high" must be >= "low". We cannot check this, as BCEL hides
+			// it from us.
+!!!3919643.java!!!	visitPUTSTATIC(inout o : PUTSTATIC) : void
+			String field_name = o.getFieldName(cpg);
+			JavaClass jc = Repository.lookupClass(o.getClassType(cpg).getClassName());
+			Field[] fields = jc.getFields();
+			Field f = null;
+			for (int i=0; i<fields.length; i++){
+				if (fields[i].getName().equals(field_name)){
+					f = fields[i];
+					break;
+				}
+			}
+			if (f == null){
+				throw new AssertionViolatedException("Field not found?!?");
+			}
+
+			if (f.isFinal()){
+				if (!(myOwner.getClassName().equals(o.getClassType(cpg).getClassName()))){
+					constraintViolated(o, "Referenced field '"+f+"' is final and must therefore be declared in the current class '"+myOwner.getClassName()+"' which is not the case: it is declared in '"+o.getClassType(cpg).getClassName()+"'.");
+				}
+			}
+
+			if (! (f.isStatic())){
+				constraintViolated(o, "Referenced field '"+f+"' is not static which it should be.");
+			}
+
+			String meth_name = Repository.lookupClass(myOwner.getClassName()).getMethods()[method_no].getName();
+
+			// If it's an interface, it can be set only in <clinit>.
+			if ((!(jc.isClass())) && (!(meth_name.equals(Constants.STATIC_INITIALIZER_NAME)))){
+				constraintViolated(o, "Interface field '"+f+"' must be set in a '"+Constants.STATIC_INITIALIZER_NAME+"' method.");
+			}
+!!!3919771.java!!!	visitGETSTATIC(inout o : GETSTATIC) : void
+			String field_name = o.getFieldName(cpg);
+			JavaClass jc = Repository.lookupClass(o.getClassType(cpg).getClassName());
+			Field[] fields = jc.getFields();
+			Field f = null;
+			for (int i=0; i<fields.length; i++){
+				if (fields[i].getName().equals(field_name)){
+					f = fields[i];
+					break;
+				}
+			}
+			if (f == null){
+				throw new AssertionViolatedException("Field not found?!?");
+			}
+
+			if (! (f.isStatic())){
+				constraintViolated(o, "Referenced field '"+f+"' is not static which it should be.");
+			}
+!!!3919899.java!!!	visitINVOKEINTERFACE(inout o : INVOKEINTERFACE) : void
+			// INVOKEINTERFACE is a LoadClass; the Class where the referenced method is declared in,
+			// is therefore resolved/verified.
+			// INVOKEINTERFACE is an InvokeInstruction, the argument and return types are resolved/verified,
+			// too. So are the allowed method names.
+			String classname = o.getClassName(cpg);
+			JavaClass jc = Repository.lookupClass(classname);
+			Method[] ms = jc.getMethods();
+			Method m = null;
+			for (int i=0; i<ms.length; i++){
+				if ( (ms[i].getName().equals(o.getMethodName(cpg))) &&
+				     (Type.getReturnType(ms[i].getSignature()).equals(o.getReturnType(cpg))) &&
+				     (objarrayequals(Type.getArgumentTypes(ms[i].getSignature()), o.getArgumentTypes(cpg))) ){
+					m = ms[i];
+					break;
+				}
+			}
+			if (m == null){
+				constraintViolated(o, "Referenced method '"+o.getMethodName(cpg)+"' with expected signature not found in class '"+jc.getClassName()+"'. The native verfier does allow the method to be declared in some superinterface, which the Java Virtual Machine Specification, Second Edition does not.");
+			}
+			if (jc.isClass()){
+				constraintViolated(o, "Referenced class '"+jc.getClassName()+"' is a class, but not an interface as expected.");
+			}
+!!!3920027.java!!!	visitINVOKESPECIAL(inout o : INVOKESPECIAL) : void
+			// INVOKESPECIAL is a LoadClass; the Class where the referenced method is declared in,
+			// is therefore resolved/verified.
+			// INVOKESPECIAL is an InvokeInstruction, the argument and return types are resolved/verified,
+			// too. So are the allowed method names.
+			String classname = o.getClassName(cpg);
+			JavaClass jc = Repository.lookupClass(classname);
+			Method[] ms = jc.getMethods();
+			Method m = null;
+			for (int i=0; i<ms.length; i++){
+				if ( (ms[i].getName().equals(o.getMethodName(cpg))) &&
+				     (Type.getReturnType(ms[i].getSignature()).equals(o.getReturnType(cpg))) &&
+				     (objarrayequals(Type.getArgumentTypes(ms[i].getSignature()), o.getArgumentTypes(cpg))) ){
+					m = ms[i];
+					break;
+				}
+			}
+			if (m == null){
+				constraintViolated(o, "Referenced method '"+o.getMethodName(cpg)+"' with expected signature not found in class '"+jc.getClassName()+"'. The native verfier does allow the method to be declared in some superclass or implemented interface, which the Java Virtual Machine Specification, Second Edition does not.");
+			}
+			
+			JavaClass current = Repository.lookupClass(myOwner.getClassName());
+			if (current.isSuper()){
+			
+				if ((Repository.instanceOf( current, jc )) && (!current.equals(jc))){
+					
+					if (! (o.getMethodName(cpg).equals(Constants.CONSTRUCTOR_NAME) )){
+						// Special lookup procedure for ACC_SUPER classes.
+						
+						int supidx = -1;
+						
+						Method meth = null;
+						while (supidx != 0){
+							supidx = current.getSuperclassNameIndex();
+							current = Repository.lookupClass(current.getSuperclassName());
+							
+							Method[] meths = current.getMethods();
+							for (int i=0; i<meths.length; i++){
+								if	( (meths[i].getName().equals(o.getMethodName(cpg))) &&
+				     				(Type.getReturnType(meths[i].getSignature()).equals(o.getReturnType(cpg))) &&
+				     				(objarrayequals(Type.getArgumentTypes(meths[i].getSignature()), o.getArgumentTypes(cpg))) ){
+									meth = meths[i];
+									break;
+								}
+							}
+							if (meth != null) break;
+						}
+						if (meth == null){
+							constraintViolated(o, "ACC_SUPER special lookup procedure not successful: method '"+o.getMethodName(cpg)+"' with proper signature not declared in superclass hierarchy.");
+						}						
+					}
+				}
+			}
+			
+			
+!!!3920155.java!!!	visitINVOKESTATIC(inout o : INVOKESTATIC) : void
+			// INVOKESTATIC is a LoadClass; the Class where the referenced method is declared in,
+			// is therefore resolved/verified.
+			// INVOKESTATIC is an InvokeInstruction, the argument and return types are resolved/verified,
+			// too. So are the allowed method names.
+			String classname = o.getClassName(cpg);
+			JavaClass jc = Repository.lookupClass(classname);
+			Method[] ms = jc.getMethods();
+			Method m = null;
+			for (int i=0; i<ms.length; i++){
+				if ( (ms[i].getName().equals(o.getMethodName(cpg))) &&
+				     (Type.getReturnType(ms[i].getSignature()).equals(o.getReturnType(cpg))) &&
+				     (objarrayequals(Type.getArgumentTypes(ms[i].getSignature()), o.getArgumentTypes(cpg))) ){
+					m = ms[i];
+					break;
+				}
+			}
+			if (m == null){
+				constraintViolated(o, "Referenced method '"+o.getMethodName(cpg)+"' with expected signature not found in class '"+jc.getClassName()+"'. The native verifier possibly allows the method to be declared in some superclass or implemented interface, which the Java Virtual Machine Specification, Second Edition does not.");
+			}
+			
+			if (! (m.isStatic())){ // implies it's not abstract, verified in pass 2.
+				constraintViolated(o, "Referenced method '"+o.getMethodName(cpg)+"' has ACC_STATIC unset.");
+			}
+		
+!!!3920283.java!!!	visitINVOKEVIRTUAL(inout o : INVOKEVIRTUAL) : void
+			// INVOKEVIRTUAL is a LoadClass; the Class where the referenced method is declared in,
+			// is therefore resolved/verified.
+			// INVOKEVIRTUAL is an InvokeInstruction, the argument and return types are resolved/verified,
+			// too. So are the allowed method names.
+			String classname = o.getClassName(cpg);
+			JavaClass jc = Repository.lookupClass(classname);
+			Method[] ms = jc.getMethods();
+			Method m = null;
+			for (int i=0; i<ms.length; i++){
+				if ( (ms[i].getName().equals(o.getMethodName(cpg))) &&
+				     (Type.getReturnType(ms[i].getSignature()).equals(o.getReturnType(cpg))) &&
+				     (objarrayequals(Type.getArgumentTypes(ms[i].getSignature()), o.getArgumentTypes(cpg))) ){
+					m = ms[i];
+					break;
+				}
+			}
+			if (m == null){
+				constraintViolated(o, "Referenced method '"+o.getMethodName(cpg)+"' with expected signature not found in class '"+jc.getClassName()+"'. The native verfier does allow the method to be declared in some superclass or implemented interface, which the Java Virtual Machine Specification, Second Edition does not.");
+			}
+			if (! (jc.isClass())){
+				constraintViolated(o, "Referenced class '"+jc.getClassName()+"' is an interface, but not a class as expected.");
+			}
+					
+!!!3920411.java!!!	objarrayequals(inout o : Object, inout p : Object) : boolean
+			if (o.length != p.length){
+				return false;
+			}
+			
+			for (int i=0; i<o.length; i++){
+				if (! (o[i].equals(p[i])) ){
+					return false;
+				}
+			}
+			
+			return true;

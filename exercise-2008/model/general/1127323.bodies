@@ -1,0 +1,63 @@
+class DynamicUtilTreeNode
+!!!9217435.java!!!	createChildren(inout parent : DefaultMutableTreeNode, inout children : Object) : void
+            if(children instanceof Vector) {
+                Vector          childVector = (Vector)children;
+
+                for(int counter = 0, maxCounter = childVector.size();
+                    counter < maxCounter; counter++)
+                    parent.add(new DynamicUtilTreeNode
+                               (childVector.elementAt(counter),
+                                childVector.elementAt(counter)));
+            }
+            else if(children instanceof Hashtable) {
+                Hashtable           childHT = (Hashtable)children;
+                Enumeration         keys = childHT.keys();
+                Object              aKey;
+
+                while(keys.hasMoreElements()) {
+                    aKey = keys.nextElement();
+                    parent.add(new DynamicUtilTreeNode(aKey,
+                                                       childHT.get(aKey)));
+                }
+            }
+            else if(children instanceof Object[]) {
+                Object[]             childArray = (Object[])children;
+
+                for(int counter = 0, maxCounter = childArray.length;
+                    counter < maxCounter; counter++)
+                    parent.add(new DynamicUtilTreeNode(childArray[counter],
+                                                       childArray[counter]));
+            }
+!!!9217563.java!!!	DynamicUtilTreeNode(inout value : Object, inout children : Object)
+            super(value);
+            loadedChildren = false;
+            childValue = children;
+            if(children != null) {
+                if(children instanceof Vector)
+                    setAllowsChildren(true);
+                else if(children instanceof Hashtable)
+                    setAllowsChildren(true);
+                else if(children instanceof Object[])
+                    setAllowsChildren(true);
+                else
+                    setAllowsChildren(false);
+            }
+            else
+                setAllowsChildren(false);
+!!!9217691.java!!!	isLeaf() : boolean
+            return !getAllowsChildren();
+!!!9217819.java!!!	getChildCount() : int
+            if(!loadedChildren)
+                loadChildren();
+            return super.getChildCount();
+!!!9217947.java!!!	loadChildren() : void
+            loadedChildren = true;
+            createChildren(this, childValue);
+!!!9218075.java!!!	getChildAt(in index : int) : TreeNode
+	    if(!loadedChildren)
+		loadChildren();
+	    return super.getChildAt(index);
+!!!9218203.java!!!	children() : Enumeration
+	    if(!loadedChildren)
+		loadChildren();
+	    return super.children();

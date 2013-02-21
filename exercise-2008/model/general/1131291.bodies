@@ -1,0 +1,459 @@
+class RepaintManager
+!!!9254939.java!!!	currentManager(inout c : Component) : RepaintManager
+        // Note: SystemEventQueueUtilities.ComponentWorkRequest passes
+        // in null as the component, so if component is ever used to 
+        // determine the current RepaintManager, SystemEventQueueUtilities
+        // will need to be modified accordingly.
+        RepaintManager result = (RepaintManager) SwingUtilities.appContextGet(repaintManagerKey);
+        if(result == null) {
+            result = new RepaintManager();
+            SwingUtilities.appContextPut(repaintManagerKey, result);
+        }
+	return result;
+!!!9255067.java!!!	currentManager(inout c : JComponent) : RepaintManager
+	return currentManager((Component)c);
+!!!9255195.java!!!	setCurrentManager(inout aRepaintManager : RepaintManager) : void
+        if (aRepaintManager != null) {
+            SwingUtilities.appContextPut(repaintManagerKey, aRepaintManager);
+        } else {
+            SwingUtilities.appContextRemove(repaintManagerKey);
+        }
+!!!9255323.java!!!	RepaintManager()
+	Object dbe = java.security.AccessController.doPrivileged(
+               new GetPropertyAction("awt.nativeDoubleBuffering"));
+        boolean nativeDoubleBuffering = (dbe != null) ?
+                      Boolean.valueOf(dbe.toString()).booleanValue() : false;
+        // If native doublebuffering is being used, do NOT use
+        // Swing doublebuffering.
+        doubleBufferingEnabled = !nativeDoubleBuffering;
+!!!9255451.java!!!	addInvalidComponent(inout invalidComponent : JComponent) : void
+        Component validateRoot = null;
+
+	/* Find the first JComponent ancestor of this component whose
+	 * isValidateRoot() method returns true.  
+	 */
+        for(Component c = invalidComponent; c != null; c = c.getParent()) {
+	    if ((c instanceof CellRendererPane) || (c.getPeer() == null)) {
+		return;
+	    }
+	    if ((c instanceof JComponent) && (((JComponent)c).isValidateRoot())) {
+		validateRoot = c;
+		break;
+	    }
+	}
+        
+	/* There's no validateRoot to apply validate to, so we're done.
+	 */
+	if (validateRoot == null) {
+	    return;
+	}
+
+	/* If the validateRoot and all of its ancestors aren't visible
+	 * then we don't do anything.  While we're walking up the tree
+	 * we find the root Window or Applet.
+	 */
+	Component root = null;
+	
+	for(Component c = validateRoot; c != null; c = c.getParent()) {
+	    if (!c.isVisible() || (c.getPeer() == null)) {
+		return;
+	    }
+	    if ((c instanceof Window) || (c instanceof Applet)) {
+		root = c;
+		break;
+	    }
+	}
+
+	if (root == null) {
+	    return;
+	}
+	   
+	/* Lazily create the invalidateComponents vector and add the
+	 * validateRoot if it's not there already.  If this validateRoot
+	 * is already in the vector, we're done.
+	 */
+	if (invalidComponents == null) {
+	    invalidComponents = new Vector();
+	}
+	else {
+	    int n = invalidComponents.size();
+	    for(int i = 0; i < n; i++) {
+		if(validateRoot == (Component)(invalidComponents.elementAt(i))) {
+		    return;
+		}
+	    }
+	}
+	invalidComponents.addElement(validateRoot);
+
+	/* Queues a Runnable that calls RepaintManager.validateInvalidComponents() 
+	 * and RepaintManager.paintDirtyRegions() with SwingUtilities.invokeLater().
+	 */
+	SystemEventQueueUtilities.queueComponentWorkRequest(root);
+!!!9255579.java!!!	removeInvalidComponent(inout component : JComponent) : void
+        if(invalidComponents != null) {
+            int index = invalidComponents.indexOf(component);
+            if(index != -1) {
+                invalidComponents.removeElementAt(index);
+            }
+        }
+!!!9255707.java!!!	addDirtyRegion(inout c : JComponent, in x : int, in y : int, in w : int, in h : int) : void
+	/* Special cases we don't have to bother with.
+	 */
+        if ((w <= 0) || (h <= 0) || (c == null)) {
+            return;
+        }
+
+	if ((c.getWidth() <= 0) || (c.getHeight() <= 0)) {
+	    return;
+	}
+
+        if (extendDirtyRegion(c, x, y, w, h)) {
+            // Component was already marked as dirty, region has been
+            // extended, no need to continue.
+            return;
+        }
+
+	/* Make sure that c and all it ancestors (up to an Applet or
+	 * Window) are visible.  This loop has the same effect as 
+	 * checking c.isShowing() (and note that it's still possible 
+	 * that c is completely obscured by an opaque ancestor in 
+	 * the specified rectangle).
+	 */
+	Component root = null;
+
+        // Note: We can't synchronize around this, Frame.getExtendedState
+        // is synchronized so that if we were to synchronize around this
+        // it could lead to the possibility of getting locks out
+        // of order and deadlocking.
+	for (Container p = c; p != null; p = p.getParent()) {
+	    if (!p.isVisible() || (p.getPeer() == null)) {
+		return;
+	    }
+	    if ((p instanceof Window) || (p instanceof Applet)) {
+                // Iconified frames are still visible!
+                if (p instanceof Frame &&
+                        (((Frame)p).getExtendedState() & Frame.ICONIFIED) ==
+                                    Frame.ICONIFIED) {
+                    return;
+                }
+		root = p;
+		break;
+	    }
+	}
+
+	if (root == null) return;
+
+        synchronized(this) {
+            if (extendDirtyRegion(c, x, y, w, h)) {
+                // In between last check and this check another thread
+                // queued up runnable, can bail here.
+                return;
+            }
+            dirtyComponents.put(c, new Rectangle(x, y, w, h));
+        }
+
+	/* Queues a Runnable that calls validateInvalidComponents() and
+	 * rm.paintDirtyRegions() with SwingUtilities.invokeLater().
+	 */
+	SystemEventQueueUtilities.queueComponentWorkRequest(root);
+!!!9255835.java!!!	extendDirtyRegion(inout c : Component, in x : int, in y : int, in w : int, in h : int) : boolean
+        Rectangle r = (Rectangle)dirtyComponents.get(c);
+        if (r != null) {
+            // A non-null r implies c is already marked as dirty,
+            // and that the parent is valid. Therefore we can
+            // just union the rect and bail.
+            SwingUtilities.computeUnion(x, y, w, h, r);
+            return true;
+        }
+        return false;
+!!!9255963.java!!!	getDirtyRegion(inout aComponent : JComponent) : Rectangle
+	Rectangle r = null;
+	synchronized(this) {
+	    r = (Rectangle)dirtyComponents.get(aComponent);
+	}
+	if(r == null)
+	    return new Rectangle(0,0,0,0);
+	else
+	    return new Rectangle(r);
+!!!9256091.java!!!	markCompletelyDirty(inout aComponent : JComponent) : void
+	addDirtyRegion(aComponent,0,0,Integer.MAX_VALUE,Integer.MAX_VALUE);
+!!!9256219.java!!!	markCompletelyClean(inout aComponent : JComponent) : void
+	synchronized(this) {
+		dirtyComponents.remove(aComponent);
+	}
+!!!9256347.java!!!	isCompletelyDirty(inout aComponent : JComponent) : boolean
+	Rectangle r;
+	
+	r = getDirtyRegion(aComponent);
+	if(r.width == Integer.MAX_VALUE &&
+	   r.height == Integer.MAX_VALUE)
+	    return true;
+	else
+	    return false;
+!!!9256475.java!!!	validateInvalidComponents() : void
+        Vector ic;
+        synchronized(this) {
+            if(invalidComponents == null) {
+                return;
+	    }
+            ic = invalidComponents;
+            invalidComponents = null;
+        }
+	int n = ic.size();
+        for(int i = 0; i < n; i++) {
+            ((Component)ic.elementAt(i)).validate();
+        }
+!!!9256603.java!!!	paintDirtyRegions() : void
+        int i, count;
+	Vector roots;
+        JComponent dirtyComponent;
+
+	synchronized(this) {  // swap for thread safety
+	    Hashtable tmp = tmpDirtyComponents;
+	    tmpDirtyComponents = dirtyComponents;
+	    dirtyComponents = tmp;
+	    dirtyComponents.clear();
+	}
+
+        count = tmpDirtyComponents.size();
+        if (count == 0) {
+            return;
+        } 
+
+        Rectangle rect;
+        int localBoundsX = 0;
+        int localBoundsY = 0;
+        int localBoundsH = 0;
+        int localBoundsW = 0;	
+        Enumeration keys;
+
+        roots = new Vector(count);
+        keys = tmpDirtyComponents.keys();
+
+        while(keys.hasMoreElements()) {
+            dirtyComponent = (JComponent) keys.nextElement();
+            collectDirtyComponents(tmpDirtyComponents, dirtyComponent, roots);
+        }
+
+        count = roots.size();
+        //        System.out.println("roots size is " + count);
+        for(i=0 ; i < count ; i++) {
+            dirtyComponent = (JComponent) roots.elementAt(i);
+            rect = (Rectangle) tmpDirtyComponents.get(dirtyComponent);
+            //            System.out.println("Should refresh :" + rect);
+            localBoundsH = dirtyComponent.getHeight();
+            localBoundsW = dirtyComponent.getWidth();
+
+            SwingUtilities.computeIntersection(localBoundsX, 
+					       localBoundsY,
+					       localBoundsW,
+					       localBoundsH,
+					       rect);
+            // System.out.println("** paint of " + dirtyComponent + rect);
+            if (rect.x == 0 && rect.y == 0 &&
+                         rect.width == dirtyComponent.getWidth() &&
+                         rect.height == dirtyComponent.getHeight()) {
+                Container parent = dirtyComponent.getParent();
+                ComponentPeer parentPeer;
+                if (parent != null && !parent.isLightweight() &&
+                    (parentPeer = parent.getPeer()) != null) {
+                    // Cancel any pending paints on the heavy weight peer.
+                    // This avoid duplicate painting.
+                    ((ContainerPeer)parentPeer).cancelPendingPaint(
+                                    dirtyComponent.getX(),
+                                    dirtyComponent.getY(),
+                                    rect.width, rect.height);
+                }
+            }
+            dirtyComponent.paintImmediately(rect.x,rect.y,rect.width,rect.height);
+        }
+	tmpDirtyComponents.clear();
+!!!9256731.java!!!	collectDirtyComponents(inout dirtyComponents : Hashtable, inout dirtyComponent : JComponent, inout roots : Vector) : void
+        int dx, dy, rootDx, rootDy;
+        Component component, rootDirtyComponent,parent;
+	//Rectangle tmp;
+        Rectangle cBounds;
+
+        // Find the highest parent which is dirty.  When we get out of this
+        // rootDx and rootDy will contain the translation from the
+        // rootDirtyComponent's coordinate system to the coordinates of the
+        // original dirty component.  The tmp Rect is also used to compute the
+        // visible portion of the dirtyRect.
+
+        component = rootDirtyComponent = dirtyComponent;
+
+        int x = dirtyComponent.getX();
+        int y = dirtyComponent.getY();
+        int w = dirtyComponent.getWidth();
+        int h = dirtyComponent.getHeight();
+
+        dx = rootDx = 0;
+        dy = rootDy = 0;
+        tmp.setBounds((Rectangle) dirtyComponents.get(dirtyComponent));
+
+        // System.out.println("Collect dirty component for bound " + tmp + 
+        //                                   "component bounds is " + cBounds);;
+        SwingUtilities.computeIntersection(0,0,w,h,tmp);
+
+        if (tmp.isEmpty()) {
+            // System.out.println("Empty 1");
+            return;
+        } 
+
+        for(;;) {
+            parent = component.getParent();
+            if(parent == null) 
+                break;
+
+            if(!(parent instanceof JComponent))
+                break;
+
+            component = parent;
+
+            dx += x;
+            dy += y;
+            tmp.setLocation(tmp.x + x, tmp.y + y);
+
+            x = component.getX();
+            y = component.getY();
+            w = component.getWidth();
+            h = component.getHeight();
+            tmp = SwingUtilities.computeIntersection(0,0,w,h,tmp);
+
+            if (tmp.isEmpty()) {
+                // System.out.println("Empty 2");
+                return;
+            }
+
+            if (dirtyComponents.get(component) != null) {
+                rootDirtyComponent = component;
+                rootDx = dx;
+                rootDy = dy;
+            }
+        } 
+
+        if (dirtyComponent != rootDirtyComponent) {
+	    Rectangle r;
+            tmp.setLocation(tmp.x + rootDx - dx,
+			    tmp.y + rootDy - dy);
+	    r = (Rectangle)dirtyComponents.get(rootDirtyComponent);
+	    SwingUtilities.computeUnion(tmp.x,tmp.y,tmp.width,tmp.height,r);
+        }
+
+        // If we haven't seen this root before, then we need to add it to the
+        // list of root dirty Views.
+
+        if (!roots.contains(rootDirtyComponent)) 
+            roots.addElement(rootDirtyComponent);	
+!!!9256859.java!!!	toString() : String
+	StringBuffer sb = new StringBuffer();
+	if(dirtyComponents != null) 
+	    sb.append("" + dirtyComponents);
+        return sb.toString();
+!!!9256987.java!!!	getOffscreenBuffer(inout c : Component, in proposedWidth : int, in proposedHeight : int) : Image
+	return _getOffscreenBuffer(c, proposedWidth, proposedHeight);
+!!!9257115.java!!!	getVolatileOffscreenBuffer(inout c : Component, in proposedWidth : int, in proposedHeight : int) : Image
+        GraphicsConfiguration config = c.getGraphicsConfiguration();
+        if (config == null) {
+            config = GraphicsEnvironment.getLocalGraphicsEnvironment().
+                            getDefaultScreenDevice().getDefaultConfiguration();
+        }
+	Dimension maxSize = getDoubleBufferMaximumSize();
+	int width = proposedWidth < 1 ? 1 :
+            (proposedWidth > maxSize.width? maxSize.width : proposedWidth);
+        int height = proposedHeight < 1 ? 1 :
+            (proposedHeight > maxSize.height? maxSize.height : proposedHeight);
+        VolatileImage image = (VolatileImage)volatileMap.get(config);
+        if (image == null || image.getWidth() < width ||
+                             image.getHeight() < height) {
+            if (image != null) {
+                image.flush();
+            }
+            image = config.createCompatibleVolatileImage(width, height);
+            volatileMap.put(config, image);
+        }
+	return image;
+!!!9257243.java!!!	_getOffscreenBuffer(inout c : Component, in proposedWidth : int, in proposedHeight : int) : Image
+	Dimension maxSize = getDoubleBufferMaximumSize();
+	DoubleBufferInfo doubleBuffer = null;
+        int width, height;
+
+        if (standardDoubleBuffer == null) {
+            standardDoubleBuffer = new DoubleBufferInfo();
+        }
+        doubleBuffer = standardDoubleBuffer;
+	    
+	width = proposedWidth < 1? 1 : 
+	          (proposedWidth > maxSize.width? maxSize.width : proposedWidth);
+        height = proposedHeight < 1? 1 : 
+                  (proposedHeight > maxSize.height? maxSize.height : proposedHeight);
+
+        if (doubleBuffer.needsReset || (doubleBuffer.image != null &&
+                                        (doubleBuffer.size.width < width ||
+                                         doubleBuffer.size.height < height))) {
+            doubleBuffer.needsReset = false;
+            if (doubleBuffer.image != null) {
+                doubleBuffer.image.flush();
+                doubleBuffer.image = null;
+            }
+            width = Math.max(doubleBuffer.size.width, width);
+            height = Math.max(doubleBuffer.size.height, height);
+        }
+
+	Image result = doubleBuffer.image;
+
+	if (doubleBuffer.image == null) {
+            result = c.createImage(width , height);
+            doubleBuffer.size = new Dimension(width, height);
+	    if (c instanceof JComponent) {
+		((JComponent)c).setCreatedDoubleBuffer(true);
+		doubleBuffer.image = result;
+	    }
+	    // JComponent will inform us when it is no longer valid
+	    // (via removeNotify) we have no such hook to other components,
+	    // therefore we don't keep a ref to the Component
+	    // (indirectly through the Image) by stashing the image.
+	}
+        return result;
+!!!9257371.java!!!	setDoubleBufferMaximumSize(inout d : Dimension) : void
+        doubleBufferMaxSize = d;
+        if (standardDoubleBuffer != null && standardDoubleBuffer.image != null) {
+            if (standardDoubleBuffer.image.getWidth(null) > d.width || 
+		standardDoubleBuffer.image.getHeight(null) > d.height) {
+		standardDoubleBuffer.image = null;
+	    }
+        }
+        // Clear out the VolatileImages
+        Iterator gcs = volatileMap.keySet().iterator();
+        while (gcs.hasNext()) {
+            GraphicsConfiguration gc = (GraphicsConfiguration)gcs.next();
+            VolatileImage image = (VolatileImage)volatileMap.get(gc);
+            if (image.getWidth() > d.width || image.getHeight() > d.height) {
+                image.flush();
+                gcs.remove();
+	    }
+	}	    
+!!!9257499.java!!!	getDoubleBufferMaximumSize() : Dimension
+	if (doubleBufferMaxSize == null) {
+	    try {
+	        doubleBufferMaxSize = Toolkit.getDefaultToolkit().getScreenSize();
+	    } catch (HeadlessException e) {
+		doubleBufferMaxSize = new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE);
+	    }
+	}
+        return doubleBufferMaxSize;
+!!!9257627.java!!!	setDoubleBufferingEnabled(inout aFlag : boolean) : void
+        doubleBufferingEnabled = aFlag;
+!!!9257755.java!!!	isDoubleBufferingEnabled() : boolean
+        return doubleBufferingEnabled;
+!!!9257883.java!!!	resetDoubleBuffer() : void
+	if (standardDoubleBuffer != null) {
+	    standardDoubleBuffer.needsReset = true;
+	}
+!!!9258011.java!!!	resetVolatileDoubleBuffer(inout gc : GraphicsConfiguration) : void
+        Image image = (Image)volatileMap.remove(gc);
+        if (image != null) {
+            image.flush();
+        }
+!!!9258139.java!!!	useVolatileDoubleBuffer() : boolean
+        return volatileImageBufferEnabled;

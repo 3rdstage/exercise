@@ -1,0 +1,81 @@
+class WindowsMenuItemUI
+!!!2985499.java!!!	createUI(inout c : JComponent) : ComponentUI
+	return new WindowsMenuItemUI();
+!!!2985627.java!!!	paintText(inout g : Graphics, inout menuItem : JMenuItem, inout textRect : Rectangle, in text : String) : void
+        if (WindowsMenuItemUI.isVistaPainting()) {
+            WindowsMenuItemUI.paintText(accessor, g, menuItem, textRect, text);
+            return;
+        }
+	ButtonModel model = menuItem.getModel();
+        Color oldColor = g.getColor();
+
+        if(model.isEnabled() &&
+            (model.isArmed() || (menuItem instanceof JMenu &&
+             model.isSelected()))) {
+            g.setColor(selectionForeground); // Uses protected field.
+        }
+
+        WindowsGraphicsUtils.paintText(g, menuItem, textRect, text, 0);
+
+        g.setColor(oldColor);
+!!!2985755.java!!!	paintBackground(inout g : Graphics, inout menuItem : JMenuItem, inout bgColor : Color) : void
+        if (WindowsMenuItemUI.isVistaPainting()) {
+            WindowsMenuItemUI.paintBackground(accessor, g, menuItem, bgColor);
+            return;
+        }
+        super.paintBackground(g, menuItem, bgColor);
+!!!2985883.java!!!	paintBackground(inout menuItemUI : WindowsMenuItemUIAccessor, inout g : Graphics, inout menuItem : JMenuItem, inout bgColor : Color) : void
+        assert isVistaPainting();
+        if (isVistaPainting()) {
+            int menuWidth = menuItem.getWidth();
+            int menuHeight = menuItem.getHeight();
+            if (menuItem.isOpaque()) {
+                Color oldColor = g.getColor();
+                g.setColor(menuItem.getBackground());
+                g.fillRect(0,0, menuWidth, menuHeight);
+                g.setColor(oldColor);
+            }
+            XPStyle xp = XPStyle.getXP();
+            Part part = menuItemUI.getPart(menuItem);
+            Skin skin = xp.getSkin(menuItem, part);
+            skin.paintSkin(g, 0 , 0, 
+                menuWidth, 
+                menuHeight,
+                menuItemUI.getState(menuItem));
+        }
+!!!2986011.java!!!	paintText(inout menuItemUI : WindowsMenuItemUIAccessor, inout g : Graphics, inout menuItem : JMenuItem, inout textRect : Rectangle, in text : String) : void
+        assert isVistaPainting();
+        if (isVistaPainting()) {
+            State state = menuItemUI.getState(menuItem);
+       
+            /* part of it copied from 1.6 WindowsGraphicsUtils.java */
+            FontMetrics fm = SwingUtilities2.getFontMetrics(menuItem, g);
+            int mnemIndex = menuItem.getDisplayedMnemonicIndex();
+            // W2K Feature: Check to see if the Underscore should be rendered.
+            if (WindowsLookAndFeel.isMnemonicHidden() == true) {
+                mnemIndex = -1;
+            }
+            XPStyle xp = XPStyle.getXP();
+            Color textColor = menuItem.getForeground();
+            if (textColor instanceof UIResource) {
+                Part part = menuItemUI.getPart(menuItem);
+                textColor = xp.getColor(menuItem, part, state, Prop.TEXTCOLOR, textColor);
+            }
+            g.setColor(textColor);
+            SwingUtilities2.drawStringUnderlineCharAt(menuItem, 
+                g, text, mnemIndex, textRect.x, textRect.y + fm.getAscent());
+        }
+!!!2986139.java!!!	getState(inout menuItemUI : WindowsMenuItemUIAccessor, inout menuItem : JMenuItem) : State
+        State state;
+        ButtonModel model = menuItem.getModel();
+        if (model.isArmed()) {
+            state = (model.isEnabled()) ? State.HOT : State.DISABLEDHOT;
+        } else {
+            state = (model.isEnabled()) ? State.NORMAL : State.DISABLED;
+        }
+        return state;
+!!!2986267.java!!!	getPart(inout menuItemUI : WindowsMenuItemUIAccessor, inout menuItem : JMenuItem) : Part
+        return Part.MP_POPUPITEM;
+!!!2986395.java!!!	isVistaPainting() : boolean
+        XPStyle xp = XPStyle.getXP();
+        return xp != null && xp.isSkinDefined(null, Part.MP_POPUPITEM);

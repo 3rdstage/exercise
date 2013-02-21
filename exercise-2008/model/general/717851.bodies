@@ -1,0 +1,66 @@
+class DOMMessageFormatter
+!!!4869659.java!!!	DOMMessageFormatter()
+        locale = Locale.getDefault();
+!!!4869787.java!!!	formatMessage(in domain : String, in key : String, inout arguments : Object) : String
+        ResourceBundle resourceBundle = getResourceBundle(domain);
+        if(resourceBundle == null){
+            init();
+            resourceBundle = getResourceBundle(domain);
+            if(resourceBundle == null)
+                throw new MissingResourceException("Unknown domain" + domain, null, key);
+        }
+        // format message
+        String msg;
+        try {
+            msg = key + ": " + resourceBundle.getString(key);
+            if (arguments != null) {
+                try {
+                    msg = java.text.MessageFormat.format(msg, arguments);
+                }
+                catch (Exception e) {
+                    msg = resourceBundle.getString("FormatFailed");
+                    msg += " " + resourceBundle.getString(key);
+                }
+            }
+        } // error
+        catch (MissingResourceException e) {
+            msg = resourceBundle.getString("BadMessageKey");
+            throw new MissingResourceException(key, msg, key);
+        }
+        
+        // no message
+        if (msg == null) {
+            msg = key;
+            if (arguments.length > 0) {
+                StringBuffer str = new StringBuffer(msg);
+                str.append('?');
+                for (int i = 0; i < arguments.length; i++) {
+                    if (i > 0) {
+                        str.append('&');
+                    }
+                    str.append(String.valueOf(arguments[i]));
+                }
+            }
+        }
+        
+        return msg;
+!!!4869915.java!!!	getResourceBundle(in domain : String) : ResourceBundle
+        if(domain == DOM_DOMAIN || domain.equals(DOM_DOMAIN))
+            return domResourceBundle;
+        else if( domain == XML_DOMAIN || domain.equals(XML_DOMAIN))
+            return xmlResourceBundle;
+        else if(domain == SERIALIZER_DOMAIN || domain.equals(SERIALIZER_DOMAIN))
+            return serResourceBundle;
+        return null;
+!!!4870043.java!!!	init() : void
+        if (locale != null) {
+            domResourceBundle = PropertyResourceBundle.getBundle("com.sun.org.apache.xerces.internal.impl.msg.DOMMessages", locale);
+            serResourceBundle = PropertyResourceBundle.getBundle("com.sun.org.apache.xerces.internal.impl.msg.XMLSerializerMessages", locale);
+            xmlResourceBundle = PropertyResourceBundle.getBundle("com.sun.org.apache.xerces.internal.impl.msg.XMLMessages", locale);
+        }else{
+            domResourceBundle = PropertyResourceBundle.getBundle("com.sun.org.apache.xerces.internal.impl.msg.DOMMessages");
+            serResourceBundle = PropertyResourceBundle.getBundle("com.sun.org.apache.xerces.internal.impl.msg.XMLSerializerMessages");
+            xmlResourceBundle = PropertyResourceBundle.getBundle("com.sun.org.apache.xerces.internal.impl.msg.XMLMessages");
+        }
+!!!4870171.java!!!	setLocale(inout dlocale : Locale) : void
+        locale = dlocale;

@@ -1,0 +1,40 @@
+class ImageLabelView
+!!!9965851.java!!!	ImageLabelView(inout e : Element, in text : String)
+            super(e);
+            reset(text);
+!!!9965979.java!!!	reset(in text : String) : void
+            segment = new Segment(text.toCharArray(), 0, text.length());
+!!!9966107.java!!!	paint(inout g : Graphics, inout a : Shape) : void
+            // Don't use supers paint, otherwise selection will be wrong
+            // as our start/end offsets are fake.
+            GlyphPainter painter = getGlyphPainter();
+
+            if (painter != null) {
+                g.setColor(getForeground());
+                painter.paint(this, g, a, getStartOffset(), getEndOffset());
+            }
+!!!9966235.java!!!	getText(in p0 : int, in p1 : int) : Segment
+            if (p0 < 0 || p1 > segment.array.length) {
+                throw new RuntimeException("ImageLabelView: Stale view");
+            }
+            segment.offset = p0;
+            segment.count = p1 - p0;
+            return segment;
+!!!9966363.java!!!	getStartOffset() : int
+            return 0;
+!!!9966491.java!!!	getEndOffset() : int
+            return segment.array.length;
+!!!9966619.java!!!	breakView(in axis : int, in p0 : int, in pos : float, in len : float) : View
+            // Don't allow a break
+            return this;
+!!!9966747.java!!!	getForeground() : Color
+            View parent;
+            if (fg == null && (parent = getParent()) != null) {
+                Document doc = getDocument();
+                AttributeSet attr = parent.getAttributes();
+
+                if (attr != null && (doc instanceof StyledDocument)) {
+                    fg = ((StyledDocument)doc).getForeground(attr);
+                }
+            }
+            return fg;

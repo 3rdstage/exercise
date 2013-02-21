@@ -1,0 +1,116 @@
+class TrailingMiscDispatcher
+!!!4952475.java!!!	dispatch(inout complete : boolean) : boolean
+
+            try {
+                boolean again;
+                do {
+                    again = false;
+                    switch (fScannerState) {
+                        case SCANNER_STATE_TRAILING_MISC: {
+                            fEntityScanner.skipSpaces();
+                            if (fEntityScanner.skipChar('<')) {
+                                setScannerState(SCANNER_STATE_START_OF_MARKUP);
+                                again = true;
+                            }
+                            else {
+                                setScannerState(SCANNER_STATE_CONTENT);
+                                again = true;
+                            }
+                            break;
+                        }
+                        case SCANNER_STATE_START_OF_MARKUP: {
+                            fMarkupDepth++;
+                            if (fEntityScanner.skipChar('?')) {
+                                setScannerState(SCANNER_STATE_PI);
+                                again = true;
+                            }
+                            else if (fEntityScanner.skipChar('!')) {
+                                setScannerState(SCANNER_STATE_COMMENT);
+                                again = true;
+                            }
+                            else if (fEntityScanner.skipChar('/')) {
+                                reportFatalError("MarkupNotRecognizedInMisc",
+                                                 null);
+                                again = true;
+                            }
+                            else if (isValidNameStartChar(fEntityScanner.peekChar())) {
+                                reportFatalError("MarkupNotRecognizedInMisc",
+                                                 null);
+                                scanStartElement();
+                                setScannerState(SCANNER_STATE_CONTENT);
+                            }
+                            else if (isValidNameStartHighSurrogate(fEntityScanner.peekChar())) {
+                                reportFatalError("MarkupNotRecognizedInMisc",
+                                                 null);
+                                scanStartElement();
+                                setScannerState(SCANNER_STATE_CONTENT);
+                            }
+                            else {
+                                reportFatalError("MarkupNotRecognizedInMisc",
+                                                 null);
+                            }
+                            break;
+                        }
+                        case SCANNER_STATE_PI: {
+                            scanPI();
+                            setScannerState(SCANNER_STATE_TRAILING_MISC);
+                            break;
+                        }
+                        case SCANNER_STATE_COMMENT: {
+                            if (!fEntityScanner.skipString("--")) {
+                                reportFatalError("InvalidCommentStart", null);
+                            }
+                            scanComment();
+                            setScannerState(SCANNER_STATE_TRAILING_MISC);
+                            break;
+                        }
+                        case SCANNER_STATE_CONTENT: {
+                            int ch = fEntityScanner.peekChar();
+                            if (ch == -1) {
+                                setScannerState(SCANNER_STATE_TERMINATED);
+                                return false;
+                            }
+                            reportFatalError("ContentIllegalInTrailingMisc",
+                                             null);
+                            fEntityScanner.scanChar();
+                            setScannerState(SCANNER_STATE_TRAILING_MISC);
+                            break;
+                        }
+                        case SCANNER_STATE_REFERENCE: {
+                            reportFatalError("ReferenceIllegalInTrailingMisc",
+                                             null);
+                            setScannerState(SCANNER_STATE_TRAILING_MISC);
+                            break;
+                        }
+                        case SCANNER_STATE_TERMINATED: {
+                            return false;
+                        }
+                    }
+                } while (complete || again);
+            }
+            // encoding errors
+            catch (MalformedByteSequenceException e) {
+                fErrorReporter.reportError(e.getDomain(), e.getKey(), 
+                    e.getArguments(), XMLErrorReporter.SEVERITY_FATAL_ERROR);
+                return false;
+            }
+            catch (CharConversionException e) {
+                reportFatalError("CharConversionFailure", null);
+                return false;
+            }
+            catch (EOFException e) {
+                // NOTE: This is the only place we're allowed to reach
+                //       the real end of the document stream. Unless the
+                //       end of file was reached prematurely.
+                if (fMarkupDepth != 0) {
+                    reportFatalError("PrematureEOF", null);
+                    return false;
+                    //throw e;
+                }
+
+                setScannerState(SCANNER_STATE_TERMINATED);
+                return false;
+            }
+
+            return true;
+

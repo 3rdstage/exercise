@@ -1,0 +1,169 @@
+class ToHTMLSAXHandler
+!!!5727003.java!!!	getOutputFormat() : Properties
+        return null;
+!!!5727131.java!!!	getOutputStream() : OutputStream
+        return null;
+!!!5727259.java!!!	getWriter() : Writer
+        return null;
+!!!5727515.java!!!	serialize(inout node : Node) : void
+        return;
+!!!5727643.java!!!	setEscaping(inout escape : boolean) : boolean
+        boolean oldEscapeSetting = m_escapeSetting;
+        m_escapeSetting = escape;
+
+        if (escape) {
+            processingInstruction(Result.PI_ENABLE_OUTPUT_ESCAPING, "");
+        } else {
+            processingInstruction(Result.PI_DISABLE_OUTPUT_ESCAPING, "");
+        }
+
+        return oldEscapeSetting;
+!!!5728411.java!!!	elementDecl(in name : String, in model : String) : void
+        return;
+!!!5728795.java!!!	endElement(in uri : String, in localName : String, in qName : String) : void
+        flushPending();
+        m_saxHandler.endElement(uri, localName, qName);
+        
+        // time to fire off endElement event
+        if (m_tracer != null)
+            super.fireEndElem(qName);
+!!!5729179.java!!!	processingInstruction(in arg0 : String, in arg1 : String) : void
+        flushPending();
+        m_saxHandler.processingInstruction(arg0,arg1);
+
+		// time to fire off processing instruction event
+		
+        if (m_tracer != null)		
+		    super.fireEscapingEvent(arg0,arg1);        
+!!!5729307.java!!!	setDocumentLocator(inout arg0 : Locator) : void
+        // do nothing
+!!!5729563.java!!!	startElement(in namespaceURI : String, in localName : String, in qName : String, inout atts : Attributes) : void
+        flushPending();
+        super.startElement(namespaceURI, localName, qName, atts);
+        m_saxHandler.startElement(namespaceURI, localName, qName, atts);
+        m_elemContext.m_startTagOpen = false;
+!!!5729691.java!!!	comment(in ch : char, in start : int, in length : int) : void
+        flushPending();
+        m_lexHandler.comment(ch, start, length);
+
+        // time to fire off comment event
+        if (m_tracer != null)
+            super.fireCommentEvent(ch, start, length);
+        return;
+!!!5729819.java!!!	endCDATA() : void
+        return;
+!!!5730331.java!!!	endDocument() : void
+        flushPending();
+
+        // Close output document
+        m_saxHandler.endDocument();
+
+        if (m_tracer != null)
+            super.fireEndDoc();        
+!!!5730459.java!!!	closeStartTag() : void
+
+        m_elemContext.m_startTagOpen = false;
+
+        // Now is time to send the startElement event
+        m_saxHandler.startElement(
+            EMPTYSTRING,
+            m_elemContext.m_elementName,
+            m_elemContext.m_elementName,
+            m_attributes);
+        m_attributes.clear();       
+
+!!!5730587.java!!!	close() : void
+        return;
+!!!5730715.java!!!	characters(in chars : String) : void
+        final int length = chars.length();
+        if (length > m_charsBuff.length)
+        {
+            m_charsBuff = new char[length * 2 + 1];
+        }
+        chars.getChars(0, length, m_charsBuff, 0);        
+        this.characters(m_charsBuff, 0, length);
+!!!5730843.java!!!	ToHTMLSAXHandler(inout handler : ContentHandler, in encoding : String)
+        super(handler,encoding);
+!!!5730971.java!!!	ToHTMLSAXHandler(inout handler : ContentHandler, inout lex : LexicalHandler, in encoding : String)
+        super(handler,lex,encoding);
+!!!5731099.java!!!	startElement(in elementNamespaceURI : String, in elementLocalName : String, in elementName : String) : void
+
+        super.startElement(elementNamespaceURI, elementLocalName, elementName);
+
+        flushPending();
+
+        // Handle document type declaration (for first element only)
+        if (m_lexHandler != null)
+        {
+            String doctypeSystem = getDoctypeSystem();
+            String doctypePublic = getDoctypePublic();
+            if ((doctypeSystem != null) || (doctypePublic != null))
+                m_lexHandler.startDTD(
+                    elementName,
+                    doctypePublic,
+                    doctypeSystem);
+            m_lexHandler = null;
+        }
+        m_elemContext = m_elemContext.push(elementNamespaceURI, elementLocalName, elementName);
+!!!5731227.java!!!	startElement(in elementName : String) : void
+        this.startElement(null,null, elementName);
+!!!5731355.java!!!	endElement(in elementName : String) : void
+        flushPending();
+        m_saxHandler.endElement(EMPTYSTRING, elementName, elementName);
+
+        // time to fire off endElement event
+		if (m_tracer != null)
+            super.fireEndElem(elementName);        
+!!!5731483.java!!!	characters(in ch : char, in off : int, in len : int) : void
+
+        flushPending();
+        m_saxHandler.characters(ch, off, len);
+
+        // time to fire off characters event
+		if (m_tracer != null)
+            super.fireCharEvent(ch, off, len);        
+!!!5731611.java!!!	flushPending() : void
+		if (m_needToCallStartDocument)
+		{
+			startDocumentInternal();
+			m_needToCallStartDocument = false;
+		}       	
+        // Close any open element
+        if (m_elemContext.m_startTagOpen)
+        {
+            closeStartTag();
+            m_elemContext.m_startTagOpen = false;
+        }
+!!!5731739.java!!!	startPrefixMapping(in prefix : String, in uri : String, inout shouldFlush : boolean) : boolean
+        // no namespace support for HTML
+        if (shouldFlush) 
+            flushPending();   
+        m_saxHandler.startPrefixMapping(prefix,uri);
+        return false;
+!!!5731867.java!!!	startPrefixMapping(in prefix : String, in uri : String) : void
+        startPrefixMapping(prefix,uri,true);        
+!!!5731995.java!!!	namespaceAfterStartElement(in prefix : String, in uri : String) : void
+        // hack for XSLTC with finding URI for default namespace
+        if (m_elemContext.m_elementURI == null)
+        {
+            String prefix1 = getPrefixPart(m_elemContext.m_elementName);
+            if (prefix1 == null && EMPTYSTRING.equals(prefix))
+            {
+                // the elements URI is not known yet, and it
+                // doesn't have a prefix, and we are currently
+                // setting the uri for prefix "", so we have
+                // the uri for the element... lets remember it
+                m_elemContext.m_elementURI = uri;
+            }
+        }       
+        startPrefixMapping(prefix,uri,false);
+!!!5732123.java!!!	reset() : boolean
+        boolean wasReset = false;
+        if (super.reset())
+        {
+            resetToHTMLSAXHandler();
+            wasReset = true;
+        }
+        return wasReset;
+!!!5732251.java!!!	resetToHTMLSAXHandler() : void
+        this.m_escapeSetting = false;

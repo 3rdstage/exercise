@@ -1,0 +1,58 @@
+class Configuration
+!!!3246875.java!!!	getConfiguration() : Configuration
+
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null)
+	    sm.checkPermission(new AuthPermission("getLoginConfiguration"));
+
+	if (configuration == null) {
+	    String config_class = null;
+	    config_class = (String)
+		java.security.AccessController.doPrivileged
+		(new java.security.PrivilegedAction() {
+		public Object run() {
+		    return java.security.Security.getProperty
+				("login.configuration.provider");
+		}
+	    });
+	    if (config_class == null) {
+		config_class = "com.sun.security.auth.login.ConfigFile";
+	    }
+ 
+	    try {
+		final String finalClass = config_class;
+		configuration = (Configuration)
+		    java.security.AccessController.doPrivileged
+		    (new java.security.PrivilegedExceptionAction() {
+		    public Object run() throws ClassNotFoundException,
+					InstantiationException,
+					IllegalAccessException {
+			return Class.forName
+				(finalClass,
+				true,
+				contextClassLoader).newInstance();
+		    }
+		});
+	    } catch (PrivilegedActionException e) {
+		Exception ee = e.getException();
+		if (ee instanceof InstantiationException) {
+		    throw (SecurityException) new
+			SecurityException
+				("Configuration error:" +
+				 ee.getCause().getMessage() + 
+				 "\n").initCause(ee.getCause());
+		} else {
+		    throw (SecurityException) new
+			SecurityException
+				("Configuration error: " +
+				 ee.toString() + 
+				 "\n").initCause(ee);
+		}
+	    }
+	}
+	return configuration;
+!!!3247003.java!!!	setConfiguration(inout configuration : Configuration) : void
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null)
+	    sm.checkPermission(new AuthPermission("setLoginConfiguration"));
+	Configuration.configuration = configuration;

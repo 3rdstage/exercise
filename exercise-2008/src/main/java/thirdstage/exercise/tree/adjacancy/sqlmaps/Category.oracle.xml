@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN" "http://ibatis.apache.org/dtd/sql-map-2.dtd" >
+<sqlMap namespace="Category">
+
+
+<resultMap id="normalResult"
+           class="thirdstage.exercise.tree.adjacancy.entities.Category">
+	<result property="id" column="id"/>
+	<result property="name" column="name"/>
+	<result property="parent.id" column="parent_id"/>
+	<result property="sequence" column="seq"/>
+	<result property="description" column="descn"/>
+</resultMap>
+
+<resultMap id="fullResult"
+           class="thirdstage.exercise.tree.adjacancy.entities.Category"
+           extends="normalResult">
+	<result property="idPath" column="id_path"/>
+	<result property="namePath" column="name_path"/>
+</resultMap>
+
+<select id="getAll" resultMap="fullResult">
+select id, name, parent_id, seq, level, descn, 
+       sys_connect_by_path(id, '//') as id_path,
+       sys_connect_by_path(name, '//') as name_path
+from sm_category
+start with parent_id is null
+connect by prior id = parent_id
+order siblings by seq, name
+</select>
+
+<select id="getSubordinates" parameterClass="java.lang.String" resultMap="fullResult">
+select id, name, parent_id, seq, level, descn, 
+       sys_connect_by_path(id, '//') as id_path,
+       sys_connect_by_path(name, '//') as name_path
+from sm_category
+start with parent_id = #value#
+connect by prior id = parent_id
+order siblings by seq, name
+</select>
+
+<select id="getSuperios" parameterClass="java.lang.String" resultMap="fullResult">
+select id, name, parent_id, seq, level, descn, 
+       sys_connect_by_path(id, '//') as id_path,
+       sys_connect_by_path(name, '//') as name_path
+from sm_category
+start with id = #value#
+connect by prior parent_id = id
+order siblings by seq, name
+</select>
+
+<select id="getSiblings" parameterClass="java.lang.String" resultMap="normalResult">
+select id, name, parent_id, seq, descn
+from sm_category
+where parent_id = (select parent_id from sm_category where id = #value#)
+union all
+select id, name, parent_id, seq, descn
+from sm_category
+where parent_id is null
+and exists (select name from sm_category where id = #value# and parent_id is null)
+</select>
+
+
+</sqlMap>

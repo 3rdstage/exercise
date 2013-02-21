@@ -1,0 +1,381 @@
+class LinkedBlockingQueue
+!!!7942299.java!!!	signalNotEmpty() : void
+        final ReentrantLock takeLock = this.takeLock;
+        takeLock.lock();
+        try {
+            notEmpty.signal();
+        } finally {
+            takeLock.unlock();
+        }
+!!!7942427.java!!!	signalNotFull() : void
+        final ReentrantLock putLock = this.putLock;
+        putLock.lock();
+        try {
+            notFull.signal();
+        } finally {
+            putLock.unlock();
+        }
+!!!7942555.java!!!	insert(inout x : E) : void
+        last = last.next = new Node<E>(x);
+!!!7942683.java!!!	extract() : E
+        Node<E> first = head.next;
+        head = first;
+        E x = first.item;
+        first.item = null;
+        return x;
+!!!7942811.java!!!	fullyLock() : void
+        putLock.lock();
+        takeLock.lock();
+!!!7942939.java!!!	fullyUnlock() : void
+        takeLock.unlock();
+        putLock.unlock();
+!!!7943067.java!!!	LinkedBlockingQueue()
+        this(Integer.MAX_VALUE);
+!!!7943195.java!!!	LinkedBlockingQueue(in capacity : int)
+        if (capacity <= 0) throw new IllegalArgumentException();
+        this.capacity = capacity;
+        last = head = new Node<E>(null);
+!!!7943323.java!!!	LinkedBlockingQueue(inout c : Collection)
+        this(Integer.MAX_VALUE);
+        for (E e : c)
+            add(e);
+!!!7943451.java!!!	size() : int
+        return count.get();
+!!!7943579.java!!!	remainingCapacity() : int
+        return capacity - count.get();
+!!!7943707.java!!!	put(inout o : E) : void
+        if (o == null) throw new NullPointerException();
+        // Note: convention in all put/take/etc is to preset
+        // local var holding count  negative to indicate failure unless set.
+        int c = -1;
+        final ReentrantLock putLock = this.putLock;
+        final AtomicInteger count = this.count;
+        putLock.lockInterruptibly();
+        try {
+            /*
+             * Note that count is used in wait guard even though it is
+             * not protected by lock. This works because count can
+             * only decrease at this point (all other puts are shut
+             * out by lock), and we (or some other waiting put) are
+             * signalled if it ever changes from
+             * capacity. Similarly for all other uses of count in
+             * other wait guards.
+             */
+            try {
+                while (count.get() == capacity)
+                    notFull.await();
+            } catch (InterruptedException ie) {
+                notFull.signal(); // propagate to a non-interrupted thread
+                throw ie;
+            }
+            insert(o);
+            c = count.getAndIncrement();
+            if (c + 1 < capacity)
+                notFull.signal();
+        } finally {
+            putLock.unlock();
+        }
+        if (c == 0)
+            signalNotEmpty();
+!!!7943835.java!!!	offer(inout o : E, in timeout : long, inout unit : TimeUnit) : boolean
+
+        if (o == null) throw new NullPointerException();
+        long nanos = unit.toNanos(timeout);
+        int c = -1;
+        final ReentrantLock putLock = this.putLock;
+        final AtomicInteger count = this.count;
+        putLock.lockInterruptibly();
+        try {
+            for (;;) {
+                if (count.get() < capacity) {
+                    insert(o);
+                    c = count.getAndIncrement();
+                    if (c + 1 < capacity)
+                        notFull.signal();
+                    break;
+                }
+                if (nanos <= 0)
+                    return false;
+                try {
+                    nanos = notFull.awaitNanos(nanos);
+                } catch (InterruptedException ie) {
+                    notFull.signal(); // propagate to a non-interrupted thread
+                    throw ie;
+                }
+            }
+        } finally {
+            putLock.unlock();
+        }
+        if (c == 0)
+            signalNotEmpty();
+        return true;
+!!!7943963.java!!!	offer(inout o : E) : boolean
+        if (o == null) throw new NullPointerException();
+        final AtomicInteger count = this.count;
+        if (count.get() == capacity)
+            return false;
+        int c = -1;
+        final ReentrantLock putLock = this.putLock;
+        putLock.lock();
+        try {
+            if (count.get() < capacity) {
+                insert(o);
+                c = count.getAndIncrement();
+                if (c + 1 < capacity)
+                    notFull.signal();
+            }
+        } finally {
+            putLock.unlock();
+        }
+        if (c == 0)
+            signalNotEmpty();
+        return c >= 0;
+!!!7944091.java!!!	take() : E
+        E x;
+        int c = -1;
+        final AtomicInteger count = this.count;
+        final ReentrantLock takeLock = this.takeLock;
+        takeLock.lockInterruptibly();
+        try {
+            try {
+                while (count.get() == 0)
+                    notEmpty.await();
+            } catch (InterruptedException ie) {
+                notEmpty.signal(); // propagate to a non-interrupted thread
+                throw ie;
+            }
+
+            x = extract();
+            c = count.getAndDecrement();
+            if (c > 1)
+                notEmpty.signal();
+        } finally {
+            takeLock.unlock();
+        }
+        if (c == capacity)
+            signalNotFull();
+        return x;
+!!!7944219.java!!!	poll(in timeout : long, inout unit : TimeUnit) : E
+        E x = null;
+        int c = -1;
+        long nanos = unit.toNanos(timeout);
+        final AtomicInteger count = this.count;
+        final ReentrantLock takeLock = this.takeLock;
+        takeLock.lockInterruptibly();
+        try {
+            for (;;) {
+                if (count.get() > 0) {
+                    x = extract();
+                    c = count.getAndDecrement();
+                    if (c > 1)
+                        notEmpty.signal();
+                    break;
+                }
+                if (nanos <= 0)
+                    return null;
+                try {
+                    nanos = notEmpty.awaitNanos(nanos);
+                } catch (InterruptedException ie) {
+                    notEmpty.signal(); // propagate to a non-interrupted thread
+                    throw ie;
+                }
+            }
+        } finally {
+            takeLock.unlock();
+        }
+        if (c == capacity)
+            signalNotFull();
+        return x;
+!!!7944347.java!!!	poll() : E
+        final AtomicInteger count = this.count;
+        if (count.get() == 0)
+            return null;
+        E x = null;
+        int c = -1;
+        final ReentrantLock takeLock = this.takeLock;
+        takeLock.lock();
+        try {
+            if (count.get() > 0) {
+                x = extract();
+                c = count.getAndDecrement();
+                if (c > 1)
+                    notEmpty.signal();
+            }
+        } finally {
+            takeLock.unlock();
+        }
+        if (c == capacity)
+            signalNotFull();
+        return x;
+!!!7944475.java!!!	peek() : E
+        if (count.get() == 0)
+            return null;
+        final ReentrantLock takeLock = this.takeLock;
+        takeLock.lock();
+        try {
+            Node<E> first = head.next;
+            if (first == null)
+                return null;
+            else
+                return first.item;
+        } finally {
+            takeLock.unlock();
+        }
+!!!7944603.java!!!	remove(inout o : Object) : boolean
+        if (o == null) return false;
+        boolean removed = false;
+        fullyLock();
+        try {
+            Node<E> trail = head;
+            Node<E> p = head.next;
+            while (p != null) {
+                if (o.equals(p.item)) {
+                    removed = true;
+                    break;
+                }
+                trail = p;
+                p = p.next;
+            }
+            if (removed) {
+                p.item = null;
+                trail.next = p.next;
+                if (last == p)
+                    last = trail;
+                if (count.getAndDecrement() == capacity)
+                    notFull.signalAll();
+            }
+        } finally {
+            fullyUnlock();
+        }
+        return removed;
+!!!7944731.java!!!	toArray() : Object
+        fullyLock();
+        try {
+            int size = count.get();
+            Object[] a = new Object[size];
+            int k = 0;
+            for (Node<E> p = head.next; p != null; p = p.next)
+                a[k++] = p.item;
+            return a;
+        } finally {
+            fullyUnlock();
+        }
+!!!7944859.java!!!	toArray(inout a : T) : T
+        fullyLock();
+        try {
+            int size = count.get();
+            if (a.length < size)
+                a = (T[])java.lang.reflect.Array.newInstance
+                    (a.getClass().getComponentType(), size);
+
+            int k = 0;
+            for (Node p = head.next; p != null; p = p.next)
+                a[k++] = (T)p.item;
+            if (a.length > k)
+                a[k] = null;
+            return a;
+        } finally {
+            fullyUnlock();
+        }
+!!!7944987.java!!!	toString() : String
+        fullyLock();
+        try {
+            return super.toString();
+        } finally {
+            fullyUnlock();
+        }
+!!!7945115.java!!!	clear() : void
+        fullyLock();
+        try {
+            head.next = null;
+	    assert head.item == null;
+	    last = head;
+            if (count.getAndSet(0) == capacity)
+                notFull.signalAll();
+        } finally {
+            fullyUnlock();
+        }
+!!!7945243.java!!!	drainTo(inout c : Collection) : int
+        if (c == null)
+            throw new NullPointerException();
+        if (c == this)
+            throw new IllegalArgumentException();
+        Node first;
+        fullyLock();
+        try {
+            first = head.next;
+            head.next = null;
+	    assert head.item == null;
+	    last = head;
+            if (count.getAndSet(0) == capacity)
+                notFull.signalAll();
+        } finally {
+            fullyUnlock();
+        }
+        // Transfer the elements outside of locks
+        int n = 0;
+        for (Node<E> p = first; p != null; p = p.next) {
+            c.add(p.item);
+            p.item = null;
+            ++n;
+        }
+        return n;
+!!!7945371.java!!!	drainTo(inout c : Collection, in maxElements : int) : int
+        if (c == null)
+            throw new NullPointerException();
+        if (c == this)
+            throw new IllegalArgumentException();
+        fullyLock();
+        try {
+            int n = 0;
+            Node<E> p = head.next;
+            while (p != null && n < maxElements) {
+                c.add(p.item);
+                p.item = null;
+                p = p.next;
+                ++n;
+            }
+            if (n != 0) {
+                head.next = p;
+		assert head.item == null;
+		if (p == null)
+		    last = head;
+                if (count.getAndAdd(-n) == capacity)
+                    notFull.signalAll();
+            }
+            return n;
+        } finally {
+            fullyUnlock();
+        }
+!!!7945499.java!!!	iterator() : Iterator
+      return new Itr();
+!!!7946139.java!!!	writeObject(inout s : ObjectOutputStream) : void
+
+        fullyLock();
+        try {
+            // Write out any hidden stuff, plus capacity
+            s.defaultWriteObject();
+
+            // Write out all elements in the proper order.
+            for (Node<E> p = head.next; p != null; p = p.next)
+                s.writeObject(p.item);
+
+            // Use trailing null as sentinel
+            s.writeObject(null);
+        } finally {
+            fullyUnlock();
+        }
+!!!7946267.java!!!	readObject(inout s : ObjectInputStream) : void
+        // Read in capacity, and any hidden stuff
+        s.defaultReadObject();
+
+        count.set(0);
+        last = head = new Node<E>(null);
+
+        // Read in all elements and place in queue
+        for (;;) {
+            E item = (E)s.readObject();
+            if (item == null)
+                break;
+            add(item);
+        }

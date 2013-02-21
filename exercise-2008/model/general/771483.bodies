@@ -1,0 +1,69 @@
+class XSDWildcardTraverser
+!!!5350811.java!!!	XSDWildcardTraverser(inout handler : XSDHandler, inout gAttrCheck : XSAttributeChecker)
+        super(handler, gAttrCheck);
+!!!5350939.java!!!	traverseAny(inout elmNode : Element, inout schemaDoc : XSDocumentInfo, inout grammar : SchemaGrammar) : XSParticleDecl
+
+        // General Attribute Checking for elmNode
+        Object[] attrValues = fAttrChecker.checkAttributes(elmNode, false, schemaDoc);
+        XSWildcardDecl wildcard = traverseWildcardDecl(elmNode, attrValues, schemaDoc, grammar);
+
+        // for <any>, need to create a new particle to reflect the min/max values
+        XSParticleDecl particle = null;
+        if (wildcard != null) {
+            int min = ((XInt)attrValues[XSAttributeChecker.ATTIDX_MINOCCURS]).intValue();
+            int max = ((XInt)attrValues[XSAttributeChecker.ATTIDX_MAXOCCURS]).intValue();
+            if (max != 0) {
+                if (fSchemaHandler.fDeclPool !=null) {
+                    particle = fSchemaHandler.fDeclPool.getParticleDecl();
+                } else {        
+                    particle = new XSParticleDecl();
+                }
+                particle.fType = XSParticleDecl.PARTICLE_WILDCARD;
+                particle.fValue = wildcard;
+                particle.fMinOccurs = min;
+                particle.fMaxOccurs = max;
+            }
+        }
+
+        fAttrChecker.returnAttrArray(attrValues, schemaDoc);
+
+        return particle;
+!!!5351067.java!!!	traverseAnyAttribute(inout elmNode : Element, inout schemaDoc : XSDocumentInfo, inout grammar : SchemaGrammar) : XSWildcardDecl
+
+        // General Attribute Checking for elmNode
+        Object[] attrValues = fAttrChecker.checkAttributes(elmNode, false, schemaDoc);
+        XSWildcardDecl wildcard = traverseWildcardDecl(elmNode, attrValues, schemaDoc, grammar);
+        fAttrChecker.returnAttrArray(attrValues, schemaDoc);
+
+        return wildcard;
+!!!5351195.java!!!	traverseWildcardDecl(inout elmNode : Element, inout attrValues : Object, inout schemaDoc : XSDocumentInfo, inout grammar : SchemaGrammar) : XSWildcardDecl
+
+        //get all attributes
+        XSWildcardDecl wildcard = new XSWildcardDecl();
+        // namespace type
+        XInt namespaceTypeAttr = (XInt) attrValues[XSAttributeChecker.ATTIDX_NAMESPACE];
+        wildcard.fType = namespaceTypeAttr.shortValue();
+        // namespace list
+        wildcard.fNamespaceList = (String[])attrValues[XSAttributeChecker.ATTIDX_NAMESPACE_LIST];
+        // process contents
+        XInt processContentsAttr = (XInt) attrValues[XSAttributeChecker.ATTIDX_PROCESSCONTENTS];
+        wildcard.fProcessContents = processContentsAttr.shortValue();
+
+        //check content
+        Element child = DOMUtil.getFirstChildElement(elmNode);
+        XSAnnotationImpl annotation = null;
+        if (child != null)
+        {
+            if (DOMUtil.getLocalName(child).equals(SchemaSymbols.ELT_ANNOTATION)) {
+                annotation = traverseAnnotationDecl(child, attrValues, false, schemaDoc);
+                child = DOMUtil.getNextSiblingElement(child);
+            }
+
+            if (child != null) {
+                reportSchemaError("s4s-elt-must-match.1", new Object[]{"wildcard", "(annotation?)", DOMUtil.getLocalName(child)}, elmNode);
+            }
+        }
+        wildcard.fAnnotation = annotation;
+
+        return wildcard;
+

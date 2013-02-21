@@ -1,0 +1,89 @@
+class GraphicsEnvironment
+!!!6279707.java!!!	getLocalGraphicsEnvironment() : GraphicsEnvironment
+	if (localEnv == null) {
+	    String nm = (String) java.security.AccessController.doPrivileged
+		(new sun.security.action.GetPropertyAction
+		 ("java.awt.graphicsenv", null));
+
+	    try {
+// 			long t0 = System.currentTimeMillis();
+		localEnv =
+		    (GraphicsEnvironment) Class.forName(nm).newInstance();
+// 		long t1 = System.currentTimeMillis();
+// 		System.out.println("GE creation took " + (t1-t0)+ "ms.");
+                if (isHeadless()) {
+                    localEnv = new HeadlessGraphicsEnvironment(localEnv);
+                }
+	    } catch (ClassNotFoundException e) {
+                throw new Error("Could not find class: "+nm);
+            } catch (InstantiationException e) {
+                throw new Error("Could not instantiate Graphics Environment: "
+				+ nm);
+            } catch (IllegalAccessException e) {
+                throw new Error ("Could not access Graphics Environment: "
+				 + nm);
+            }
+        }
+
+	return localEnv;
+!!!6279835.java!!!	isHeadless() : boolean
+   
+        return getHeadlessProperty();
+!!!6279963.java!!!	getHeadlessMessage() : String
+        if (headless == null) {
+            getHeadlessProperty(); // initialize the values 
+        }
+        return defaultHeadless != Boolean.TRUE ? null :
+            "\nNo X11 DISPLAY variable was set, " +
+            "but this program performed an operation which requires it.";
+!!!6280091.java!!!	getHeadlessProperty() : boolean
+        if (headless == null) {
+            java.security.AccessController.doPrivileged(
+            new java.security.PrivilegedAction() {
+                public Object run() {
+                    String nm = System.getProperty("java.awt.headless");
+                    
+                    if (nm == null) {
+                        /* No need to ask for DISPLAY when run in a browser */
+                        if (System.getProperty("javaplugin.version") != null) {
+                            headless = defaultHeadless = Boolean.FALSE; 
+                        } else {
+                            String osName = System.getProperty("os.name");                        
+                            headless = defaultHeadless =
+                                Boolean.valueOf(("Linux".equals(osName) || "SunOS".equals(osName)) &&
+                                                (System.getenv("DISPLAY") == null));
+                        }
+                    } else if (nm.equals("true")) {
+                        headless = Boolean.TRUE;
+                    } else {
+                        headless = Boolean.FALSE;
+                    }
+                    return null;
+                }
+                }
+            );
+        }
+        return headless.booleanValue();
+!!!6280219.java!!!	checkHeadless() : void
+        if (isHeadless()) {
+            throw new HeadlessException();
+        }
+!!!6280347.java!!!	isHeadlessInstance() : boolean
+        // By default (local graphics environment), simply check the
+        // headless property.
+        return getHeadlessProperty();
+!!!6281243.java!!!	preferLocaleFonts() : void
+	sun.font.FontManager.preferLocaleFonts();
+!!!6281371.java!!!	preferProportionalFonts() : void
+	sun.font.FontManager.preferProportionalFonts();
+!!!6281499.java!!!	getCenterPoint() : Point
+    // Default implementation: return the center of the usable bounds of the
+    // default screen device.
+        Rectangle usableBounds = 
+         SunGraphicsEnvironment.getUsableBounds(getDefaultScreenDevice());
+        return new Point((usableBounds.width / 2) + usableBounds.x,
+                         (usableBounds.height / 2) + usableBounds.y);    
+!!!6281627.java!!!	getMaximumWindowBounds() : Rectangle
+    // Default implementation: return the usable bounds of the default screen
+    // device.  This is correct for Microsoft Windows and non-Xinerama X11.
+        return SunGraphicsEnvironment.getUsableBounds(getDefaultScreenDevice());

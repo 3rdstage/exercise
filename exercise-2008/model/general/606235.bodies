@@ -1,0 +1,133 @@
+class GridLayout
+!!!6285851.java!!!	GridLayout()
+	this(1, 0, 0, 0);
+!!!6285979.java!!!	GridLayout(in rows : int, in cols : int)
+	this(rows, cols, 0, 0);
+!!!6286107.java!!!	GridLayout(in rows : int, in cols : int, in hgap : int, in vgap : int)
+	if ((rows == 0) && (cols == 0)) {
+	    throw new IllegalArgumentException("rows and cols cannot both be zero");
+	}
+	this.rows = rows;
+	this.cols = cols;
+	this.hgap = hgap;
+	this.vgap = vgap;
+!!!6286235.java!!!	getRows() : int
+	return rows;
+!!!6286363.java!!!	setRows(in rows : int) : void
+	if ((rows == 0) && (this.cols == 0)) {
+	    throw new IllegalArgumentException("rows and cols cannot both be zero");
+	}
+	this.rows = rows;
+!!!6286491.java!!!	getColumns() : int
+	return cols;
+!!!6286619.java!!!	setColumns(in cols : int) : void
+	if ((cols == 0) && (this.rows == 0)) {
+	    throw new IllegalArgumentException("rows and cols cannot both be zero");
+	}
+	this.cols = cols;
+!!!6286747.java!!!	getHgap() : int
+	return hgap;
+!!!6286875.java!!!	setHgap(in hgap : int) : void
+	this.hgap = hgap;
+!!!6287003.java!!!	getVgap() : int
+	return vgap;
+!!!6287131.java!!!	setVgap(in vgap : int) : void
+	this.vgap = vgap;
+!!!6287515.java!!!	preferredLayoutSize(inout parent : Container) : Dimension
+      synchronized (parent.getTreeLock()) {
+	Insets insets = parent.getInsets();
+	int ncomponents = parent.getComponentCount();
+	int nrows = rows;
+	int ncols = cols;
+
+	if (nrows > 0) {
+	    ncols = (ncomponents + nrows - 1) / nrows;
+	} else {
+	    nrows = (ncomponents + ncols - 1) / ncols;
+	}
+	int w = 0;
+	int h = 0;
+	for (int i = 0 ; i < ncomponents ; i++) {
+	    Component comp = parent.getComponent(i);
+	    Dimension d = comp.getPreferredSize();
+	    if (w < d.width) {
+		w = d.width;
+	    }
+	    if (h < d.height) {
+		h = d.height;
+	    }
+	}
+	return new Dimension(insets.left + insets.right + ncols*w + (ncols-1)*hgap, 
+			     insets.top + insets.bottom + nrows*h + (nrows-1)*vgap);
+      }
+!!!6287643.java!!!	minimumLayoutSize(inout parent : Container) : Dimension
+      synchronized (parent.getTreeLock()) {
+        Insets insets = parent.getInsets();
+	int ncomponents = parent.getComponentCount();
+	int nrows = rows;
+	int ncols = cols;
+
+	if (nrows > 0) {
+	    ncols = (ncomponents + nrows - 1) / nrows;
+	} else {
+	    nrows = (ncomponents + ncols - 1) / ncols;
+	}
+	int w = 0;
+	int h = 0;
+	for (int i = 0 ; i < ncomponents ; i++) {
+	    Component comp = parent.getComponent(i);
+	    Dimension d = comp.getMinimumSize();
+	    if (w < d.width) {
+		w = d.width;
+	    }
+	    if (h < d.height) {
+		h = d.height;
+	    }
+	}
+	return new Dimension(insets.left + insets.right + ncols*w + (ncols-1)*hgap, 
+			     insets.top + insets.bottom + nrows*h + (nrows-1)*vgap);
+      }
+!!!6287771.java!!!	layoutContainer(inout parent : Container) : void
+      synchronized (parent.getTreeLock()) {
+	Insets insets = parent.getInsets();
+	int ncomponents = parent.getComponentCount();
+	int nrows = rows;
+	int ncols = cols;
+	boolean ltr = parent.getComponentOrientation().isLeftToRight();
+
+	if (ncomponents == 0) {
+	    return;
+	}
+	if (nrows > 0) {
+	    ncols = (ncomponents + nrows - 1) / nrows;
+	} else {
+	    nrows = (ncomponents + ncols - 1) / ncols;
+	}
+	int w = parent.width - (insets.left + insets.right);
+	int h = parent.height - (insets.top + insets.bottom);
+	w = (w - (ncols - 1) * hgap) / ncols;
+	h = (h - (nrows - 1) * vgap) / nrows;
+
+	if (ltr) {
+	    for (int c = 0, x = insets.left ; c < ncols ; c++, x += w + hgap) {
+		for (int r = 0, y = insets.top ; r < nrows ; r++, y += h + vgap) {
+		    int i = r * ncols + c;
+		    if (i < ncomponents) {
+			parent.getComponent(i).setBounds(x, y, w, h);
+		    }
+		}
+	    }
+	} else {
+	    for (int c = 0, x = parent.width - insets.right - w; c < ncols ; c++, x -= w + hgap) {
+		for (int r = 0, y = insets.top ; r < nrows ; r++, y += h + vgap) {
+		    int i = r * ncols + c;
+		    if (i < ncomponents) {
+			parent.getComponent(i).setBounds(x, y, w, h);
+		    }
+		}
+	    }
+	}
+      }
+!!!6287899.java!!!	toString() : String
+	return getClass().getName() + "[hgap=" + hgap + ",vgap=" + vgap + 
+	    			       ",rows=" + rows + ",cols=" + cols + "]";

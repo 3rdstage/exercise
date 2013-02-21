@@ -1,0 +1,49 @@
+class PeekInputStream
+!!!681243.java!!!	PeekInputStream(inout in : InputStream)
+	    this.in = in;
+!!!681371.java!!!	peek() : int
+	    return (peekb >= 0) ? peekb : (peekb = in.read());
+!!!681499.java!!!	read() : int
+	    if (peekb >= 0) {
+		int v = peekb;
+		peekb = -1;
+		return v;
+	    } else {
+		return in.read();
+	    }
+!!!681627.java!!!	read(in b : byte, in off : int, in len : int) : int
+	    if (len == 0) {
+		return 0;
+	    } else if (peekb < 0) {
+		return in.read(b, off, len);
+	    } else {
+		b[off++] = (byte) peekb;
+		len--;
+		peekb = -1;
+		int n = in.read(b, off, len);
+		return (n >= 0) ? (n + 1) : 1;
+	    }
+!!!681755.java!!!	readFully(in b : byte, in off : int, in len : int) : void
+	    int n = 0;
+	    while (n < len) {
+		int count = read(b, off + n, len - n);
+		if (count < 0) {
+		    throw new EOFException();
+		}
+		n += count;
+	    }
+!!!681883.java!!!	skip(in n : long) : long
+	    if (n <= 0) {
+		return 0;
+	    }
+	    int skipped = 0;
+	    if (peekb >= 0) {
+		peekb = -1;
+		skipped++;
+		n--;
+	    }
+	    return skipped + skip(n);
+!!!682011.java!!!	available() : int
+	    return in.available() + ((peekb >= 0) ? 1 : 0);
+!!!682139.java!!!	close() : void
+	    in.close();

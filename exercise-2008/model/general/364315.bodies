@@ -1,0 +1,63 @@
+class GTKIconSource
+!!!2088091.java!!!	GTKIconSource(in image : String, in direction : int, in state : int, in size : String)
+            this.image = image;
+            this.direction = direction;
+            this.state = state;
+            
+            this.size = GTKStockIconInfo.getIconType(size);
+!!!2088219.java!!!	getDirection() : int
+            return direction;
+!!!2088347.java!!!	getState() : int
+            return state;
+!!!2088475.java!!!	getSize() : int
+            return size;
+!!!2088603.java!!!	compareTo(inout o : Object) : int
+            GTKIconSource other = (GTKIconSource)o;            
+
+            if (direction != UNDEFINED && other.direction == UNDEFINED) {
+                return -1;
+            } else if (direction == UNDEFINED && other.direction != UNDEFINED) {
+                return 1;
+            } else if (state != UNDEFINED && other.state == UNDEFINED) {
+                return -1;
+            } else if (state == UNDEFINED && other.state != UNDEFINED) {
+                return 1;
+            } else if (size != UNDEFINED && other.size == UNDEFINED) {
+                return -1;
+            } else if (size == UNDEFINED && other.size != UNDEFINED) {
+                return 1;
+            } else {
+                return 0;
+            }
+!!!2088731.java!!!	toString() : String
+            return "image=" + image + ", dir=" + getDirectionName(direction)
+                   + ", state=" + getStateName(state, "*")
+                   + ", size=" + (size == UNDEFINED ? "*" : ""+size);
+!!!2088859.java!!!	getDirectionName(in dir : int) : String
+            switch(dir) {
+                case LTR: return "LTR";
+                case RTL: return "RTL";
+                case UNDEFINED: return "*";
+            }
+
+            return "UNKNOWN";
+!!!2088987.java!!!	toIcon() : Icon
+            if (image == null || image instanceof Icon) {
+                return (Icon)image;
+            }
+            
+            ImageIcon ii = (ImageIcon)AccessController.doPrivileged(new PrivilegedAction() {
+                public Object run() {
+                    return new ImageIcon((String)image);
+                }
+            });
+
+            if (ii.getIconWidth() > 0 && ii.getIconHeight() > 0) {
+                image = ii;
+            } else {
+                // if we decide to mimic GTK and show a broken image,
+                // it would be assigned to 'image' here
+                image = null;
+            }
+            
+            return (Icon)image;

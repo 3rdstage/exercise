@@ -1,0 +1,48 @@
+class TimeUnit
+!!!7974299.java!!!	TimeUnit(in index : int)
+ 
+        this.index = index; 
+!!!7974427.java!!!	doConvert(in delta : int, in duration : long) : long
+        if (delta == 0)
+            return duration;
+        if (delta < 0) 
+            return duration / multipliers[-delta];
+        if (duration > overflows[delta])
+            return Long.MAX_VALUE;
+        if (duration < -overflows[delta])
+            return Long.MIN_VALUE;
+        return duration * multipliers[delta];
+!!!7974555.java!!!	convert(in duration : long, inout unit : TimeUnit) : long
+        return doConvert(unit.index - index, duration);
+!!!7974683.java!!!	toNanos(in duration : long) : long
+        return doConvert(index, duration);
+!!!7974811.java!!!	toMicros(in duration : long) : long
+        return doConvert(index - MICROSECONDS.index, duration);
+!!!7974939.java!!!	toMillis(in duration : long) : long
+        return doConvert(index - MILLISECONDS.index, duration);
+!!!7975067.java!!!	toSeconds(in duration : long) : long
+        return doConvert(index - SECONDS.index, duration);
+!!!7975195.java!!!	excessNanos(in time : long, in ms : long) : int
+        if (this == NANOSECONDS)
+            return (int) (time  - (ms * 1000 * 1000));
+        if (this == MICROSECONDS)
+            return (int) ((time * 1000) - (ms * 1000 * 1000));
+        return 0;
+!!!7975323.java!!!	timedWait(inout obj : Object, in timeout : long) : void
+        if (timeout > 0) {
+            long ms = toMillis(timeout);
+            int ns = excessNanos(timeout, ms);
+            obj.wait(ms, ns);
+        }
+!!!7975451.java!!!	timedJoin(inout thread : Thread, in timeout : long) : void
+        if (timeout > 0) {
+            long ms = toMillis(timeout);
+            int ns = excessNanos(timeout, ms);
+            thread.join(ms, ns);
+        }
+!!!7975579.java!!!	sleep(in timeout : long) : void
+        if (timeout > 0) {
+            long ms = toMillis(timeout);
+            int ns = excessNanos(timeout, ms);
+            Thread.sleep(ms, ns);
+        }

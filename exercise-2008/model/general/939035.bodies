@@ -1,0 +1,535 @@
+class LogManager
+!!!8055963.java!!!	LogManager()
+	// Add a shutdown hook to close the global handlers.
+        try {
+	    Runtime.getRuntime().addShutdownHook(new Cleaner());
+        } catch (IllegalStateException e) {
+            // If the VM is already shutting down,
+            // We do not need to register shutdownHook. 
+        }
+!!!8056091.java!!!	getLogManager() : LogManager
+        if (manager != null) {
+            manager.readPrimordialConfiguration();
+        }
+	return manager;
+!!!8056219.java!!!	readPrimordialConfiguration() : void
+        if (!readPrimordialConfiguration) {
+            synchronized (this) {
+                if (!readPrimordialConfiguration) {
+                    // If System.in/out/err are null, it's a good
+                    // indication that we're still in the
+                    // bootstrapping phase
+                    if (System.out == null) {
+                        return;
+                    }
+                    readPrimordialConfiguration = true;
+                    try {
+                        AccessController.doPrivileged(new PrivilegedExceptionAction() {
+                                public Object run() throws Exception {
+                                    readConfiguration();
+                                    return null;
+                                }
+                            });
+                    } catch (Exception ex) {
+                        // System.err.println("Can't read logging configuration:");
+                        // ex.printStackTrace();
+                    }
+                }
+            }
+        }
+!!!8056347.java!!!	addPropertyChangeListener(inout l : PropertyChangeListener) : void
+	if (l == null) {
+	    throw new NullPointerException();
+	}
+	checkAccess();
+	changes.addPropertyChangeListener(l);
+!!!8056475.java!!!	removePropertyChangeListener(inout l : PropertyChangeListener) : void
+	checkAccess();
+	changes.removePropertyChangeListener(l);
+!!!8056603.java!!!	addLogger(inout logger : Logger) : boolean
+	final String name = logger.getName();
+	if (name == null) {
+	    throw new NullPointerException();
+	}
+
+	Logger old = loggers.get(name);
+	if (old != null) {
+	    // We already have a registered logger with the given name.
+	    return false;
+	}
+
+	// We're adding a new logger.
+	// Note that we are creating a strong reference here that will
+	// keep the Logger in existence indefinitely.
+	loggers.put(name, logger);
+
+	// Apply any initial level defined for the new logger.
+	Level level = getLevelProperty(name+".level", null);
+	if (level != null) {
+	    doSetLevel(logger, level);
+	}
+
+        // Do we have a per logger handler too?
+	// Note: this will add a 200ms penalty 
+        if (getProperty(name+".handlers") != null) {
+           // This code is taken from the root handler initialization
+           AccessController.doPrivileged(new PrivilegedAction() {
+              public Object run() {
+                // Add new per logger handlers.
+                String names[] = parseClassNames(name+".handlers");
+                for (int i = 0; i < names.length; i++) {
+                    String word = names[i];
+                    try {
+                        Class clz = ClassLoader.getSystemClassLoader().loadClass(word);
+                        Handler h = (Handler) clz.newInstance();
+                        try {
+                            // Check if there is a property defining the
+                            // this handler's level.
+                            String levs = getProperty(word + ".level");
+                            if (levs != null) {
+                                h.setLevel(Level.parse(levs));
+                            }
+                            boolean useParent = getBooleanProperty(name + ".useParentHandlers", true);
+                            if (!useParent) {
+                                getLogger(name).setUseParentHandlers(false);
+                            }
+                        } catch (Exception ex) {
+                            System.err.println("Can't set level for " + word);
+                            // Probably a bad level. Drop through.
+                        }
+                        // Add this Handler to the logger
+                        getLogger(name).addHandler(h);
+                    } catch (Exception ex) {
+                        System.err.println("Can't load log handler \"" + word + "\"");
+                        System.err.println("" + ex);
+                        ex.printStackTrace();
+                    }
+                }
+                return null;
+            }});
+        } // do we have per logger handlers
+
+	// If any of the logger's parents have levels defined,
+	// make sure they are instantiated.
+	int ix = 1;
+	for (;;) {
+	    int ix2 = name.indexOf(".", ix);
+	    if (ix2 < 0) {
+		break;
+	    }
+	    String pname = name.substring(0,ix2);
+	    if (getProperty(pname+".level") != null) {
+		// This pname has a level definition.  Make sure it exists.
+		Logger plogger = Logger.getLogger(pname);
+	    }
+            // While we are walking up the tree I can check for our
+            // own root logger and get its handlers initialized too with
+            // the same code
+            if (getProperty(pname+".handlers") != null) {
+               final String nname=pname;
+                                                                                
+               AccessController.doPrivileged(new PrivilegedAction() {
+                   public Object run() {
+                   String names[] = parseClassNames(nname+".handlers");
+                                                                                
+                   for (int i = 0; i < names.length; i++) {
+                       String word = names[i];
+                       try {
+                           Class clz = ClassLoader.getSystemClassLoader().loadClass(word);
+                           Handler h = (Handler) clz.newInstance();
+                           try {
+                              // Check if there is a property defining the
+                              // handler's level.
+                              String levs = getProperty(word + ".level");
+                              if (levs != null) {
+                                  h.setLevel(Level.parse(levs));
+                              }
+                           } catch (Exception ex) {
+                                System.err.println("Can't set level for " + word);
+                            // Probably a bad level. Drop through.
+                           }
+                           if (getLogger(nname) == null ) {
+                               Logger nplogger=Logger.getLogger(nname);
+                               addLogger(nplogger);
+                           }
+                           boolean useParent = getBooleanProperty(nname + ".useParentHandlers", true);
+                           if (!useParent) {
+                               getLogger(nname).setUseParentHandlers(false);
+                           }
+                       } catch (Exception ex) {
+                          System.err.println("Can't load log handler \"" + word + "\"");
+                          System.err.println("" + ex);
+                          ex.printStackTrace();
+                       }
+                   }
+                   return null;
+                   }});
+            } //found a parent handler
+
+	    ix = ix2+1;
+	}
+
+	// Find the new node and its parent.
+	LogNode node = findNode(name);
+	node.logger = logger;
+	Logger parent = null;
+	LogNode nodep = node.parent;
+	while (nodep != null) {
+	    if (nodep.logger != null) {
+		parent = nodep.logger;
+		break;
+	    }
+	    nodep = nodep.parent;
+	}
+
+	if (parent != null) {
+            doSetParent(logger, parent);
+	}
+	// Walk over the children and tell them we are their new parent.
+	node.walkAndSetParent(logger);
+
+	return true;
+!!!8056731.java!!!	doSetLevel(in logger : Logger, in level : Level) : void
+	SecurityManager sm = System.getSecurityManager();
+	if (sm == null) {
+	    // There is no security manager, so things are easy.
+	    logger.setLevel(level);
+	    return;
+	} 
+	// There is a security manager.  Raise privilege before
+	// calling setLevel.
+	AccessController.doPrivileged(new PrivilegedAction() {
+	    public Object run() {
+	        logger.setLevel(level);
+		return null;
+	    }});
+!!!8056859.java!!!	doSetParent(in logger : Logger, in parent : Logger) : void
+	SecurityManager sm = System.getSecurityManager();
+	if (sm == null) {
+	    // There is no security manager, so things are easy.
+	    logger.setParent(parent);
+	    return;
+	} 
+	// There is a security manager.  Raise privilege before
+	// calling setParent.
+	AccessController.doPrivileged(new PrivilegedAction() {
+	    public Object run() {
+		logger.setParent(parent);
+		return null;
+	    }});
+!!!8056987.java!!!	findNode(in name : String) : LogNode
+	if (name == null || name.equals("")) {
+	    return root;
+	}
+	LogNode node = root;
+	while (name.length() > 0) {
+	    int ix = name.indexOf(".");
+	    String head;
+	    if (ix > 0) {
+		head = name.substring(0,ix);
+		name = name.substring(ix+1);
+	    } else {
+		head = name;
+		name = "";
+	    }
+	    if (node.children == null) {
+		node.children = new HashMap<Object,Object>();
+	    }
+	    LogNode child = (LogNode)node.children.get(head);
+	    if (child == null) {
+		child = new LogNode(node);
+		node.children.put(head, child);
+	    }
+	    node = child;
+	}
+	return node;
+!!!8057115.java!!!	getLogger(in name : String) : Logger
+	return loggers.get(name);
+!!!8057243.java!!!	getLoggerNames() : Enumeration
+	return loggers.keys();
+!!!8057371.java!!!	readConfiguration() : void
+	checkAccess();
+
+	// if a configuration class is specified, load it and use it.
+	String cname = System.getProperty("java.util.logging.config.class");
+	if (cname != null) {
+	    try {
+		// Instantiate the named class.  It is its contructor's
+		// responsibility to initialize the logging configuration, by
+		// calling readConfiguration(InputStream) with a suitable stream.
+		try {	
+		    Class clz = ClassLoader.getSystemClassLoader().loadClass(cname);
+		    clz.newInstance();
+		    return;
+		} catch (ClassNotFoundException ex) {
+		    Class clz = Thread.currentThread().getContextClassLoader().loadClass(cname);
+		    clz.newInstance();
+		    return;
+		}
+	    } catch (Exception ex) {
+	        System.err.println("Logging configuration class \"" + cname + "\" failed");
+	        System.err.println("" + ex);	    
+	        // keep going and useful config file.
+	    }
+	}
+
+	String fname = System.getProperty("java.util.logging.config.file");
+	if (fname == null) {
+	    fname = System.getProperty("java.home");
+	    if (fname == null) {
+		throw new Error("Can't find java.home ??");
+	    }
+	    File f = new File(fname, "lib");
+	    f = new File(f, "logging.properties");
+	    fname = f.getCanonicalPath();
+	}
+	InputStream in = new FileInputStream(fname);
+	BufferedInputStream bin = new BufferedInputStream(in);
+	try {
+	    readConfiguration(bin);
+	} finally {
+	    if (in != null) {
+	    	in.close();
+	    }
+	}
+!!!8057499.java!!!	reset() : void
+	checkAccess();
+	synchronized (this) {
+	    props = new Properties();
+	    // Since we are doing a reset we no longer want to initialize
+	    // the global handlers, if they haven't been initialized yet.
+	    initializedGlobalHandlers = true;
+	}
+	Enumeration enum_ = getLoggerNames();
+	while (enum_.hasMoreElements()) {
+	    String name = (String)enum_.nextElement();
+	    resetLogger(name);
+	}
+!!!8057627.java!!!	resetLogger(in name : String) : void
+	Logger logger = getLogger(name);
+	if (logger == null) {
+	    return;
+	}
+	// Close all the Logger's handlers.
+	Handler[] targets = logger.getHandlers();
+	for (int i = 0; i < targets.length; i++) {
+	    Handler h = targets[i];
+	    logger.removeHandler(h);
+	    try {
+	        h.close();
+	    } catch (Exception ex) {
+		// Problems closing a handler?  Keep going...
+	    }
+	}
+	if (name != null && name.equals("")) {
+	    // This is the root logger.
+	    logger.setLevel(defaultLevel);
+	} else {
+	    logger.setLevel(null);
+	}
+!!!8057755.java!!!	parseClassNames(in propertyName : String) : String
+	String hands = getProperty(propertyName);
+	if (hands == null) {
+	    return new String[0];
+	}
+	hands = hands.trim();
+	int ix = 0;
+	Vector<String> result = new Vector<String>();
+	while (ix < hands.length()) {
+	    int end = ix;
+	    while (end < hands.length()) {
+		if (Character.isWhitespace(hands.charAt(end))) {
+		    break;
+		}
+		if (hands.charAt(end) == ',') {
+		    break;
+		}
+		end++;
+	    }
+	    String word = hands.substring(ix, end);
+	    ix = end+1;
+	    word = word.trim();
+	    if (word.length() == 0) {
+		continue;
+	    }
+	    result.add(word);
+	}
+	return result.toArray(new String[result.size()]);
+!!!8057883.java!!!	readConfiguration(inout ins : InputStream) : void
+	checkAccess();
+	reset();
+
+	// Load the properties
+	props.load(ins);
+	// Instantiate new configuration objects.
+	String names[] = parseClassNames("config");
+
+	for (int i = 0; i < names.length; i++) {
+	    String word = names[i];
+	    try {
+		Class clz = ClassLoader.getSystemClassLoader().loadClass(word);
+		clz.newInstance();
+	    } catch (Exception ex) {
+		System.err.println("Can't load config class \"" + word + "\"");
+		System.err.println("" + ex);
+		// ex.printStackTrace();
+	    }
+	}
+
+	// Set levels on any pre-existing loggers, based on the new properties.
+	setLevelsOnExistingLoggers();
+
+	// Notify any interested parties that our properties have changed.
+	changes.firePropertyChange(null, null, null);
+
+	// Note that we need to reinitialize global handles when 
+   	// they are first referenced.
+	synchronized (this) {
+	    initializedGlobalHandlers = false;
+	}
+!!!8058011.java!!!	getProperty(in name : String) : String
+	return props.getProperty(name);
+!!!8058139.java!!!	getStringProperty(in name : String, in defaultValue : String) : String
+	String val = getProperty(name);
+	if (val == null) {
+	    return defaultValue;
+	}
+	return val.trim();
+!!!8058267.java!!!	getIntProperty(in name : String, in defaultValue : int) : int
+	String val = getProperty(name);
+	if (val == null) {
+	    return defaultValue;
+	}
+	try {
+	    return Integer.parseInt(val.trim());
+	} catch (Exception ex) {
+	    return defaultValue;
+	}
+!!!8058395.java!!!	getBooleanProperty(in name : String, inout defaultValue : boolean) : boolean
+	String val = getProperty(name);
+	if (val == null) {
+	    return defaultValue;
+	}
+	val = val.toLowerCase();
+	if (val.equals("true") || val.equals("1")) {
+	    return true;
+	} else if (val.equals("false") || val.equals("0")) {
+	    return false;
+	}
+        return defaultValue;
+!!!8058523.java!!!	getLevelProperty(in name : String, inout defaultValue : Level) : Level
+	String val = getProperty(name);
+	if (val == null) {
+	    return defaultValue;
+	}
+	try {
+	    return Level.parse(val.trim());
+	} catch (Exception ex) {
+	    return defaultValue;
+	}
+!!!8058651.java!!!	getFilterProperty(in name : String, inout defaultValue : Filter) : Filter
+	String val = getProperty(name);
+	try {
+	    if (val != null) {
+		Class clz = ClassLoader.getSystemClassLoader().loadClass(val);
+	        return (Filter) clz.newInstance();
+	    }
+	} catch (Exception ex) {
+	    // We got one of a variety of exceptions in creating the
+	    // class or creating an instance.
+	    // Drop through.
+	}
+	// We got an exception.  Return the defaultValue.
+	return defaultValue;
+!!!8058779.java!!!	getFormatterProperty(in name : String, inout defaultValue : Formatter) : Formatter
+	String val = getProperty(name);
+	try {
+	    if (val != null) {
+		Class clz = ClassLoader.getSystemClassLoader().loadClass(val);
+	        return (Formatter) clz.newInstance();
+	    }
+	} catch (Exception ex) {
+	    // We got one of a variety of exceptions in creating the
+	    // class or creating an instance.
+	    // Drop through.
+	}
+	// We got an exception.  Return the defaultValue.
+	return defaultValue;
+!!!8058907.java!!!	initializeGlobalHandlers() : void
+	if (initializedGlobalHandlers) {
+	    return;
+	}
+
+	initializedGlobalHandlers = true;
+
+	if (deathImminent) {
+	    // Aaargh...
+	    // The VM is shutting down and our exit hook has been called.
+	    // Avoid allocating global handlers.
+	    return;
+	}
+
+        // We need to raise privilege here.  All our decisions will
+	// be made based on the logging configuration, which can
+	// only be modified by trusted code.
+	AccessController.doPrivileged(new PrivilegedAction() {
+	    public Object run() {
+		// Add new global handlers.
+		String names[] = parseClassNames("handlers");
+		for (int i = 0; i < names.length; i++) {
+	    	    String word = names[i];
+	    	    try {
+		        Class clz = ClassLoader.getSystemClassLoader().loadClass(word);
+		        Handler h = (Handler) clz.newInstance();
+			try {
+		    	    // Check if there is a property defining the
+		    	    // handler's level.
+		    	    String levs = getProperty(word + ".level");
+		    	    if (levs != null) {
+				h.setLevel(Level.parse(levs));
+		    	    }
+			} catch (Exception ex) {
+			    System.err.println("Can't set level for " + word);
+		    	    // Probably a bad level. Drop through.
+			}
+			rootLogger.addHandler(h);
+	    	    } catch (Exception ex) {
+			System.err.println("Can't load log handler \"" + word + "\"");
+			System.err.println("" + ex);
+			ex.printStackTrace();
+		    }
+		}
+		return null;
+	    }});
+!!!8059035.java!!!	checkAccess() : void
+	SecurityManager sm = System.getSecurityManager();
+	if (sm == null) {
+	    return;
+	}
+        sm.checkPermission(ourPermission);
+!!!8060059.java!!!	setLevelsOnExistingLoggers() : void
+	Enumeration enum_ = props.propertyNames();
+	while (enum_.hasMoreElements()) {
+	    String key = (String)enum_.nextElement();
+	    if (!key.endsWith(".level")) {
+		// Not a level definition.
+		continue;
+	    }
+	    int ix = key.length() - 6;
+	    String name = key.substring(0, ix);
+	    Level level = getLevelProperty(key, null);
+	    if (level == null) {
+		System.err.println("Bad level value for property: " + key);
+		continue;
+	    }
+	    Logger l = getLogger(name);
+	    if (l == null) {
+		continue;
+	    }
+	    l.setLevel(level);
+	}
+!!!8060187.java!!!	getLoggingMXBean() : LoggingMXBean
+        if (loggingMXBean == null) {
+            loggingMXBean =  new Logging();
+        }
+        return loggingMXBean;

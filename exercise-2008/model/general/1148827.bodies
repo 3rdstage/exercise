@@ -1,0 +1,577 @@
+class DefaultStyledDocument
+!!!9404955.java!!!	DefaultStyledDocument(inout c : Content, inout styles : StyleContext)
+	super(c, styles);
+	listeningStyles = new Vector();
+	buffer = new ElementBuffer(createDefaultRoot());
+	Style defaultStyle = styles.getStyle(StyleContext.DEFAULT_STYLE);
+	setLogicalStyle(0, defaultStyle);
+!!!9405083.java!!!	DefaultStyledDocument(inout styles : StyleContext)
+	this(new GapContent(BUFFER_SIZE_DEFAULT), styles);
+!!!9405211.java!!!	DefaultStyledDocument()
+	this(new GapContent(BUFFER_SIZE_DEFAULT), new StyleContext());
+!!!9405339.java!!!	getDefaultRootElement() : Element
+	return buffer.getRootElement();
+!!!9405467.java!!!	create(inout data : ElementSpec) : void
+	try {
+	    if (getLength() != 0) {
+		remove(0, getLength());
+	    }
+	    writeLock();
+
+	    // install the content
+	    Content c = getContent();
+	    int n = data.length;
+	    StringBuffer sb = new StringBuffer();
+	    for (int i = 0; i < n; i++) {
+		ElementSpec es = data[i];
+		if (es.getLength() > 0) {
+		    sb.append(es.getArray(), es.getOffset(),  es.getLength());
+		}
+	    }
+	    UndoableEdit cEdit = c.insertString(0, sb.toString());
+
+	    // build the event and element structure
+	    int length = sb.length();
+	    DefaultDocumentEvent evnt = 
+		new DefaultDocumentEvent(0, length, DocumentEvent.EventType.INSERT);
+	    evnt.addEdit(cEdit);
+	    buffer.create(length, data, evnt);
+
+	    // update bidi (possibly)
+	    super.insertUpdate(evnt, null);
+
+	    // notify the listeners
+	    evnt.end();
+	    fireInsertUpdate(evnt);
+	    fireUndoableEditUpdate(new UndoableEditEvent(this, evnt));
+	} catch (BadLocationException ble) {
+	    throw new StateInvariantError("problem initializing");
+	} finally {
+	    writeUnlock();
+	}
+	
+!!!9405595.java!!!	insert(in offset : int, inout data : ElementSpec) : void
+	if (data == null || data.length == 0) {
+	    return;
+	}
+
+	try {
+	    writeLock();
+
+	    // install the content
+	    Content c = getContent();
+	    int n = data.length;
+	    StringBuffer sb = new StringBuffer();
+	    for (int i = 0; i < n; i++) {
+		ElementSpec es = data[i];
+		if (es.getLength() > 0) {
+		    sb.append(es.getArray(), es.getOffset(),  es.getLength());
+		}
+	    }
+	    if (sb.length() == 0) {
+		// Nothing to insert, bail.
+		return;
+	    }
+	    UndoableEdit cEdit = c.insertString(offset, sb.toString());
+
+	    // create event and build the element structure
+	    int length = sb.length();
+	    DefaultDocumentEvent evnt = 
+		new DefaultDocumentEvent(offset, length, DocumentEvent.EventType.INSERT);
+	    evnt.addEdit(cEdit);
+	    buffer.insert(offset, length, data, evnt);
+	    
+	    // update bidi (possibly)
+	    super.insertUpdate(evnt, null);
+
+	    // notify the listeners
+	    evnt.end();
+	    fireInsertUpdate(evnt);
+	    fireUndoableEditUpdate(new UndoableEditEvent(this, evnt));
+	} finally {
+	    writeUnlock();
+	}
+!!!9405723.java!!!	addStyle(in nm : String, inout parent : Style) : Style
+	StyleContext styles = (StyleContext) getAttributeContext();
+	return styles.addStyle(nm, parent);
+!!!9405851.java!!!	removeStyle(in nm : String) : void
+	StyleContext styles = (StyleContext) getAttributeContext();
+	styles.removeStyle(nm);
+!!!9405979.java!!!	getStyle(in nm : String) : Style
+	StyleContext styles = (StyleContext) getAttributeContext();
+	return styles.getStyle(nm);
+!!!9406107.java!!!	getStyleNames() : Enumeration
+	return ((StyleContext) getAttributeContext()).getStyleNames();
+!!!9406235.java!!!	setLogicalStyle(in pos : int, inout s : Style) : void
+	Element paragraph = getParagraphElement(pos);
+	if ((paragraph != null) && (paragraph instanceof AbstractElement)) {
+	    try {
+		writeLock();
+		StyleChangeUndoableEdit edit = new StyleChangeUndoableEdit((AbstractElement)paragraph, s);
+		((AbstractElement)paragraph).setResolveParent(s);
+		int p0 = paragraph.getStartOffset();
+		int p1 = paragraph.getEndOffset();
+		DefaultDocumentEvent e = 
+		  new DefaultDocumentEvent(p0, p1 - p0, DocumentEvent.EventType.CHANGE);
+		e.addEdit(edit);
+		e.end();
+		fireChangedUpdate(e);
+		fireUndoableEditUpdate(new UndoableEditEvent(this, e));
+	    } finally {
+		writeUnlock();
+	    }
+	}
+!!!9406363.java!!!	getLogicalStyle(in p : int) : Style
+	Style s = null;
+	Element paragraph = getParagraphElement(p);
+	if (paragraph != null) {
+	    AttributeSet a = paragraph.getAttributes();
+	    AttributeSet parent = a.getResolveParent();
+	    if (parent instanceof Style) {
+		s = (Style) parent;
+	    }
+	}
+	return s;
+!!!9406491.java!!!	setCharacterAttributes(in offset : int, in length : int, inout s : AttributeSet, inout replace : boolean) : void
+        if (length == 0) {
+            return;
+        }
+	try {
+	    writeLock();
+	    DefaultDocumentEvent changes = 
+		new DefaultDocumentEvent(offset, length, DocumentEvent.EventType.CHANGE);
+
+	    // split elements that need it
+	    buffer.change(offset, length, changes);
+
+	    AttributeSet sCopy = s.copyAttributes();
+
+	    // PENDING(prinz) - this isn't a very efficient way to iterate
+	    int lastEnd = Integer.MAX_VALUE;
+	    for (int pos = offset; pos < (offset + length); pos = lastEnd) {
+		Element run = getCharacterElement(pos);
+		lastEnd = run.getEndOffset();
+                if (pos == lastEnd) {
+                    // offset + length beyond length of document, bail.
+                    break;
+                }
+		MutableAttributeSet attr = (MutableAttributeSet) run.getAttributes();
+		changes.addEdit(new AttributeUndoableEdit(run, sCopy, replace));
+		if (replace) {
+		    attr.removeAttributes(attr);
+		}
+		attr.addAttributes(s);
+	    }
+	    changes.end();
+	    fireChangedUpdate(changes);
+	    fireUndoableEditUpdate(new UndoableEditEvent(this, changes));
+	} finally {
+	    writeUnlock();
+	}
+
+!!!9406619.java!!!	setParagraphAttributes(in offset : int, in length : int, inout s : AttributeSet, inout replace : boolean) : void
+	try {
+	    writeLock();
+	    DefaultDocumentEvent changes = 
+		new DefaultDocumentEvent(offset, length, DocumentEvent.EventType.CHANGE);
+
+	    AttributeSet sCopy = s.copyAttributes();
+
+	    // PENDING(prinz) - this assumes a particular element structure
+	    Element section = getDefaultRootElement();
+	    int index0 = section.getElementIndex(offset);
+	    int index1 = section.getElementIndex(offset + ((length > 0) ? length - 1 : 0));
+            boolean isI18N = Boolean.TRUE.equals(getProperty(I18NProperty));
+            boolean hasRuns = false;
+	    for (int i = index0; i <= index1; i++) {
+		Element paragraph = section.getElement(i);
+		MutableAttributeSet attr = (MutableAttributeSet) paragraph.getAttributes();
+		changes.addEdit(new AttributeUndoableEdit(paragraph, sCopy, replace));
+		if (replace) {
+		    attr.removeAttributes(attr);
+		}
+		attr.addAttributes(s);
+                if (isI18N && !hasRuns) {
+                    hasRuns = (attr.getAttribute(TextAttribute.RUN_DIRECTION) != null);
+                }
+	    }
+
+            if (hasRuns) {
+                updateBidi( changes );
+            }
+
+	    changes.end();
+	    fireChangedUpdate(changes);
+	    fireUndoableEditUpdate(new UndoableEditEvent(this, changes));
+	} finally {
+	    writeUnlock();
+	}
+!!!9406747.java!!!	getParagraphElement(in pos : int) : Element
+	Element e = null;
+	for (e = getDefaultRootElement(); ! e.isLeaf(); ) {
+	    int index = e.getElementIndex(pos);
+	    e = e.getElement(index);
+	}
+	if(e != null)
+	    return e.getParentElement();
+	return e;
+!!!9406875.java!!!	getCharacterElement(in pos : int) : Element
+	Element e = null;
+	for (e = getDefaultRootElement(); ! e.isLeaf(); ) {
+	    int index = e.getElementIndex(pos);
+	    e = e.getElement(index);
+	}
+	return e;
+!!!9407003.java!!!	insertUpdate(inout chng : DefaultDocumentEvent, inout attr : AttributeSet) : void
+	int offset = chng.getOffset();
+	int length = chng.getLength();
+	if (attr == null) {
+	    attr = SimpleAttributeSet.EMPTY;
+	}
+
+	// Paragraph attributes should come from point after insertion.
+	// You really only notice this when inserting at a paragraph
+	// boundary.
+	Element paragraph = getParagraphElement(offset + length);
+	AttributeSet pattr = paragraph.getAttributes();
+	// Character attributes should come from actual insertion point.
+	Element pParagraph = getParagraphElement(offset);
+	Element run = pParagraph.getElement(pParagraph.getElementIndex
+					    (offset));
+	int endOffset = offset + length;
+	boolean insertingAtBoundry = (run.getEndOffset() == endOffset);
+	AttributeSet cattr = run.getAttributes();
+
+	try {
+	    Segment s = new Segment();
+	    Vector parseBuffer = new Vector();
+	    ElementSpec lastStartSpec = null;
+	    boolean insertingAfterNewline = false;
+	    short lastStartDirection = ElementSpec.OriginateDirection;
+	    // Check if the previous character was a newline.
+	    if (offset > 0) {
+		getText(offset - 1, 1, s);
+		if (s.array[s.offset] == '\n') {
+		    // Inserting after a newline.
+		    insertingAfterNewline = true;
+		    lastStartDirection = createSpecsForInsertAfterNewline
+			          (paragraph, pParagraph, pattr, parseBuffer,
+				   offset, endOffset);
+		    for(int counter = parseBuffer.size() - 1; counter >= 0;
+			counter--) {
+			ElementSpec spec = (ElementSpec)parseBuffer.
+			                    elementAt(counter);
+			if(spec.getType() == ElementSpec.StartTagType) {
+			    lastStartSpec = spec;
+			    break;
+			}
+		    }
+		}
+	    }
+	    // If not inserting after a new line, pull the attributes for
+	    // new paragraphs from the paragraph under the insertion point.
+	    if(!insertingAfterNewline)
+		pattr = pParagraph.getAttributes();
+
+	    getText(offset, length, s);
+	    char[] txt = s.array;
+	    int n = s.offset + s.count;
+	    int lastOffset = s.offset;
+
+	    for (int i = s.offset; i < n; i++) {
+		if (txt[i] == '\n') {
+		    int breakOffset = i + 1;
+		    parseBuffer.addElement(
+                        new ElementSpec(attr, ElementSpec.ContentType,
+					       breakOffset - lastOffset));
+		    parseBuffer.addElement(
+                        new ElementSpec(null, ElementSpec.EndTagType));
+		    lastStartSpec = new ElementSpec(pattr, ElementSpec.
+						   StartTagType);
+		    parseBuffer.addElement(lastStartSpec);
+		    lastOffset = breakOffset;
+		}
+	    }
+	    if (lastOffset < n) {
+		parseBuffer.addElement(
+                    new ElementSpec(attr, ElementSpec.ContentType,
+					   n - lastOffset));
+	    }
+
+	    ElementSpec first = (ElementSpec) parseBuffer.firstElement();
+
+	    int docLength = getLength();
+
+	    // Check for join previous of first content.
+	    if(first.getType() == ElementSpec.ContentType &&
+	       cattr.isEqual(attr)) {
+		first.setDirection(ElementSpec.JoinPreviousDirection);
+	    }
+
+	    // Do a join fracture/next for last start spec if necessary.
+	    if(lastStartSpec != null) {
+		if(insertingAfterNewline) {
+		    lastStartSpec.setDirection(lastStartDirection);
+		}
+		// Join to the fracture if NOT inserting at the end
+		// (fracture only happens when not inserting at end of
+		// paragraph).
+		else if(pParagraph.getEndOffset() != endOffset) {
+		    lastStartSpec.setDirection(ElementSpec.
+					       JoinFractureDirection);
+		}
+		// Join to next if parent of pParagraph has another
+		// element after pParagraph, and it isn't a leaf.
+		else {
+		    Element parent = pParagraph.getParentElement();
+		    int pParagraphIndex = parent.getElementIndex(offset);
+		    if((pParagraphIndex + 1) < parent.getElementCount() &&
+		       !parent.getElement(pParagraphIndex + 1).isLeaf()) {
+			lastStartSpec.setDirection(ElementSpec.
+						   JoinNextDirection);
+		    }
+		}
+	    }
+
+	    // Do a JoinNext for last spec if it is content, it doesn't
+	    // already have a direction set, no new paragraphs have been
+	    // inserted or a new paragraph has been inserted and its join
+	    // direction isn't originate, and the element at endOffset 
+	    // is a leaf.
+	    if(insertingAtBoundry && endOffset < docLength) {
+		ElementSpec last = (ElementSpec) parseBuffer.lastElement();
+		if(last.getType() == ElementSpec.ContentType &&
+		   last.getDirection() != ElementSpec.JoinPreviousDirection &&
+		   ((lastStartSpec == null && (paragraph == pParagraph ||
+					       insertingAfterNewline)) ||
+		    (lastStartSpec != null && lastStartSpec.getDirection() !=
+		     ElementSpec.OriginateDirection))) {
+		    Element nextRun = paragraph.getElement(paragraph.
+					   getElementIndex(endOffset));
+		    // Don't try joining to a branch!
+		    if(nextRun.isLeaf() &&
+		       attr.isEqual(nextRun.getAttributes())) {
+			last.setDirection(ElementSpec.JoinNextDirection);
+		    }
+		}
+	    }
+	    // If not inserting at boundary and there is going to be a
+	    // fracture, then can join next on last content if cattr
+	    // matches the new attributes.
+	    else if(!insertingAtBoundry && lastStartSpec != null &&
+		    lastStartSpec.getDirection() ==
+		    ElementSpec.JoinFractureDirection) {
+		ElementSpec last = (ElementSpec) parseBuffer.lastElement();
+		if(last.getType() == ElementSpec.ContentType &&
+		   last.getDirection() != ElementSpec.JoinPreviousDirection &&
+		   attr.isEqual(cattr)) {
+		    last.setDirection(ElementSpec.JoinNextDirection);
+		}
+	    }
+
+	    // Check for the composed text element. If it is, merge the character attributes
+	    // into this element as well.
+	    if (Utilities.isComposedTextAttributeDefined(attr)) {
+	        ((MutableAttributeSet)attr).addAttributes(cattr);
+	        ((MutableAttributeSet)attr).addAttribute(AbstractDocument.ElementNameAttribute, 
+		                                         AbstractDocument.ContentElementName);
+	    }
+
+	    ElementSpec[] spec = new ElementSpec[parseBuffer.size()];
+	    parseBuffer.copyInto(spec);
+	    buffer.insert(offset, length, spec, chng);
+	} catch (BadLocationException bl) {
+	}
+
+        super.insertUpdate( chng, attr );
+!!!9407131.java!!!	createSpecsForInsertAfterNewline(inout paragraph : Element, inout pParagraph : Element, inout pattr : AttributeSet, inout parseBuffer : Vector, in offset : int, in endOffset : int) : short
+	// Need to find the common parent of pParagraph and paragraph.
+	if(paragraph.getParentElement() == pParagraph.getParentElement()) {
+	    // The simple (and common) case that pParagraph and
+	    // paragraph have the same parent.
+	    ElementSpec spec = new ElementSpec(pattr, ElementSpec.EndTagType);
+	    parseBuffer.addElement(spec);
+	    spec = new ElementSpec(pattr, ElementSpec.StartTagType);
+	    parseBuffer.addElement(spec);
+	    if(pParagraph.getEndOffset() != endOffset)
+		return ElementSpec.JoinFractureDirection;
+
+	    Element parent = pParagraph.getParentElement();
+	    if((parent.getElementIndex(offset) + 1) < parent.getElementCount())
+		return ElementSpec.JoinNextDirection;
+	}
+	else {
+	    // Will only happen for text with more than 2 levels.
+	    // Find the common parent of a paragraph and pParagraph
+	    Vector leftParents = new Vector();
+	    Vector rightParents = new Vector();
+	    Element e = pParagraph;
+	    while(e != null) {
+		leftParents.addElement(e);
+		e = e.getParentElement();
+	    }
+	    e = paragraph;
+	    int leftIndex = -1;
+	    while(e != null && (leftIndex = leftParents.indexOf(e)) == -1) {
+		rightParents.addElement(e);
+		e = e.getParentElement();
+	    }
+	    if(e != null) {
+		// e identifies the common parent.
+		// Build the ends.
+		for(int counter = 0; counter < leftIndex;
+		    counter++) {
+		    parseBuffer.addElement(new ElementSpec
+					      (null, ElementSpec.EndTagType));
+		}
+		// And the starts.
+		ElementSpec spec = null;
+		for(int counter = rightParents.size() - 1;
+		    counter >= 0; counter--) {
+		    spec = new ElementSpec(((Element)rightParents.
+				   elementAt(counter)).getAttributes(),
+				   ElementSpec.StartTagType);
+		    if(counter > 0)
+			spec.setDirection(ElementSpec.JoinNextDirection);
+		    parseBuffer.addElement(spec);
+		}
+		// If there are right parents, then we generated starts
+		// down the right subtree and there will be an element to
+		// join to.
+		if(rightParents.size() > 0)
+		    return ElementSpec.JoinNextDirection;
+		// No right subtree, e.getElement(endOffset) is a
+		// leaf. There will be a facture.
+		return ElementSpec.JoinFractureDirection;
+	    }
+	    // else: Could throw an exception here, but should never get here!
+	}
+	return ElementSpec.OriginateDirection;
+!!!9407259.java!!!	removeUpdate(inout chng : DefaultDocumentEvent) : void
+        super.removeUpdate(chng);
+	buffer.remove(chng.getOffset(), chng.getLength(), chng);
+!!!9407387.java!!!	createDefaultRoot() : AbstractElement
+	// grabs a write-lock for this initialization and
+	// abandon it during initialization so in normal
+	// operation we can detect an illegitimate attempt
+	// to mutate attributes.
+	writeLock();
+	BranchElement section = new SectionElement();
+	BranchElement paragraph = new BranchElement(section, null);
+
+	LeafElement brk = new LeafElement(paragraph, null, 0, 1);
+	Element[] buff = new Element[1];
+	buff[0] = brk;
+	paragraph.replace(0, 0, buff);
+
+	buff[0] = paragraph;
+	section.replace(0, 0, buff);
+	writeUnlock();
+	return section;
+!!!9407515.java!!!	getForeground(inout attr : AttributeSet) : Color
+	StyleContext styles = (StyleContext) getAttributeContext();
+	return styles.getForeground(attr);
+!!!9407643.java!!!	getBackground(inout attr : AttributeSet) : Color
+	StyleContext styles = (StyleContext) getAttributeContext();
+	return styles.getBackground(attr);
+!!!9407771.java!!!	getFont(inout attr : AttributeSet) : Font
+	StyleContext styles = (StyleContext) getAttributeContext();
+	return styles.getFont(attr);
+!!!9407899.java!!!	styleChanged(inout style : Style) : void
+        // Only propagate change updated if have content
+        if (getLength() != 0) {
+            // lazily create a ChangeUpdateRunnable
+            if (updateRunnable == null) {
+                updateRunnable = new ChangeUpdateRunnable();
+            }
+            
+            // We may get a whole batch of these at once, so only
+            // queue the runnable if it is not already pending
+            synchronized(updateRunnable) {
+                if (!updateRunnable.isPending) {
+                    SwingUtilities.invokeLater(updateRunnable);
+                    updateRunnable.isPending = true;
+                }
+            }
+        }
+!!!9408027.java!!!	addDocumentListener(inout listener : DocumentListener) : void
+	synchronized(listeningStyles) {
+	    int oldDLCount = listenerList.getListenerCount
+		                          (DocumentListener.class);
+	    super.addDocumentListener(listener);
+	    if (oldDLCount == 0) {
+		if (styleContextChangeListener == null) {
+		    styleContextChangeListener =
+			              createStyleContextChangeListener();
+		}
+		if (styleContextChangeListener != null) {
+		    StyleContext styles = (StyleContext)getAttributeContext();
+		    styles.addChangeListener(styleContextChangeListener);
+		}
+		updateStylesListeningTo();
+	    }
+	}
+!!!9408155.java!!!	removeDocumentListener(inout listener : DocumentListener) : void
+	synchronized(listeningStyles) {
+	    super.removeDocumentListener(listener);
+	    if (listenerList.getListenerCount(DocumentListener.class) == 0) {
+		for (int counter = listeningStyles.size() - 1; counter >= 0;
+		     counter--) {
+		    ((Style)listeningStyles.elementAt(counter)).
+			            removeChangeListener(styleChangeListener);
+		}
+		listeningStyles.removeAllElements();
+		if (styleContextChangeListener != null) {
+		    StyleContext styles = (StyleContext)getAttributeContext();
+		    styles.removeChangeListener(styleContextChangeListener);
+		}
+	    }
+	}
+!!!9408283.java!!!	createStyleChangeListener() : ChangeListener
+	return new StyleChangeHandler();
+!!!9408411.java!!!	createStyleContextChangeListener() : ChangeListener
+	return new StyleContextChangeHandler();
+!!!9408539.java!!!	updateStylesListeningTo() : void
+	synchronized(listeningStyles) {
+	    StyleContext styles = (StyleContext)getAttributeContext();
+	    if (styleChangeListener == null) {
+		styleChangeListener = createStyleChangeListener();
+	    }
+	    if (styleChangeListener != null && styles != null) {
+		Enumeration styleNames = styles.getStyleNames();
+		Vector v = (Vector)listeningStyles.clone();
+		listeningStyles.removeAllElements();
+		while (styleNames.hasMoreElements()) {
+		    String name = (String)styleNames.nextElement();
+		    Style aStyle = styles.getStyle(name);
+		    int index = v.indexOf(aStyle);
+		    listeningStyles.addElement(aStyle);
+		    if (index == -1) {
+			aStyle.addChangeListener(styleChangeListener);
+		    }
+		    else {
+			v.removeElementAt(index);
+		    }
+		}
+		for (int counter = v.size() - 1; counter >= 0; counter--) {
+		    Style aStyle = (Style)v.elementAt(counter);
+		    aStyle.removeChangeListener(styleChangeListener);
+		}
+		if (listeningStyles.size() == 0) {
+		    styleChangeListener = null;
+		}
+	    }
+	}
+!!!9408667.java!!!	readObject(inout s : ObjectInputStream) : void
+	listeningStyles = new Vector();
+	s.defaultReadObject();
+	// Reinstall style listeners.
+	if (styleContextChangeListener == null &&
+	    listenerList.getListenerCount(DocumentListener.class) > 0) {
+	    styleContextChangeListener = createStyleContextChangeListener();
+	    if (styleContextChangeListener != null) {
+		StyleContext styles = (StyleContext)getAttributeContext();
+		styles.addChangeListener(styleContextChangeListener);
+	    }
+	    updateStylesListeningTo();
+	}

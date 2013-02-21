@@ -1,0 +1,38 @@
+class Matcher
+!!!5269531.java!!!	Matcher(inout xpath : XPath, inout activator : FieldActivator, in initialDepth : int)
+            super(xpath);
+            fFieldActivator = activator;
+            fInitialDepth = initialDepth;
+!!!5269659.java!!!	startDocumentFragment() : void
+            super.startDocumentFragment();
+            fElementDepth = 0;
+            fMatchedDepth = -1;
+!!!5269787.java!!!	startElement(inout element : QName, inout attributes : XMLAttributes) : void
+            super.startElement(element, attributes);
+            fElementDepth++;
+            // activate the fields, if selector is matched
+            //int matched = isMatched();
+
+            if (isMatched()) {
+/*            (fMatchedDepth == -1 && ((matched & MATCHED) == MATCHED)) ||
+                    ((matched & MATCHED_DESCENDANT) == MATCHED_DESCENDANT)) { */
+                fMatchedDepth = fElementDepth;
+                fFieldActivator.startValueScopeFor(fIdentityConstraint, fInitialDepth);
+                int count = fIdentityConstraint.getFieldCount();
+                for (int i = 0; i < count; i++) {
+                    Field field = fIdentityConstraint.getFieldAt(i);
+                    XPathMatcher matcher = fFieldActivator.activateField(field, fInitialDepth);
+                    matcher.startElement(element, attributes);
+                }
+            }
+
+!!!5269915.java!!!	endElement(inout element : QName, inout type : XSTypeDefinition, inout nillable : boolean, inout actualValue : Object) : void
+            super.endElement(element, type, nillable, actualValue);
+            if (fElementDepth-- == fMatchedDepth) {
+                fMatchedDepth = -1;
+                fFieldActivator.endValueScopeFor(fIdentityConstraint, fInitialDepth);
+            }
+!!!5270043.java!!!	getIdentityConstraint() : IdentityConstraint
+            return fIdentityConstraint;
+!!!5270171.java!!!	getInitialDepth() : int
+            return fInitialDepth;

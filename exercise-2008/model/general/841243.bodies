@@ -1,0 +1,51 @@
+class GrantEntry
+!!!6099739.java!!!	GrantEntry()
+	    permissionEntries = new Vector();
+!!!6099867.java!!!	GrantEntry(in signedBy : String, in codeBase : String)
+	    this.codeBase = codeBase;
+	    this.signedBy = signedBy;
+	    permissionEntries = new Vector();
+!!!6099995.java!!!	add(inout pe : PermissionEntry) : void
+	    permissionEntries.addElement(pe);
+!!!6100123.java!!!	remove(inout pe : PermissionEntry) : boolean
+	    return permissionEntries.removeElement(pe);
+!!!6100251.java!!!	contains(inout pe : PermissionEntry) : boolean
+	    return permissionEntries.contains(pe);
+!!!6100379.java!!!	permissionElements() : Enumeration
+	    return permissionEntries.elements();
+!!!6100507.java!!!	write(inout out : PrintWriter) : void
+	    out.print("grant");
+	    if (signedBy != null) {
+		out.print(" signedBy \"");
+		out.print(signedBy);
+		out.print('"');
+		if (codeBase != null) 
+		    out.print(", ");
+	    }
+	    if (codeBase != null) {
+		out.print(" codeBase \"");
+		out.print(codeBase);
+		out.print('"');
+		if (principals != null && principals.size() > 0)
+		    out.print(",\n");
+	    }
+	    if (principals != null && principals.size() > 0) {
+		ListIterator pli = principals.listIterator();
+		while (pli.hasNext()) {
+		    out.print("\tPrincipal ");
+		    PrincipalEntry pe = (PrincipalEntry)pli.next();
+		    out.print((String)pe.principalClass +
+				" \"" + pe.principalName + "\"");
+		    if (pli.hasNext())
+			out.print(",\n");
+		}
+	    }
+	    out.println(" {");
+	    Enumeration enum_ = permissionEntries.elements();
+	    while (enum_.hasMoreElements()) {
+		PermissionEntry pe =
+		    (PermissionEntry) enum_.nextElement();
+		out.write("  ");
+		pe.write(out);
+	    }
+	    out.println("};");

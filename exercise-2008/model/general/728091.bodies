@@ -1,0 +1,106 @@
+class DTDDispatcher
+!!!4951707.java!!!	dispatch(inout complete : boolean) : boolean
+            fEntityManager.setEntityHandler(null);
+            try {
+                boolean again;
+                XMLEntityDescriptionImpl entityDescription = new XMLEntityDescriptionImpl();
+                do {
+                    again = false;
+                    switch (fScannerState) {
+                        case SCANNER_STATE_DTD_INTERNAL_DECLS: {
+                            // REVISIT: Should there be a feature for
+                            //          the "complete" parameter?
+                            boolean completeDTD = true;
+
+                            boolean moreToScan = fDTDScanner.scanDTDInternalSubset(completeDTD, fStandalone, fHasExternalDTD && fLoadExternalDTD);
+                            if (!moreToScan) {
+                                // end doctype declaration
+                                if (!fEntityScanner.skipChar(']')) {
+                                    reportFatalError("EXPECTED_SQUARE_BRACKET_TO_CLOSE_INTERNAL_SUBSET",
+                                                     null);
+                                }
+                                fEntityScanner.skipSpaces();
+                                if (!fEntityScanner.skipChar('>')) {
+                                    reportFatalError("DoctypedeclUnterminated", new Object[]{fDoctypeName});
+                                }
+                                fMarkupDepth--;
+
+                                // scan external subset next
+                                if (fDoctypeSystemId != null) {
+                                    if ((fValidation || fLoadExternalDTD) 
+                                        && (fValidationManager == null || !fValidationManager.isCachedDTD())) {
+                                        setScannerState(SCANNER_STATE_DTD_EXTERNAL);
+                                        break;
+                                    }
+                                }
+                                else if (fExternalSubsetSource != null) {
+                                    if ((fValidation || fLoadExternalDTD) 
+                                        && (fValidationManager == null || !fValidationManager.isCachedDTD())) {
+                                        // This handles the case of a DOCTYPE that only had an internal subset.
+                                        fDTDScanner.setInputSource(fExternalSubsetSource);
+                                        fExternalSubsetSource = null;
+                                        setScannerState(SCANNER_STATE_DTD_EXTERNAL_DECLS);
+                                        break;
+                                    }
+                                }
+                                
+                                // break out of this dispatcher.
+                                setScannerState(SCANNER_STATE_PROLOG);
+                                setDispatcher(fPrologDispatcher);
+                                fEntityManager.setEntityHandler(XMLDocumentScannerImpl.this);
+                                return true;
+                            }
+                            break;
+                        }
+                        case SCANNER_STATE_DTD_EXTERNAL: {
+                            entityDescription.setDescription("[dtd]", fDoctypePublicId, fDoctypeSystemId, null, null);
+                            XMLInputSource xmlInputSource =
+                                fEntityManager.resolveEntity(entityDescription);
+                            fDTDScanner.setInputSource(xmlInputSource);
+                            setScannerState(SCANNER_STATE_DTD_EXTERNAL_DECLS);
+                            again = true;
+                            break;
+                        }
+                        case SCANNER_STATE_DTD_EXTERNAL_DECLS: {
+                            // REVISIT: Should there be a feature for
+                            //          the "complete" parameter?
+                            boolean completeDTD = true;
+                            boolean moreToScan = fDTDScanner.scanDTDExternalSubset(completeDTD);
+                            if (!moreToScan) {
+                                setScannerState(SCANNER_STATE_PROLOG);
+                                setDispatcher(fPrologDispatcher);
+                                fEntityManager.setEntityHandler(XMLDocumentScannerImpl.this);
+                                return true;
+                            }
+                            break;
+                        }
+                        default: {
+                            throw new XNIException("DTDDispatcher#dispatch: scanner state="+fScannerState+" ("+getScannerStateName(fScannerState)+')');
+                        }
+                    }
+                } while (complete || again);
+            }
+            // encoding errors
+            catch (MalformedByteSequenceException e) {
+                fErrorReporter.reportError(e.getDomain(), e.getKey(), 
+                    e.getArguments(), XMLErrorReporter.SEVERITY_FATAL_ERROR);
+                return false;
+            }
+            catch (CharConversionException e) {
+                reportFatalError("CharConversionFailure", null);
+                return false;
+            }
+            // premature end of file
+            catch (EOFException e) {
+                reportFatalError("PrematureEOF", null);
+                return false;
+                //throw e;
+            }
+
+            // cleanup
+            finally {
+                fEntityManager.setEntityHandler(XMLDocumentScannerImpl.this);
+            }
+
+            return true;
+

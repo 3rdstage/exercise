@@ -1,0 +1,339 @@
+class Provider
+!!!7559195.java!!!	Provider(in name : String, in version : double, in info : String)
+	this.name = name;
+	this.version = version;
+	this.info = info;
+	putId();
+!!!7559323.java!!!	getName() : String
+	return name;
+!!!7559451.java!!!	getVersion() : double
+	return version;
+!!!7559579.java!!!	getInfo() : String
+	return info;
+!!!7559707.java!!!	toString() : String
+	return name + " version " + version;
+!!!7559835.java!!!	clear() : void
+	check("clearProviderProperties."+name);
+	if (debug != null) {
+	    debug.println("Remove " + name + " provider properties");
+	}
+	implClear();
+!!!7559963.java!!!	load(inout inStream : InputStream) : void
+	check("putProviderProperty."+name);
+        if (debug != null) {
+            debug.println("Load " + name + " provider properties");
+        }
+	Properties tempProperties = new Properties();
+	tempProperties.load(inStream);
+	implPutAll(tempProperties);
+!!!7560091.java!!!	putAll(inout t : Map) : void
+	check("putProviderProperty."+name);
+        if (debug != null) {
+            debug.println("Put all " + name + " provider properties");
+        }
+	implPutAll(t);
+!!!7560219.java!!!	entrySet() : Set
+	if (entrySet == null) {
+	    if (entrySetCallCount++ == 0)  // Initial call
+		entrySet = Collections.unmodifiableMap(this).entrySet();
+	    else
+		return super.entrySet();   // Recursive call
+	}
+	
+	// This exception will be thrown if the implementation of 
+	// Collections.unmodifiableMap.entrySet() is changed such that it
+	// no longer calls entrySet() on the backing Map.  (Provider's
+	// entrySet implementation depends on this "implementation detail",
+	// which is unlikely to change.
+	if (entrySetCallCount != 2)
+	    throw new RuntimeException("Internal error.");
+	
+	return entrySet;
+!!!7560347.java!!!	keySet() : Set
+	return Collections.unmodifiableSet(super.keySet());
+!!!7560475.java!!!	values() : Collection
+	return Collections.unmodifiableCollection(super.values());
+!!!7560603.java!!!	put(inout key : Object, inout value : Object) : Object
+	check("putProviderProperty."+name);
+        if (debug != null) {
+            debug.println("Set " + name + " provider property [" + 
+			  key + "/" + value +"]");
+        }
+	return implPut(key, value);
+!!!7560731.java!!!	remove(inout key : Object) : Object
+	check("removeProviderProperty."+name);
+        if (debug != null) {
+            debug.println("Remove " + name + " provider property " + key);
+        }
+	return implRemove(key);
+!!!7560859.java!!!	check(in directive : String) : void
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+            security.checkSecurityAccess(directive);
+        }
+!!!7560987.java!!!	putId() : void
+	// note: name and info may be null
+	super.put("Provider.id name", String.valueOf(name));
+	super.put("Provider.id version", String.valueOf(version));
+	super.put("Provider.id info", String.valueOf(info));
+	super.put("Provider.id className", this.getClass().getName());
+!!!7561115.java!!!	implPutAll(inout t : Map) : void
+	for (Map.Entry e : ((Map<?,?>)t).entrySet()) {
+	    implPut(e.getKey(), e.getValue());
+	}
+!!!7561243.java!!!	implRemove(inout key : Object) : Object
+	if (key instanceof String) {
+	    String keyString = (String)key;
+	    if (keyString.startsWith("Provider.")) {
+		return null;
+	    }
+	    legacyChanged = true;
+	    if (legacyStrings == null) {
+		legacyStrings = new LinkedHashMap<String,String>();
+	    }
+	    legacyStrings.remove(keyString);
+	}
+	return super.remove(key);
+!!!7561371.java!!!	implPut(inout key : Object, inout value : Object) : Object
+	if ((key instanceof String) && (value instanceof String)) {
+	    String keyString = (String)key;
+	    if (keyString.startsWith("Provider.")) {
+		return null;
+	    }
+	    legacyChanged = true;
+	    if (legacyStrings == null) {
+		legacyStrings = new LinkedHashMap<String,String>();
+	    }
+	    legacyStrings.put(keyString, (String)value);
+	}
+	return super.put(key, value);
+!!!7561499.java!!!	implClear() : void
+	super.clear();
+	putId();
+	if (legacyStrings != null) {
+	    legacyStrings.clear();
+	}
+	if (legacyMap != null) {
+	    legacyMap.clear();
+	}
+	if (serviceMap != null) {
+	    serviceMap.clear();
+	}
+	legacyChanged = false;
+	servicesChanged = false;
+	serviceSet = null;
+!!!7562139.java!!!	ensureLegacyParsed() : void
+	if ((legacyChanged == false) || (legacyStrings == null)) {
+	    return;
+	}
+	serviceSet = null;
+	if (legacyMap == null) {
+	    legacyMap = new LinkedHashMap<ServiceKey,Service>();
+	} else {
+	    legacyMap.clear();
+	}
+	for (Map.Entry<String,String> entry : legacyStrings.entrySet()) {
+	    parseLegacyPut(entry.getKey(), entry.getValue());
+	}
+	removeInvalidServices(legacyMap);
+	legacyChanged = false;
+!!!7562267.java!!!	removeInvalidServices(inout map : Map) : void
+	for (Iterator t = map.entrySet().iterator(); t.hasNext(); ) {
+	    Map.Entry entry = (Map.Entry)t.next();
+	    Service s = (Service)entry.getValue();
+	    if (s.isValid() == false) {
+		t.remove();
+	    }
+	}
+!!!7562395.java!!!	getTypeAndAlgorithm(in key : String) : String
+	int i = key.indexOf(".");
+	if (i < 1) {
+	    if (debug != null) {
+		debug.println("Ignoring invalid entry in provider "
+			+ name + ":" + key);
+	    }
+	    return null;
+	}
+	String type = key.substring(0, i);
+	String alg = key.substring(i + 1);
+	return new String[] {type, alg};
+!!!7562523.java!!!	parseLegacyPut(in name : String, in value : String) : void
+	if (name.toLowerCase(ENGLISH).startsWith(ALIAS_PREFIX_LOWER)) {
+	    // e.g. put("Alg.Alias.MessageDigest.SHA", "SHA-1");
+	    // aliasKey ~ MessageDigest.SHA
+	    String stdAlg = value;
+	    String aliasKey = name.substring(ALIAS_LENGTH);
+	    String[] typeAndAlg = getTypeAndAlgorithm(aliasKey);
+	    if (typeAndAlg == null) {
+		return;
+	    }
+	    String type = getEngineName(typeAndAlg[0]);
+	    String aliasAlg = typeAndAlg[1].intern();
+	    ServiceKey key = new ServiceKey(type, stdAlg, true);
+	    Service s = (Service)legacyMap.get(key);
+	    if (s == null) {
+		s = new Service(this);
+		s.type = type;
+		s.algorithm = stdAlg;
+		legacyMap.put(key, s);
+	    }
+	    legacyMap.put(new ServiceKey(type, aliasAlg, true), s);
+	    s.addAlias(aliasAlg);
+	} else {
+	    String[] typeAndAlg = getTypeAndAlgorithm(name);
+	    if (typeAndAlg == null) {
+		return;
+	    }
+	    int i = typeAndAlg[1].indexOf(' ');
+	    if (i == -1) {
+		// e.g. put("MessageDigest.SHA-1", "sun.security.provider.SHA");
+		String type = getEngineName(typeAndAlg[0]);
+		String stdAlg = typeAndAlg[1].intern();
+		String className = value;
+		ServiceKey key = new ServiceKey(type, stdAlg, true);
+		Service s = (Service)legacyMap.get(key);
+		if (s == null) {
+		    s = new Service(this);
+		    s.type = type;
+		    s.algorithm = stdAlg;
+		    legacyMap.put(key, s);
+		}
+		s.className = className;
+	    } else { // attribute
+		// e.g. put("MessageDigest.SHA-1 ImplementedIn", "Software");
+		String attributeValue = value;
+		String type = getEngineName(typeAndAlg[0]);
+		String attributeString = typeAndAlg[1];
+		String stdAlg = attributeString.substring(0, i).intern();
+		String attributeName = attributeString.substring(i + 1);
+		// kill additional spaces
+		while (attributeName.startsWith(" ")) {
+		    attributeName = attributeName.substring(1);
+		}
+		attributeName = attributeName.intern();
+		ServiceKey key = new ServiceKey(type, stdAlg, true);
+		Service s = (Service)legacyMap.get(key);
+		if (s == null) {
+		    s = new Service(this);
+		    s.type = type;
+		    s.algorithm = stdAlg;
+		    legacyMap.put(key, s);
+		}
+		s.addAttribute(attributeName, attributeValue);
+	    }
+	}
+!!!7562651.java!!!	getService(in type : String, in algorithm : String) : Service
+	// avoid allocating a new key object if possible
+	ServiceKey key = previousKey;
+	if (key.matches(type, algorithm) == false) {
+	    key = new ServiceKey(type, algorithm, false);
+	    previousKey = key;
+	}
+	if (serviceMap != null) {
+	    Service service = serviceMap.get(key);
+	    if (service != null) {
+		return service;
+	    }
+	}
+	ensureLegacyParsed();
+	return (legacyMap != null) ? legacyMap.get(key) : null;
+!!!7562779.java!!!	getServices() : Set
+	if (legacyChanged || servicesChanged) {
+	    serviceSet = null;
+	} else if (serviceSet != null) {
+	    return serviceSet;
+	}
+	ensureLegacyParsed();
+	serviceSet = new LinkedHashSet<Service>();
+	if (serviceMap != null) {
+	    serviceSet.addAll(serviceMap.values());
+	}
+	if (legacyMap != null) {
+	    serviceSet.addAll(legacyMap.values());
+	}
+	servicesChanged = false;
+	return serviceSet;
+!!!7562907.java!!!	putService(inout s : Service) : void
+	check("putProviderProperty." + name);
+	if (debug != null) {
+            debug.println(name + ".putService(): " + s);
+	}
+	if (s == null) {
+	    throw new NullPointerException();
+	}
+	if (serviceMap == null) {
+	    serviceMap = new LinkedHashMap<ServiceKey,Service>();
+	}
+	servicesChanged = true;
+	String type = s.getType();
+	String algorithm = s.getAlgorithm();
+	ServiceKey key = new ServiceKey(type, algorithm, true);
+	// remove existing service
+	implRemoveService(serviceMap.get(key));
+	serviceMap.put(key, s);
+	for (String alias : s.getAliases()) {
+	    serviceMap.put(new ServiceKey(type, alias, true), s);
+	}
+	putPropertyStrings(s);
+!!!7563035.java!!!	putPropertyStrings(inout s : Service) : void
+	String type = s.getType();
+	String algorithm = s.getAlgorithm();
+	// use super() to avoid permission check and other processing
+	super.put(type + "." + algorithm, s.getClassName());
+	for (String alias : s.getAliases()) {
+	    super.put(ALIAS_PREFIX + type + "." + alias, algorithm);
+	}
+	for (Map.Entry<UString,String> entry : s.attributes.entrySet()) {
+	    String key = type + "." + algorithm + " " + entry.getKey();
+	    super.put(key, entry.getValue());
+	}
+!!!7563163.java!!!	removePropertyStrings(inout s : Service) : void
+	String type = s.getType();
+	String algorithm = s.getAlgorithm();
+	// use super() to avoid permission check and other processing
+	super.remove(type + "." + algorithm);
+	for (String alias : s.getAliases()) {
+	    super.remove(ALIAS_PREFIX + type + "." + alias);
+	}
+	for (Map.Entry<UString,String> entry : s.attributes.entrySet()) {
+	    String key = type + "." + algorithm + " " + entry.getKey();
+	    super.remove(key);
+	}
+!!!7563291.java!!!	removeService(inout s : Service) : void
+	check("removeProviderProperty." + name);
+        if (debug != null) {
+            debug.println(name + ".removeService(): " + s);
+        }
+	if (s == null) {
+	    throw new NullPointerException();
+	}
+	implRemoveService(s);
+!!!7563419.java!!!	implRemoveService(inout s : Service) : void
+	if ((s == null) || (serviceMap == null)) {
+	    return;
+	}
+	String type = s.getType();
+	String algorithm = s.getAlgorithm();
+	ServiceKey key = new ServiceKey(type, algorithm, false);
+	Service oldService = serviceMap.get(key);
+	if (s != oldService) {
+	    return;
+	}
+	servicesChanged = true;
+	serviceMap.remove(key);
+	for (String alias : s.getAliases()) {
+	    serviceMap.remove(new ServiceKey(type, alias, false));
+	}
+	removePropertyStrings(s);
+!!!7564187.java!!!	addEngine(in name : String, inout cons : boolean, inout sp : boolean) : void
+	EngineDescription ed = new EngineDescription(name, cons, sp);
+	// also index by canonical name to avoid toLowerCase() for some lookups
+	knownEngines.put(name.toLowerCase(ENGLISH), ed);
+	knownEngines.put(name, ed);
+!!!7564315.java!!!	getEngineName(in s : String) : String
+	// try original case first, usually correct
+	EngineDescription e = knownEngines.get(s);
+	if (e == null) {
+	    e = knownEngines.get(s.toLowerCase(ENGLISH));
+	}
+	return (e == null) ? s : e.name;

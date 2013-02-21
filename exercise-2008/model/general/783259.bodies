@@ -1,0 +1,98 @@
+class XMLGrammarPreparser
+!!!5476507.java!!!	XMLGrammarPreparser()
+        this(new SymbolTable());
+!!!5476635.java!!!	XMLGrammarPreparser(inout symbolTable : SymbolTable)
+        fSymbolTable = symbolTable;
+
+        fLoaders = new Hashtable();
+        setLocale(Locale.getDefault());
+        fErrorReporter = new XMLErrorReporter();
+        fErrorReporter.setLocale(fLocale);
+        fEntityResolver = new XMLEntityManager();
+        // those are all the basic properties...
+!!!5476763.java!!!	registerPreparser(in grammarType : String, inout loader : XMLGrammarLoader) : boolean
+        if(loader == null) { // none specified!
+            if(KNOWN_LOADERS.containsKey(grammarType)) {
+                // got one; just instantiate it...
+                String loaderName = (String)KNOWN_LOADERS.get(grammarType);
+                try {
+                    ClassLoader cl = ObjectFactory.findClassLoader();
+                    XMLGrammarLoader gl = (XMLGrammarLoader)(ObjectFactory.newInstance(loaderName, cl, true));
+                    fLoaders.put(grammarType, gl);
+                } catch (Exception e) {
+                    return false;
+                }
+                return true;
+            }
+            return false;
+        }
+        // were given one
+        fLoaders.put(grammarType, loader);
+        return true;
+!!!5476891.java!!!	preparseGrammar(in type : String, inout is : XMLInputSource) : Grammar
+        if(fLoaders.containsKey(type)) {
+            XMLGrammarLoader gl = (XMLGrammarLoader)fLoaders.get(type);
+            // make sure gl's been set up with all the "basic" properties:
+            gl.setProperty(SYMBOL_TABLE, fSymbolTable);
+            gl.setProperty(ENTITY_RESOLVER, fEntityResolver);
+            gl.setProperty(ERROR_REPORTER, fErrorReporter);
+            // potentially, not all will support this one...
+            if(fGrammarPool != null) {
+                try {
+                    gl.setProperty(GRAMMAR_POOL, fGrammarPool);
+                } catch(Exception e) {
+                    // too bad...
+                }
+            }
+            return gl.loadGrammar(is);
+        }
+        return null;
+!!!5477019.java!!!	setLocale(inout locale : Locale) : void
+        fLocale = locale;
+!!!5477147.java!!!	getLocale() : Locale
+        return fLocale;
+!!!5477275.java!!!	setErrorHandler(inout errorHandler : XMLErrorHandler) : void
+        fErrorReporter.setProperty(ERROR_HANDLER, errorHandler);
+!!!5477403.java!!!	getErrorHandler() : XMLErrorHandler
+        return fErrorReporter.getErrorHandler();
+!!!5477531.java!!!	setEntityResolver(inout entityResolver : XMLEntityResolver) : void
+        fEntityResolver = entityResolver;
+!!!5477659.java!!!	getEntityResolver() : XMLEntityResolver
+        return fEntityResolver;
+!!!5477787.java!!!	setGrammarPool(inout grammarPool : XMLGrammarPool) : void
+        fGrammarPool = grammarPool;
+!!!5477915.java!!!	getGrammarPool() : XMLGrammarPool
+        return fGrammarPool;
+!!!5478043.java!!!	getLoader(in type : String) : XMLGrammarLoader
+        return (XMLGrammarLoader)fLoaders.get(type);
+!!!5478171.java!!!	setFeature(in featureId : String, inout value : boolean) : void
+        Enumeration loaders = fLoaders.elements();
+        while(loaders.hasMoreElements()){
+            XMLGrammarLoader gl = (XMLGrammarLoader)loaders.nextElement();
+            try {
+                gl.setFeature(featureId, value);
+            } catch(Exception e) {
+                // eat it up...
+            }
+        }
+        // since our error reporter is a property we set later,
+        // make sure features it understands are also set.
+        if(featureId.equals(CONTINUE_AFTER_FATAL_ERROR)) {
+            fErrorReporter.setFeature(CONTINUE_AFTER_FATAL_ERROR, value);
+        }
+!!!5478299.java!!!	setProperty(in propId : String, inout value : Object) : void
+        Enumeration loaders = fLoaders.elements();
+        while(loaders.hasMoreElements()){
+            XMLGrammarLoader gl = (XMLGrammarLoader)loaders.nextElement();
+            try {
+                gl.setProperty(propId, value);
+            } catch(Exception e) {
+                // eat it up...
+            }
+        }
+!!!5478427.java!!!	getFeature(in type : String, in featureId : String) : boolean
+        XMLGrammarLoader gl = (XMLGrammarLoader)fLoaders.get(type);
+        return gl.getFeature(featureId);
+!!!5478555.java!!!	getProperty(in type : String, in propertyId : String) : Object
+        XMLGrammarLoader gl = (XMLGrammarLoader)fLoaders.get(type);
+        return gl.getProperty(propertyId);

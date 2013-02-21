@@ -1,0 +1,46 @@
+class InvalidTargetObjectTypeException
+!!!8289563.java!!!	InvalidTargetObjectTypeException()
+      super("InvalidTargetObjectTypeException: ");
+      exception = null;
+!!!8289691.java!!!	InvalidTargetObjectTypeException(in s : String)
+      super("InvalidTargetObjectTypeException: " + s);
+      exception = null;
+!!!8289819.java!!!	InvalidTargetObjectTypeException(inout e : Exception, in s : String)
+      super("InvalidTargetObjectTypeException: " + 
+            s +
+            ((e != null)?("\n\t triggered by:" + e.toString()):""));
+      exception = e;
+!!!8289947.java!!!	readObject(inout in : ObjectInputStream) : void
+      if (compat)
+      {
+        // Read an object serialized in the old serial form
+        //
+        ObjectInputStream.GetField fields = in.readFields();
+	exception = (Exception) fields.get("relatedExcept", null);
+	if (fields.defaulted("relatedExcept"))
+        {
+          throw new NullPointerException("relatedExcept");
+        }
+      }
+      else
+      {
+        // Read an object serialized in the new serial form
+        //
+        in.defaultReadObject();
+      }
+!!!8290075.java!!!	writeObject(inout out : ObjectOutputStream) : void
+      if (compat)
+      {
+        // Serializes this instance in the old serial form
+        //
+        ObjectOutputStream.PutField fields = out.putFields();
+	fields.put("relatedExcept", exception);
+	fields.put("msgStr", ((exception != null)?exception.getMessage():""));
+	out.writeFields();
+      }
+      else
+      {
+        // Serializes this instance in the new serial form
+        //
+        out.defaultWriteObject();
+      }

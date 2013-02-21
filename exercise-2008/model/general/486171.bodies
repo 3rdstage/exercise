@@ -1,0 +1,68 @@
+class WindowsPopupMenuUI
+!!!2988827.java!!!	createUI(inout c : JComponent) : ComponentUI
+	return new WindowsPopupMenuUI();
+!!!2988955.java!!!	installListeners() : void
+        super.installListeners();
+	if (! UIManager.getBoolean("Button.showMnemonics") &&
+            mnemonicListener == null) {
+
+            mnemonicListener = new MnemonicListener();
+            MenuSelectionManager.defaultManager().
+                addChangeListener(mnemonicListener);
+        }
+!!!2989083.java!!!	getPopup(inout popupMenu : JPopupMenu, in x : int, in y : int) : Popup
+        PopupFactory popupFactory = PopupFactory.getSharedInstance();
+        return popupFactory.getPopup(popupMenu.getInvoker(), popupMenu, x, y);
+!!!2989339.java!!!	getTextOffset(inout c : JComponent) : int
+        int rv = -1;
+        return rv;
+!!!2989467.java!!!	getSpanBeforeGutter() : int
+        return 3;
+!!!2989595.java!!!	getSpanAfterGutter() : int
+        return 3;
+!!!2989723.java!!!	getGutterWidth() : int
+        int rv = 2;
+        XPStyle xp = XPStyle.getXP();
+        if (xp != null) {
+            Skin skin = xp.getSkin(null, Part.MP_POPUPGUTTER);
+            rv = skin.getWidth();
+        }
+        return rv;
+!!!2989851.java!!!	isLeftToRight(inout c : JComponent) : boolean
+        boolean leftToRight = true;
+        for (int i = c.getComponentCount() - 1; i >=0 && leftToRight; i-- ) {
+            leftToRight = 
+                c.getComponent(i).getComponentOrientation().isLeftToRight();
+        }
+        return leftToRight;
+!!!2989979.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        /*
+         * Note: 1.5 backport does not paint gutter.
+         * See comment for getTextOffset()
+         */
+        if (WindowsMenuItemUI.isVistaPainting()) {
+            XPStyle xp = XPStyle.getXP();
+            Skin skin = xp.getSkin(c, Part.MP_POPUPBACKGROUND);
+            skin.paintSkin(g, 0, 0, c.getWidth(),c.getHeight(), State.NORMAL);
+            int textOffset = getTextOffset(c);
+            if (textOffset >= 0
+                    /* paint gutter only for leftToRight case */
+                    && isLeftToRight(c)) {
+                skin = xp.getSkin(c, Part.MP_POPUPGUTTER);
+                int gutterWidth = getGutterWidth();
+                int gutterOffset = 
+                    textOffset - getSpanAfterGutter() - gutterWidth;
+                c.putClientProperty(GUTTER_OFFSET_KEY, 
+                    Integer.valueOf(gutterOffset));
+                Insets insets = c.getInsets();
+                skin.paintSkin(g, gutterOffset, insets.top, 
+                    gutterWidth, c.getHeight() - insets.bottom - insets.top, 
+                    State.NORMAL);
+            } else {
+                if (c.getClientProperty(GUTTER_OFFSET_KEY) != null) {
+                    c.putClientProperty(GUTTER_OFFSET_KEY, null);  
+                }
+            }
+        } else {
+            super.paint(g, c);
+        }

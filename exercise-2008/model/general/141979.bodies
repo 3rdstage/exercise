@@ -1,0 +1,65 @@
+class CheckedCollection
+!!!222747.java!!!	typeCheck(inout o : Object) : void
+            if (!type.isInstance(o))
+                throw new ClassCastException("Attempt to insert " +
+                   o.getClass() + " element into collection with element type "
+                   + type);
+!!!222875.java!!!	CheckedCollection(inout c : Collection, inout type : Class<E>)
+            if (c==null || type == null)
+                throw new NullPointerException();
+            this.c = c;
+            this.type = type;
+!!!223003.java!!!	size() : int
+ return c.size();
+!!!223131.java!!!	isEmpty() : boolean
+ return c.isEmpty();
+!!!223259.java!!!	contains(inout o : Object) : boolean
+ return c.contains(o);
+!!!223387.java!!!	toArray() : Object
+ return c.toArray();
+!!!223515.java!!!	toArray(inout a : T) : T
+ return c.toArray(a);
+!!!223643.java!!!	toString() : String
+ return c.toString();
+!!!223771.java!!!	remove(inout o : Object) : boolean
+ return c.remove(o);
+!!!223899.java!!!	containsAll(inout coll : Collection) : boolean
+            return c.containsAll(coll);
+!!!224027.java!!!	removeAll(inout coll : Collection) : boolean
+            return c.removeAll(coll);
+!!!224155.java!!!	retainAll(inout coll : Collection) : boolean
+            return c.retainAll(coll);
+!!!224283.java!!!	clear() : void
+            c.clear();
+!!!224411.java!!!	iterator() : Iterator
+	    return new Iterator<E>() {
+		private final Iterator<E> it = c.iterator();
+		public boolean hasNext() { return it.hasNext(); }
+		public E next()          { return it.next(); }
+		public void remove()     {        it.remove(); }};
+!!!224539.java!!!	add(inout o : E) : boolean
+            typeCheck(o);
+            return c.add(o);
+!!!224667.java!!!	addAll(inout coll : Collection) : boolean
+            /*
+             * Dump coll into an array of the required type.  This serves
+             * three purposes: it insulates us from concurrent changes in
+             * the contents of coll, it type-checks all of the elements in
+             * coll, and it provides all-or-nothing semantics(which we
+             * wouldn't get if we type-checked each element as we added it).
+             */
+            E[] a = null;
+            try {
+                a = coll.toArray(zeroLengthElementArray());
+            } catch(ArrayStoreException e) {
+                throw new ClassCastException();
+            }
+
+            boolean result = false;
+            for (E e : a)
+                result |= c.add(e);
+            return result;
+!!!224795.java!!!	zeroLengthElementArray() : E
+            if (zeroLengthElementArray == null)
+                zeroLengthElementArray = (E[]) Array.newInstance(type, 0);
+            return zeroLengthElementArray;

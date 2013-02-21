@@ -1,0 +1,56 @@
+class DropHandler
+!!!2529307.java!!!	actionSupported(in action : int) : boolean
+            return (action & (COPY_OR_MOVE | LINK)) != NONE;
+!!!2529435.java!!!	dragEnter(inout e : DropTargetDragEvent) : void
+	    DataFlavor[] flavors = e.getCurrentDataFlavors();
+
+	    JComponent c = (JComponent)e.getDropTargetContext().getComponent();
+	    TransferHandler importer = c.getTransferHandler();
+            
+            if (importer != null && importer.canImport(c, flavors)) {
+                canImport = true;
+            } else {
+                canImport = false;
+            }
+            
+            int dropAction = e.getDropAction();
+            
+            if (canImport && actionSupported(dropAction)) {
+		e.acceptDrag(dropAction);
+	    } else {
+		e.rejectDrag();
+	    }
+!!!2529563.java!!!	dragOver(inout e : DropTargetDragEvent) : void
+            int dropAction = e.getDropAction();
+            
+            if (canImport && actionSupported(dropAction)) {
+                e.acceptDrag(dropAction);
+            } else {
+                e.rejectDrag();
+            }
+!!!2529819.java!!!	drop(inout e : DropTargetDropEvent) : void
+            int dropAction = e.getDropAction();
+
+            JComponent c = (JComponent)e.getDropTargetContext().getComponent();
+            TransferHandler importer = c.getTransferHandler();
+
+	    if (canImport && importer != null && actionSupported(dropAction)) {
+		e.acceptDrop(dropAction);
+                
+                try {
+                    Transferable t = e.getTransferable();
+		    e.dropComplete(importer.importData(c, t));
+                } catch (RuntimeException re) {
+                    e.dropComplete(false);
+                }
+	    } else {
+		e.rejectDrop();
+	    }
+!!!2529947.java!!!	dropActionChanged(inout e : DropTargetDragEvent) : void
+            int dropAction = e.getDropAction();
+            
+            if (canImport && actionSupported(dropAction)) {
+                e.acceptDrag(dropAction);
+            } else {
+                e.rejectDrag();
+            }

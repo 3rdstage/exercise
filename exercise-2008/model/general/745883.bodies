@@ -1,0 +1,42 @@
+class YearDV
+!!!5095707.java!!!	getActualValue(in content : String, inout context : ValidationContext) : Object
+        try{
+            return new DateTimeData(parse(content), this);
+        } catch(Exception ex){
+            throw new InvalidDatatypeValueException("cvc-datatype-valid.1.2.1", new Object[]{content, "gYear"});
+        }
+!!!5095835.java!!!	parse(in str : String) : int
+        int len = str.length();
+        int[] date = new int[TOTAL_SIZE];
+        int[] timeZone = new int[2];
+
+        // check for preceding '-' sign
+        int start = 0;
+        if (str.charAt(0)=='-') {
+            start = 1;
+        }
+        int sign = findUTCSign(str, start, len);
+        if (sign == -1) {
+            date[CY]=parseIntYear(str, len);
+        }
+        else {
+            date[CY]=parseIntYear(str, sign);
+            getTimeZone (str, date, sign, len, timeZone);
+        }
+
+        //initialize values
+        date[M]=MONTH;
+        date[D]=1;
+
+        //validate and normalize
+        validateDateTime(date, timeZone);
+
+        if ( date[utc]!=0 && date[utc]!='Z' ) {
+            normalize(date, timeZone);
+        }
+        return date;
+!!!5095963.java!!!	dateToString(in date : int) : String
+        StringBuffer message = new StringBuffer(5);
+        append(message, date[CY], 4);
+        append(message, (char)date[utc], 0);
+        return message.toString();

@@ -1,0 +1,225 @@
+class TableAccessibleContext
+!!!9906715.java!!!	TableAccessibleContext(inout elementInfo : ElementInfo)
+		super(elementInfo);
+!!!9906843.java!!!	getAccessibleName() : String
+		// return the role of the object
+		return getAccessibleRole().toString();
+!!!9906971.java!!!	getAccessibleDescription() : String
+		return editor.getContentType();
+!!!9907099.java!!!	getAccessibleRole() : AccessibleRole
+		return AccessibleRole.TABLE;
+!!!9907227.java!!!	getAccessibleIndexInParent() : int
+		return elementInfo.getIndexInParent();
+!!!9907355.java!!!	getAccessibleChildrenCount() : int
+		return ((TableElementInfo)elementInfo).getRowCount() * 
+		    ((TableElementInfo)elementInfo).getColumnCount();
+!!!9907483.java!!!	getAccessibleChild(in i : int) : Accessible
+		int rowCount = ((TableElementInfo)elementInfo).getRowCount();
+		int columnCount = ((TableElementInfo)elementInfo).getColumnCount();
+		int r = i / rowCount;
+		int c = i % columnCount;
+		if (r < 0 || r >= rowCount || c < 0 || c >= columnCount) {
+		    return null;
+		} else {
+		    return getAccessibleAt(r, c);
+		}
+!!!9907611.java!!!	getAccessibleTable() : AccessibleTable
+		return this;
+!!!9907739.java!!!	getAccessibleCaption() : Accessible
+		ElementInfo captionInfo = getCaptionInfo();
+		if (captionInfo instanceof Accessible) {
+		    return (Accessible)caption;
+		} else {
+		    return null;
+		}
+!!!9907995.java!!!	getAccessibleSummary() : Accessible
+		return null;	
+!!!9908251.java!!!	getAccessibleRowCount() : int
+		return ((TableElementInfo)elementInfo).getRowCount();
+!!!9908379.java!!!	getAccessibleColumnCount() : int
+		return ((TableElementInfo)elementInfo).getColumnCount();
+!!!9908507.java!!!	getAccessibleAt(in r : int, in c : int) : Accessible
+		TableCellElementInfo cellInfo = getCell(r, c);
+		if (cellInfo != null) {
+		    return cellInfo.getAccessible();
+		} else {
+		    return null;
+		}
+!!!9908635.java!!!	getAccessibleRowExtentAt(in r : int, in c : int) : int
+		return ((TableElementInfo)elementInfo).getRowExtentAt(r, c);
+!!!9908763.java!!!	getAccessibleColumnExtentAt(in r : int, in c : int) : int
+		return ((TableElementInfo)elementInfo).getColumnExtentAt(r, c);
+!!!9908891.java!!!	getAccessibleRowHeader() : AccessibleTable
+		return rowHeadersTable;
+!!!9909147.java!!!	getAccessibleColumnHeader() : AccessibleTable
+		return null; 
+!!!9909403.java!!!	getAccessibleRowDescription(in r : int) : Accessible
+		return null;
+!!!9909659.java!!!	getAccessibleColumnDescription(in c : int) : Accessible
+		return null;
+!!!9909915.java!!!	isAccessibleSelected(in r : int, in c : int) : boolean
+		if (validateIfNecessary()) {
+		    if (r < 0 || r >= getAccessibleRowCount() ||
+			c < 0 || c >= getAccessibleColumnCount()) {
+			return false;
+		    }
+		    TableCellElementInfo cell = getCell(r, c);
+		    if (cell != null) {
+			Element elem = cell.getElement();
+			int start = elem.getStartOffset();
+			int end = elem.getEndOffset();
+			return start >= editor.getSelectionStart() &&
+			    end <= editor.getSelectionEnd();
+		    }
+		}
+		return false;
+!!!9910043.java!!!	isAccessibleRowSelected(in r : int) : boolean
+		if (validateIfNecessary()) {
+		    if (r < 0 || r >= getAccessibleRowCount()) {
+			return false;
+		    }
+		    int nColumns = getAccessibleColumnCount();
+
+		    TableCellElementInfo startCell = getCell(r, 0);
+		    if (startCell == null) {
+			return false;
+		    }
+		    int start = startCell.getElement().getStartOffset();
+
+		    TableCellElementInfo endCell = getCell(r, nColumns-1);
+		    if (endCell == null) {
+			return false;
+		    }
+		    int end = endCell.getElement().getEndOffset();
+
+		    return start >= editor.getSelectionStart() &&
+			end <= editor.getSelectionEnd();
+		}
+		return false;
+!!!9910171.java!!!	isAccessibleColumnSelected(in c : int) : boolean
+		if (validateIfNecessary()) {
+		    if (c < 0 || c >= getAccessibleColumnCount()) {
+			return false;
+		    }
+		    int nRows = getAccessibleRowCount();
+
+		    TableCellElementInfo startCell = getCell(0, c);
+		    if (startCell == null) {
+			return false;
+		    }
+		    int start = startCell.getElement().getStartOffset();
+
+		    TableCellElementInfo endCell = getCell(nRows-1, c);
+		    if (endCell == null) {
+			return false;
+		    }
+		    int end = endCell.getElement().getEndOffset();
+		    return start >= editor.getSelectionStart() &&
+			end <= editor.getSelectionEnd();
+		}
+		return false;
+!!!9910299.java!!!	getSelectedAccessibleRows() : int
+		if (validateIfNecessary()) {
+		    int nRows = getAccessibleRowCount();
+		    Vector vec = new Vector();
+		    
+		    for (int i = 0; i < nRows; i++) {
+			if (isAccessibleRowSelected(i)) {
+			    vec.addElement(new Integer(i));
+			}
+		    }
+		    int retval[] = new int[vec.size()];
+		    for (int i = 0; i < retval.length; i++) {
+			retval[i] = ((Integer)vec.elementAt(i)).intValue();
+		    }
+		    return retval;
+		}
+		return new int[0];
+!!!9910427.java!!!	getSelectedAccessibleColumns() : int
+		if (validateIfNecessary()) {
+		    int nColumns = getAccessibleRowCount();
+		    Vector vec = new Vector();
+		    
+		    for (int i = 0; i < nColumns; i++) {
+			if (isAccessibleColumnSelected(i)) {
+			    vec.addElement(new Integer(i));
+			}
+		    }
+		    int retval[] = new int[vec.size()];
+		    for (int i = 0; i < retval.length; i++) {
+			retval[i] = ((Integer)vec.elementAt(i)).intValue();
+		    }
+		    return retval;
+		}
+		return new int[0];
+!!!9910555.java!!!	getAccessibleRow(in index : int) : int
+		if (validateIfNecessary()) {
+		    int numCells = getAccessibleColumnCount() * 
+			getAccessibleRowCount();
+		    if (index >= numCells) {
+			return -1;
+		    } else {
+			return index / getAccessibleColumnCount();
+		    }
+		}
+		return -1;
+!!!9910683.java!!!	getAccessibleColumn(in index : int) : int
+		if (validateIfNecessary()) {
+		    int numCells = getAccessibleColumnCount() * 
+			getAccessibleRowCount();
+		    if (index >= numCells) {
+			return -1;
+		    } else {
+			return index % getAccessibleColumnCount();
+		    }
+		}
+		return -1;
+!!!9910811.java!!!	getAccessibleIndex(in r : int, in c : int) : int
+		if (validateIfNecessary()) {
+		    if (r >= getAccessibleRowCount() ||
+			c >= getAccessibleColumnCount()) {
+			return -1;
+		    } else {
+			return r * getAccessibleColumnCount() + c;
+		    }
+		}
+		return -1;
+!!!9910939.java!!!	getAccessibleRowHeader(in r : int) : String
+		if (validateIfNecessary()) {
+		    TableCellElementInfo cellInfo = getCell(r, 0);
+		    if (cellInfo.isHeaderCell()) {
+			View v = cellInfo.getView();
+			if (v != null && model != null) {
+			    try {
+				return model.getText(v.getStartOffset(),
+						     v.getEndOffset() -
+						     v.getStartOffset());
+			    } catch (BadLocationException e) {
+				return null;
+			    }
+			}
+		    }
+		}
+		return null;
+!!!9911067.java!!!	getAccessibleColumnHeader(in c : int) : String
+		if (validateIfNecessary()) {
+		    TableCellElementInfo cellInfo = getCell(0, c);
+		    if (cellInfo.isHeaderCell()) {
+			View v = cellInfo.getView();
+			if (v != null && model != null) {
+			    try {
+				return model.getText(v.getStartOffset(),
+						     v.getEndOffset() -
+						     v.getStartOffset());
+			    } catch (BadLocationException e) {
+				return null;
+			    }
+			}
+		    }
+		}
+		return null;
+!!!9911195.java!!!	addRowHeader(inout cellInfo : TableCellElementInfo, in rowNumber : int) : void
+		if (rowHeadersTable == null) {
+		    rowHeadersTable = new AccessibleHeadersTable();
+		}
+		rowHeadersTable.addHeader(cellInfo, rowNumber);

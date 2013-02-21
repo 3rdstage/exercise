@@ -1,0 +1,46 @@
+class Signer
+!!!7624731.java!!!	Signer()
+	super();
+!!!7624859.java!!!	Signer(in name : String)
+	super(name);
+!!!7624987.java!!!	Signer(in name : String, inout scope : IdentityScope)
+	super(name, scope);
+!!!7625115.java!!!	getPrivateKey() : PrivateKey
+	check("getSignerPrivateKey");
+	return privateKey;
+!!!7625243.java!!!	setKeyPair(inout pair : KeyPair) : void
+	check("setSignerKeyPair");
+	final PublicKey pub = pair.getPublic();
+	PrivateKey priv = pair.getPrivate();
+
+	if (pub == null || priv == null) {
+	    throw new InvalidParameterException();
+	}
+	try {
+	    AccessController.doPrivileged(new PrivilegedExceptionAction() {
+		public Object run() throws KeyManagementException {
+		    setPublicKey(pub);
+		    return null;
+		}
+	    });
+	} catch (PrivilegedActionException pae) {
+	    throw (KeyManagementException) pae.getException();
+	}
+	privateKey = priv;
+!!!7625371.java!!!	printKeys() : String
+	String keys = "";
+	PublicKey publicKey = getPublicKey();
+	if (publicKey != null && privateKey != null) {
+	    keys = "\tpublic and private keys initialized";
+
+	} else {
+	    keys = "\tno keys";
+	}
+	return keys;
+!!!7625499.java!!!	toString() : String
+	return "[Signer]" + super.toString();
+!!!7625627.java!!!	check(in directive : String) : void
+	SecurityManager security = System.getSecurityManager();
+	if (security != null) {
+	    security.checkSecurityAccess(directive);
+	}

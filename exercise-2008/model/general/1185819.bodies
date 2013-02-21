@@ -1,0 +1,113 @@
+class SynthSpinnerUI
+!!!9733147.java!!!	createUI(inout c : JComponent) : ComponentUI
+        return new SynthSpinnerUI();
+!!!9733275.java!!!	installListeners() : void
+        spinner.addPropertyChangeListener(this);
+!!!9733403.java!!!	uninstallListeners() : void
+	spinner.removePropertyChangeListener(this);
+!!!9733531.java!!!	installDefaults() : void
+        LayoutManager layout = spinner.getLayout();
+
+        if (layout == null || layout instanceof UIResource) {
+            spinner.setLayout(createLayout());
+        }
+        updateStyle(spinner);
+!!!9733659.java!!!	updateStyle(inout c : JSpinner) : void
+        SynthContext context = getContext(c, ENABLED);
+        SynthStyle oldStyle = style;
+        style = SynthLookAndFeel.updateStyle(context, this);
+        if (style != oldStyle) {
+            if (oldStyle != null) {
+                // Only call installKeyboardActions as uninstall is not
+                // public.
+                installKeyboardActions();
+            }
+        }
+        context.dispose();
+!!!9733787.java!!!	uninstallDefaults() : void
+        if (spinner.getLayout() instanceof UIResource) {
+            spinner.setLayout(null);
+        }
+
+        SynthContext context = getContext(spinner, ENABLED);
+
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+!!!9733915.java!!!	createLayout() : LayoutManager
+        return new SpinnerLayout();
+!!!9734043.java!!!	createPropertyChangeListener() : PropertyChangeListener
+	return this;
+!!!9734171.java!!!	createPreviousButton() : Component
+	JButton b = new SynthArrowButton(SwingConstants.SOUTH);
+        b.setName("Spinner.previousButton");
+        installPreviousButtonListeners(b);
+	return b;
+!!!9734299.java!!!	createNextButton() : Component
+	JButton b = new SynthArrowButton(SwingConstants.NORTH);
+        b.setName("Spinner.nextButton");
+        installNextButtonListeners(b);
+	return b;
+!!!9734427.java!!!	createEditor() : JComponent
+        JComponent editor = spinner.getEditor();
+        editor.setName("Spinner.editor");
+	return editor;
+!!!9734555.java!!!	replaceEditor(inout oldEditor : JComponent, inout newEditor : JComponent) : void
+	spinner.remove(oldEditor);
+	spinner.add(newEditor, "Editor");
+!!!9734683.java!!!	updateEnabledState() : void
+        updateEnabledState(spinner, spinner.isEnabled());
+!!!9734811.java!!!	updateEnabledState(inout c : Container, inout enabled : boolean) : void
+        for (int counter = c.getComponentCount() - 1; counter >= 0;counter--) {
+            Component child = c.getComponent(counter);
+
+            child.setEnabled(enabled);
+            if (child instanceof Container) {
+                updateEnabledState((Container)child, enabled);
+            }
+        }
+!!!9734939.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9735067.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c,
+                    SynthLookAndFeel.getRegion(c), style, state);
+!!!9735195.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9735323.java!!!	getComponentState(inout c : JComponent) : int
+        return SynthLookAndFeel.getComponentState(c);
+!!!9735451.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintSpinnerBackground(context,
+                          g, 0, 0, c.getWidth(), c.getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9735579.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9735835.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        context.getPainter().paintSpinnerBorder(context, g, x, y, w, h);
+!!!9736859.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+        String propertyName = e.getPropertyName();
+        JSpinner spinner = (JSpinner)(e.getSource());
+        SpinnerUI spinnerUI = spinner.getUI();
+    
+        if (spinnerUI instanceof SynthSpinnerUI) {
+            SynthSpinnerUI ui = (SynthSpinnerUI)spinnerUI;
+    
+            if (SynthLookAndFeel.shouldUpdateStyle(e)) {
+                ui.updateStyle(spinner);
+            }
+            if ("editor".equals(propertyName)) {
+                JComponent oldEditor = (JComponent)e.getOldValue();
+                JComponent newEditor = (JComponent)e.getNewValue();
+                ui.replaceEditor(oldEditor, newEditor);
+                ui.updateEnabledState();
+            }
+            else if ("enabled".equals(propertyName)) {
+                ui.updateEnabledState();
+            }
+        }

@@ -1,0 +1,167 @@
+class BasicSpinnerUI
+!!!3015451.java!!!	createUI(inout c : JComponent) : ComponentUI
+        return new BasicSpinnerUI();
+!!!3015579.java!!!	maybeAdd(inout c : Component, in s : String) : void
+	if (c != null) {
+	    spinner.add(c, s);
+	}
+!!!3015707.java!!!	installUI(inout c : JComponent) : void
+	this.spinner = (JSpinner)c;
+	installDefaults();
+	installListeners();
+	maybeAdd(createNextButton(), "Next");
+	maybeAdd(createPreviousButton(), "Previous");
+	maybeAdd(createEditor(), "Editor");
+        updateEnabledState();
+        installKeyboardActions();
+!!!3015835.java!!!	uninstallUI(inout c : JComponent) : void
+	uninstallDefaults();
+	uninstallListeners();
+	this.spinner = null;
+	c.removeAll();
+!!!3015963.java!!!	installListeners() : void
+        propertyChangeListener = createPropertyChangeListener();
+        spinner.addPropertyChangeListener(propertyChangeListener);
+	JComponent editor = spinner.getEditor();
+	if (editor != null && editor instanceof JSpinner.DefaultEditor) {
+	    JTextField tf = ((JSpinner.DefaultEditor)editor).getTextField();
+	    if (tf != null) {
+		tf.addFocusListener(nextButtonHandler);
+		tf.addFocusListener(previousButtonHandler);
+	    }
+	}
+!!!3016091.java!!!	uninstallListeners() : void
+	spinner.removePropertyChangeListener(propertyChangeListener);
+	JComponent editor = spinner.getEditor();
+	removeEditorBorderListener(editor);
+	if (editor instanceof JSpinner.DefaultEditor) {
+	    JTextField tf = ((JSpinner.DefaultEditor)editor).getTextField();
+	    if (tf != null) {
+		tf.removeFocusListener(nextButtonHandler);
+		tf.removeFocusListener(previousButtonHandler);
+	    }
+	}
+        propertyChangeListener = null;
+        handler = null;
+!!!3016219.java!!!	installDefaults() : void
+	spinner.setLayout(createLayout());
+        LookAndFeel.installBorder(spinner, "Spinner.border");
+        LookAndFeel.installColorsAndFont(spinner, "Spinner.background", "Spinner.foreground", "Spinner.font");
+        LookAndFeel.installProperty(spinner, "opaque", Boolean.TRUE);
+!!!3016347.java!!!	uninstallDefaults() : void
+	spinner.setLayout(null);
+!!!3016475.java!!!	getHandler() : Handler
+        if (handler == null) {
+            handler = new Handler();
+        }
+        return handler;
+!!!3016603.java!!!	installNextButtonListeners(inout c : Component) : void
+        installButtonListeners(c, nextButtonHandler);
+!!!3016731.java!!!	installPreviousButtonListeners(inout c : Component) : void
+        installButtonListeners(c, previousButtonHandler);
+!!!3016859.java!!!	installButtonListeners(inout c : Component, inout handler : ArrowButtonHandler) : void
+        if (c instanceof JButton) {
+            ((JButton)c).addActionListener(handler);
+        }
+        c.addMouseListener(handler);
+!!!3016987.java!!!	createLayout() : LayoutManager
+        return getHandler();
+!!!3017115.java!!!	createPropertyChangeListener() : PropertyChangeListener
+        return getHandler();
+!!!3017243.java!!!	createPreviousButton() : Component
+	Component c = createArrowButton(SwingConstants.SOUTH);
+        installPreviousButtonListeners(c);
+        return c;
+!!!3017371.java!!!	createNextButton() : Component
+	Component c = createArrowButton(SwingConstants.NORTH);
+        installNextButtonListeners(c);
+        return c;
+!!!3017499.java!!!	createArrowButton(in direction : int) : Component
+	JButton b = new BasicArrowButton(direction);
+	Border buttonBorder = UIManager.getBorder("Spinner.arrowButtonBorder");
+	if (buttonBorder instanceof UIResource) {
+	    // Wrap the border to avoid having the UIResource be replaced by
+	    // the ButtonUI. This is the opposite of using BorderUIResource.
+	    b.setBorder(new CompoundBorder(buttonBorder, null));
+	} else {
+	    b.setBorder(buttonBorder);
+	}
+	return b;
+!!!3017627.java!!!	createEditor() : JComponent
+	JComponent editor = spinner.getEditor();
+	maybeRemoveEditorBorder(editor);
+	installEditorBorderListener(editor);
+	return editor;
+!!!3017755.java!!!	replaceEditor(inout oldEditor : JComponent, inout newEditor : JComponent) : void
+	spinner.remove(oldEditor);
+	maybeRemoveEditorBorder(newEditor);
+	installEditorBorderListener(newEditor);
+	spinner.add(newEditor, "Editor");
+!!!3017883.java!!!	maybeRemoveEditorBorder(inout editor : JComponent) : void
+        if (!UIManager.getBoolean("Spinner.editorBorderPainted")) {
+	    if (editor instanceof JPanel &&
+		editor.getBorder() == null &&
+		editor.getComponentCount() > 0) {
+
+		editor = (JComponent)editor.getComponent(0);
+	    }
+
+	    if (editor != null && editor.getBorder() instanceof UIResource) {
+		editor.setBorder(null);
+	    }
+	}
+!!!3018011.java!!!	installEditorBorderListener(inout editor : JComponent) : void
+        if (!UIManager.getBoolean("Spinner.editorBorderPainted")) {
+	    if (editor instanceof JPanel &&
+		editor.getBorder() == null &&
+		editor.getComponentCount() > 0) {
+
+		editor = (JComponent)editor.getComponent(0);
+	    }
+	    if (editor != null &&
+		(editor.getBorder() == null ||
+		 editor.getBorder() instanceof UIResource)) {
+		editor.addPropertyChangeListener(getHandler());
+	    }
+	}
+!!!3018139.java!!!	removeEditorBorderListener(inout editor : JComponent) : void
+        if (!UIManager.getBoolean("Spinner.editorBorderPainted")) {
+	    if (editor instanceof JPanel &&
+		editor.getComponentCount() > 0) {
+
+		editor = (JComponent)editor.getComponent(0);
+	    }
+	    if (editor != null) {
+		editor.removePropertyChangeListener(getHandler());
+	    }
+	}
+!!!3018267.java!!!	updateEnabledState() : void
+        updateEnabledState(spinner, spinner.isEnabled());
+!!!3018395.java!!!	updateEnabledState(inout c : Container, inout enabled : boolean) : void
+        for (int counter = c.getComponentCount() - 1; counter >= 0;counter--) {
+            Component child = c.getComponent(counter);
+
+            child.setEnabled(enabled);
+            if (child instanceof Container) {
+                updateEnabledState((Container)child, enabled);
+            }
+        }
+!!!3018523.java!!!	installKeyboardActions() : void
+        InputMap iMap = getInputMap(JComponent.
+                                   WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+
+	SwingUtilities.replaceUIInputMap(spinner, JComponent.
+					 WHEN_ANCESTOR_OF_FOCUSED_COMPONENT,
+					 iMap);
+
+        LazyActionMap.installLazyActionMap(spinner, BasicSpinnerUI.class,
+                "Spinner.actionMap");
+!!!3018651.java!!!	getInputMap(in condition : int) : InputMap
+        if (condition == JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT) {
+	    return (InputMap)DefaultLookup.get(spinner, this,
+                    "Spinner.ancestorInputMap");
+        }
+        return null;
+!!!3018779.java!!!	loadActionMap(inout map : LazyActionMap) : void
+        map.put("increment", nextButtonHandler);
+        map.put("decrement", previousButtonHandler);

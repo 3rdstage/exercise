@@ -1,0 +1,335 @@
+class Introspector
+!!!3176859.java!!!	Introspector()
+
+	// ------------------------------ 
+	// ------------------------------
+	
+!!!3176987.java!!!	isDynamic(in c : Class) : boolean
+	// Check if the MBean implements the DynamicMBean interface
+	return javax.management.DynamicMBean.class.isAssignableFrom(c);
+!!!3177115.java!!!	testCreation(inout c : Class) : void
+	// Check if the class is a concrete class
+	final int mods = c.getModifiers(); 
+	if (Modifier.isAbstract(mods) || Modifier.isInterface(mods)) {
+	    throw new NotCompliantMBeanException("MBean class must be concrete");
+	}
+
+	// Check if the MBean has a public constructor 
+	final Constructor[] consList = c.getConstructors();     
+	if (consList.length == 0) {
+	    throw new NotCompliantMBeanException("MBean class must have public constructor");
+	}
+!!!3177243.java!!!	testCompliance(inout baseClass : Class) : MBeanInfo
+
+	// ------------------------------ 
+	// ------------------------------
+	
+	// Check if the MBean implements the MBean or the Dynamic 
+	// MBean interface
+	if (isDynamic(baseClass)) 
+	    return null;
+	
+	return testCompliance(baseClass, null);
+!!!3177371.java!!!	testCompliance(in baseClass : Class, inout mbeanInterface : Class) : MBeanInfo
+	
+	if (baseClass.isInterface()) 
+	    throw new NotCompliantMBeanException(baseClass.getName() + 
+						 " must be a class.");
+	// ------------------------------ 
+	// ------------------------------
+	if (mbeanInterface == null)
+	    // No interface specified: look for default MBean interface.
+	    mbeanInterface = getStandardMBeanInterface(baseClass);
+	else if (! mbeanInterface.isAssignableFrom(baseClass)) {
+	    // specified interface not implemented by given class
+	    final String msg =
+		baseClass.getName() + " does not implement the " + 
+		mbeanInterface.getName() + " interface";
+	    throw new NotCompliantMBeanException(msg);
+	} else if (! mbeanInterface.isInterface()) {
+	    // Base class X, but XMBean is not an interface
+	    final String msg =
+		baseClass.getName() + ": " + mbeanInterface.getName() + 
+		" is not an interface";
+	    throw new NotCompliantMBeanException(msg);
+	}
+
+
+	if (mbeanInterface == null) {
+	    // Error: MBean does not implement javax.management.DynamicMBean 
+	    // nor MBean interface
+	    final String baseClassName = baseClass.getName();
+	    final String msg =
+		baseClassName + " does not implement the " + baseClassName +
+		"MBean interface or the DynamicMBean interface";
+	    throw new NotCompliantMBeanException(msg);
+	}
+	
+	final int mods = mbeanInterface.getModifiers();
+	if (!Modifier.isPublic(mods)) 
+	    throw new NotCompliantMBeanException(mbeanInterface.getName() + 
+						 " implemented by " +
+						 baseClass.getName() + 
+						 " must be public");
+
+	return (introspect(baseClass, mbeanInterface));
+!!!3177499.java!!!	getMBeanInterface(inout baseClass : Class) : Class
+
+	// ------------------------------ 
+	// ------------------------------
+	
+	// Check if the MBean implements the MBean or the Dynamic 
+	// MBean interface
+	if (isDynamic(baseClass)) return null;
+
+	return getStandardMBeanInterface(baseClass);     
+!!!3177627.java!!!	getStandardMBeanInterface(inout baseClass : Class) : Class
+
+	// ------------------------------ 
+	// ------------------------------
+	
+	Class current = baseClass;
+	Class mbeanInterface = null;
+	
+	while (current != null) {
+	    mbeanInterface = 
+		findMBeanInterface(current, current.getName());
+	    if (mbeanInterface != null) break;
+	    current = current.getSuperclass();
+	}
+	return mbeanInterface;
+!!!3177755.java!!!	findMBeanInterface(inout aClass : Class, in aName : String) : Class
+	Class current = aClass;
+	while (current != null) {
+	    final Class[] interfaces = current.getInterfaces();   
+	    final int len = interfaces.length;
+	    for (int i=0;i<len;i++)  {	     
+		final Class inter = 
+		    implementsMBean(interfaces[i], aName);
+		if (inter != null) return inter;
+	    }
+	    current = current.getSuperclass();
+	}
+	return null;     
+!!!3177883.java!!!	introspect(inout baseClass : Class, inout beanClass : Class) : MBeanInfo
+
+	// ------------------------------ 
+	// ------------------------------
+
+	List/*<MBeanAttributeInfo>*/ attributes =
+	    new ArrayList/*<MBeanAttributeInfo>*/();
+	List/*<MBeanOperationInfo>*/ operations =
+	    new ArrayList/*<MBeanOperationInfo>*/();
+	
+	Method methodList[] = beanClass.getMethods();
+	
+	// Now analyze each method.        
+	for (int i = 0; i < methodList.length; i++) { 
+	    Method method = methodList[i];
+	    String name = method.getName();            
+	    Class argTypes[] = method.getParameterTypes();
+	    Class resultType = method.getReturnType();
+	    int argCount = argTypes.length;
+
+	    try {
+		final MBeanAttributeInfo attr;
+
+		if (name.startsWith("get") && !name.equals("get")
+		    && argCount == 0 && !resultType.equals(void.class)) {
+		    // if the method is "T getX()" it is a getter
+		    attr = new MBeanAttributeInfo(name.substring(3),
+						  attributeDescription,
+						  method, null);
+		} else if (name.startsWith("set") && !name.equals("set")
+			   && argCount == 1 && resultType.equals(void.class)) {
+		    // if the method is "void setX(T x)" it is a setter
+		    attr = new MBeanAttributeInfo(name.substring(3),
+						  attributeDescription,
+						  null, method);
+		} else if (name.startsWith("is") && !name.equals("is")
+			   && argCount == 0
+			   && resultType.equals(boolean.class)) {
+		    // if the method is "boolean isX()" it is a getter
+		    attr = new MBeanAttributeInfo(name.substring(2),
+						  attributeDescription,
+						  method, null);
+		} else {
+		    // in all other cases it is an operation
+		    attr = null;
+		}
+
+		if (attr != null) {
+		    if (testConsistency(attributes, attr))
+			attributes.add(attr);
+		} else {
+		    final MBeanOperationInfo oper =
+			new MBeanOperationInfo(operationDescription, method);
+		    operations.add(oper);
+		}
+	    } catch (IntrospectionException e) {
+		// Should not happen (MBeanAttributeInfo constructor)
+		error("introspect", e);
+	    }
+	}
+
+	return constructResult(baseClass, attributes, operations); 
+!!!3178011.java!!!	testConsistency(inout attributes : List, inout attr : MBeanAttributeInfo) : boolean
+	for (Iterator it = attributes.iterator(); it.hasNext(); ) {
+	    MBeanAttributeInfo mb = (MBeanAttributeInfo) it.next();
+	    if (mb.getName().equals(attr.getName())) {
+		if ((attr.isReadable() && mb.isReadable()) && 
+		    (attr.isIs() != mb.isIs())) {
+		    final String msg =
+			"Conflicting getters for attribute " + mb.getName();
+		    throw new NotCompliantMBeanException(msg);
+		}  
+		if (!mb.getType().equals(attr.getType())) {
+		    if (mb.isWritable() && attr.isWritable()) {
+			final String msg =
+			    "Type mismatch between parameters of set" +
+			    mb.getName() + " methods";
+			throw new NotCompliantMBeanException(msg);
+		    } else {
+			final String msg =
+			    "Type mismatch between parameters of get or is" +
+			    mb.getName() + ", set" + mb.getName() + " methods";
+			throw new NotCompliantMBeanException(msg);
+		    }
+		}
+		if (attr.isReadable() && mb.isReadable()) {
+		    return false;
+		}
+		if (attr.isWritable() && mb.isWritable()) {
+		    return false;
+		}
+	    }
+	}
+	return true;
+!!!3178139.java!!!	getConstructors(inout baseClass : Class) : MBeanConstructorInfo
+	Constructor[] consList = baseClass.getConstructors();
+	List constructors = new ArrayList();
+	
+	// Now analyze each Constructor.        
+	for (int i = 0; i < consList.length; i++) {
+	    Constructor constructor = consList[i];    	    
+	    MBeanConstructorInfo mc = null;
+	    try {               
+		mc = new MBeanConstructorInfo(constructorDescription, constructor);		     		                
+	    } catch (Exception ex) {
+		mc = null;
+	    }
+	    if (mc != null) {
+		constructors.add(mc);
+	    }
+	}
+	// Allocate and populate the result array.
+	MBeanConstructorInfo[] resultConstructors =
+	    new MBeanConstructorInfo[constructors.size()];
+	constructors.toArray(resultConstructors);
+	return resultConstructors;
+!!!3178267.java!!!	constructResult(inout baseClass : Class, inout attributes : List, inout operations : List) : MBeanInfo
+	
+	final int len = attributes.size();
+	final MBeanAttributeInfo[] attrlist = new MBeanAttributeInfo[len];
+	attributes.toArray(attrlist);
+	final ArrayList mergedAttributes = new ArrayList();
+	
+	for (int i=0;i<len;i++) {
+	    final MBeanAttributeInfo bi = attrlist[i];
+	    
+	    // bi can be null if it has already been eliminated
+	    // by the loop below at an earlier iteration
+	    // (cf. attrlist[j]=null;) In this case, just skip it.
+	    //
+	    if (bi == null) continue;
+
+	    // Placeholder for the final attribute info we're going to
+	    // keep.
+	    //
+	    MBeanAttributeInfo att = bi;
+
+	    // The loop below will try to find whether bi is also present
+	    // elsewhere further down the list. 
+	    // If it is not, att will be left unchanged.
+	    // Otherwise, the found attribute info will be merged with
+	    // att and `removed' from the array by setting them to `null'
+	    //
+            for (int j=i+1;j<len;j++) {
+		MBeanAttributeInfo mi = attrlist[j];
+		
+		// mi can be null if it has already been eliminated
+		// by this loop at an earlier iteration.
+		// (cf. attrlist[j]=null;) In this case, just skip it.
+		//
+		if (mi == null) continue;
+                if ((mi.getName().compareTo(bi.getName()) == 0)) {
+		    // mi and bi have the same name, which means that 
+		    // that the attribute has been inserted twice in 
+		    // the list, which means that it is a read-write
+		    // attribute.
+		    // So we're going to replace att with a new 
+		    // attribute info with read-write mode.
+		    // We also set attrlist[j] to null in order to avoid
+		    // duplicates (attrlist[j] and attrlist[i] are now
+		    // merged into att).
+		    //
+		    attrlist[j]=null;
+		    att = new MBeanAttributeInfo(bi.getName(), 
+						 bi.getType(), 
+						 attributeDescription, 
+						 true, true, bi.isIs());
+		    // I think we could break, but it is probably
+		    // safer not to...
+		    //
+		    // break;
+		}
+	    }
+                
+	    // Now all attributes info which had the same name than bi
+	    // have been merged together in att. 
+	    // Simply add att to the merged list.
+	    //
+	    mergedAttributes.add(att);	    
+        }
+ 
+        final MBeanAttributeInfo[] resultAttributes =
+	    new MBeanAttributeInfo[mergedAttributes.size()];
+	mergedAttributes.toArray(resultAttributes);
+
+        final MBeanOperationInfo[] resultOperations =
+	    new MBeanOperationInfo[operations.size()];
+	operations.toArray(resultOperations);
+
+	final MBeanConstructorInfo[] resultConstructors =
+	    getConstructors(baseClass);     
+
+        final MBeanInfo resultMBeanInfo =
+	    new MBeanInfo(baseClass.getName(), mbeanInfoDescription, 
+			  resultAttributes, resultConstructors, 
+			  resultOperations, null);
+	return resultMBeanInfo;
+!!!3178395.java!!!	implementsMBean(inout c : Class, in clName : String) : Class
+	if (c.getName().compareTo(clName + "MBean") == 0) {
+	    return c;
+	}   
+	Class current = c;
+	Class[] interfaces = c.getInterfaces();
+	for (int i = 0;i < interfaces.length; i++) {
+
+	    try {
+		if (interfaces[i].getName().compareTo(clName + "MBean") == 0) {
+		    return interfaces[i];
+		}     
+	    } catch (Exception e) {
+		return null;
+	    }  	
+	}
+	
+	return null;
+!!!3178523.java!!!	error(in method : String, inout t : Throwable) : void
+	com.sun.jmx.trace.Trace.send(com.sun.jmx.trace.Trace.LEVEL_ERROR,
+				     com.sun.jmx.trace.Trace.INFO_MBEANSERVER,
+				     "Introspector",
+				     method,
+				     t);
+				     

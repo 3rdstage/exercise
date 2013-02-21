@@ -1,0 +1,91 @@
+class BeanContextChildSupport
+!!!6799899.java!!!	BeanContextChildSupport()
+	super();
+
+	beanContextChildPeer = this;
+
+	pcSupport = new PropertyChangeSupport(beanContextChildPeer);
+	vcSupport = new VetoableChangeSupport(beanContextChildPeer);
+!!!6800027.java!!!	BeanContextChildSupport(inout bcc : BeanContextChild)
+	super();
+
+	beanContextChildPeer = (bcc != null) ? bcc : this;
+
+	pcSupport = new PropertyChangeSupport(beanContextChildPeer);
+	vcSupport = new VetoableChangeSupport(beanContextChildPeer);
+!!!6800155.java!!!	setBeanContext(inout bc : BeanContext) : void
+	if (bc == beanContext) return;
+
+	BeanContext oldValue = beanContext;
+	BeanContext newValue = bc;
+
+	if (!rejectedSetBCOnce) {
+	    if (rejectedSetBCOnce = !validatePendingSetBeanContext(bc)) {
+		throw new PropertyVetoException(
+		    "setBeanContext() change rejected:",
+		    new PropertyChangeEvent(beanContextChildPeer, "beanContext", oldValue, newValue)
+		);
+	    }
+
+	    try {
+		fireVetoableChange("beanContext",
+				   oldValue,
+				   newValue
+		);
+	    } catch (PropertyVetoException pve) {
+		rejectedSetBCOnce = true;
+
+		throw pve; // re-throw
+	    }
+	}
+
+	if (beanContext != null) releaseBeanContextResources();
+
+	beanContext       = newValue;
+	rejectedSetBCOnce = false;
+
+	firePropertyChange("beanContext", 
+			   oldValue,
+			   newValue
+	);
+
+	if (beanContext != null) initializeBeanContextResources();
+!!!6800283.java!!!	getBeanContext() : BeanContext
+ return beanContext;
+!!!6800411.java!!!	addPropertyChangeListener(in name : String, inout pcl : PropertyChangeListener) : void
+	pcSupport.addPropertyChangeListener(name, pcl);
+!!!6800539.java!!!	removePropertyChangeListener(in name : String, inout pcl : PropertyChangeListener) : void
+	pcSupport.removePropertyChangeListener(name, pcl);
+!!!6800667.java!!!	addVetoableChangeListener(in name : String, inout vcl : VetoableChangeListener) : void
+	vcSupport.addVetoableChangeListener(name, vcl);
+!!!6800795.java!!!	removeVetoableChangeListener(in name : String, inout vcl : VetoableChangeListener) : void
+	vcSupport.removeVetoableChangeListener(name, vcl);
+!!!6801179.java!!!	getBeanContextChildPeer() : BeanContextChild
+ return beanContextChildPeer;
+!!!6801307.java!!!	isDelegated() : boolean
+ return !this.equals(beanContextChildPeer);
+!!!6801435.java!!!	firePropertyChange(in name : String, inout oldValue : Object, inout newValue : Object) : void
+	pcSupport.firePropertyChange(name, oldValue, newValue);
+!!!6801563.java!!!	fireVetoableChange(in name : String, inout oldValue : Object, inout newValue : Object) : void
+	vcSupport.fireVetoableChange(name, oldValue, newValue);
+!!!6801691.java!!!	validatePendingSetBeanContext(inout newValue : BeanContext) : boolean
+	return true;
+!!!6801819.java!!!	releaseBeanContextResources() : void
+	// do nothing
+!!!6801947.java!!!	initializeBeanContextResources() : void
+	// do nothing
+!!!6802075.java!!!	writeObject(inout oos : ObjectOutputStream) : void
+
+	/*
+	 * dont serialize if we are delegated and the delegator isnt also
+	 * serializable.
+	 */
+
+	if (!equals(beanContextChildPeer) && !(beanContextChildPeer instanceof Serializable))
+	    throw new IOException("BeanContextChildSupport beanContextChildPeer not Serializable");
+
+	else 
+            oos.defaultWriteObject();
+	    
+!!!6802203.java!!!	readObject(inout ois : ObjectInputStream) : void
+	ois.defaultReadObject();

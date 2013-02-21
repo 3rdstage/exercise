@@ -1,0 +1,1601 @@
+class InstConstraintVisitor
+!!!3949595.java!!!	stack() : OperandStack
+		return frame.getStack();
+!!!3949723.java!!!	locals() : LocalVariables
+		return frame.getLocals();
+!!!3949851.java!!!	constraintViolated(inout violator : Instruction, in description : String) : void
+		String fq_classname = violator.getClass().getName();
+		throw new StructuralCodeConstraintException("Instruction "+ fq_classname.substring(fq_classname.lastIndexOf('.')+1) +" constraint violated: " + description);
+!!!3949979.java!!!	setFrame(inout f : Frame) : void
+		this.frame = f;
+		//if (singleInstance.mg == null || singleInstance.cpg == null) throw new AssertionViolatedException("Forgot to set important values first.");
+!!!3950107.java!!!	setConstantPoolGen(inout cpg : ConstantPoolGen) : void
+		this.cpg = cpg;
+!!!3950235.java!!!	setMethodGen(inout mg : MethodGen) : void
+		this.mg = mg;
+!!!3950363.java!!!	indexOfInt(inout o : Instruction, inout index : Type) : void
+		if (! index.equals(Type.INT))
+				constraintViolated(o, "The 'index' is not of type int but of type "+index+".");
+!!!3950491.java!!!	referenceTypeIsInitialized(inout o : Instruction, inout r : ReferenceType) : void
+		if (r instanceof UninitializedObjectType){
+			constraintViolated(o, "Working on an uninitialized object '"+r+"'.");
+		}
+!!!3950619.java!!!	valueOfInt(inout o : Instruction, inout value : Type) : void
+		if (! value.equals(Type.INT))
+				constraintViolated(o, "The 'value' is not of type int but of type "+value+".");
+!!!3950747.java!!!	arrayrefOfArrayType(inout o : Instruction, inout arrayref : Type) : boolean
+		if (! ((arrayref instanceof ArrayType) || arrayref.equals(Type.NULL)) )
+				constraintViolated(o, "The 'arrayref' does not refer to an array but is of type "+arrayref+".");
+		return (arrayref instanceof ArrayType);
+!!!3950875.java!!!	_visitStackAccessor(inout o : Instruction) : void
+		int consume = o.consumeStack(cpg); // Stack values are always consumed first; then produced.
+		if (consume > stack().slotsUsed()){
+			constraintViolated((Instruction) o, "Cannot consume "+consume+" stack slots: only "+stack().slotsUsed()+" slot(s) left on stack!\nStack:\n"+stack());
+		}
+
+		int produce = o.produceStack(cpg) - ((Instruction) o).consumeStack(cpg); // Stack values are always consumed first; then produced.
+		if ( produce + stack().slotsUsed() > stack().maxStack() ){
+			constraintViolated((Instruction) o, "Cannot produce "+produce+" stack slots: only "+(stack().maxStack()-stack().slotsUsed())+" free stack slot(s) left.\nStack:\n"+stack());
+		}
+!!!3951003.java!!!	visitLoadClass(inout o : LoadClass) : void
+		ObjectType t = o.getLoadClassType(cpg);
+		if (t != null){// null means "no class is loaded"
+			Verifier v = VerifierFactory.getVerifier(t.getClassName());
+			VerificationResult vr = v.doPass2();
+			if (vr.getStatus() != VerificationResult.VERIFIED_OK){
+				constraintViolated((Instruction) o, "Class '"+o.getLoadClassType(cpg).getClassName()+"' is referenced, but cannot be loaded and resolved: '"+vr+"'.");
+			}
+		}
+!!!3951131.java!!!	visitStackConsumer(inout o : StackConsumer) : void
+		_visitStackAccessor((Instruction) o);
+!!!3951259.java!!!	visitStackProducer(inout o : StackProducer) : void
+		_visitStackAccessor((Instruction) o);
+!!!3951387.java!!!	visitCPInstruction(inout o : CPInstruction) : void
+		int idx = o.getIndex();
+		if ((idx < 0) || (idx >= cpg.getSize())){
+			throw new AssertionViolatedException("Huh?! Constant pool index of instruction '"+o+"' illegal? Pass 3a should have checked this!");
+		}
+!!!3951515.java!!!	visitFieldInstruction(inout o : FieldInstruction) : void
+	 	// visitLoadClass(o) has been called before: Every FieldOrMethod
+	 	// implements LoadClass.
+	 	// visitCPInstruction(o) has been called before.
+		// A FieldInstruction may be: GETFIELD, GETSTATIC, PUTFIELD, PUTSTATIC 
+			Constant c = cpg.getConstant(o.getIndex());
+			if (!(c instanceof ConstantFieldref)){
+				constraintViolated(o, "Index '"+o.getIndex()+"' should refer to a CONSTANT_Fieldref_info structure, but refers to '"+c+"'.");
+			}
+			// the o.getClassType(cpg) type has passed pass 2; see visitLoadClass(o).
+			Type t = o.getType(cpg);
+			if (t instanceof ObjectType){
+				String name = ((ObjectType)t).getClassName();
+				Verifier v = VerifierFactory.getVerifier( name );
+				VerificationResult vr = v.doPass2();
+				if (vr.getStatus() != VerificationResult.VERIFIED_OK){
+					constraintViolated((Instruction) o, "Class '"+name+"' is referenced, but cannot be loaded and resolved: '"+vr+"'.");
+				}
+			}
+!!!3951643.java!!!	visitInvokeInstruction(inout o : InvokeInstruction) : void
+	 	// visitLoadClass(o) has been called before: Every FieldOrMethod
+	 	// implements LoadClass.
+	 	// visitCPInstruction(o) has been called before.
+//TODO
+!!!3951771.java!!!	visitStackInstruction(inout o : StackInstruction) : void
+		_visitStackAccessor(o);
+!!!3951899.java!!!	visitLocalVariableInstruction(inout o : LocalVariableInstruction) : void
+		if (locals().maxLocals() <= (o.getType(cpg).getSize()==1? o.getIndex() : o.getIndex()+1) ){
+			constraintViolated(o, "The 'index' is not a valid index into the local variable array.");
+		}
+!!!3952027.java!!!	visitLoadInstruction(inout o : LoadInstruction) : void
+		//visitLocalVariableInstruction(o) is called before, because it is more generic.
+
+		// LOAD instructions must not read Type.UNKNOWN
+		if (locals().get(o.getIndex()) == Type.UNKNOWN){
+			constraintViolated(o, "Read-Access on local variable "+o.getIndex()+" with unknown content.");
+		}
+
+		// LOAD instructions, two-slot-values at index N must have Type.UNKNOWN
+		// as a symbol for the higher halve at index N+1
+		// [suppose some instruction put an int at N+1--- our double at N is defective]
+		if (o.getType(cpg).getSize() == 2){
+			if (locals().get(o.getIndex()+1) != Type.UNKNOWN){
+				constraintViolated(o, "Reading a two-locals value from local variables "+o.getIndex()+" and "+(o.getIndex()+1)+" where the latter one is destroyed.");
+			}
+		}
+
+		// LOAD instructions must read the correct type.
+		if (!(o instanceof ALOAD)){
+			if (locals().get(o.getIndex()) != o.getType(cpg) ){
+				constraintViolated(o, "Local Variable type and LOADing Instruction type mismatch: Local Variable: '"+locals().get(o.getIndex())+"'; Instruction type: '"+o.getType(cpg)+"'.");
+			}
+		}
+		else{ // we deal with an ALOAD
+			if (!(locals().get(o.getIndex()) instanceof ReferenceType)){
+				constraintViolated(o, "Local Variable type and LOADing Instruction type mismatch: Local Variable: '"+locals().get(o.getIndex())+"'; Instruction expects a ReferenceType.");
+			}
+			// ALOAD __IS ALLOWED__ to put uninitialized objects onto the stack!
+			//referenceTypeIsInitialized(o, (ReferenceType) (locals().get(o.getIndex())));
+		}
+
+		// LOAD instructions must have enough free stack slots.
+		if ((stack().maxStack() - stack().slotsUsed()) < o.getType(cpg).getSize()){
+			constraintViolated(o, "Not enough free stack slots to load a '"+o.getType(cpg)+"' onto the OperandStack.");
+		}
+!!!3952155.java!!!	visitStoreInstruction(inout o : StoreInstruction) : void
+		//visitLocalVariableInstruction(o) is called before, because it is more generic.
+
+		if (stack().isEmpty()){ // Don't bother about 1 or 2 stack slots used. This check is implicitely done below while type checking.
+			constraintViolated(o, "Cannot STORE: Stack to read from is empty.");
+		}
+
+		if ( (!(o instanceof ASTORE)) ){
+			if (! (stack().peek() == o.getType(cpg)) ){// the other xSTORE types are singletons in BCEL.
+				constraintViolated(o, "Stack top type and STOREing Instruction type mismatch: Stack top: '"+stack().peek()+"'; Instruction type: '"+o.getType(cpg)+"'.");
+			}
+		}
+		else{ // we deal with ASTORE
+			Type stacktop = stack().peek();
+			if ( (!(stacktop instanceof ReferenceType)) && (!(stacktop instanceof ReturnaddressType)) ){
+				constraintViolated(o, "Stack top type and STOREing Instruction type mismatch: Stack top: '"+stack().peek()+"'; Instruction expects a ReferenceType or a ReturnadressType.");
+			}
+			if (stacktop instanceof ReferenceType){
+				referenceTypeIsInitialized(o, (ReferenceType) stacktop);
+			}
+		}
+!!!3952283.java!!!	visitReturnInstruction(inout o : ReturnInstruction) : void
+		if (o instanceof RETURN){
+			return;
+		}
+		if (o instanceof ARETURN){
+			if (stack().peek() == Type.NULL){
+				return;
+			}
+			else{
+				if (! (stack().peek() instanceof ReferenceType)){
+					constraintViolated(o, "Reference type expected on top of stack, but is: '"+stack().peek()+"'.");
+				}
+				referenceTypeIsInitialized(o, (ReferenceType) (stack().peek()));
+				ReferenceType objectref = (ReferenceType) (stack().peek());
+				// TODO: This can only be checked if using Staerk-et-al's "set of object types" instead of a
+				// "wider cast object type" created during verification.
+				//if (! (objectref.isAssignmentCompatibleWith(mg.getType())) ){
+				//	constraintViolated(o, "Type on stack top which should be returned is a '"+stack().peek()+"' which is not assignment compatible with the return type of this method, '"+mg.getType()+"'.");
+				//}
+			}
+		}
+		else{
+			Type method_type = mg.getType();
+			if (method_type == Type.BOOLEAN ||
+					method_type == Type.BYTE ||
+					method_type == Type.SHORT ||
+					method_type == Type.CHAR){
+				method_type = Type.INT;
+			}
+			if (! ( method_type.equals( stack().peek() ))){
+				constraintViolated(o, "Current method has return type of '"+mg.getType()+"' expecting a '"+method_type+"' on top of the stack. But stack top is a '"+stack().peek()+"'.");
+			}
+		}
+!!!3952411.java!!!	visitAALOAD(inout o : AALOAD) : void
+		Type arrayref = stack().peek(1);
+		Type index    = stack().peek(0);
+		
+		indexOfInt(o, index);
+		if (arrayrefOfArrayType(o, arrayref)){
+			if (! (((ArrayType) arrayref).getElementType() instanceof ReferenceType)){
+				constraintViolated(o, "The 'arrayref' does not refer to an array with elements of a ReferenceType but to an array of "+((ArrayType) arrayref).getElementType()+".");
+			}	
+			referenceTypeIsInitialized(o, (ReferenceType) (((ArrayType) arrayref).getElementType()));
+		}
+!!!3952539.java!!!	visitAASTORE(inout o : AASTORE) : void
+		Type arrayref = stack().peek(2);
+		Type index    = stack().peek(1);
+		Type value    = stack().peek(0);
+
+		indexOfInt(o, index);
+		if (!(value instanceof ReferenceType)){
+			constraintViolated(o, "The 'value' is not of a ReferenceType but of type "+value+".");
+		}else{
+			referenceTypeIsInitialized(o, (ReferenceType) value);
+		}
+		// Don't bother further with "referenceTypeIsInitialized()", there are no arrays
+		// of an uninitialized object type. 
+		if (arrayrefOfArrayType(o, arrayref)){
+			if (! (((ArrayType) arrayref).getElementType() instanceof ReferenceType)){
+				constraintViolated(o, "The 'arrayref' does not refer to an array with elements of a ReferenceType but to an array of "+((ArrayType) arrayref).getElementType()+".");
+			}
+			if (! ((ReferenceType)value).isAssignmentCompatibleWith((ReferenceType) ((ArrayType) arrayref).getElementType())){
+				constraintViolated(o, "The type of 'value' ('"+value+"') is not assignment compatible to the components of the array 'arrayref' refers to. ('"+((ArrayType) arrayref).getElementType()+"')");
+			}
+		}
+!!!3952667.java!!!	visitACONST_NULL(inout o : ACONST_NULL) : void
+		// Nothing needs to be done here.
+!!!3952795.java!!!	visitALOAD(inout o : ALOAD) : void
+		//visitLoadInstruction(LoadInstruction) is called before.
+		
+		// Nothing else needs to be done here.
+!!!3952923.java!!!	visitANEWARRAY(inout o : ANEWARRAY) : void
+		if (!stack().peek().equals(Type.INT))
+			constraintViolated(o, "The 'count' at the stack top is not of type '"+Type.INT+"' but of type '"+stack().peek()+"'.");
+		// The runtime constant pool item at that index must be a symbolic reference to a class,
+		// array, or interface type. See Pass 3a.
+!!!3953051.java!!!	visitARETURN(inout o : ARETURN) : void
+		if (! (stack().peek() instanceof ReferenceType) ){
+			constraintViolated(o, "The 'objectref' at the stack top is not of a ReferenceType but of type '"+stack().peek()+"'.");
+		}
+		ReferenceType objectref = (ReferenceType) (stack().peek());
+		referenceTypeIsInitialized(o, objectref);
+		
+		// The check below should already done via visitReturnInstruction(ReturnInstruction), see there.
+		// It cannot be done using Staerk-et-al's "set of object types" instead of a
+		// "wider cast object type", anyway.
+		//if (! objectref.isAssignmentCompatibleWith(mg.getReturnType() )){
+		//	constraintViolated(o, "The 'objectref' type "+objectref+" at the stack top is not assignment compatible with the return type '"+mg.getReturnType()+"' of the method.");
+		//}
+!!!3953179.java!!!	visitARRAYLENGTH(inout o : ARRAYLENGTH) : void
+		Type arrayref = stack().peek(0);
+		arrayrefOfArrayType(o, arrayref);
+!!!3953307.java!!!	visitASTORE(inout o : ASTORE) : void
+		if (! ( (stack().peek() instanceof ReferenceType) || (stack().peek() instanceof ReturnaddressType) ) ){
+			constraintViolated(o, "The 'objectref' is not of a ReferenceType or of ReturnaddressType but of "+stack().peek()+".");
+		}
+		if (stack().peek() instanceof ReferenceType){
+			referenceTypeIsInitialized(o, (ReferenceType) (stack().peek()) );
+		}
+!!!3953435.java!!!	visitATHROW(inout o : ATHROW) : void
+		// It's stated that 'objectref' must be of a ReferenceType --- but since Throwable is
+		// not derived from an ArrayType, it follows that 'objectref' must be of an ObjectType or Type.NULL.
+		if (! ((stack().peek() instanceof ObjectType) || (stack().peek().equals(Type.NULL))) ){
+			constraintViolated(o, "The 'objectref' is not of an (initialized) ObjectType but of type "+stack().peek()+".");
+		}
+		
+		// NULL is a subclass of every class, so to speak.
+		if (stack().peek().equals(Type.NULL)) return;
+				
+		ObjectType exc = (ObjectType) (stack().peek());
+		ObjectType throwable = (ObjectType) (Type.getType("Ljava/lang/Throwable;"));
+		if ( (! (exc.subclassOf(throwable)) ) && (! (exc.equals(throwable))) ){
+			constraintViolated(o, "The 'objectref' is not of class Throwable or of a subclass of Throwable, but of '"+stack().peek()+"'.");
+		}
+!!!3953563.java!!!	visitBALOAD(inout o : BALOAD) : void
+		Type arrayref = stack().peek(1);
+		Type index    = stack().peek(0);
+		indexOfInt(o, index);
+		if (arrayrefOfArrayType(o, arrayref)){
+			if (! ( (((ArrayType) arrayref).getElementType().equals(Type.BOOLEAN)) ||
+		 	       (((ArrayType) arrayref).getElementType().equals(Type.BYTE)) ) ){
+				constraintViolated(o, "The 'arrayref' does not refer to an array with elements of a Type.BYTE or Type.BOOLEAN but to an array of '"+((ArrayType) arrayref).getElementType()+"'.");
+			}
+		}
+!!!3953691.java!!!	visitBASTORE(inout o : BASTORE) : void
+		Type arrayref = stack().peek(2);
+		Type index    = stack().peek(1);
+		Type value    = stack().peek(0);
+
+		indexOfInt(o, index);
+		valueOfInt(o, index);
+		if (arrayrefOfArrayType(o, arrayref)){
+			if (! ( (((ArrayType) arrayref).getElementType().equals(Type.BOOLEAN)) ||
+			        (((ArrayType) arrayref).getElementType().equals(Type.BYTE)) ) )
+					constraintViolated(o, "The 'arrayref' does not refer to an array with elements of a Type.BYTE or Type.BOOLEAN but to an array of '"+((ArrayType) arrayref).getElementType()+"'.");
+		}
+!!!3953819.java!!!	visitBIPUSH(inout o : BIPUSH) : void
+		// Nothing to do...
+!!!3953947.java!!!	visitBREAKPOINT(inout o : BREAKPOINT) : void
+		throw new AssertionViolatedException("In this JustIce verification pass there should not occur an illegal instruction such as BREAKPOINT.");
+!!!3954075.java!!!	visitCALOAD(inout o : CALOAD) : void
+		Type arrayref = stack().peek(1);
+		Type index = stack().peek(0);
+		
+		indexOfInt(o, index);
+		arrayrefOfArrayType(o, arrayref);
+!!!3954203.java!!!	visitCASTORE(inout o : CASTORE) : void
+		Type arrayref = stack().peek(2);
+		Type index = stack().peek(1);
+		Type value = stack().peek(0);
+		
+		indexOfInt(o, index);
+		valueOfInt(o, index);
+		if (arrayrefOfArrayType(o, arrayref)){
+			if (! ((ArrayType) arrayref).getElementType().equals(Type.CHAR) ){
+				constraintViolated(o, "The 'arrayref' does not refer to an array with elements of type char but to an array of type "+((ArrayType) arrayref).getElementType()+".");
+			}
+		}
+!!!3954331.java!!!	visitCHECKCAST(inout o : CHECKCAST) : void
+		// The objectref must be of type reference.
+		Type objectref = stack().peek(0);
+		if (!(objectref instanceof ReferenceType)){
+			constraintViolated(o, "The 'objectref' is not of a ReferenceType but of type "+objectref+".");
+		}
+		else{
+			referenceTypeIsInitialized(o, (ReferenceType) objectref);
+		}
+		// The unsigned indexbyte1 and indexbyte2 are used to construct an index into the runtime constant pool of the
+		// current class (&#247;3.6), where the value of the index is (indexbyte1 << 8) | indexbyte2. The runtime constant
+		// pool item at the index must be a symbolic reference to a class, array, or interface type.
+		Constant c = cpg.getConstant(o.getIndex());
+		if (! (c instanceof ConstantClass)){
+			constraintViolated(o, "The Constant at 'index' is not a ConstantClass, but '"+c+"'.");
+		}
+!!!3954459.java!!!	visitD2F(inout o : D2F) : void
+		if (stack().peek() != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack top is not of type 'double', but of type '"+stack().peek()+"'.");
+		}
+!!!3954587.java!!!	visitD2I(inout o : D2I) : void
+		if (stack().peek() != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack top is not of type 'double', but of type '"+stack().peek()+"'.");
+		}
+!!!3954715.java!!!	visitD2L(inout o : D2L) : void
+		if (stack().peek() != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack top is not of type 'double', but of type '"+stack().peek()+"'.");
+		}
+!!!3954843.java!!!	visitDADD(inout o : DADD) : void
+		if (stack().peek() != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack top is not of type 'double', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'double', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3954971.java!!!	visitDALOAD(inout o : DALOAD) : void
+		indexOfInt(o, stack().peek());
+		if (stack().peek(1) == Type.NULL){
+			return;
+		} 
+		if (! (stack().peek(1) instanceof ArrayType)){
+			constraintViolated(o, "Stack next-to-top must be of type double[] but is '"+stack().peek(1)+"'.");
+		}
+		Type t = ((ArrayType) (stack().peek(1))).getBasicType();
+		if (t != Type.DOUBLE){
+			constraintViolated(o, "Stack next-to-top must be of type double[] but is '"+stack().peek(1)+"'.");
+		}
+!!!3955099.java!!!	visitDASTORE(inout o : DASTORE) : void
+		if (stack().peek() != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack top is not of type 'double', but of type '"+stack().peek()+"'.");
+		}
+		indexOfInt(o, stack().peek(1));
+		if (stack().peek(2) == Type.NULL){
+			return;
+		} 
+		if (! (stack().peek(2) instanceof ArrayType)){
+			constraintViolated(o, "Stack next-to-next-to-top must be of type double[] but is '"+stack().peek(2)+"'.");
+		}
+		Type t = ((ArrayType) (stack().peek(2))).getBasicType();
+		if (t != Type.DOUBLE){
+			constraintViolated(o, "Stack next-to-next-to-top must be of type double[] but is '"+stack().peek(2)+"'.");
+		}
+!!!3955227.java!!!	visitDCMPG(inout o : DCMPG) : void
+		if (stack().peek() != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack top is not of type 'double', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'double', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3955355.java!!!	visitDCMPL(inout o : DCMPL) : void
+		if (stack().peek() != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack top is not of type 'double', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'double', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3955483.java!!!	visitDCONST(inout o : DCONST) : void
+		// There's nothing to be done here.
+!!!3955611.java!!!	visitDDIV(inout o : DDIV) : void
+		if (stack().peek() != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack top is not of type 'double', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'double', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3955739.java!!!	visitDLOAD(inout o : DLOAD) : void
+		//visitLoadInstruction(LoadInstruction) is called before.
+		
+		// Nothing else needs to be done here.
+!!!3955867.java!!!	visitDMUL(inout o : DMUL) : void
+		if (stack().peek() != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack top is not of type 'double', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'double', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3955995.java!!!	visitDNEG(inout o : DNEG) : void
+		if (stack().peek() != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack top is not of type 'double', but of type '"+stack().peek()+"'.");
+		}
+!!!3956123.java!!!	visitDREM(inout o : DREM) : void
+		if (stack().peek() != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack top is not of type 'double', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'double', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3956251.java!!!	visitDRETURN(inout o : DRETURN) : void
+		if (stack().peek() != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack top is not of type 'double', but of type '"+stack().peek()+"'.");
+		}
+!!!3956379.java!!!	visitDSTORE(inout o : DSTORE) : void
+		//visitStoreInstruction(StoreInstruction) is called before.
+		
+		// Nothing else needs to be done here.
+!!!3956507.java!!!	visitDSUB(inout o : DSUB) : void
+		if (stack().peek() != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack top is not of type 'double', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.DOUBLE){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'double', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3956635.java!!!	visitDUP(inout o : DUP) : void
+		if (stack().peek().getSize() != 1){
+			constraintViolated(o, "Won't DUP type on stack top '"+stack().peek()+"' because it must occupy exactly one slot, not '"+stack().peek().getSize()+"'.");
+		}
+!!!3956763.java!!!	visitDUP_X1(inout o : DUP_X1) : void
+		if (stack().peek().getSize() != 1){
+			constraintViolated(o, "Type on stack top '"+stack().peek()+"' should occupy exactly one slot, not '"+stack().peek().getSize()+"'.");
+		}
+		if (stack().peek(1).getSize() != 1){
+			constraintViolated(o, "Type on stack next-to-top '"+stack().peek(1)+"' should occupy exactly one slot, not '"+stack().peek(1).getSize()+"'.");
+		}
+!!!3956891.java!!!	visitDUP_X2(inout o : DUP_X2) : void
+		if (stack().peek().getSize() != 1){
+			constraintViolated(o, "Stack top type must be of size 1, but is '"+stack().peek()+"' of size '"+stack().peek().getSize()+"'.");
+		}
+		if (stack().peek(1).getSize() == 2){
+			return; // Form 2, okay.
+		}
+		else{   //stack().peek(1).getSize == 1.
+			if (stack().peek(2).getSize() != 1){
+				constraintViolated(o, "If stack top's size is 1 and stack next-to-top's size is 1, stack next-to-next-to-top's size must also be 1, but is: '"+stack().peek(2)+"' of size '"+stack().peek(2).getSize()+"'.");
+			}
+		}
+!!!3957019.java!!!	visitDUP2(inout o : DUP2) : void
+		if (stack().peek().getSize() == 2){
+			return; // Form 2, okay.
+		}
+		else{ //stack().peek().getSize() == 1.
+			if (stack().peek(1).getSize() != 1){
+				constraintViolated(o, "If stack top's size is 1, then stack next-to-top's size must also be 1. But it is '"+stack().peek(1)+"' of size '"+stack().peek(1).getSize()+"'.");
+			}
+		}
+!!!3957147.java!!!	visitDUP2_X1(inout o : DUP2_X1) : void
+		if (stack().peek().getSize() == 2){
+			if (stack().peek(1).getSize() != 1){
+				constraintViolated(o, "If stack top's size is 2, then stack next-to-top's size must be 1. But it is '"+stack().peek(1)+"' of size '"+stack().peek(1).getSize()+"'.");
+			}
+			else{
+				return; // Form 2
+			}
+		}
+		else{ // stack top is of size 1
+			if ( stack().peek(1).getSize() != 1 ){
+				constraintViolated(o, "If stack top's size is 1, then stack next-to-top's size must also be 1. But it is '"+stack().peek(1)+"' of size '"+stack().peek(1).getSize()+"'.");
+			}
+			if ( stack().peek(2).getSize() != 1 ){
+				constraintViolated(o, "If stack top's size is 1, then stack next-to-next-to-top's size must also be 1. But it is '"+stack().peek(2)+"' of size '"+stack().peek(2).getSize()+"'.");
+			}
+		}
+!!!3957275.java!!!	visitDUP2_X2(inout o : DUP2_X2) : void
+
+		if (stack().peek(0).getSize() == 2){
+		 	if (stack().peek(1).getSize() == 2){
+				return; // Form 4
+			}
+			else{// stack top size is 2, next-to-top's size is 1
+				if ( stack().peek(2).getSize() != 1 ){
+					constraintViolated(o, "If stack top's size is 2 and stack-next-to-top's size is 1, then stack next-to-next-to-top's size must also be 1. But it is '"+stack().peek(2)+"' of size '"+stack().peek(2).getSize()+"'.");
+				}
+				else{
+					return; // Form 2
+				}
+			}
+		}
+		else{// stack top is of size 1
+			if (stack().peek(1).getSize() == 1){
+				if ( stack().peek(2).getSize() == 2 ){
+					return; // Form 3
+				}
+				else{
+					if ( stack().peek(3).getSize() == 1){
+						return; // Form 1
+					}
+				}
+			}
+		}
+		constraintViolated(o, "The operand sizes on the stack do not match any of the four forms of usage of this instruction.");
+!!!3957403.java!!!	visitF2D(inout o : F2D) : void
+		if (stack().peek() != Type.FLOAT){
+			constraintViolated(o, "The value at the stack top is not of type 'float', but of type '"+stack().peek()+"'.");
+		}
+!!!3957531.java!!!	visitF2I(inout o : F2I) : void
+		if (stack().peek() != Type.FLOAT){
+			constraintViolated(o, "The value at the stack top is not of type 'float', but of type '"+stack().peek()+"'.");
+		}
+!!!3957659.java!!!	visitF2L(inout o : F2L) : void
+		if (stack().peek() != Type.FLOAT){
+			constraintViolated(o, "The value at the stack top is not of type 'float', but of type '"+stack().peek()+"'.");
+		}
+!!!3957787.java!!!	visitFADD(inout o : FADD) : void
+		if (stack().peek() != Type.FLOAT){
+			constraintViolated(o, "The value at the stack top is not of type 'float', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.FLOAT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'float', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3957915.java!!!	visitFALOAD(inout o : FALOAD) : void
+		indexOfInt(o, stack().peek());
+		if (stack().peek(1) == Type.NULL){
+			return;
+		} 
+		if (! (stack().peek(1) instanceof ArrayType)){
+			constraintViolated(o, "Stack next-to-top must be of type float[] but is '"+stack().peek(1)+"'.");
+		}
+		Type t = ((ArrayType) (stack().peek(1))).getBasicType();
+		if (t != Type.FLOAT){
+			constraintViolated(o, "Stack next-to-top must be of type float[] but is '"+stack().peek(1)+"'.");
+		}
+!!!3958043.java!!!	visitFASTORE(inout o : FASTORE) : void
+		if (stack().peek() != Type.FLOAT){
+			constraintViolated(o, "The value at the stack top is not of type 'float', but of type '"+stack().peek()+"'.");
+		}
+		indexOfInt(o, stack().peek(1));
+		if (stack().peek(2) == Type.NULL){
+			return;
+		} 
+		if (! (stack().peek(2) instanceof ArrayType)){
+			constraintViolated(o, "Stack next-to-next-to-top must be of type float[] but is '"+stack().peek(2)+"'.");
+		}
+		Type t = ((ArrayType) (stack().peek(2))).getBasicType();
+		if (t != Type.FLOAT){
+			constraintViolated(o, "Stack next-to-next-to-top must be of type float[] but is '"+stack().peek(2)+"'.");
+		}
+!!!3958171.java!!!	visitFCMPG(inout o : FCMPG) : void
+		if (stack().peek() != Type.FLOAT){
+			constraintViolated(o, "The value at the stack top is not of type 'float', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.FLOAT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'float', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3958299.java!!!	visitFCMPL(inout o : FCMPL) : void
+		if (stack().peek() != Type.FLOAT){
+			constraintViolated(o, "The value at the stack top is not of type 'float', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.FLOAT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'float', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3958427.java!!!	visitFCONST(inout o : FCONST) : void
+		// nothing to do here.
+!!!3958555.java!!!	visitFDIV(inout o : FDIV) : void
+		if (stack().peek() != Type.FLOAT){
+			constraintViolated(o, "The value at the stack top is not of type 'float', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.FLOAT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'float', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3958683.java!!!	visitFLOAD(inout o : FLOAD) : void
+		//visitLoadInstruction(LoadInstruction) is called before.
+		
+		// Nothing else needs to be done here.
+!!!3958811.java!!!	visitFMUL(inout o : FMUL) : void
+		if (stack().peek() != Type.FLOAT){
+			constraintViolated(o, "The value at the stack top is not of type 'float', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.FLOAT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'float', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3958939.java!!!	visitFNEG(inout o : FNEG) : void
+		if (stack().peek() != Type.FLOAT){
+			constraintViolated(o, "The value at the stack top is not of type 'float', but of type '"+stack().peek()+"'.");
+		}
+!!!3959067.java!!!	visitFREM(inout o : FREM) : void
+		if (stack().peek() != Type.FLOAT){
+			constraintViolated(o, "The value at the stack top is not of type 'float', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.FLOAT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'float', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3959195.java!!!	visitFRETURN(inout o : FRETURN) : void
+		if (stack().peek() != Type.FLOAT){
+			constraintViolated(o, "The value at the stack top is not of type 'float', but of type '"+stack().peek()+"'.");
+		}
+!!!3959323.java!!!	visitFSTORE(inout o : FSTORE) : void
+		//visitStoreInstruction(StoreInstruction) is called before.
+		
+		// Nothing else needs to be done here.
+!!!3959451.java!!!	visitFSUB(inout o : FSUB) : void
+		if (stack().peek() != Type.FLOAT){
+			constraintViolated(o, "The value at the stack top is not of type 'float', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.FLOAT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'float', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3959579.java!!!	visitGETFIELD(inout o : GETFIELD) : void
+		Type objectref = stack().peek();
+		if (! ( (objectref instanceof ObjectType) || (objectref == Type.NULL) ) ){
+			constraintViolated(o, "Stack top should be an object reference that's not an array reference, but is '"+objectref+"'.");
+		}
+		
+		String field_name = o.getFieldName(cpg);
+		
+		JavaClass jc = Repository.lookupClass(o.getClassType(cpg).getClassName());
+		Field[] fields = jc.getFields();
+		Field f = null;
+		for (int i=0; i<fields.length; i++){
+			if (fields[i].getName().equals(field_name)){
+				f = fields[i];
+				break;
+			}
+		}
+		if (f == null){
+			throw new AssertionViolatedException("Field not found?!?");
+		}
+
+		if (f.isProtected()){
+			ObjectType classtype = o.getClassType(cpg);
+			ObjectType curr = new ObjectType(mg.getClassName());
+
+			if (	classtype.equals(curr) ||
+						curr.subclassOf(classtype)	){
+				Type t = stack().peek();
+				if (t == Type.NULL){
+					return;
+				}
+				if (! (t instanceof ObjectType) ){
+					constraintViolated(o, "The 'objectref' must refer to an object that's not an array. Found instead: '"+t+"'.");
+				}
+				ObjectType objreftype = (ObjectType) t;
+				if (! ( objreftype.equals(curr) ||
+						    objreftype.subclassOf(curr) ) ){
+					//TODO: One day move to Staerk-et-al's "Set of object types" instead of "wider" object types
+					//      created during the verification.
+					//      "Wider" object types don't allow us to check for things like that below.
+					//constraintViolated(o, "The referenced field has the ACC_PROTECTED modifier, and it's a member of the current class or a superclass of the current class. However, the referenced object type '"+stack().peek()+"' is not the current class or a subclass of the current class.");
+				}
+			} 
+		}
+		
+		// TODO: Could go into Pass 3a.
+		if (f.isStatic()){
+			constraintViolated(o, "Referenced field '"+f+"' is static which it shouldn't be.");
+		}
+!!!3959707.java!!!	visitGETSTATIC(inout o : GETSTATIC) : void
+		// Field must be static: see Pass 3a.
+!!!3959835.java!!!	visitGOTO(inout o : GOTO) : void
+		// nothing to do here.
+!!!3959963.java!!!	visitGOTO_W(inout o : GOTO_W) : void
+		// nothing to do here.
+!!!3960091.java!!!	visitI2B(inout o : I2B) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+!!!3960219.java!!!	visitI2C(inout o : I2C) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+!!!3960347.java!!!	visitI2D(inout o : I2D) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+!!!3960475.java!!!	visitI2F(inout o : I2F) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+!!!3960603.java!!!	visitI2L(inout o : I2L) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+!!!3960731.java!!!	visitI2S(inout o : I2S) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+!!!3960859.java!!!	visitIADD(inout o : IADD) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3960987.java!!!	visitIALOAD(inout o : IALOAD) : void
+		indexOfInt(o, stack().peek());
+		if (stack().peek(1) == Type.NULL){
+			return;
+		} 
+		if (! (stack().peek(1) instanceof ArrayType)){
+			constraintViolated(o, "Stack next-to-top must be of type int[] but is '"+stack().peek(1)+"'.");
+		}
+		Type t = ((ArrayType) (stack().peek(1))).getBasicType();
+		if (t != Type.INT){
+			constraintViolated(o, "Stack next-to-top must be of type int[] but is '"+stack().peek(1)+"'.");
+		}
+!!!3961115.java!!!	visitIAND(inout o : IAND) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3961243.java!!!	visitIASTORE(inout o : IASTORE) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		indexOfInt(o, stack().peek(1));
+		if (stack().peek(2) == Type.NULL){
+			return;
+		} 
+		if (! (stack().peek(2) instanceof ArrayType)){
+			constraintViolated(o, "Stack next-to-next-to-top must be of type int[] but is '"+stack().peek(2)+"'.");
+		}
+		Type t = ((ArrayType) (stack().peek(2))).getBasicType();
+		if (t != Type.INT){
+			constraintViolated(o, "Stack next-to-next-to-top must be of type int[] but is '"+stack().peek(2)+"'.");
+		}
+!!!3961371.java!!!	visitICONST(inout o : ICONST) : void
+		//nothing to do here.
+!!!3961499.java!!!	visitIDIV(inout o : IDIV) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3961627.java!!!	visitIF_ACMPEQ(inout o : IF_ACMPEQ) : void
+		if (!(stack().peek() instanceof ReferenceType)){
+			constraintViolated(o, "The value at the stack top is not of a ReferenceType, but of type '"+stack().peek()+"'.");
+		}
+		referenceTypeIsInitialized(o, (ReferenceType) (stack().peek()) );
+	
+		if (!(stack().peek(1) instanceof ReferenceType)){
+			constraintViolated(o, "The value at the stack next-to-top is not of a ReferenceType, but of type '"+stack().peek(1)+"'.");
+		}
+		referenceTypeIsInitialized(o, (ReferenceType) (stack().peek(1)) );
+		
+!!!3961755.java!!!	visitIF_ACMPNE(inout o : IF_ACMPNE) : void
+		if (!(stack().peek() instanceof ReferenceType)){
+			constraintViolated(o, "The value at the stack top is not of a ReferenceType, but of type '"+stack().peek()+"'.");
+			referenceTypeIsInitialized(o, (ReferenceType) (stack().peek()) );
+		}
+		if (!(stack().peek(1) instanceof ReferenceType)){
+			constraintViolated(o, "The value at the stack next-to-top is not of a ReferenceType, but of type '"+stack().peek(1)+"'.");
+			referenceTypeIsInitialized(o, (ReferenceType) (stack().peek(1)) );
+		}
+!!!3961883.java!!!	visitIF_ICMPEQ(inout o : IF_ICMPEQ) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3962011.java!!!	visitIF_ICMPGE(inout o : IF_ICMPGE) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3962139.java!!!	visitIF_ICMPGT(inout o : IF_ICMPGT) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3962267.java!!!	visitIF_ICMPLE(inout o : IF_ICMPLE) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3962395.java!!!	visitIF_ICMPLT(inout o : IF_ICMPLT) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3962523.java!!!	visitIF_ICMPNE(inout o : IF_ICMPNE) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3962651.java!!!	visitIFEQ(inout o : IFEQ) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+!!!3962779.java!!!	visitIFGE(inout o : IFGE) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+!!!3962907.java!!!	visitIFGT(inout o : IFGT) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+!!!3963035.java!!!	visitIFLE(inout o : IFLE) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+!!!3963163.java!!!	visitIFLT(inout o : IFLT) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+!!!3963291.java!!!	visitIFNE(inout o : IFNE) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+!!!3963419.java!!!	visitIFNONNULL(inout o : IFNONNULL) : void
+		if (!(stack().peek() instanceof ReferenceType)){
+			constraintViolated(o, "The value at the stack top is not of a ReferenceType, but of type '"+stack().peek()+"'.");
+		}
+		referenceTypeIsInitialized(o, (ReferenceType) (stack().peek()) );	
+!!!3963547.java!!!	visitIFNULL(inout o : IFNULL) : void
+		if (!(stack().peek() instanceof ReferenceType)){
+			constraintViolated(o, "The value at the stack top is not of a ReferenceType, but of type '"+stack().peek()+"'.");
+		}
+		referenceTypeIsInitialized(o, (ReferenceType) (stack().peek()) );	
+!!!3963675.java!!!	visitIINC(inout o : IINC) : void
+		// Mhhh. In BCEL, at this time "IINC" is not a LocalVariableInstruction.
+		if (locals().maxLocals() <= (o.getType(cpg).getSize()==1? o.getIndex() : o.getIndex()+1) ){
+			constraintViolated(o, "The 'index' is not a valid index into the local variable array.");
+		}
+
+		indexOfInt(o, locals().get(o.getIndex()));
+!!!3963803.java!!!	visitILOAD(inout o : ILOAD) : void
+		// All done by visitLocalVariableInstruction(), visitLoadInstruction()
+!!!3963931.java!!!	visitIMPDEP1(inout o : IMPDEP1) : void
+		throw new AssertionViolatedException("In this JustIce verification pass there should not occur an illegal instruction such as IMPDEP1.");
+!!!3964059.java!!!	visitIMPDEP2(inout o : IMPDEP2) : void
+		throw new AssertionViolatedException("In this JustIce verification pass there should not occur an illegal instruction such as IMPDEP2.");
+!!!3964187.java!!!	visitIMUL(inout o : IMUL) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3964315.java!!!	visitINEG(inout o : INEG) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+!!!3964443.java!!!	visitINSTANCEOF(inout o : INSTANCEOF) : void
+		// The objectref must be of type reference.
+		Type objectref = stack().peek(0);
+		if (!(objectref instanceof ReferenceType)){
+			constraintViolated(o, "The 'objectref' is not of a ReferenceType but of type "+objectref+".");
+		}
+		else{
+			referenceTypeIsInitialized(o, (ReferenceType) objectref);
+		}
+		// The unsigned indexbyte1 and indexbyte2 are used to construct an index into the runtime constant pool of the
+		// current class (&#247;3.6), where the value of the index is (indexbyte1 << 8) | indexbyte2. The runtime constant
+		// pool item at the index must be a symbolic reference to a class, array, or interface type.
+		Constant c = cpg.getConstant(o.getIndex());
+		if (! (c instanceof ConstantClass)){
+			constraintViolated(o, "The Constant at 'index' is not a ConstantClass, but '"+c+"'.");
+		}
+!!!3964571.java!!!	visitINVOKEINTERFACE(inout o : INVOKEINTERFACE) : void
+		// Method is not native, otherwise pass 3 would not happen.
+		
+		int count = o.getCount();
+		if (count == 0){
+			constraintViolated(o, "The 'count' argument must not be 0.");
+		}
+		// It is a ConstantInterfaceMethodref, Pass 3a made it sure.
+		ConstantInterfaceMethodref cimr = (ConstantInterfaceMethodref) (cpg.getConstant(o.getIndex()));
+		
+		// the o.getClassType(cpg) type has passed pass 2; see visitLoadClass(o).
+
+		Type t = o.getType(cpg);
+		if (t instanceof ObjectType){
+			String name = ((ObjectType)t).getClassName();
+			Verifier v = VerifierFactory.getVerifier( name );
+			VerificationResult vr = v.doPass2();
+			if (vr.getStatus() != VerificationResult.VERIFIED_OK){
+				constraintViolated((Instruction) o, "Class '"+name+"' is referenced, but cannot be loaded and resolved: '"+vr+"'.");
+			}
+		}
+
+
+		Type[] argtypes = o.getArgumentTypes(cpg);
+		int nargs = argtypes.length;
+		
+		for (int i=nargs-1; i>=0; i--){
+			Type fromStack = stack().peek( (nargs-1) - i );	// 0 to nargs-1
+			Type fromDesc = argtypes[i];
+			if (fromDesc == Type.BOOLEAN ||
+					fromDesc == Type.BYTE ||
+					fromDesc == Type.CHAR ||
+					fromDesc == Type.SHORT){
+				fromDesc = Type.INT;
+			}
+			if (! fromStack.equals(fromDesc)){
+				if (fromStack instanceof ReferenceType && fromDesc instanceof ReferenceType){
+					ReferenceType rFromStack = (ReferenceType) fromStack;
+					ReferenceType rFromDesc = (ReferenceType) fromDesc;
+					// TODO: This can only be checked when using Staerk-et-al's "set of object types"
+					// instead of a "wider cast object type" created during verification.
+					//if ( ! rFromStack.isAssignmentCompatibleWith(rFromDesc) ){
+					//	constraintViolated(o, "Expecting a '"+fromDesc+"' but found a '"+fromStack+"' on the stack (which is not assignment compatible).");
+					//}
+				}
+				else{
+					constraintViolated(o, "Expecting a '"+fromDesc+"' but found a '"+fromStack+"' on the stack.");
+				}
+			}
+		}
+		
+		Type objref = stack().peek(nargs);
+		if (objref == Type.NULL){
+			return;
+		}
+		if (! (objref instanceof ReferenceType) ){
+			constraintViolated(o, "Expecting a reference type as 'objectref' on the stack, not a '"+objref+"'.");
+		}
+		referenceTypeIsInitialized(o, (ReferenceType) objref);
+		if (!(objref instanceof ObjectType)){
+			if (!(objref instanceof ArrayType)){
+				constraintViolated(o, "Expecting an ObjectType as 'objectref' on the stack, not a '"+objref+"'."); // could be a ReturnaddressType
+			}
+			else{
+				objref = GENERIC_ARRAY;
+			}
+		}
+		
+		String objref_classname = ((ObjectType) objref).getClassName();
+
+		String theInterface = o.getClassName(cpg);
+	
+		// TODO: This can only be checked if we're using Staerk-et-al's "set of object types"
+		//       instead of "wider cast object types" generated during verification.
+		//if ( ! Repository.implementationOf(objref_classname, theInterface) ){
+		//	constraintViolated(o, "The 'objref' item '"+objref+"' does not implement '"+theInterface+"' as expected.");
+		//}	
+
+		int counted_count = 1; // 1 for the objectref
+		for (int i=0; i<nargs; i++){
+			counted_count += argtypes[i].getSize();
+		}
+		if (count != counted_count){
+			constraintViolated(o, "The 'count' argument should probably read '"+counted_count+"' but is '"+count+"'.");
+		}
+!!!3964699.java!!!	visitINVOKESPECIAL(inout o : INVOKESPECIAL) : void
+		// Don't init an object twice.
+		if ( (o.getMethodName(cpg).equals(Constants.CONSTRUCTOR_NAME)) && (!(stack().peek(o.getArgumentTypes(cpg).length) instanceof UninitializedObjectType)) ){
+			constraintViolated(o, "Possibly initializing object twice. A valid instruction sequence must not have an uninitialized object on the operand stack or in a local variable during a backwards branch, or in a local variable in code protected by an exception handler. Please see The Java Virtual Machine Specification, Second Edition, 4.9.4 (pages 147 and 148) for details.");
+		}
+
+		// the o.getClassType(cpg) type has passed pass 2; see visitLoadClass(o).
+
+		Type t = o.getType(cpg);
+		if (t instanceof ObjectType){
+			String name = ((ObjectType)t).getClassName();
+			Verifier v = VerifierFactory.getVerifier( name );
+			VerificationResult vr = v.doPass2();
+			if (vr.getStatus() != VerificationResult.VERIFIED_OK){
+				constraintViolated((Instruction) o, "Class '"+name+"' is referenced, but cannot be loaded and resolved: '"+vr+"'.");
+			}
+		}
+
+
+		Type[] argtypes = o.getArgumentTypes(cpg);
+		int nargs = argtypes.length;
+		
+		for (int i=nargs-1; i>=0; i--){
+			Type fromStack = stack().peek( (nargs-1) - i );	// 0 to nargs-1
+			Type fromDesc = argtypes[i];
+			if (fromDesc == Type.BOOLEAN ||
+					fromDesc == Type.BYTE ||
+					fromDesc == Type.CHAR ||
+					fromDesc == Type.SHORT){
+				fromDesc = Type.INT;
+			}
+			if (! fromStack.equals(fromDesc)){
+				if (fromStack instanceof ReferenceType && fromDesc instanceof ReferenceType){
+					ReferenceType rFromStack = (ReferenceType) fromStack;
+					ReferenceType rFromDesc = (ReferenceType) fromDesc;
+					// TODO: This can only be checked using Staerk-et-al's "set of object types", not
+					// using a "wider cast object type".
+					//if ( ! rFromStack.isAssignmentCompatibleWith(rFromDesc) ){
+					//	constraintViolated(o, "Expecting a '"+fromDesc+"' but found a '"+fromStack+"' on the stack (which is not assignment compatible).");
+					//}
+				}
+				else{
+					constraintViolated(o, "Expecting a '"+fromDesc+"' but found a '"+fromStack+"' on the stack.");
+				}
+			}
+		}
+		
+		Type objref = stack().peek(nargs);
+		if (objref == Type.NULL){
+			return;
+		}
+		if (! (objref instanceof ReferenceType) ){
+			constraintViolated(o, "Expecting a reference type as 'objectref' on the stack, not a '"+objref+"'.");
+		}
+		String objref_classname = null;
+		if ( !(o.getMethodName(cpg).equals(Constants.CONSTRUCTOR_NAME))){
+			referenceTypeIsInitialized(o, (ReferenceType) objref);
+			if (!(objref instanceof ObjectType)){
+				if (!(objref instanceof ArrayType)){
+					constraintViolated(o, "Expecting an ObjectType as 'objectref' on the stack, not a '"+objref+"'."); // could be a ReturnaddressType
+				}
+				else{
+					objref = GENERIC_ARRAY;
+				}
+			}
+
+			objref_classname = ((ObjectType) objref).getClassName();		
+		}
+		else{
+			if (!(objref instanceof UninitializedObjectType)){
+				constraintViolated(o, "Expecting an UninitializedObjectType as 'objectref' on the stack, not a '"+objref+"'. Otherwise, you couldn't invoke a method since an array has no methods (not to speak of a return address).");
+			}
+			objref_classname = ((UninitializedObjectType) objref).getInitialized().getClassName();
+		}
+		
+
+		String theClass = o.getClassName(cpg);
+		if ( ! Repository.instanceOf(objref_classname, theClass) ){
+			constraintViolated(o, "The 'objref' item '"+objref+"' does not implement '"+theClass+"' as expected.");
+		}	
+		
+!!!3964827.java!!!	visitINVOKESTATIC(inout o : INVOKESTATIC) : void
+		// Method is not native, otherwise pass 3 would not happen.
+		
+		Type t = o.getType(cpg);
+		if (t instanceof ObjectType){
+			String name = ((ObjectType)t).getClassName();
+			Verifier v = VerifierFactory.getVerifier( name );
+			VerificationResult vr = v.doPass2();
+			if (vr.getStatus() != VerificationResult.VERIFIED_OK){
+				constraintViolated((Instruction) o, "Class '"+name+"' is referenced, but cannot be loaded and resolved: '"+vr+"'.");
+			}
+		}
+
+		Type[] argtypes = o.getArgumentTypes(cpg);
+		int nargs = argtypes.length;
+		
+		for (int i=nargs-1; i>=0; i--){
+			Type fromStack = stack().peek( (nargs-1) - i );	// 0 to nargs-1
+			Type fromDesc = argtypes[i];
+			if (fromDesc == Type.BOOLEAN ||
+					fromDesc == Type.BYTE ||
+					fromDesc == Type.CHAR ||
+					fromDesc == Type.SHORT){
+				fromDesc = Type.INT;
+			}
+			if (! fromStack.equals(fromDesc)){
+				if (fromStack instanceof ReferenceType && fromDesc instanceof ReferenceType){
+					ReferenceType rFromStack = (ReferenceType) fromStack;
+					ReferenceType rFromDesc = (ReferenceType) fromDesc;
+					// TODO: This check can only be done using Staerk-et-al's "set of object types"
+					// instead of a "wider cast object type" created during verification.
+					//if ( ! rFromStack.isAssignmentCompatibleWith(rFromDesc) ){
+					//	constraintViolated(o, "Expecting a '"+fromDesc+"' but found a '"+fromStack+"' on the stack (which is not assignment compatible).");
+					//}
+				}
+				else{
+					constraintViolated(o, "Expecting a '"+fromDesc+"' but found a '"+fromStack+"' on the stack.");
+				}
+			}
+		}
+!!!3964955.java!!!	visitINVOKEVIRTUAL(inout o : INVOKEVIRTUAL) : void
+		// the o.getClassType(cpg) type has passed pass 2; see visitLoadClass(o).
+
+		Type t = o.getType(cpg);
+		if (t instanceof ObjectType){
+			String name = ((ObjectType)t).getClassName();
+			Verifier v = VerifierFactory.getVerifier( name );
+			VerificationResult vr = v.doPass2();
+			if (vr.getStatus() != VerificationResult.VERIFIED_OK){
+				constraintViolated((Instruction) o, "Class '"+name+"' is referenced, but cannot be loaded and resolved: '"+vr+"'.");
+			}
+		}
+
+
+		Type[] argtypes = o.getArgumentTypes(cpg);
+		int nargs = argtypes.length;
+		
+		for (int i=nargs-1; i>=0; i--){
+			Type fromStack = stack().peek( (nargs-1) - i );	// 0 to nargs-1
+			Type fromDesc = argtypes[i];
+			if (fromDesc == Type.BOOLEAN ||
+					fromDesc == Type.BYTE ||
+					fromDesc == Type.CHAR ||
+					fromDesc == Type.SHORT){
+				fromDesc = Type.INT;
+			}
+			if (! fromStack.equals(fromDesc)){
+				if (fromStack instanceof ReferenceType && fromDesc instanceof ReferenceType){
+					ReferenceType rFromStack = (ReferenceType) fromStack;
+					ReferenceType rFromDesc = (ReferenceType) fromDesc;
+					// TODO: This can only be checked when using Staerk-et-al's "set of object types" instead
+					// of a single "wider cast object type" created during verification.
+					//if ( ! rFromStack.isAssignmentCompatibleWith(rFromDesc) ){
+					//	constraintViolated(o, "Expecting a '"+fromDesc+"' but found a '"+fromStack+"' on the stack (which is not assignment compatible).");
+					//}
+				}
+				else{
+					constraintViolated(o, "Expecting a '"+fromDesc+"' but found a '"+fromStack+"' on the stack.");
+				}
+			}
+		}
+		
+		Type objref = stack().peek(nargs);
+		if (objref == Type.NULL){
+			return;
+		}
+		if (! (objref instanceof ReferenceType) ){
+			constraintViolated(o, "Expecting a reference type as 'objectref' on the stack, not a '"+objref+"'.");
+		}
+		referenceTypeIsInitialized(o, (ReferenceType) objref);
+		if (!(objref instanceof ObjectType)){
+			if (!(objref instanceof ArrayType)){
+				constraintViolated(o, "Expecting an ObjectType as 'objectref' on the stack, not a '"+objref+"'."); // could be a ReturnaddressType
+			}
+			else{
+				objref = GENERIC_ARRAY;
+			}
+		}
+		
+		String objref_classname = ((ObjectType) objref).getClassName();
+
+		String theClass = o.getClassName(cpg);
+	
+		if ( ! Repository.instanceOf(objref_classname, theClass) ){
+			constraintViolated(o, "The 'objref' item '"+objref+"' does not implement '"+theClass+"' as expected.");
+		}	
+!!!3965083.java!!!	visitIOR(inout o : IOR) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3965211.java!!!	visitIREM(inout o : IREM) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3965339.java!!!	visitIRETURN(inout o : IRETURN) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+!!!3965467.java!!!	visitISHL(inout o : ISHL) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3965595.java!!!	visitISHR(inout o : ISHR) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3965723.java!!!	visitISTORE(inout o : ISTORE) : void
+		//visitStoreInstruction(StoreInstruction) is called before.
+		
+		// Nothing else needs to be done here.
+!!!3965851.java!!!	visitISUB(inout o : ISUB) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3965979.java!!!	visitIUSHR(inout o : IUSHR) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3966107.java!!!	visitIXOR(inout o : IXOR) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.INT){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'int', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3966235.java!!!	visitJSR(inout o : JSR) : void
+		// nothing to do here.
+!!!3966363.java!!!	visitJSR_W(inout o : JSR_W) : void
+		// nothing to do here.
+!!!3966491.java!!!	visitL2D(inout o : L2D) : void
+		if (stack().peek() != Type.LONG){
+			constraintViolated(o, "The value at the stack top is not of type 'long', but of type '"+stack().peek()+"'.");
+		}
+!!!3966619.java!!!	visitL2F(inout o : L2F) : void
+		if (stack().peek() != Type.LONG){
+			constraintViolated(o, "The value at the stack top is not of type 'long', but of type '"+stack().peek()+"'.");
+		}
+!!!3966747.java!!!	visitL2I(inout o : L2I) : void
+		if (stack().peek() != Type.LONG){
+			constraintViolated(o, "The value at the stack top is not of type 'long', but of type '"+stack().peek()+"'.");
+		}
+!!!3966875.java!!!	visitLADD(inout o : LADD) : void
+		if (stack().peek() != Type.LONG){
+			constraintViolated(o, "The value at the stack top is not of type 'long', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.LONG){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'long', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3967003.java!!!	visitLALOAD(inout o : LALOAD) : void
+		indexOfInt(o, stack().peek());
+		if (stack().peek(1) == Type.NULL){
+			return;
+		} 
+		if (! (stack().peek(1) instanceof ArrayType)){
+			constraintViolated(o, "Stack next-to-top must be of type long[] but is '"+stack().peek(1)+"'.");
+		}
+		Type t = ((ArrayType) (stack().peek(1))).getBasicType();
+		if (t != Type.LONG){
+			constraintViolated(o, "Stack next-to-top must be of type long[] but is '"+stack().peek(1)+"'.");
+		}
+!!!3967131.java!!!	visitLAND(inout o : LAND) : void
+		if (stack().peek() != Type.LONG){
+			constraintViolated(o, "The value at the stack top is not of type 'long', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.LONG){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'long', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3967259.java!!!	visitLASTORE(inout o : LASTORE) : void
+		if (stack().peek() != Type.LONG){
+			constraintViolated(o, "The value at the stack top is not of type 'long', but of type '"+stack().peek()+"'.");
+		}
+		indexOfInt(o, stack().peek(1));
+		if (stack().peek(2) == Type.NULL){
+			return;
+		} 
+		if (! (stack().peek(2) instanceof ArrayType)){
+			constraintViolated(o, "Stack next-to-next-to-top must be of type long[] but is '"+stack().peek(2)+"'.");
+		}
+		Type t = ((ArrayType) (stack().peek(2))).getBasicType();
+		if (t != Type.LONG){
+			constraintViolated(o, "Stack next-to-next-to-top must be of type long[] but is '"+stack().peek(2)+"'.");
+		}
+!!!3967387.java!!!	visitLCMP(inout o : LCMP) : void
+		if (stack().peek() != Type.LONG){
+			constraintViolated(o, "The value at the stack top is not of type 'long', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.LONG){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'long', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3967515.java!!!	visitLCONST(inout o : LCONST) : void
+		// Nothing to do here.
+!!!3967643.java!!!	visitLDC(inout o : LDC) : void
+		// visitCPInstruction is called first.
+		
+		Constant c = cpg.getConstant(o.getIndex());
+		if 	(!	(	( c instanceof ConstantInteger) ||
+							( c instanceof ConstantFloat	)	||
+							( c instanceof ConstantString )	)	){
+			constraintViolated(o, "Referenced constant should be a CONSTANT_Integer, a CONSTANT_Float or a CONSTANT_String, but is '"+c+"'.");
+		}
+!!!3967771.java!!!	visitLDC_W(inout o : LDC_W) : void
+		// visitCPInstruction is called first.
+		
+		Constant c = cpg.getConstant(o.getIndex());
+		if 	(!	(	( c instanceof ConstantInteger) ||
+							( c instanceof ConstantFloat	)	||
+							( c instanceof ConstantString )	)	){
+			constraintViolated(o, "Referenced constant should be a CONSTANT_Integer, a CONSTANT_Float or a CONSTANT_String, but is '"+c+"'.");
+		}
+!!!3967899.java!!!	visitLDC2_W(inout o : LDC2_W) : void
+		// visitCPInstruction is called first.
+		
+		Constant c = cpg.getConstant(o.getIndex());
+		if 	(!	(	( c instanceof ConstantLong) ||
+							( c instanceof ConstantDouble )	)	){
+			constraintViolated(o, "Referenced constant should be a CONSTANT_Integer, a CONSTANT_Float or a CONSTANT_String, but is '"+c+"'.");
+		}
+!!!3968027.java!!!	visitLDIV(inout o : LDIV) : void
+		if (stack().peek() != Type.LONG){
+			constraintViolated(o, "The value at the stack top is not of type 'long', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.LONG){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'long', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3968155.java!!!	visitLLOAD(inout o : LLOAD) : void
+		//visitLoadInstruction(LoadInstruction) is called before.
+		
+		// Nothing else needs to be done here.
+!!!3968283.java!!!	visitLMUL(inout o : LMUL) : void
+		if (stack().peek() != Type.LONG){
+			constraintViolated(o, "The value at the stack top is not of type 'long', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.LONG){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'long', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3968411.java!!!	visitLNEG(inout o : LNEG) : void
+		if (stack().peek() != Type.LONG){
+			constraintViolated(o, "The value at the stack top is not of type 'long', but of type '"+stack().peek()+"'.");
+		}
+!!!3968539.java!!!	visitLOOKUPSWITCH(inout o : LOOKUPSWITCH) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		// See also pass 3a.
+!!!3968667.java!!!	visitLOR(inout o : LOR) : void
+		if (stack().peek() != Type.LONG){
+			constraintViolated(o, "The value at the stack top is not of type 'long', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.LONG){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'long', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3968795.java!!!	visitLREM(inout o : LREM) : void
+		if (stack().peek() != Type.LONG){
+			constraintViolated(o, "The value at the stack top is not of type 'long', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.LONG){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'long', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3968923.java!!!	visitLRETURN(inout o : LRETURN) : void
+		if (stack().peek() != Type.LONG){
+			constraintViolated(o, "The value at the stack top is not of type 'long', but of type '"+stack().peek()+"'.");
+		}
+!!!3969051.java!!!	visitLSHL(inout o : LSHL) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.LONG){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'long', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3969179.java!!!	visitLSHR(inout o : LSHR) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.LONG){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'long', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3969307.java!!!	visitLSTORE(inout o : LSTORE) : void
+		//visitStoreInstruction(StoreInstruction) is called before.
+		
+		// Nothing else needs to be done here.
+!!!3969435.java!!!	visitLSUB(inout o : LSUB) : void
+		if (stack().peek() != Type.LONG){
+			constraintViolated(o, "The value at the stack top is not of type 'long', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.LONG){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'long', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3969563.java!!!	visitLUSHR(inout o : LUSHR) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.LONG){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'long', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3969691.java!!!	visitLXOR(inout o : LXOR) : void
+		if (stack().peek() != Type.LONG){
+			constraintViolated(o, "The value at the stack top is not of type 'long', but of type '"+stack().peek()+"'.");
+		}
+		if (stack().peek(1) != Type.LONG){
+			constraintViolated(o, "The value at the stack next-to-top is not of type 'long', but of type '"+stack().peek(1)+"'.");
+		}
+!!!3969819.java!!!	visitMONITORENTER(inout o : MONITORENTER) : void
+		if (! ((stack().peek()) instanceof ReferenceType)){
+			constraintViolated(o, "The stack top should be of a ReferenceType, but is '"+stack().peek()+"'.");
+		}
+		referenceTypeIsInitialized(o, (ReferenceType) (stack().peek()) );
+!!!3969947.java!!!	visitMONITOREXIT(inout o : MONITOREXIT) : void
+		if (! ((stack().peek()) instanceof ReferenceType)){
+			constraintViolated(o, "The stack top should be of a ReferenceType, but is '"+stack().peek()+"'.");
+		}
+		referenceTypeIsInitialized(o, (ReferenceType) (stack().peek()) );
+!!!3970075.java!!!	visitMULTIANEWARRAY(inout o : MULTIANEWARRAY) : void
+		int dimensions = o.getDimensions();
+		// Dimensions argument is okay: see Pass 3a.
+		for (int i=0; i<dimensions; i++){
+			if (stack().peek(i) != Type.INT){
+				constraintViolated(o, "The '"+dimensions+"' upper stack types should be 'int' but aren't.");
+			}
+		}
+		// The runtime constant pool item at that index must be a symbolic reference to a class,
+		// array, or interface type. See Pass 3a.
+!!!3970203.java!!!	visitNEW(inout o : NEW) : void
+		//visitCPInstruction(CPInstruction) has been called before.
+		//visitLoadClass(LoadClass) has been called before.
+		
+		Type t = o.getType(cpg);
+		if (! (t instanceof ReferenceType)){
+			throw new AssertionViolatedException("NEW.getType() returning a non-reference type?!");
+		}
+		if (! (t instanceof ObjectType)){
+			constraintViolated(o, "Expecting a class type (ObjectType) to work on. Found: '"+t+"'.");
+		}
+		ObjectType obj = (ObjectType) t;
+
+		//e.g.: Don't instantiate interfaces
+		if (! obj.referencesClass()){
+			constraintViolated(o, "Expecting a class type (ObjectType) to work on. Found: '"+obj+"'.");
+		}		
+!!!3970331.java!!!	visitNEWARRAY(inout o : NEWARRAY) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+!!!3970459.java!!!	visitNOP(inout o : NOP) : void
+		// nothing is to be done here.
+!!!3970587.java!!!	visitPOP(inout o : POP) : void
+		if (stack().peek().getSize() != 1){
+			constraintViolated(o, "Stack top size should be 1 but stack top is '"+stack().peek()+"' of size '"+stack().peek().getSize()+"'.");
+		}
+!!!3970715.java!!!	visitPOP2(inout o : POP2) : void
+		if (stack().peek().getSize() != 2){
+			constraintViolated(o, "Stack top size should be 2 but stack top is '"+stack().peek()+"' of size '"+stack().peek().getSize()+"'.");
+		}
+!!!3970843.java!!!	visitPUTFIELD(inout o : PUTFIELD) : void
+
+		Type objectref = stack().peek(1);
+		if (! ( (objectref instanceof ObjectType) || (objectref == Type.NULL) ) ){
+			constraintViolated(o, "Stack next-to-top should be an object reference that's not an array reference, but is '"+objectref+"'.");
+		}
+		
+		String field_name = o.getFieldName(cpg);
+		
+		JavaClass jc = Repository.lookupClass(o.getClassType(cpg).getClassName());
+		Field[] fields = jc.getFields();
+		Field f = null;
+		for (int i=0; i<fields.length; i++){
+			if (fields[i].getName().equals(field_name)){
+				f = fields[i];
+				break;
+			}
+		}
+		if (f == null){
+			throw new AssertionViolatedException("Field not found?!?");
+		}
+
+		Type value = stack().peek();
+		Type t = Type.getType(f.getSignature());
+		Type shouldbe = t;
+		if (shouldbe == Type.BOOLEAN ||
+				shouldbe == Type.BYTE ||
+				shouldbe == Type.CHAR ||
+				shouldbe == Type.SHORT){
+			shouldbe = Type.INT;
+		}
+		if (t instanceof ReferenceType){
+			ReferenceType rvalue = null;
+			if (value instanceof ReferenceType){
+				rvalue = (ReferenceType) value;
+				referenceTypeIsInitialized(o, rvalue);
+			}
+			else{
+				constraintViolated(o, "The stack top type '"+value+"' is not of a reference type as expected.");
+			}
+			// TODO: This can only be checked using Staerk-et-al's "set-of-object types", not
+			// using "wider cast object types" created during verification.
+			//if (!(rvalue.isAssignmentCompatibleWith(shouldbe))){
+			//	constraintViolated(o, "The stack top type '"+value+"' is not assignment compatible with '"+shouldbe+"'.");
+			//}
+		}
+		else{
+			if (shouldbe != value){
+				constraintViolated(o, "The stack top type '"+value+"' is not of type '"+shouldbe+"' as expected.");
+			}
+		}
+		
+		if (f.isProtected()){
+			ObjectType classtype = o.getClassType(cpg);
+			ObjectType curr = new ObjectType(mg.getClassName());
+
+			if (	classtype.equals(curr) ||
+						curr.subclassOf(classtype)	){
+				Type tp = stack().peek(1);
+				if (tp == Type.NULL){
+					return;
+				}
+				if (! (tp instanceof ObjectType) ){
+					constraintViolated(o, "The 'objectref' must refer to an object that's not an array. Found instead: '"+tp+"'.");
+				}
+				ObjectType objreftype = (ObjectType) tp;
+				if (! ( objreftype.equals(curr) ||
+						    objreftype.subclassOf(curr) ) ){
+					constraintViolated(o, "The referenced field has the ACC_PROTECTED modifier, and it's a member of the current class or a superclass of the current class. However, the referenced object type '"+stack().peek()+"' is not the current class or a subclass of the current class.");
+				}
+			} 
+		}
+
+		// TODO: Could go into Pass 3a.
+		if (f.isStatic()){
+			constraintViolated(o, "Referenced field '"+f+"' is static which it shouldn't be.");
+		}
+!!!3970971.java!!!	visitPUTSTATIC(inout o : PUTSTATIC) : void
+		String field_name = o.getFieldName(cpg);
+		JavaClass jc = Repository.lookupClass(o.getClassType(cpg).getClassName());
+		Field[] fields = jc.getFields();
+		Field f = null;
+		for (int i=0; i<fields.length; i++){
+			if (fields[i].getName().equals(field_name)){
+				f = fields[i];
+				break;
+			}
+		}
+		if (f == null){
+			throw new AssertionViolatedException("Field not found?!?");
+		}
+		Type value = stack().peek();
+		Type t = Type.getType(f.getSignature());
+		Type shouldbe = t;
+		if (shouldbe == Type.BOOLEAN ||
+				shouldbe == Type.BYTE ||
+				shouldbe == Type.CHAR ||
+				shouldbe == Type.SHORT){
+			shouldbe = Type.INT;
+		}
+		if (t instanceof ReferenceType){
+			ReferenceType rvalue = null;
+			if (value instanceof ReferenceType){
+				rvalue = (ReferenceType) value;
+				referenceTypeIsInitialized(o, rvalue);
+			}
+			else{
+				constraintViolated(o, "The stack top type '"+value+"' is not of a reference type as expected.");
+			}
+			if (!(rvalue.isAssignmentCompatibleWith(shouldbe))){
+				constraintViolated(o, "The stack top type '"+value+"' is not assignment compatible with '"+shouldbe+"'.");
+			}
+		}
+		else{
+			if (shouldbe != value){
+				constraintViolated(o, "The stack top type '"+value+"' is not of type '"+shouldbe+"' as expected.");
+			}
+		}
+		// TODO: Interface fields may be assigned to only once. (Hard to implement in
+		//       JustIce's execution model). This may only happen in <clinit>, see Pass 3a.
+!!!3971099.java!!!	visitRET(inout o : RET) : void
+		if (! (locals().get(o.getIndex()) instanceof ReturnaddressType)){
+			constraintViolated(o, "Expecting a ReturnaddressType in local variable "+o.getIndex()+".");
+		}
+		if (locals().get(o.getIndex()) == ReturnaddressType.NO_TARGET){
+			throw new AssertionViolatedException("Oops: RET expecting a target!");
+		}
+		// Other constraints such as non-allowed overlapping subroutines are enforced
+		// while building the Subroutines data structure.
+!!!3971227.java!!!	visitRETURN(inout o : RETURN) : void
+		if (mg.getName().equals(Constants.CONSTRUCTOR_NAME)){// If we leave an <init> method
+			if ((frame._this != null) && (!(mg.getClassName().equals(Type.OBJECT.getClassName()))) ) {
+				constraintViolated(o, "Leaving a constructor that itself did not call a constructor.");
+			}
+		}
+!!!3971355.java!!!	visitSALOAD(inout o : SALOAD) : void
+		indexOfInt(o, stack().peek());
+		if (stack().peek(1) == Type.NULL){
+			return;
+		} 
+		if (! (stack().peek(1) instanceof ArrayType)){
+			constraintViolated(o, "Stack next-to-top must be of type short[] but is '"+stack().peek(1)+"'.");
+		}
+		Type t = ((ArrayType) (stack().peek(1))).getBasicType();
+		if (t != Type.SHORT){
+			constraintViolated(o, "Stack next-to-top must be of type short[] but is '"+stack().peek(1)+"'.");
+		}
+!!!3971483.java!!!	visitSASTORE(inout o : SASTORE) : void
+		if (stack().peek() != Type.INT){
+			constraintViolated(o, "The value at the stack top is not of type 'int', but of type '"+stack().peek()+"'.");
+		}
+		indexOfInt(o, stack().peek(1));
+		if (stack().peek(2) == Type.NULL){
+			return;
+		} 
+		if (! (stack().peek(2) instanceof ArrayType)){
+			constraintViolated(o, "Stack next-to-next-to-top must be of type short[] but is '"+stack().peek(2)+"'.");
+		}
+		Type t = ((ArrayType) (stack().peek(2))).getBasicType();
+		if (t != Type.SHORT){
+			constraintViolated(o, "Stack next-to-next-to-top must be of type short[] but is '"+stack().peek(2)+"'.");
+		}
+!!!3971611.java!!!	visitSIPUSH(inout o : SIPUSH) : void
+		// nothing to do here. Generic visitXXX() methods did the trick before.
+!!!3971739.java!!!	visitSWAP(inout o : SWAP) : void
+		if (stack().peek().getSize() != 1){
+			constraintViolated(o, "The value at the stack top is not of size '1', but of size '"+stack().peek().getSize()+"'.");
+		}
+		if (stack().peek(1).getSize() != 1){
+			constraintViolated(o, "The value at the stack next-to-top is not of size '1', but of size '"+stack().peek(1).getSize()+"'.");
+		}
+!!!3971867.java!!!	visitTABLESWITCH(inout o : TABLESWITCH) : void
+		indexOfInt(o, stack().peek());
+		// See Pass 3a.

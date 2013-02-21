@@ -1,0 +1,189 @@
+class NumericShaper
+!!!6478747.java!!!	getContextKey(in c : char) : int
+	if (c < contexts[ctCache]) {
+	    while (ctCache > 0 && c < contexts[ctCache]) --ctCache;
+	} else if (c >= contexts[ctCache + 1]) {
+	    while (ctCache < ctCacheLimit && c >= contexts[ctCache + 1]) ++ctCache;
+	}
+	
+	// if we're not in a known range, then return EUROPEAN as the range key
+	return (ctCache & 0x1) == 0 ? (ctCache / 2) : EUROPEAN_KEY;
+!!!6478875.java!!!	isStrongDirectional(in c : char) : boolean
+	if (c < strongTable[stCache]) {
+	    stCache = search(c, strongTable, 0, stCache);
+	} else if (c >= strongTable[stCache + 1]) {
+	    stCache = search(c, strongTable, stCache + 1, strongTable.length - stCache - 1);
+	}
+	return (stCache & 0x1) == 1;
+!!!6479003.java!!!	getKeyFromMask(in mask : int) : int
+	int key = 0;
+	while (key < NUM_KEYS && ((mask & (1<<key)) == 0)) {
+	    ++key;
+	}
+	if (key == NUM_KEYS || ((mask & ~(1<<key)) != 0)) {
+	    throw new IllegalArgumentException("invalid shaper: " + Integer.toHexString(mask));
+	}
+	return key;
+!!!6479131.java!!!	getShaper(in singleRange : int) : NumericShaper
+	int key = getKeyFromMask(singleRange);
+	return new NumericShaper(key, singleRange);
+!!!6479259.java!!!	getContextualShaper(in ranges : int) : NumericShaper
+	ranges |= CONTEXTUAL_MASK;
+	return new NumericShaper(EUROPEAN_KEY, ranges);
+!!!6479387.java!!!	getContextualShaper(in ranges : int, in defaultContext : int) : NumericShaper
+	int key = getKeyFromMask(defaultContext);
+	ranges |= CONTEXTUAL_MASK;
+	return new NumericShaper(key, ranges);
+!!!6479515.java!!!	NumericShaper(in key : int, in mask : int)
+	this.key = key;
+	this.mask = mask;
+!!!6479643.java!!!	shape(in text : char, in start : int, in count : int) : void
+	if (isContextual()) {
+	    shapeContextually(text, start, count, key);
+	} else {
+	    shapeNonContextually(text, start, count);
+	}
+!!!6479771.java!!!	shape(in text : char, in start : int, in count : int, in context : int) : void
+	if (isContextual()) {
+	    int ctxKey = getKeyFromMask(context);
+	    shapeContextually(text, start, count, ctxKey);
+	} else {
+	    shapeNonContextually(text, start, count);
+	}
+!!!6479899.java!!!	isContextual() : boolean
+	return (mask & CONTEXTUAL_MASK) != 0;
+!!!6480027.java!!!	getRanges() : int
+	return mask & ~CONTEXTUAL_MASK;
+!!!6480155.java!!!	shapeNonContextually(in text : char, in start : int, in count : int) : void
+	int base = bases[key];
+	char minDigit = key == TAMIL_KEY ? '\u0031' : '\u0030'; // Tamil doesn't use decimal zero
+	for (int i = start, e = start + count; i < e; ++i) {
+	    char c = text[i];
+	    if (c >= minDigit && c <= '\u0039') {
+		text[i] = (char)(c + base);
+	    }
+	}
+!!!6480283.java!!!	shapeContextually(in text : char, in start : int, in count : int, in ctxKey : int) : void
+
+	// if we don't support this context, then don't shape
+	if ((mask & (1<<ctxKey)) == 0) {
+	    ctxKey = EUROPEAN_KEY;
+	}
+	int lastkey = ctxKey;
+
+	int base = bases[ctxKey];
+	char minDigit = ctxKey == TAMIL_KEY ? '\u0031' : '\u0030'; // Tamil doesn't use decimal zero
+
+	for (int i = start, e = start + count; i < e; ++i) {
+	    char c = text[i];
+	    if (c >= minDigit && c <= '\u0039') {
+		text[i] = (char)(c + base);
+	    }
+
+	    if (isStrongDirectional(c)) {
+		int newkey = getContextKey(c);
+		if (newkey != lastkey) {
+		    lastkey = newkey;
+
+		    ctxKey = newkey;
+		    if (((mask & EASTERN_ARABIC) != 0) && (ctxKey == ARABIC_KEY || ctxKey == EASTERN_ARABIC_KEY)) {
+			ctxKey = EASTERN_ARABIC_KEY;
+		    } else if ((mask & (1<<ctxKey)) == 0) { 
+			ctxKey = EUROPEAN_KEY;
+		    }
+
+		    base = bases[ctxKey];
+
+		    minDigit = ctxKey == TAMIL_KEY ? '\u0031' : '\u0030'; // Tamil doesn't use decimal zero
+		}
+	    }
+	}
+!!!6480411.java!!!	hashCode() : int
+	return mask;
+!!!6480539.java!!!	equals(inout o : Object) : boolean
+	if (o != null) {
+	    try {
+		NumericShaper rhs = (NumericShaper)o;
+		return rhs.mask == mask && rhs.key == key;
+	    }
+	    catch (ClassCastException e) {
+	    }
+	}
+	return false;
+!!!6480667.java!!!	toString() : String
+	StringBuffer buf = new StringBuffer(super.toString());
+
+	buf.append("[contextual:" + isContextual());
+
+	if (isContextual()) {
+	    buf.append(", context:" + keyNames[key]);
+	}
+
+	buf.append(", range(s): ");
+	boolean first = true;
+	for (int i = 0; i < NUM_KEYS; ++i) {
+	    if ((mask & (1 << i)) != 0) {
+		if (first) {
+		    first = false;
+		} else {
+		    buf.append(", ");
+		}
+		buf.append(keyNames[i]);
+	    }
+	}
+	buf.append(']');
+
+	return buf.toString();
+!!!6480795.java!!!	getHighBit(in value : int) : int
+ 
+	if (value <= 0) {
+	    return -32; 
+	}
+
+	int bit = 0;
+
+	if (value >= 1 << 16) {
+	    value >>= 16;
+	    bit += 16;
+	}
+
+	if (value >= 1 << 8) {
+	    value >>= 8;
+	    bit += 8;
+	}
+
+	if (value >= 1 << 4) {
+	    value >>= 4;
+	    bit += 4;
+	}
+
+	if (value >= 1 << 2) {
+	    value >>= 2;
+	    bit += 2;
+	}
+
+	if (value >= 1 << 1) {
+	    value >>= 1;
+	    bit += 1;
+	}
+	
+	return bit;
+!!!6480923.java!!!	search(in value : char, in array : char, in start : int, in length : int) : int
+	int power = 1 << getHighBit(length);
+	int extra = length - power;
+	int probe = power;
+	int index = start;
+
+	if (value >= array[index + extra]) {
+	    index += extra;
+	}
+
+	while (probe > 1) {
+	    probe >>= 1;
+
+	    if (value >= array[index + probe]) {
+		index += probe;
+	    }
+	}
+
+	return index;

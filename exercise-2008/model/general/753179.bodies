@@ -1,0 +1,114 @@
+class XSElementDecl
+!!!5224219.java!!!	setConstraintType(in constraintType : short) : void
+        // first clear the bits
+        fMiscFlags ^= (fMiscFlags & CONSTRAINT_MASK);
+        // then set the proper one
+        fMiscFlags |= (constraintType & CONSTRAINT_MASK);
+!!!5224347.java!!!	setIsNillable() : void
+        fMiscFlags |= NILLABLE;
+!!!5224475.java!!!	setIsAbstract() : void
+        fMiscFlags |= ABSTRACT;
+!!!5224603.java!!!	setIsGlobal() : void
+        fScope = SCOPE_GLOBAL;
+!!!5224731.java!!!	setIsLocal(inout enclosingCT : XSComplexTypeDecl) : void
+        fScope = SCOPE_LOCAL;
+        fEnclosingCT = enclosingCT;
+!!!5224859.java!!!	addIDConstraint(inout idc : IdentityConstraint) : void
+        if (fIDCPos == fIDConstraints.length) {
+            fIDConstraints = resize(fIDConstraints, fIDCPos*2);
+        }
+        fIDConstraints[fIDCPos++] = idc;
+!!!5224987.java!!!	getIDConstraints() : IdentityConstraint
+        if (fIDCPos == 0) {
+            return null;
+        }
+        if (fIDCPos < fIDConstraints.length) {
+            fIDConstraints = resize(fIDConstraints, fIDCPos);
+        }
+        return fIDConstraints;
+!!!5225115.java!!!	resize(inout oldArray : IdentityConstraint, in newSize : int) : IdentityConstraint
+        IdentityConstraint[] newArray = new IdentityConstraint[newSize];
+        System.arraycopy(oldArray, 0, newArray, 0, Math.min(oldArray.length, newSize));
+        return newArray;
+!!!5225243.java!!!	toString() : String
+        if (fDescription == null) {
+            StringBuffer buffer = new StringBuffer();
+            buffer.append("\"");
+            if (fTargetNamespace != null)
+                buffer.append(fTargetNamespace);
+            buffer.append("\"");
+            buffer.append(":");
+            buffer.append(fName);
+            fDescription = buffer.toString();
+        }
+        return fDescription;
+!!!5225371.java!!!	hashCode() : int
+        int code = fName.hashCode();
+        if (fTargetNamespace != null)
+            code = (code<<16)+fTargetNamespace.hashCode();
+        return code;
+!!!5225499.java!!!	equals(inout o : Object) : boolean
+        return o == this;
+!!!5225627.java!!!	reset() : void
+
+        fName = null;
+        fTargetNamespace = null;
+        fType = null;
+        fMiscFlags = 0;
+        fBlock = XSConstants.DERIVATION_NONE;
+        fFinal = XSConstants.DERIVATION_NONE;
+        fDefault = null;
+        fAnnotation = null;
+        fSubGroup = null;
+        // reset identity constraints
+        for (int i=0;i<fIDCPos;i++) {
+            fIDConstraints[i] = null;
+        }
+
+        fIDCPos = 0;
+!!!5225755.java!!!	getType() : short
+        return XSConstants.ELEMENT_DECLARATION;
+!!!5225883.java!!!	getName() : String
+        return fName;
+!!!5226011.java!!!	getNamespace() : String
+        return fTargetNamespace;
+!!!5226139.java!!!	getTypeDefinition() : XSTypeDefinition
+        return fType;
+!!!5226267.java!!!	getScope() : short
+        return fScope;
+!!!5226395.java!!!	getEnclosingCTDefinition() : XSComplexTypeDefinition
+        return fEnclosingCT;
+!!!5226523.java!!!	getConstraintType() : short
+        return (short)(fMiscFlags & CONSTRAINT_MASK);
+!!!5226651.java!!!	getConstraintValue() : String
+        // REVISIT: SCAPI: what's the proper representation
+        return getConstraintType() == XSConstants.VC_NONE ?
+               null :
+               fDefault.stringValue();
+!!!5226779.java!!!	getNillable() : boolean
+        return ((fMiscFlags & NILLABLE) != 0);
+!!!5226907.java!!!	getIdentityConstraints() : XSNamedMap
+        return new XSNamedMapImpl(fIDConstraints, fIDCPos);
+!!!5227035.java!!!	getSubstitutionGroupAffiliation() : XSElementDeclaration
+        return fSubGroup;
+!!!5227163.java!!!	isSubstitutionGroupExclusion(in exclusion : short) : boolean
+        return (fFinal & exclusion) != 0;
+!!!5227291.java!!!	getSubstitutionGroupExclusions() : short
+        return fFinal;
+!!!5227419.java!!!	isDisallowedSubstitution(in disallowed : short) : boolean
+        return (fBlock & disallowed) != 0;
+!!!5227547.java!!!	getDisallowedSubstitutions() : short
+        return fBlock;
+!!!5227675.java!!!	getAbstract() : boolean
+        return ((fMiscFlags & ABSTRACT) != 0);
+!!!5227803.java!!!	getAnnotation() : XSAnnotation
+        return fAnnotation;
+!!!5227931.java!!!	getNamespaceItem() : XSNamespaceItem
+        // REVISIT: implement
+        return null;
+!!!5228059.java!!!	getActualVC() : Object
+        return fDefault.actualValue;
+!!!5228187.java!!!	getActualVCType() : short
+        return fDefault.actualValueType;
+!!!5228315.java!!!	getItemValueTypes() : ShortList
+        return fDefault.itemValueTypes;

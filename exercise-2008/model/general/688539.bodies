@@ -1,0 +1,52 @@
+class MultipleNodeCounter
+!!!4642715.java!!!	MultipleNodeCounter(inout translet : Translet, inout document : DOM, inout iterator : DTMAxisIterator)
+	super(translet, document, iterator);
+!!!4642843.java!!!	setStartNode(in node : int) : NodeCounter
+	_node = node;
+	_nodeType = _document.getExpandedTypeID(node);
+	_precSiblings = _document.getAxisIterator(PRECEDINGSIBLING);
+	return this;
+!!!4642971.java!!!	getCounter() : String
+	if (_value != Integer.MIN_VALUE) {
+	    return formatNumbers(_value);
+	}
+
+	IntegerArray ancestors = new IntegerArray();
+
+	// Gather all ancestors that do not match from pattern
+	int next = _node;
+	ancestors.add(next);		// include self
+	while ((next = _document.getParent(next)) > END && 
+	       !matchesFrom(next)) {
+	    ancestors.add(next);
+	}
+
+	// Create an array of counters
+	final int nAncestors = ancestors.cardinality();
+	final int[] counters = new int[nAncestors]; 
+	for (int i = 0; i < nAncestors; i++) {
+	    counters[i] = Integer.MIN_VALUE;
+	}
+
+	// Increment array of counters according to semantics
+	for (int j = 0, i = nAncestors - 1; i >= 0 ; i--, j++) {
+	    final int counter = counters[j];
+	    final int ancestor = ancestors.at(i);
+
+	    if (matchesCount(ancestor)) {
+		_precSiblings.setStartNode(ancestor);
+		while ((next = _precSiblings.next()) != END) {
+		    if (matchesCount(next)) {
+			counters[j] = (counters[j] == Integer.MIN_VALUE) ? 1 
+			    : counters[j] + 1;		
+		    }
+		}
+		// Count the node itself
+		counters[j] = counters[j] == Integer.MIN_VALUE
+		    ? 1 
+		    : counters[j] + 1;	
+	    }
+	}
+	return formatNumbers(counters);
+!!!4643099.java!!!	getDefaultNodeCounter(inout translet : Translet, inout document : DOM, inout iterator : DTMAxisIterator) : NodeCounter
+	return new DefaultMultipleNodeCounter(translet, document, iterator);

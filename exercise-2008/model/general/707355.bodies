@@ -1,0 +1,209 @@
+class TransformerHandlerImpl
+!!!4768667.java!!!	TransformerHandlerImpl(inout transformer : TransformerImpl)
+	// Save the reference to the transformer
+	_transformer = transformer;
+
+	if (transformer.isIdentity()) {
+	    // Set initial handler to the empty handler
+	    _handler = new DefaultHandler();
+	    _isIdentity = true;
+	}
+	else {
+	    // Get a reference to the translet wrapped inside the transformer
+	    _translet = _transformer.getTranslet();
+	}
+!!!4768795.java!!!	getSystemId() : String
+	return _systemId;
+!!!4768923.java!!!	setSystemId(in id : String) : void
+	_systemId = id;
+!!!4769051.java!!!	getTransformer() : Transformer
+	return _transformer;
+!!!4769179.java!!!	setResult(inout result : Result) : void
+	_result = result;
+
+    if (null == result) {
+       ErrorMsg err = new ErrorMsg(ErrorMsg.ER_RESULT_NULL);
+       throw new IllegalArgumentException(err.toString()); //"result should not be null");
+    }
+
+	if (_isIdentity) {
+	    try {
+		// Connect this object with output system directly
+		SerializationHandler outputHandler =
+		    _transformer.getOutputHandler(result);
+		_transformer.transferOutputProperties(outputHandler);
+
+		_handler = outputHandler;
+		_lexHandler = outputHandler;
+	    }
+	    catch (TransformerException e) {
+		_result = null;
+	    }
+	}
+	else if (_done) {
+	    // Run the transformation now, if not already done
+	    try {
+		_transformer.setDOM(_dom);
+		_transformer.transform(null, _result);
+	    }
+	    catch (TransformerException e) {
+		// What the hell are we supposed to do with this???
+		throw new IllegalArgumentException(e.getMessage());
+	    }
+	}
+!!!4769307.java!!!	characters(in ch : char, in start : int, in length : int) : void
+	_handler.characters(ch, start, length);
+!!!4769435.java!!!	startDocument() : void
+	// Make sure setResult() was called before the first SAX event
+	if (_result == null) {
+	    ErrorMsg err = new ErrorMsg(ErrorMsg.JAXP_SET_RESULT_ERR);
+	    throw new SAXException(err.toString());
+	}
+
+        if (!_isIdentity) {
+            boolean hasIdCall = (_translet != null) ? _translet.hasIdCall() : false;
+            XSLTCDTMManager dtmManager = null;
+
+            // Create an internal DOM (not W3C) and get SAX2 input handler
+            try {
+                dtmManager =
+                    (XSLTCDTMManager)_transformer.getTransformerFactory()
+                                                 .getDTMManagerClass()
+                                                 .newInstance();
+            } catch (Exception e) {
+                throw new SAXException(e);
+            }
+
+            DTMWSFilter wsFilter;
+            if (_translet != null && _translet instanceof StripFilter) {
+                wsFilter = new DOMWSFilter(_translet);
+            } else {
+                wsFilter = null;
+            }
+
+            // Construct the DTM using the SAX events that come through
+            _dom = (SAXImpl)dtmManager.getDTM(null, false, wsFilter, true,
+                                              false, hasIdCall);
+
+            _handler = _dom.getBuilder();
+            _lexHandler = (LexicalHandler) _handler;
+            _dtdHandler = (DTDHandler) _handler;
+            _declHandler = (DeclHandler) _handler;
+
+
+            // Set document URI
+            _dom.setDocumentURI(_systemId);
+
+            if (_locator != null) {
+                _handler.setDocumentLocator(_locator);
+            }
+        }
+
+	// Proxy call
+	_handler.startDocument();
+!!!4769563.java!!!	endDocument() : void
+	// Signal to the DOMBuilder that the document is complete
+	_handler.endDocument();
+
+	if (!_isIdentity) {
+	    // Run the transformation now if we have a reference to a Result object
+	    if (_result != null) {
+		try {
+		    _transformer.setDOM(_dom);
+		    _transformer.transform(null, _result);
+		}
+		catch (TransformerException e) {
+		    throw new SAXException(e);
+		}
+	    }
+	    // Signal that the internal DOM is built (see 'setResult()').
+	    _done = true;
+
+	    // Set this DOM as the transformer's DOM
+	    _transformer.setDOM(_dom);
+	}
+    if (_isIdentity && _result instanceof DOMResult) {
+	    ((DOMResult)_result).setNode(_transformer.getTransletOutputHandlerFactory().getNode());
+    }
+!!!4769691.java!!!	startElement(in uri : String, in localName : String, in qname : String, inout attributes : Attributes) : void
+	_handler.startElement(uri, localName, qname, attributes);
+!!!4769819.java!!!	endElement(in namespaceURI : String, in localName : String, in qname : String) : void
+	_handler.endElement(namespaceURI, localName, qname);
+!!!4769947.java!!!	processingInstruction(in target : String, in data : String) : void
+	_handler.processingInstruction(target, data);
+!!!4770075.java!!!	startCDATA() : void
+	if (_lexHandler != null) {
+	    _lexHandler.startCDATA();
+	}
+!!!4770203.java!!!	endCDATA() : void
+	if (_lexHandler != null) {
+	    _lexHandler.endCDATA();
+	}
+!!!4770331.java!!!	comment(in ch : char, in start : int, in length : int) : void
+	if (_lexHandler != null) {
+	    _lexHandler.comment(ch, start, length);
+	}
+!!!4770459.java!!!	ignorableWhitespace(in ch : char, in start : int, in length : int) : void
+	_handler.ignorableWhitespace(ch, start, length);
+!!!4770587.java!!!	setDocumentLocator(inout locator : Locator) : void
+        _locator = locator;
+
+        if (_handler != null) {
+            _handler.setDocumentLocator(locator);
+        }
+!!!4770715.java!!!	skippedEntity(in name : String) : void
+	_handler.skippedEntity(name);
+!!!4770843.java!!!	startPrefixMapping(in prefix : String, in uri : String) : void
+	_handler.startPrefixMapping(prefix, uri);
+!!!4770971.java!!!	endPrefixMapping(in prefix : String) : void
+	_handler.endPrefixMapping(prefix);
+!!!4771099.java!!!	startDTD(in name : String, in publicId : String, in systemId : String) : void
+	if (_lexHandler != null) {
+	    _lexHandler.startDTD(name, publicId, systemId);
+	}
+!!!4771227.java!!!	endDTD() : void
+	if (_lexHandler != null) {
+	    _lexHandler.endDTD();
+	}
+!!!4771355.java!!!	startEntity(in name : String) : void
+	if (_lexHandler != null) {
+	    _lexHandler.startEntity(name);
+	}
+!!!4771483.java!!!	endEntity(in name : String) : void
+	if (_lexHandler != null) {
+	    _lexHandler.endEntity(name);
+	}
+!!!4771611.java!!!	unparsedEntityDecl(in name : String, in publicId : String, in systemId : String, in notationName : String) : void
+        if (_dtdHandler != null) {
+	    _dtdHandler.unparsedEntityDecl(name, publicId, systemId,
+                                           notationName);
+        }
+!!!4771739.java!!!	notationDecl(in name : String, in publicId : String, in systemId : String) : void
+        if (_dtdHandler != null) {
+	    _dtdHandler.notationDecl(name, publicId, systemId);
+        }
+!!!4771867.java!!!	attributeDecl(in eName : String, in aName : String, in type : String, in valueDefault : String, in value : String) : void
+        if (_declHandler != null) {
+	    _declHandler.attributeDecl(eName, aName, type, valueDefault, value);
+        }
+!!!4771995.java!!!	elementDecl(in name : String, in model : String) : void
+        if (_declHandler != null) {
+	    _declHandler.elementDecl(name, model);
+        }
+!!!4772123.java!!!	externalEntityDecl(in name : String, in publicId : String, in systemId : String) : void
+        if (_declHandler != null) {
+	    _declHandler.externalEntityDecl(name, publicId, systemId);
+        }
+!!!4772251.java!!!	internalEntityDecl(in name : String, in value : String) : void
+        if (_declHandler != null) {
+	    _declHandler.internalEntityDecl(name, value);
+        }
+!!!4772379.java!!!	reset() : void
+       _systemId = null;
+       _dom = null;
+       _handler = null;
+       _lexHandler = null;
+       _dtdHandler = null;
+       _declHandler = null;
+       _result = null;
+       _locator = null;

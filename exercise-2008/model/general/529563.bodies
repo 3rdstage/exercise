@@ -1,0 +1,57 @@
+class Service
+!!!3274651.java!!!	fail(inout service : Class, in msg : String, inout cause : Throwable) : void
+	IllegalArgumentException sce
+	    = new IllegalArgumentException(service.getName() + ": " + msg);
+	
+	throw (IllegalArgumentException) EnvHelp.initCause(sce, cause);
+!!!3274779.java!!!	fail(inout service : Class, in msg : String) : void
+	throw new IllegalArgumentException(service.getName() + ": " + msg);
+!!!3274907.java!!!	fail(inout service : Class, inout u : URL, in line : int, in msg : String) : void
+	fail(service, u + ":" + line + ": " + msg);
+!!!3275035.java!!!	parseLine(inout service : Class, inout u : URL, inout r : BufferedReader, in lc : int, inout names : List, inout returned : Set) : int
+	String ln = r.readLine();
+	if (ln == null) {
+	    return -1;
+	}
+	int ci = ln.indexOf('#');
+	if (ci >= 0) ln = ln.substring(0, ci);
+	ln = ln.trim();
+	int n = ln.length();
+	if (n != 0) {
+	    if ((ln.indexOf(' ') >= 0) || (ln.indexOf('\t') >= 0))
+		fail(service, u, lc, "Illegal configuration-file syntax");
+	    if (!Character.isJavaIdentifierStart(ln.charAt(0)))
+		fail(service, u, lc, "Illegal provider-class name: " + ln);
+	    for (int i = 1; i < n; i++) {
+		char c = ln.charAt(i);
+		if (!Character.isJavaIdentifierPart(c) && (c != '.'))
+		    fail(service, u, lc, "Illegal provider-class name: " + ln);
+	    }
+	    if (!returned.contains(ln)) {
+		names.add(ln);
+		returned.add(ln);
+	    }
+	}
+	return lc + 1;
+!!!3275163.java!!!	parse(inout service : Class, inout u : URL, inout returned : Set) : Iterator
+	InputStream in = null;
+	BufferedReader r = null;
+	ArrayList names = new ArrayList();
+	try {
+	    in = u.openStream();
+	    r = new BufferedReader(new InputStreamReader(in, "utf-8"));
+	    int lc = 1;
+	    while ((lc = parseLine(service, u, r, lc, names, returned)) >= 0);
+	} catch (IOException x) {
+	    fail(service, ": " + x);
+	} finally {
+	    try {
+		if (r != null) r.close();
+		if (in != null) in.close();
+	    } catch (IOException y) {
+		fail(service, ": " + y);
+	    }
+	}
+	return names.iterator();
+!!!3275803.java!!!	providers(inout service : Class, inout loader : ClassLoader) : Iterator
+	return new LazyIterator(service, loader);

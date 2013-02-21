@@ -1,0 +1,71 @@
+class JRadioButton
+!!!9030427.java!!!	JRadioButton()
+        this(null, null, false);
+!!!9030555.java!!!	JRadioButton(inout icon : Icon)
+        this(null, icon, false);
+!!!9030683.java!!!	JRadioButton(inout a : Action)
+        this();
+	setAction(a);
+!!!9030811.java!!!	JRadioButton(inout icon : Icon, inout selected : boolean)
+        this(null, icon, selected);
+!!!9030939.java!!!	JRadioButton(in text : String)
+        this(text, null, false);
+!!!9031067.java!!!	JRadioButton(in text : String, inout selected : boolean)
+        this(text, null, selected);
+!!!9031195.java!!!	JRadioButton(in text : String, inout icon : Icon)
+        this(text, icon, false);
+!!!9031323.java!!!	JRadioButton(in text : String, inout icon : Icon, inout selected : boolean)
+        super(text, icon, selected);
+        setBorderPainted(false);
+        setHorizontalAlignment(LEADING);
+!!!9031451.java!!!	updateUI() : void
+        setUI((ButtonUI)UIManager.getUI(this));
+!!!9031579.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!9031707.java!!!	configurePropertiesFromAction(inout a : Action) : void
+        String[] types = { Action.MNEMONIC_KEY, Action.NAME,
+                           Action.SHORT_DESCRIPTION,
+                           Action.ACTION_COMMAND_KEY, "enabled" };
+        configurePropertiesFromAction(a, types);
+!!!9031835.java!!!	createActionPropertyChangeListener(inout a : Action) : PropertyChangeListener
+        return new AbstractActionPropertyChangeListener(this, a) {
+	    public void propertyChange(PropertyChangeEvent e) {	    
+		String propertyName = e.getPropertyName();
+		AbstractButton button = (AbstractButton)getTarget();
+		if (button == null) {   //WeakRef GC'ed in 1.2
+		    Action action = (Action)e.getSource();
+		    action.removePropertyChangeListener(this);
+		} else {
+		    if (propertyName.equals(Action.NAME)) {
+			String text = (String) e.getNewValue();
+			button.setText(text);
+			button.repaint();
+		    } else if (propertyName.equals(Action.SHORT_DESCRIPTION)) {
+			String text = (String) e.getNewValue();
+			button.setToolTipText(text);
+		    } else if (propertyName.equals("enabled")) {
+			Boolean enabledState = (Boolean) e.getNewValue();
+			button.setEnabled(enabledState.booleanValue());
+			button.repaint();
+                    } else if (propertyName.equals(Action.ACTION_COMMAND_KEY)) {
+                        button.setActionCommand((String)e.getNewValue());
+		    } 
+		}
+	    }
+	};
+!!!9031963.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!9032091.java!!!	paramString() : String
+	return super.paramString();
+!!!9032219.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJRadioButton();
+        }
+        return accessibleContext;

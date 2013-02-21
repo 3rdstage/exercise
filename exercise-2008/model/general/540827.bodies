@@ -1,0 +1,148 @@
+class SnmpEngineImpl
+!!!3475099.java!!!	getEngineTime() : int
+ 
+	//We do the counter wrap in a lazt way. Each time Engine is asked for his time it checks. So if nobody use the Engine, the time can wrap and wrap again without incrementing nb boot. We can imagine that it is irrelevant due to the amount of time needed to wrap.
+	long delta = (System.currentTimeMillis() / 1000) - startTime;
+	if(delta >  0x7FFFFFFF) {
+	    //67 years of running. That is a great thing!
+	    //Reinitialize startTime.
+	    startTime = System.currentTimeMillis() / 1000;
+
+	    //Can't do anything with this counter.
+	    if(boot != 0x7FFFFFFF)
+		boot += 1;
+	    //Store for future use.
+	    storeNBBoots(boot);
+	}
+	
+	return (int) ((System.currentTimeMillis() / 1000) - startTime); 
+!!!3475227.java!!!	getEngineId() : SnmpEngineId
+	return engineid;
+!!!3475355.java!!!	getUsmKeyHandler() : SnmpUsmKeyHandler
+	return usmKeyHandler;
+!!!3475483.java!!!	getLcd() : SnmpLcd
+	return lcd;
+!!!3475611.java!!!	getEngineBoots() : int
+ 
+	return boot; 
+!!!3475739.java!!!	SnmpEngineImpl(inout fact : SnmpEngineFactory, inout lcd : SnmpLcd, inout engineid : SnmpEngineId)
+	
+	init(lcd, fact);
+	initEngineID();
+	if(this.engineid == null) {
+	    if(engineid != null)
+		this.engineid = engineid;
+	    else
+		this.engineid = SnmpEngineId.createEngineId();
+	}
+	lcd.storeEngineId(this.engineid);
+	if(isTraceOn()) {
+	    trace("SnmpEngine", "LOCAL ENGINE ID: " + this.engineid);
+	}
+!!!3475867.java!!!	SnmpEngineImpl(inout fact : SnmpEngineFactory, inout lcd : SnmpLcd, inout address : InetAddress, in port : int)
+	init(lcd, fact);
+	initEngineID();
+	if(engineid == null)
+	    engineid = SnmpEngineId.createEngineId(address, port);
+
+	lcd.storeEngineId(engineid);
+	
+	if(isTraceOn()) {
+	    trace("SnmpEngine", "LOCAL ENGINE ID: " + engineid + " / " +
+		  "LOCAL ENGINE NB BOOTS: " + boot + " / " +
+		  "LOCAL ENGINE START TIME: " + getEngineTime());
+	}
+!!!3475995.java!!!	SnmpEngineImpl(inout fact : SnmpEngineFactory, inout lcd : SnmpLcd, in port : int)
+	init(lcd, fact);
+	initEngineID();
+	if(engineid == null)
+	   engineid = SnmpEngineId.createEngineId(port);
+
+	lcd.storeEngineId(engineid);
+
+	if(isTraceOn()) {
+	    trace("SnmpEngine", "LOCAL ENGINE ID: " + engineid + " / " +
+		  "LOCAL ENGINE NB BOOTS: " + boot + " / " +
+		  "LOCAL ENGINE START TIME: " + getEngineTime());
+	}
+!!!3476123.java!!!	SnmpEngineImpl(inout fact : SnmpEngineFactory, inout lcd : SnmpLcd)
+	init(lcd, fact);
+	initEngineID();
+	if(engineid == null)
+	    engineid = SnmpEngineId.createEngineId();
+	
+	lcd.storeEngineId(engineid);
+
+
+	if(isTraceOn()) {
+	    trace("SnmpEngine", "LOCAL ENGINE ID: " + engineid + " / " +
+		  "LOCAL ENGINE NB BOOTS: " + boot + " / " +
+		  "LOCAL ENGINE START TIME: " + getEngineTime());
+	}
+!!!3476251.java!!!	activateCheckOid() : void
+	checkOid = true;
+!!!3476379.java!!!	deactivateCheckOid() : void
+	checkOid = false;
+!!!3476507.java!!!	isCheckOidActivated() : boolean
+	return checkOid;
+!!!3476635.java!!!	storeNBBoots(in boot : int) : void
+	if(boot < 0 || boot == 0x7FFFFFFF) {
+	    boot = 0x7FFFFFFF;
+	    lcd.storeEngineBoots(boot);
+	}
+	else
+	    lcd.storeEngineBoots(boot + 1);
+!!!3476763.java!!!	init(inout lcd : SnmpLcd, inout fact : SnmpEngineFactory) : void
+	this.factory = fact;
+	this.lcd = lcd;
+	boot = lcd.getEngineBoots();
+
+	if(boot == -1 || boot == 0)
+	    boot = 1;
+
+	storeNBBoots(boot);
+
+	startTime = System.currentTimeMillis() / 1000;
+
+!!!3476891.java!!!	setUsmKeyHandler(inout usmKeyHandler : SnmpUsmKeyHandler) : void
+	this.usmKeyHandler = usmKeyHandler;
+!!!3477019.java!!!	initEngineID() : void
+	String id = lcd.getEngineId();
+	if(id != null) {
+	    engineid = SnmpEngineId.createEngineId(id);
+	}
+!!!3477147.java!!!	getMsgProcessingSubSystem() : SnmpMsgProcessingSubSystem
+	return messageSub;
+!!!3477275.java!!!	setMsgProcessingSubSystem(inout sys : SnmpMsgProcessingSubSystem) : void
+	messageSub = sys;
+!!!3477403.java!!!	getSecuritySubSystem() : SnmpSecuritySubSystem
+	return securitySub;
+!!!3477531.java!!!	setSecuritySubSystem(inout sys : SnmpSecuritySubSystem) : void
+	securitySub = sys;
+!!!3477659.java!!!	setAccessControlSubSystem(inout sys : SnmpAccessControlSubSystem) : void
+	accessSub = sys;
+!!!3477787.java!!!	getAccessControlSubSystem() : SnmpAccessControlSubSystem
+	return accessSub;
+!!!3477915.java!!!	checkSecurityLevel(in msgFlags : byte) : void
+	int secLevel = msgFlags & SnmpDefinitions.authPriv;
+	if((secLevel & SnmpDefinitions.privMask) != 0)
+	    if((secLevel & SnmpDefinitions.authMask) == 0) {
+		throw new SnmpBadSecurityLevelException("Security level:"+ 
+							" noAuthPriv!!!");
+	    }
+!!!3478043.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_SNMP);
+!!!3478171.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_SNMP, clz, func, info);
+!!!3478299.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!3478427.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_SNMP);
+!!!3478555.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_SNMP, clz, func, info);
+!!!3478683.java!!!	debug(in clz : String, in func : String, inout exception : Throwable) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_SNMP, clz, func, exception);
+!!!3478811.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);
+!!!3478939.java!!!	debug(in func : String, inout exception : Throwable) : void
+        debug(dbgTag, func, exception);

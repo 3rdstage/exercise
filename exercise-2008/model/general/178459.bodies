@@ -1,0 +1,1317 @@
+class BigDecimal
+!!!7139227.java!!!	BigDecimal(in in : char, in offset : int, in len : int)
+        // This is the primary string to BigDecimal constructor; all
+        // incoming strings end up here; it uses explicit (inline)
+        // parsing for speed and generates at most one intermediate
+        // (temporary) object (a char[] array).
+
+        // use array bounds checking to handle too-long, len == 0,
+        // bad offset, etc.
+        try {
+            // handle the sign
+            boolean isneg = false;          // assume positive
+            if (in[offset] == '-') {
+                isneg = true;               // leading minus means negative
+                offset++;
+                len--;
+            } else if (in[offset] == '+') { // leading + allowed
+                offset++;
+                len--;
+            }
+
+            // should now be at numeric part of the significand
+            int dotoff = -1;                 // '.' offset, -1 if none
+            int cfirst = offset;             // record start of integer
+            long exp = 0;                    // exponent
+            if (len > in.length)             // protect against huge length
+                throw new NumberFormatException();
+            char coeff[] = new char[len];    // integer significand array
+            char c;                          // work
+
+            for (; len > 0; offset++, len--) {
+                c = in[offset];
+                if ((c >= '0' && c <= '9') || Character.isDigit(c)) {
+                    // have digit
+                    coeff[precision] = c;
+                    precision++;             // count of digits
+                    continue;
+                }
+                if (c == '.') {
+                    // have dot
+                    if (dotoff >= 0)         // two dots
+                        throw new NumberFormatException();
+                    dotoff = offset;
+                    continue;
+                }
+                // exponent expected
+                if ((c != 'e') && (c != 'E'))
+                    throw new NumberFormatException();
+                offset++;
+                c = in[offset];
+                len--;
+                boolean negexp = false;
+                // optional sign
+                if (c == '-' || c == '+') {
+                    negexp = (c == '-');
+                    offset++;
+                    c = in[offset];
+                    len--;
+                }
+                if (len <= 0)    // no exponent digits
+                    throw new NumberFormatException();
+		// skip leading zeros in the exponent 
+		while (len > 10 && Character.digit(c, 10) == 0) {
+			offset++;
+			c = in[offset];
+			len--;
+		}
+		if (len > 10)  // too many nonzero exponent digits
+                    throw new NumberFormatException();
+                // c now holds first digit of exponent
+                for (;; len--) {
+                    int v;
+                    if (c >= '0' && c <= '9') {
+                        v = c - '0';
+                    } else {
+                        v = Character.digit(c, 10);
+                        if (v < 0)            // not a digit
+                            throw new NumberFormatException();
+                    }
+                    exp = exp * 10 + v;
+                    if (len == 1)
+                        break;               // that was final character
+                    offset++;
+                    c = in[offset];
+                }
+                if (negexp)                  // apply sign
+                    exp = -exp;
+                // Next test is required for backwards compatibility
+                if ((int)exp != exp)         // overflow
+                    throw new NumberFormatException();
+                break;                       // [saves a test]
+                }
+            // here when no characters left
+            if (precision == 0)              // no digits found
+                throw new NumberFormatException();
+
+            if (dotoff >= 0) {               // had dot; set scale
+                scale = precision - (dotoff - cfirst);
+                // [cannot overflow]
+            }
+            if (exp != 0) {                  // had significant exponent
+		try {
+		    scale = checkScale(-exp + scale); // adjust
+		} catch (ArithmeticException e) { 
+		    throw new NumberFormatException("Scale out of range.");
+		}
+            }
+
+            // Remove leading zeros from precision (digits count)
+            int first = 0;
+            for (; (coeff[first] == '0' || Character.digit(coeff[first], 10) == 0) && 
+		     precision > 1; 
+		 first++) 
+                precision--;
+
+	    // Set the significand ..
+	    // Copy significand to exact-sized array, with sign if
+	    // negative
+	    // Later use: BigInteger(coeff, first, precision) for
+	    //   both cases, by allowing an extra char at the front of
+	    //   coeff.
+	    char quick[];
+	    if (!isneg) {
+		quick = new char[precision];
+		System.arraycopy(coeff, first, quick, 0, precision);
+	    } else {
+		quick = new char[precision+1];
+		quick[0] = '-';
+		System.arraycopy(coeff, first, quick, 1, precision);
+	    }
+	    if (precision <= MAX_COMPACT_DIGITS) 
+		intCompact = Long.parseLong(new String(quick));
+	    else
+		intVal = new BigInteger(quick);
+	    // System.out.println(" new: " +intVal+" ["+scale+"] "+precision);
+        } catch (ArrayIndexOutOfBoundsException e) {
+            throw new NumberFormatException();
+        } catch (NegativeArraySizeException e) {
+            throw new NumberFormatException();
+        }
+!!!7139355.java!!!	BigDecimal(in in : char, in offset : int, in len : int, inout mc : MathContext)
+        this(in, offset, len);
+        if (mc.precision > 0)
+            roundThis(mc);
+!!!7139483.java!!!	BigDecimal(in in : char)
+        this(in, 0, in.length);
+!!!7139611.java!!!	BigDecimal(in in : char, inout mc : MathContext)
+        this(in, 0, in.length, mc);
+!!!7139739.java!!!	BigDecimal(in val : String)
+        this(val.toCharArray(), 0, val.length());
+!!!7139867.java!!!	BigDecimal(in val : String, inout mc : MathContext)
+        this(val.toCharArray(), 0, val.length());
+        if (mc.precision > 0)
+            roundThis(mc);
+!!!7139995.java!!!	BigDecimal(in val : double)
+ 	if (Double.isInfinite(val) || Double.isNaN(val))
+ 	    throw new NumberFormatException("Infinite or NaN");
+
+ 	// Translate the double into sign, exponent and significand, according
+ 	// to the formulae in JLS, Section 20.10.22.
+ 	long valBits = Double.doubleToLongBits(val);
+ 	int sign = ((valBits >> 63)==0 ? 1 : -1);
+ 	int exponent = (int) ((valBits >> 52) & 0x7ffL);
+ 	long significand = (exponent==0 ? (valBits & ((1L<<52) - 1)) << 1
+			    : (valBits & ((1L<<52) - 1)) | (1L<<52));
+ 	exponent -= 1075;
+ 	// At this point, val == sign * significand * 2**exponent.
+
+ 	/*
+ 	 * Special case zero to supress nonterminating normalization
+ 	 * and bogus scale calculation.
+ 	 */
+ 	if (significand == 0) {
+ 	    intVal = BigInteger.ZERO;
+  	    intCompact = 0;
+ 	    precision = 1;
+ 	    return;
+ 	}
+
+ 	// Normalize
+ 	while((significand & 1) == 0) {    //  i.e., significand is even
+ 	    significand >>= 1;
+ 	    exponent++;
+ 	}
+
+ 	// Calculate intVal and scale
+ 	intVal = BigInteger.valueOf(sign*significand);
+ 	if (exponent < 0) {
+ 	    intVal = intVal.multiply(BigInteger.valueOf(5).pow(-exponent));
+ 	    scale = -exponent;
+ 	} else if (exponent > 0) {
+ 	    intVal = intVal.multiply(BigInteger.valueOf(2).pow(exponent));
+ 	}
+   	if (intVal.bitLength() <= MAX_BIGINT_BITS) {
+   	    intCompact = intVal.longValue();
+   	}
+!!!7140123.java!!!	BigDecimal(in val : double, inout mc : MathContext)
+        this(val);
+        if (mc.precision > 0)
+            roundThis(mc);
+!!!7140251.java!!!	BigDecimal(inout val : BigInteger)
+        intVal = val;
+ 	if (val.bitLength() <= MAX_BIGINT_BITS) {
+  	    intCompact = val.longValue();
+  	}
+!!!7140379.java!!!	BigDecimal(inout val : BigInteger, inout mc : MathContext)
+        intVal = val;
+        if (mc.precision > 0)
+            roundThis(mc);
+!!!7140507.java!!!	BigDecimal(inout unscaledVal : BigInteger, in scale : int)
+        // Negative scales are now allowed
+        intVal = unscaledVal;
+        this.scale = scale;
+  	if (unscaledVal.bitLength() <= MAX_BIGINT_BITS) {
+  	    intCompact = unscaledVal.longValue();
+  	}
+!!!7140635.java!!!	BigDecimal(inout unscaledVal : BigInteger, in scale : int, inout mc : MathContext)
+        intVal = unscaledVal;
+        this.scale = scale;
+        if (mc.precision > 0)
+            roundThis(mc);
+!!!7140763.java!!!	BigDecimal(in val : int)
+	intCompact = val;
+!!!7140891.java!!!	BigDecimal(in val : int, inout mc : MathContext)
+	intCompact = val;
+        if (mc.precision > 0)
+            roundThis(mc);
+!!!7141019.java!!!	BigDecimal(in val : long)
+	if (compactLong(val))
+	    intCompact = val;
+	else
+	    intVal = BigInteger.valueOf(val);
+!!!7141147.java!!!	BigDecimal(in val : long, inout mc : MathContext)
+	if (compactLong(val))
+	    intCompact = val;
+	else
+	    intVal = BigInteger.valueOf(val);
+        if (mc.precision > 0)
+            roundThis(mc);
+!!!7141275.java!!!	BigDecimal(in val : long, in scale : int)
+	this.intCompact = val;
+	this.scale = scale;
+!!!7141403.java!!!	BigDecimal(inout intVal : BigInteger, in val : long, in scale : int)
+	this.intVal = intVal;
+	this.intCompact = val;
+	this.scale = scale;
+!!!7141531.java!!!	valueOf(in unscaledVal : long, in scale : int) : BigDecimal
+        if (scale == 0 && unscaledVal >= 0 && unscaledVal <= 10) {
+	    return zeroThroughTen[(int)unscaledVal];
+        }
+	if (compactLong(unscaledVal))
+	    return new BigDecimal(unscaledVal, scale);
+        return new BigDecimal(BigInteger.valueOf(unscaledVal), scale);
+!!!7141659.java!!!	valueOf(in val : long) : BigDecimal
+	return valueOf(val, 0);
+!!!7141787.java!!!	valueOf(in val : double) : BigDecimal
+        // Reminder: a zero double returns '0.0', so we cannot fastpath
+        // to use the constant ZERO.  This might be important enough to
+        // justify a factory approach, a cache, or a few private
+        // constants, later.
+        return new BigDecimal(Double.toString(val));
+!!!7141915.java!!!	add(inout augend : BigDecimal) : BigDecimal
+        BigDecimal arg[] = {this, augend};
+        matchScale(arg);
+
+	long x = arg[0].intCompact;
+	long y = arg[1].intCompact;
+
+	// Might be able to do a more clever check incorporating the
+	// inflated check into the overflow computation.
+	if (x != INFLATED && y != INFLATED) {
+	    long sum = x + y;
+	    /*
+	     * If the sum is not an overflowed value, continue to use
+	     * the compact representation.  if either of x or y is
+	     * INFLATED, the sum should also be regarded as an
+	     * overflow.  See "Hacker's Delight" section 2-12 for
+	     * explanation of the overflow test.
+	     */
+	    if ( (((sum ^ x) & (sum ^ y)) >> 63) == 0L )	// not overflowed
+		return BigDecimal.valueOf(sum, arg[0].scale);
+	}
+        return new BigDecimal(arg[0].inflate().intVal.add(arg[1].inflate().intVal), arg[0].scale);
+!!!7142043.java!!!	add(inout augend : BigDecimal, inout mc : MathContext) : BigDecimal
+        if (mc.precision == 0)
+            return add(augend);
+        BigDecimal lhs = this;
+
+	// Could optimize if values are compact
+	this.inflate();
+	augend.inflate();
+	
+        // If either number is zero then the other number, rounded and
+        // scaled if necessary, is used as the result.
+	{
+	    boolean lhsIsZero = lhs.signum() == 0;
+	    boolean augendIsZero = augend.signum() == 0;
+
+	    if (lhsIsZero || augendIsZero) {
+		int preferredScale = Math.max(lhs.scale(), augend.scale());
+		BigDecimal result;
+
+		// Could use a factory for zero instead of a new object
+		if (lhsIsZero && augendIsZero)
+		    return new BigDecimal(BigInteger.ZERO, 0, preferredScale);
+
+
+		result = lhsIsZero ? augend.doRound(mc) : lhs.doRound(mc);
+
+		if (result.scale() == preferredScale) 
+		    return result;
+		else if (result.scale() > preferredScale) 
+		    return new BigDecimal(result.intVal, result.intCompact, result.scale).
+			stripZerosToMatchScale(preferredScale);
+		else { // result.scale < preferredScale
+		    int precisionDiff = mc.precision - result.precision();
+		    int scaleDiff     = preferredScale - result.scale();
+
+		    if (precisionDiff >= scaleDiff)
+			return result.setScale(preferredScale); // can achieve target scale
+		    else
+			return result.setScale(result.scale() + precisionDiff);
+		} 
+	    }
+	}
+
+        long padding = (long)lhs.scale - augend.scale;
+        if (padding != 0) {        // scales differ; alignment needed
+            BigDecimal arg[] = preAlign(lhs, augend, padding, mc);
+            matchScale(arg);
+            lhs    = arg[0];
+            augend = arg[1];
+        }
+	
+	return new BigDecimal(lhs.inflate().intVal.add(augend.inflate().intVal),
+			      lhs.scale).doRound(mc);
+!!!7142171.java!!!	preAlign(inout lhs : BigDecimal, inout augend : BigDecimal, in padding : long, inout mc : MathContext) : BigDecimal
+	assert padding != 0;
+	BigDecimal big;
+	BigDecimal small;
+	
+	if (padding < 0) {     // lhs is big;   augend is small
+	    big   = lhs;
+	    small = augend;
+	} else {               // lhs is small; augend is big
+	    big   = augend;
+	    small = lhs;
+	}
+
+	/*
+	 * This is the estimated scale of an ulp of the result; it
+	 * assumes that the result doesn't have a carry-out on a true
+	 * add (e.g. 999 + 1 => 1000) or any subtractive cancellation
+	 * on borrowing (e.g. 100 - 1.2 => 98.8)
+	 */
+	long estResultUlpScale = (long)big.scale - big.precision() + mc.precision;
+
+	/*
+	 * The low-order digit position of big is big.scale().  This
+	 * is true regardless of whether big has a positive or
+	 * negative scale.  The high-order digit position of small is
+	 * small.scale - (small.precision() - 1).  To do the full
+	 * condensation, the digit positions of big and small must be
+	 * disjoint *and* the digit positions of small should not be
+	 * directly visible in the result.
+	 */
+	long smallHighDigitPos = (long)small.scale - small.precision() + 1;
+	if (smallHighDigitPos > big.scale + 2 && 	 // big and small disjoint
+	    smallHighDigitPos > estResultUlpScale + 2) { // small digits not visible
+	    small = BigDecimal.valueOf(small.signum(),
+				       this.checkScale(Math.max(big.scale, estResultUlpScale) + 3));
+	}
+	
+	// Since addition is symmetric, preserving input order in
+	// returned operands doesn't matter
+	BigDecimal[] result = {big, small};
+	return result;
+!!!7142299.java!!!	subtract(inout subtrahend : BigDecimal) : BigDecimal
+        BigDecimal arg[] = {this, subtrahend};
+        matchScale(arg);
+
+	long x = arg[0].intCompact;
+	long y = arg[1].intCompact;
+
+	// Might be able to do a more clever check incorporating the
+	// inflated check into the overflow computation.
+	if (x != INFLATED && y != INFLATED) {
+	    long difference = x - y;
+	    /*
+	     * If the difference is not an overflowed value, continue
+	     * to use the compact representation.  if either of x or y
+	     * is INFLATED, the difference should also be regarded as
+	     * an overflow.  See "Hacker's Delight" section 2-12 for
+	     * explanation of the overflow test.
+	     */
+	    if ( ((x ^ y) & (difference ^ x) ) >> 63 == 0L )	// not overflowed
+		return BigDecimal.valueOf(difference, arg[0].scale);
+	}
+        return new BigDecimal(arg[0].inflate().intVal.subtract(arg[1].inflate().intVal),
+                              arg[0].scale);
+!!!7142427.java!!!	subtract(inout subtrahend : BigDecimal, inout mc : MathContext) : BigDecimal
+        if (mc.precision == 0)
+            return subtract(subtrahend);
+        // share the special rounding code in add()
+	this.inflate();
+	subtrahend.inflate();
+        BigDecimal rhs = new BigDecimal(subtrahend.intVal.negate(), subtrahend.scale);
+        rhs.precision = subtrahend.precision;
+        return add(rhs, mc);
+!!!7142555.java!!!	multiply(inout multiplicand : BigDecimal) : BigDecimal
+	long x = this.intCompact;
+	long y = multiplicand.intCompact;
+	int productScale = checkScale((long)scale+multiplicand.scale);
+
+	// Might be able to do a more clever check incorporating the
+	// inflated check into the overflow computation.
+	if (x != INFLATED && y != INFLATED) {
+	    /*
+	     * If the product is not an overflowed value, continue
+	     * to use the compact representation.  if either of x or y
+	     * is INFLATED, the product should also be regarded as
+	     * an overflow.  See "Hacker's Delight" section 2-12 for
+	     * explanation of the overflow test.
+	     */
+	    long product = x * y;
+	    if ( !(y != 0L && product/y != x)  )	// not overflowed
+		return BigDecimal.valueOf(product, productScale);
+	}
+
+        BigDecimal result = new BigDecimal(this.inflate().intVal.multiply(multiplicand.inflate().intVal), productScale);
+        return result;
+!!!7142683.java!!!	multiply(inout multiplicand : BigDecimal, inout mc : MathContext) : BigDecimal
+        if (mc.precision == 0)
+            return multiply(multiplicand);
+        BigDecimal lhs = this;
+        return lhs.inflate().multiply(multiplicand.inflate()).doRound(mc);
+!!!7142811.java!!!	divide(inout divisor : BigDecimal, in scale : int, in roundingMode : int) : BigDecimal
+	/* 
+	 * IMPLEMENTATION NOTE: This method *must* return a new object
+	 * since dropDigits uses divide to generate a value whose
+	 * scale is then modified.
+	 */
+        if (roundingMode < ROUND_UP || roundingMode > ROUND_UNNECESSARY)
+            throw new IllegalArgumentException("Invalid rounding mode");
+        /*
+         * Rescale dividend or divisor (whichever can be "upscaled" to
+         * produce correctly scaled quotient).
+         * Take care to detect out-of-range scales
+         */
+        BigDecimal dividend;
+        if (checkScale((long)scale + divisor.scale) >= this.scale) {
+            dividend = this.setScale(scale + divisor.scale);
+        } else {
+            dividend = this;
+            divisor = divisor.setScale(checkScale((long)this.scale - scale));
+        }
+	
+	boolean compact = dividend.intCompact != INFLATED && divisor.intCompact != INFLATED;
+	long div = INFLATED;
+	long rem = INFLATED;;
+	BigInteger q=null, r=null;
+
+	if (compact) {
+	    div = dividend.intCompact / divisor.intCompact;
+	    rem = dividend.intCompact % divisor.intCompact;
+	} else {
+	    // Do the division and return result if it's exact.
+	    BigInteger i[] = dividend.inflate().intVal.divideAndRemainder(divisor.inflate().intVal);
+	    q = i[0];
+	    r = i[1];
+	}
+
+	// Check for exact result
+	if (compact) {
+	    if (rem == 0)
+		return new BigDecimal(div, scale);
+	} else {
+	    if (r.signum() == 0)
+		return new BigDecimal(q, scale);
+	}
+	
+        if (roundingMode == ROUND_UNNECESSARY)      // Rounding prohibited
+            throw new ArithmeticException("Rounding necessary");
+
+        /* Round as appropriate */
+        int signum = dividend.signum() * divisor.signum(); // Sign of result
+        boolean increment;
+        if (roundingMode == ROUND_UP) {             // Away from zero
+            increment = true;
+        } else if (roundingMode == ROUND_DOWN) {    // Towards zero
+            increment = false;
+        } else if (roundingMode == ROUND_CEILING) { // Towards +infinity
+            increment = (signum > 0);
+        } else if (roundingMode == ROUND_FLOOR) {   // Towards -infinity
+            increment = (signum < 0);
+        } else { // Remaining modes based on nearest-neighbor determination
+            int cmpFracHalf;
+	    if (compact) {
+		 cmpFracHalf = longCompareTo(Math.abs(2*rem), Math.abs(divisor.intCompact));
+	    } else {
+		// add(r) here is faster than multiply(2) or shiftLeft(1)
+		cmpFracHalf= r.add(r).abs().compareTo(divisor.intVal.abs()); 
+	    }
+            if (cmpFracHalf < 0) {         // We're closer to higher digit
+                increment = false;
+            } else if (cmpFracHalf > 0) {  // We're closer to lower digit
+                increment = true;
+            } else {                       // We're dead-center
+                if (roundingMode == ROUND_HALF_UP)
+                    increment = true;
+                else if (roundingMode == ROUND_HALF_DOWN)
+                    increment = false;
+                else { // roundingMode == ROUND_HALF_EVEN
+		    if (compact) 
+			increment = (div & 1L) != 0L;
+		    else
+			increment = q.testBit(0);   // true iff q is odd
+		}
+            }
+	}
+
+	if (compact) {
+	    if (increment)
+		div += signum; // guaranteed not to overflow
+	    return new BigDecimal(div, scale);
+	} else {
+	    return (increment
+		    ? new BigDecimal(q.add(BigInteger.valueOf(signum)), scale)
+		    : new BigDecimal(q, scale));
+	}
+!!!7142939.java!!!	divide(inout divisor : BigDecimal, in scale : int, inout roundingMode : RoundingMode) : BigDecimal
+	return divide(divisor, scale, roundingMode.oldMode);
+!!!7143067.java!!!	divide(inout divisor : BigDecimal, in roundingMode : int) : BigDecimal
+            return this.divide(divisor, scale, roundingMode);
+!!!7143195.java!!!	divide(inout divisor : BigDecimal, inout roundingMode : RoundingMode) : BigDecimal
+	return this.divide(divisor, scale, roundingMode.oldMode);
+!!!7143323.java!!!	divide(inout divisor : BigDecimal) : BigDecimal
+	/*
+	 * Handle zero cases first.
+	 */
+        if (divisor.signum() == 0) {   // x/0
+            if (this.signum() == 0)    // 0/0
+                throw new ArithmeticException("Division undefined");  // NaN
+            throw new ArithmeticException("Division by zero");
+	}
+
+	// Calculate preferred scale
+	int preferredScale = (int)Math.max(Math.min((long)this.scale() - divisor.scale(),
+						    Integer.MAX_VALUE), Integer.MIN_VALUE);
+        if (this.signum() == 0)        // 0/y
+            return new BigDecimal(0, preferredScale);
+	else {
+	    this.inflate();
+	    divisor.inflate();
+	    /*
+	     * If the quotient this/divisor has a terminating decimal
+	     * expansion, the expansion can have no more than
+	     * (a.precision() + ceil(10*b.precision)/3) digits.
+	     * Therefore, create a MathContext object with this
+	     * precision and do a divide with the UNNECESSARY rounding
+	     * mode.
+	     */
+	    MathContext mc = new MathContext( (int)Math.min(this.precision() + 
+							    (long)Math.ceil(10.0*divisor.precision()/3.0),
+							    Integer.MAX_VALUE),
+					      RoundingMode.UNNECESSARY);
+	    BigDecimal quotient;
+	    try {
+		quotient = this.divide(divisor, mc);
+	    } catch (ArithmeticException e) {
+		throw new ArithmeticException("Non-terminating decimal expansion; " + 
+					      "no exact representable decimal result.");
+	    }
+
+	    int quotientScale = quotient.scale();
+
+	    // divide(BigDecimal, mc) tries to adjust the quotient to
+	    // the desired one by removing trailing zeros; since the
+	    // exact divide method does not have an explicit digit
+	    // limit, we can add zeros too.
+	    
+	    if (preferredScale > quotientScale)
+		return quotient.setScale(preferredScale);
+
+	    return quotient;
+	}
+!!!7143451.java!!!	divide(inout divisor : BigDecimal, inout mc : MathContext) : BigDecimal
+        if (mc.precision == 0)
+            return divide(divisor);
+        BigDecimal lhs = this.inflate();     // left-hand-side
+        BigDecimal rhs = divisor.inflate();  // right-hand-side
+        BigDecimal result;                   // work
+
+	long preferredScale = (long)lhs.scale() - rhs.scale();
+
+        // Now calculate the answer.  We use the existing
+        // divide-and-round method, but as this rounds to scale we have
+        // to normalize the values here to achieve the desired result.
+        // For x/y we first handle y=0 and x=0, and then normalize x and
+        // y to give x' and y' with the following constraints:
+        //   (a) 0.1 <= x' < 1
+        //   (b)  x' <= y' < 10*x'
+        // Dividing x'/y' with the required scale set to mc.precision then
+        // will give a result in the range 0.1 to 1 rounded to exactly
+        // the right number of digits (except in the case of a result of
+        // 1.000... which can arise when x=y, or when rounding overflows
+        // The 1.000... case will reduce properly to 1.
+        if (rhs.signum() == 0) {      // x/0
+            if (lhs.signum() == 0)    // 0/0
+                throw new ArithmeticException("Division undefined");  // NaN
+            throw new ArithmeticException("Division by zero");
+	}
+        if (lhs.signum() == 0)        // 0/y
+            return new BigDecimal(BigInteger.ZERO, 
+				  (int)Math.max(Math.min(preferredScale,
+							 Integer.MAX_VALUE),
+						Integer.MIN_VALUE));
+
+        BigDecimal xprime = new BigDecimal(lhs.intVal.abs(), lhs.precision());
+        BigDecimal yprime = new BigDecimal(rhs.intVal.abs(), rhs.precision());
+        // xprime and yprime are now both in range 0.1 through 0.999...
+	if (mc.roundingMode == RoundingMode.CEILING || 
+	    mc.roundingMode == RoundingMode.FLOOR) {
+	    // The floor (round toward negative infinity) and ceil
+	    // (round toward positive infinity) rounding modes are not
+	    // invariant under a sign flip.  If xprime/yprime has a
+	    // different sign than lhs/rhs, the rounding mode must be
+	    // changed.
+	    if ((xprime.signum() != lhs.signum()) ^
+		(yprime.signum() != rhs.signum())) {
+		mc = new MathContext(mc.precision, 
+				     (mc.roundingMode==RoundingMode.CEILING)?
+				     RoundingMode.FLOOR:RoundingMode.CEILING);
+	    }
+	}
+
+        if (xprime.compareTo(yprime) > 0)    // satisfy constraint (b)
+          yprime.scale -= 1;                 // [that is, yprime *= 10]
+        result = xprime.divide(yprime, mc.precision, mc.roundingMode.oldMode);
+        // correct the scale of the result...
+        result.scale = checkScale((long)yprime.scale - xprime.scale
+            - (rhs.scale - lhs.scale) + mc.precision);
+        // apply the sign
+        if (lhs.signum() != rhs.signum())
+            result = result.negate();
+        // doRound, here, only affects 1000000000 case.
+        result = result.doRound(mc);
+	    
+	if (result.multiply(divisor).compareTo(this) == 0) {
+	    // Apply preferred scale rules for exact quotients
+	    return result.stripZerosToMatchScale(preferredScale);
+	}
+	else {
+	    return result;
+	}
+!!!7143579.java!!!	divideToIntegralValue(inout divisor : BigDecimal) : BigDecimal
+	// Calculate preferred scale
+	int preferredScale = (int)Math.max(Math.min((long)this.scale() - divisor.scale(),
+						    Integer.MAX_VALUE), Integer.MIN_VALUE);
+	this.inflate();
+	divisor.inflate();
+        if (this.abs().compareTo(divisor.abs()) < 0) {
+	    // much faster when this << divisor
+            return BigDecimal.valueOf(0, preferredScale);
+        }
+
+	if(this.signum() == 0 && divisor.signum() != 0)
+	    return this.setScale(preferredScale);
+
+	// Perform a divide with enough digits to round to a correct
+	// integer value; then remove any fractional digits
+
+	int maxDigits = (int)Math.min(this.precision() +
+				      (long)Math.ceil(10.0*divisor.precision()/3.0) +
+				      Math.abs((long)this.scale() - divisor.scale()) + 2,
+				      Integer.MAX_VALUE);
+
+        BigDecimal quotient = this.divide(divisor, new MathContext(maxDigits,
+								   RoundingMode.DOWN));
+	if (quotient.scale > 0) {
+	    quotient = quotient.setScale(0, RoundingMode.DOWN).
+		stripZerosToMatchScale(preferredScale);
+	}
+	
+	if (quotient.scale < preferredScale) {
+	    // pad with zeros if necessary
+	    quotient = quotient.setScale(preferredScale);
+	}
+
+	return quotient;
+!!!7143707.java!!!	divideToIntegralValue(inout divisor : BigDecimal, inout mc : MathContext) : BigDecimal
+        if (mc.precision == 0 || 			// exact result
+	    (this.abs().compareTo(divisor.abs()) < 0) )	// zero result
+            return divideToIntegralValue(divisor);
+	
+	// Calculate preferred scale
+	int preferredScale = (int)Math.max(Math.min((long)this.scale() - divisor.scale(),
+						    Integer.MAX_VALUE), Integer.MIN_VALUE);
+	
+	/*
+	 * Perform a normal divide to mc.precision digits.  If the
+	 * remainder has absolute value less than the divisor, the
+	 * integer portion of the quotient fits into mc.precision
+	 * digits.  Next, remove any fractional digits from the
+	 * quotient and adjust the scale to the preferred value.
+	 */
+	BigDecimal result = this.divide(divisor, new MathContext(mc.precision, 
+								 RoundingMode.DOWN));
+	int resultScale = result.scale();
+	
+	if (result.scale() < 0) {
+	    /*
+	     * Result is an integer. See if quotient represents the
+	     * full integer portion of the exact quotient; if it does,
+	     * the computed remainder will be less than the divisor.
+	     */
+	    BigDecimal product = result.multiply(divisor);
+	    // If the quotient is the full integer value,
+	    // |dividend-product| < |divisor|.
+	    if (this.subtract(product).abs().compareTo(divisor.abs()) >= 0) {
+		throw new ArithmeticException("Division impossible");
+	    }
+	} else if (result.scale() > 0) { 
+	    /*
+	     * Integer portion of quotient will fit into precision
+	     * digits; recompute quotient to scale 0 to avoid double
+	     * rounding and then try to adjust, if necessary.
+	     */
+	    result = result.setScale(0, RoundingMode.DOWN);
+	}
+	// else result.scale() == 0; 
+
+	int precisionDiff;
+	if ((preferredScale > result.scale()) && 
+	    (precisionDiff = mc.precision - result.precision()) > 0  ) {
+	    return result.setScale(result.scale() + 
+				   Math.min(precisionDiff, preferredScale - result.scale) );
+	} else
+	    return result.stripZerosToMatchScale(preferredScale);
+!!!7143835.java!!!	remainder(inout divisor : BigDecimal) : BigDecimal
+        BigDecimal divrem[] = this.divideAndRemainder(divisor);
+        return divrem[1];
+!!!7143963.java!!!	remainder(inout divisor : BigDecimal, inout mc : MathContext) : BigDecimal
+        BigDecimal divrem[] = this.divideAndRemainder(divisor, mc);
+        return divrem[1];
+!!!7144091.java!!!	divideAndRemainder(inout divisor : BigDecimal) : BigDecimal
+        // we use the identity  x = i * y + r to determine r
+        BigDecimal[] result = new BigDecimal[2];
+
+        result[0] = this.divideToIntegralValue(divisor);
+	result[1] = this.subtract(result[0].multiply(divisor));
+        return result;
+!!!7144219.java!!!	divideAndRemainder(inout divisor : BigDecimal, inout mc : MathContext) : BigDecimal
+        if (mc.precision == 0)
+            return divideAndRemainder(divisor);
+
+        BigDecimal[] result = new BigDecimal[2];
+        BigDecimal lhs = this;
+
+        result[0] = lhs.divideToIntegralValue(divisor, mc);
+	result[1] = lhs.subtract(result[0].multiply(divisor));
+        return result;
+!!!7144347.java!!!	pow(in n : int) : BigDecimal
+        if (n < 0 || n > 999999999)
+            throw new ArithmeticException("Invalid operation");
+	// No need to calculate pow(n) if result will over/underflow.
+	// Don't attempt to support "supernormal" numbers.
+	int newScale = checkScale((long)scale * n);
+	this.inflate();
+        return new BigDecimal(intVal.pow(n), newScale);
+!!!7144475.java!!!	pow(in n : int, inout mc : MathContext) : BigDecimal
+        if (mc.precision == 0)
+            return pow(n);
+        if (n < -999999999 || n > 999999999)
+            throw new ArithmeticException("Invalid operation");
+        if (n == 0)
+            return ONE;                      // x**0 == 1 in X3.274
+	this.inflate();
+        BigDecimal lhs = this;
+        MathContext workmc = mc;           // working settings
+        int mag = Math.abs(n);               // magnitude of n
+        if (mc.precision > 0) {
+
+            int elength = intLength(mag);    // length of n in digits
+            if (elength > mc.precision)        // X3.274 rule
+                throw new ArithmeticException("Invalid operation");
+            workmc = new MathContext(mc.precision + elength + 1,
+				      mc.roundingMode);
+        }
+        // ready to carry out power calculation...
+        BigDecimal acc = ONE;           // accumulator
+        boolean seenbit = false;        // set once we've seen a 1-bit
+        for (int i=1;;i++) {            // for each bit [top bit ignored]
+            mag += mag;                 // shift left 1 bit
+            if (mag < 0) {              // top bit is set
+                seenbit = true;         // OK, we're off
+                acc = acc.multiply(lhs, workmc); // acc=acc*x
+            }
+            if (i == 31)
+                break;                  // that was the last bit
+            if (seenbit)
+                acc=acc.multiply(acc, workmc);   // acc=acc*acc [square]
+                // else (!seenbit) no point in squaring ONE
+        }
+        // if negative n, calculate the reciprocal using working precision
+        if (n<0)                          // [hence mc.precision>0]
+            acc=ONE.divide(acc, workmc);
+        // round to final precision and strip zeros
+        return acc.doRound(mc);
+!!!7144603.java!!!	abs() : BigDecimal
+        return (signum() < 0 ? negate() : this);
+!!!7144731.java!!!	abs(inout mc : MathContext) : BigDecimal
+        return (signum() < 0 ? negate(mc) : plus(mc));
+!!!7144859.java!!!	negate() : BigDecimal
+	BigDecimal result;
+	if (intCompact != INFLATED)
+	    result = BigDecimal.valueOf(-intCompact, scale);
+	else {
+	    result = new BigDecimal(intVal.negate(), scale);
+	    result.precision = precision;
+	}
+        return result;
+!!!7144987.java!!!	negate(inout mc : MathContext) : BigDecimal
+        return negate().plus(mc);
+!!!7145115.java!!!	plus() : BigDecimal
+        return this;
+!!!7145243.java!!!	plus(inout mc : MathContext) : BigDecimal
+        if (mc.precision == 0)                 // no rounding please
+            return this;
+        return this.doRound(mc);
+!!!7145371.java!!!	signum() : int
+	return (intCompact != INFLATED)?
+	    Long.signum(intCompact):
+	    intVal.signum();
+!!!7145499.java!!!	scale() : int
+        return scale;
+!!!7145627.java!!!	precision() : int
+        int result = precision;
+        if (result == 0) {
+            result = digitLength();
+            precision = result;
+        }
+        return result;
+!!!7145755.java!!!	unscaledValue() : BigInteger
+        return this.inflate().intVal;
+!!!7145883.java!!!	round(inout mc : MathContext) : BigDecimal
+        return plus(mc);
+!!!7146011.java!!!	setScale(in newScale : int, inout roundingMode : RoundingMode) : BigDecimal
+        return setScale(newScale, roundingMode.oldMode);
+!!!7146139.java!!!	setScale(in newScale : int, in roundingMode : int) : BigDecimal
+        if (roundingMode < ROUND_UP || roundingMode > ROUND_UNNECESSARY)
+            throw new IllegalArgumentException("Invalid rounding mode");
+
+        if (newScale == this.scale)        // easy case
+            return this;
+	if (this.signum() == 0) 	   // zero can have any scale
+	    return BigDecimal.valueOf(0, newScale);
+        if (newScale > this.scale) {
+            // [we can use checkScale to assure multiplier is valid]
+            int raise = checkScale((long)newScale - this.scale);
+
+   	    if (intCompact != INFLATED) {
+   		long scaledResult = longTenToThe(intCompact, raise);
+   		if (scaledResult != INFLATED)
+   		    return BigDecimal.valueOf(scaledResult, newScale);
+		this.inflate();
+  	    }
+
+            BigDecimal result = new BigDecimal(intVal.multiply(tenToThe(raise)),
+					       newScale);
+            if (this.precision > 0)
+                result.precision = this.precision + newScale - this.scale;
+            return result;
+        }
+        // scale < this.scale
+        // we cannot perfectly predict the precision after rounding
+        return divide(ONE, newScale, roundingMode);
+!!!7146267.java!!!	setScale(in newScale : int) : BigDecimal
+        return setScale(newScale, ROUND_UNNECESSARY);
+!!!7146395.java!!!	movePointLeft(in n : int) : BigDecimal
+        // Cannot use movePointRight(-n) in case of n==Integer.MIN_VALUE
+	int newScale = checkScale((long)scale + n);
+	BigDecimal num;
+	if (intCompact != INFLATED)
+	    num = BigDecimal.valueOf(intCompact, newScale);
+	else
+	    num = new BigDecimal(intVal, newScale);
+        return (num.scale<0 ? num.setScale(0) : num);
+!!!7146523.java!!!	movePointRight(in n : int) : BigDecimal
+        // Cannot use movePointLeft(-n) in case of n==Integer.MIN_VALUE
+	int newScale = checkScale((long)scale - n);
+	BigDecimal num;
+	if (intCompact != INFLATED)
+	    num = BigDecimal.valueOf(intCompact, newScale);
+	else
+	    num = new BigDecimal(intVal, newScale);
+        return (num.scale<0 ? num.setScale(0) : num);
+!!!7146651.java!!!	scaleByPowerOfTen(in n : int) : BigDecimal
+	this.inflate();
+        BigDecimal num = new BigDecimal(intVal, checkScale((long)scale - n));
+        num.precision = precision;
+        return num;
+!!!7146779.java!!!	stripTrailingZeros() : BigDecimal
+	this.inflate();
+	return (new BigDecimal(intVal, scale)).stripZerosToMatchScale(Long.MIN_VALUE);
+!!!7146907.java!!!	compareTo(inout val : BigDecimal) : int
+	// Optimization: would run fine without the next three lines
+	int sigDiff = signum() - val.signum();
+	if (sigDiff != 0)
+	    return (sigDiff > 0 ? 1 : -1);
+
+	// If the (adjusted) exponents are different we do not need to
+	// expensively match scales and compare the significands
+	int aethis = this.precision() - this.scale;    // [-1]
+	int aeval  =  val.precision() - val.scale;     // [-1]
+	if (aethis < aeval)
+	    return -this.signum();
+	else if (aethis > aeval)
+	    return this.signum();
+
+	// Scale and compare intVals
+	BigDecimal arg[] = {this, val};
+	matchScale(arg);
+	if (arg[0].intCompact != INFLATED && arg[1].intCompact != INFLATED)
+	    return longCompareTo(arg[0].intCompact, arg[1].intCompact);
+	return arg[0].inflate().intVal.compareTo(arg[1].inflate().intVal);
+!!!7147035.java!!!	equals(inout x : Object) : boolean
+        if (!(x instanceof BigDecimal))
+            return false;
+        BigDecimal xDec = (BigDecimal) x;
+	if (scale != xDec.scale)
+	    return false;
+	if (this.intCompact != INFLATED && xDec.intCompact != INFLATED)
+	    return this.intCompact == xDec.intCompact;
+        return this.inflate().intVal.equals(xDec.inflate().intVal);
+!!!7147163.java!!!	min(inout val : BigDecimal) : BigDecimal
+        return (compareTo(val) <= 0 ? this : val);
+!!!7147291.java!!!	max(inout val : BigDecimal) : BigDecimal
+        return (compareTo(val) >= 0 ? this : val);
+!!!7147419.java!!!	hashCode() : int
+ 	if (intCompact != INFLATED) {
+ 	    long val2 = (intCompact < 0)?-intCompact:intCompact;
+ 	    int temp = (int)( ((int)(val2 >>> 32)) * 31  +
+ 			      (val2 & 0xffffffffL));
+ 	    return 31*((intCompact < 0) ?-temp:temp) + scale;
+ 	} else
+	    return 31*intVal.hashCode() + scale;
+!!!7147547.java!!!	toString() : String
+	if (stringCache == null)
+	    stringCache = layoutChars(true);
+	return stringCache;
+!!!7147675.java!!!	toEngineeringString() : String
+        return layoutChars(false);
+!!!7147803.java!!!	toPlainString() : String
+	BigDecimal bd = this;
+	if (bd.scale < 0)
+	    bd = bd.setScale(0);
+	bd.inflate();
+	if (bd.scale == 0)	// No decimal point
+	    return bd.intVal.toString();
+        return bd.getValueString(bd.signum(), bd.intVal.abs().toString(), bd.scale);
+!!!7147931.java!!!	getValueString(in signum : int, in intString : String, in scale : int) : String
+ 	/* Insert decimal point */
+ 	StringBuilder buf;
+ 	int insertionPoint = intString.length() - scale;
+ 	if (insertionPoint == 0) {  /* Point goes right before intVal */
+ 	    return (signum<0 ? "-0." : "0.") + intString;
+ 	} else if (insertionPoint > 0) { /* Point goes inside intVal */
+ 	    buf = new StringBuilder(intString);
+ 	    buf.insert(insertionPoint, '.');
+ 	    if (signum < 0)
+ 		buf.insert(0, '-');
+ 	} else { /* We must insert zeros between point and intVal */
+ 	    buf = new StringBuilder(3-insertionPoint + intString.length());
+ 	    buf.append(signum<0 ? "-0." : "0.");
+ 	    for (int i=0; i<-insertionPoint; i++)
+ 		buf.append('0');
+ 	    buf.append(intString);
+ 	}
+ 	return buf.toString();
+!!!7148059.java!!!	toBigInteger() : BigInteger
+        // force to an integer, quietly
+        return this.setScale(0, ROUND_DOWN).inflate().intVal;
+!!!7148187.java!!!	toBigIntegerExact() : BigInteger
+        // round to an integer, with Exception if decimal part non-0
+        return this.setScale(0, ROUND_UNNECESSARY).inflate().intVal;
+!!!7148315.java!!!	longValue() : long
+	return (intCompact != INFLATED && scale == 0) ?
+	    intCompact:
+	    toBigInteger().longValue();
+!!!7148443.java!!!	longValueExact() : long
+	if (intCompact != INFLATED && scale == 0) 
+	    return intCompact;
+        // If more than 19 digits in integer part it cannot possibly fit
+        if ((precision() - scale) > 19) // [OK for negative scale too]
+            throw new java.lang.ArithmeticException("Overflow");
+        // Fastpath zero and < 1.0 numbers (the latter can be very slow
+        // to round if very small)
+        if (this.signum() == 0)
+            return 0;
+        if ((this.precision() - this.scale) <= 0)
+            throw new ArithmeticException("Rounding necessary");
+        // round to an integer, with Exception if decimal part non-0
+        BigDecimal num = this.setScale(0, ROUND_UNNECESSARY).inflate();
+        if (num.precision() >= 19) {    // need to check carefully
+            if (LONGMIN == null) {      // initialize constants
+                LONGMIN = BigInteger.valueOf(Long.MIN_VALUE);
+                LONGMAX = BigInteger.valueOf(Long.MAX_VALUE);
+            }
+            if ((num.intVal.compareTo(LONGMIN) < 0) ||
+                (num.intVal.compareTo(LONGMAX) > 0))
+                throw new java.lang.ArithmeticException("Overflow");
+        }
+        return num.intVal.longValue();
+!!!7148571.java!!!	intValue() : int
+	return  (intCompact != INFLATED && scale == 0) ?
+	    (int)intCompact :
+	    toBigInteger().intValue();
+!!!7148699.java!!!	intValueExact() : int
+       long num;
+       num = this.longValueExact();     // will check decimal part
+       if ((int)num != num)
+           throw new java.lang.ArithmeticException("Overflow");
+       return (int)num;
+!!!7148827.java!!!	shortValueExact() : short
+       long num;
+       num = this.longValueExact();     // will check decimal part
+       if ((short)num != num)
+           throw new java.lang.ArithmeticException("Overflow");
+       return (short)num;
+!!!7148955.java!!!	byteValueExact() : byte
+       long num;
+       num = this.longValueExact();     // will check decimal part
+       if ((byte)num != num)
+           throw new java.lang.ArithmeticException("Overflow");
+       return (byte)num;
+!!!7149083.java!!!	floatValue() : float
+	if (scale == 0 && intCompact != INFLATED)
+		return (float)intCompact;
+	// Somewhat inefficient, but guaranteed to work.
+	return Float.parseFloat(this.toString());
+!!!7149211.java!!!	doubleValue() : double
+	if (scale == 0 && intCompact != INFLATED)
+	    return (double)intCompact;
+	// Somewhat inefficient, but guaranteed to work.
+	return Double.parseDouble(this.toString());
+!!!7149339.java!!!	ulp() : BigDecimal
+	return BigDecimal.valueOf(1, this.scale());
+!!!7149467.java!!!	layoutChars(inout sci : boolean) : String
+        if (scale == 0)                      // zero scale is trivial
+	    return (intCompact != INFLATED) ? 
+		Long.toString(intCompact):
+		intVal.toString();
+
+        // Get the significand as an absolute value
+        char coeff[];
+	if (intCompact != INFLATED)
+	    coeff = Long.toString(Math.abs(intCompact)).toCharArray();
+	else
+	    coeff = intVal.abs().toString().toCharArray();
+
+        // Construct a buffer, with sufficient capacity for all cases.
+        // If E-notation is needed, length will be: +1 if negative, +1
+        // if '.' needed, +2 for "E+", + up to 10 for adjusted exponent.
+        // Otherwise it could have +1 if negative, plus leading "0.00000"
+        StringBuilder buf=new StringBuilder(coeff.length+14);
+        if (signum() < 0)             // prefix '-' if negative
+            buf.append('-');
+        long adjusted = -(long)scale + (coeff.length-1);
+        if ((scale >= 0) && (adjusted >= -6)) { // plain number
+            int pad = scale - coeff.length;  // count of padding zeros
+            if (pad >= 0) {                  // 0.xxx form
+                buf.append('0');
+                buf.append('.');
+                for (; pad>0; pad--) {
+                    buf.append('0');
+                }
+                buf.append(coeff);
+            } else {                         // xx.xx form
+                buf.append(coeff, 0, -pad);
+                buf.append('.');
+                buf.append(coeff, -pad, scale);
+            }
+        } else { // E-notation is needed
+            if (sci) {                       // Scientific notation
+                buf.append(coeff[0]);        // first character
+                if (coeff.length > 1) {      // more to come
+                    buf.append('.');
+                    buf.append(coeff, 1, coeff.length-1);
+                }
+            } else {                         // Engineering notation
+                int sig = (int)(adjusted % 3);
+                if (sig < 0)
+                    sig += 3;                // [adjusted was negative]
+                adjusted -= sig;             // now a multiple of 3
+                sig++;
+		if (signum() == 0) {
+		    switch (sig) {
+		    case 1:
+			buf.append('0'); // exponent is a multiple of three
+			break;
+		    case 2:
+			buf.append("0.00");
+			adjusted += 3;
+			break;
+		    case 3:
+			buf.append("0.0");
+			adjusted += 3;
+			break;
+		    default:
+			throw new AssertionError("Unexpected sig value " + sig);
+		    }
+		} else if (sig >= coeff.length) {   // significand all in integer
+                    buf.append(coeff, 0, coeff.length);
+                    // may need some zeros, too
+                    for (int i = sig - coeff.length; i > 0; i--)
+                        buf.append('0');
+                } else {                     // xx.xxE form
+                    buf.append(coeff, 0, sig);
+                    buf.append('.');
+                    buf.append(coeff, sig, coeff.length-sig);
+                }
+            }
+            if (adjusted != 0) {             // [!sci could have made 0]
+                buf.append('E');
+                if (adjusted > 0)            // force sign for positive
+                    buf.append('+');
+                buf.append(adjusted);
+            }
+        }
+        return buf.toString();
+!!!7149595.java!!!	tenToThe(in n : int) : BigInteger
+        if (n < TENPOWERS.length)     // use value from constant array
+            return TENPOWERS[n];
+        // BigInteger.pow is slow, so make 10**n by constructing a
+        // BigInteger from a character string (still not very fast)
+        char tenpow[] = new char[n + 1];
+        tenpow[0] = '1';
+        for (int i = 1; i <= n; i++)
+	    tenpow[i] = '0';
+        return new BigInteger(tenpow);
+!!!7149723.java!!!	longTenToThe(in val : long, in n : int) : long
+	// System.err.print("\tval " + val + "\t power " + n + "\tresult ");
+	if (n >= 0 && n < thresholds.length) {
+	    if (Math.abs(val) <= thresholds[n][0] ) {
+		// System.err.println(val * thresholds[n][1]);
+		return val * thresholds[n][1];
+	    }
+	}
+	// System.err.println(INFLATED);
+	return INFLATED;
+!!!7149851.java!!!	compactLong(in val : long) : boolean
+	return (val != Long.MIN_VALUE);
+!!!7149979.java!!!	inflate() : BigDecimal
+	if (intVal == null)
+	    intVal = BigInteger.valueOf(intCompact);
+	return this;
+!!!7150107.java!!!	matchScale(inout val : BigDecimal) : void
+        if (val[0].scale < val[1].scale)
+            val[0] = val[0].setScale(val[1].scale);
+        else if (val[1].scale < val[0].scale)
+            val[1] = val[1].setScale(val[0].scale);
+!!!7150235.java!!!	readObject(inout s : ObjectInputStream) : void
+        // Read in all fields
+        s.defaultReadObject();
+        // validate possibly bad fields
+	if (intVal == null) {
+            String message = "BigDecimal: null intVal in stream";
+            throw new java.io.StreamCorruptedException(message);
+        // [all values of scale are now allowed]
+        }
+	// Set intCompact to uninitialized value; could also see if the
+	// intVal was small enough to fit as a compact value.
+	intCompact = INFLATED;
+!!!7150363.java!!!	writeObject(inout s : ObjectOutputStream) : void
+       // Must inflate to maintain compatible serial form.
+       this.inflate();
+
+       // Write proper fields
+       s.defaultWriteObject();
+!!!7150491.java!!!	digitLength() : int
+	if (intCompact != INFLATED && Math.abs(intCompact) <= Integer.MAX_VALUE)
+	    return intLength(Math.abs((int)intCompact));
+        if (signum() == 0)       // 0 is one decimal digit
+            return 1;
+	this.inflate();
+        // we have a nonzero magnitude
+        BigInteger work = intVal;
+        int digits = 0;                 // counter
+        for (;work.mag.length>1;) {
+            // here when more than one integer in the magnitude; divide
+            // by a billion (reduce by 9 digits) and try again
+            work = work.divide(TENPOWERS[9]);
+            digits += 9;
+            if (work.signum() == 0)     // the division was exact
+                return digits;          // (a power of a billion)
+        }
+        // down to a simple nonzero integer
+        digits += intLength(work.mag[0]);
+        // System.out.println("digitLength... "+this+"  ->  "+digits);
+        return digits;
+!!!7150619.java!!!	intLength(in x : int) : int
+        int digits;
+        if (x < 0) {            // 'negative' is 10 digits unsigned
+            return  10;
+        } else {                // positive integer
+	    if (x <= 9)
+		return 1;
+	    // "Hacker's Delight"  section 11-4
+	    for(int i = -1; ; i++) {
+		if (x <= ilogTable[i+1])
+		    return i +1;
+	    }
+        }
+!!!7150747.java!!!	stripZerosToMatchScale(in preferredScale : long) : BigDecimal
+	boolean compact = (intCompact != INFLATED);
+	this.inflate();
+        BigInteger qr[];                // quotient-remainder pair
+        while ( intVal.abs().compareTo(BigInteger.TEN) >= 0 && 
+		scale > preferredScale) {
+            if (intVal.testBit(0))
+                break;                  // odd number cannot end in 0
+            qr = intVal.divideAndRemainder(BigInteger.TEN);
+            if (qr[1].signum() != 0)
+                break;                  // non-0 remainder
+            intVal=qr[0];
+            scale = checkScale((long)scale-1);  // could Overflow
+            if (precision > 0)          // adjust precision if known
+              precision--;
+        }
+	if (compact)
+	    intCompact = intVal.longValue();
+        return this;
+!!!7150875.java!!!	checkScale(in val : long) : int
+        if ((int)val != val) {
+	    if ((this.intCompact != INFLATED && this.intCompact != 0) || 
+		(this.intVal   != null     && this.signum() != 0) || 
+		(this.intVal == null && this.intCompact == INFLATED) ) {
+		if (val > Integer.MAX_VALUE)
+		    throw new ArithmeticException("Underflow");
+		if (val < Integer.MIN_VALUE)
+		    throw new ArithmeticException("Overflow");
+	    } else {
+		return (val > Integer.MAX_VALUE)?Integer.MAX_VALUE:Integer.MIN_VALUE;
+	    }
+        }
+        return (int)val;
+!!!7151003.java!!!	roundOp(inout mc : MathContext) : BigDecimal
+        BigDecimal rounded = doRound(mc);
+        return rounded;
+!!!7151131.java!!!	roundThis(inout mc : MathContext) : void
+        BigDecimal rounded = doRound(mc);
+        if (rounded == this)                 // wasn't rounded
+            return;
+        this.intVal	= rounded.intVal;
+        this.intCompact	= rounded.intCompact;
+        this.scale	= rounded.scale;
+        this.precision	= rounded.precision;
+!!!7151259.java!!!	doRound(inout mc : MathContext) : BigDecimal
+	this.inflate();
+        if (precision == 0) {
+            if (mc.roundingMax != null
+                && intVal.compareTo(mc.roundingMax) < 0
+                && intVal.compareTo(mc.roundingMin) > 0)
+                return this; // no rounding needed
+            precision();                     // find it
+	}
+        int drop = precision - mc.precision;   // digits to discard
+        if (drop <= 0)                       // we fit
+            return this;
+        BigDecimal rounded = dropDigits(mc, drop);
+        // we need to double-check, in case of the 999=>1000 case
+        return rounded.doRound(mc);
+!!!7151387.java!!!	dropDigits(inout mc : MathContext, in drop : int) : BigDecimal
+        // here if we need to round; make the divisor = 10**drop)
+        // [calculating the BigInteger here saves setScale later]
+        BigDecimal divisor = new BigDecimal(tenToThe(drop), 0);
+
+        // divide to same scale to force round to length
+        BigDecimal rounded = this.divide(divisor, scale,
+					 mc.roundingMode.oldMode);
+        rounded.scale = checkScale((long)rounded.scale - drop ); // adjust the scale
+        return rounded;
+!!!7151515.java!!!	longCompareTo(in x : long, in y : long) : int
+	return (x < y) ? -1 : (x == y) ? 0 : 1;
+!!!7151643.java!!!	print(in name : String, inout bd : BigDecimal) : void
+	System.err.format("%s:\tintCompact %d\tintVal %d\tscale %d\tprecision %d%n",
+			  name,
+			  bd.intCompact,
+			  bd.intVal,
+			  bd.scale,
+			  bd.precision);
+!!!7151771.java!!!	audit() : BigDecimal
+	// Check precision
+	if (precision > 0) {
+	    if (precision != digitLength()) {
+		print("audit", this);
+		throw new AssertionError("precision mismatch");
+	    }
+	}
+
+	if (intCompact == INFLATED) {
+	    if (intVal == null) { 
+		print("audit", this);
+		throw new AssertionError("null intVal");
+	    }
+	} else {
+	    if (intVal != null) {
+		long val = intVal.longValue();
+		if (val != intCompact) {
+		    print("audit", this);
+		    throw new AssertionError("Inconsistent state, intCompact=" + 
+					     intCompact + "\t intVal=" + val);
+		}
+	    }
+	}
+	return this;

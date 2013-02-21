@@ -1,0 +1,187 @@
+class DOMImplementationRegistry
+!!!10392731.java!!!	DOMImplementationRegistry(in srcs : Vector)
+	sources = srcs;
+!!!10392859.java!!!	newInstance() : DOMImplementationRegistry
+	Vector sources = new Vector();
+	
+	ClassLoader classLoader = getClassLoader();
+	// fetch system property:
+	String p = getSystemProperty(PROPERTY);
+	
+	//
+	// if property is not specified then use contents of
+        // META_INF/org.w3c.dom.DOMImplementationSourceList from classpath
+	if (p == null) {
+	    p = getServiceValue(classLoader);
+	} 
+        if (p == null) {
+	    //
+	    // DOM Implementations can modify here to add *additional* fallback
+	    // mechanisms to access a list of default DOMImplementationSources.
+	    
+	}
+	if (p != null) {
+	    StringTokenizer st = new StringTokenizer(p);
+	    while (st.hasMoreTokens()) {
+		String sourceName = st.nextToken();
+		// Use context class loader, falling back to Class.forName
+		// if and only if this fails...
+		Class sourceClass = null;
+		if (classLoader != null) {
+		    sourceClass = classLoader.loadClass(sourceName);
+		} else {
+		    sourceClass = Class.forName(sourceName);
+		}
+		DOMImplementationSource source =
+		    (DOMImplementationSource) sourceClass.newInstance();
+		sources.addElement(source);
+	    }
+	}
+	return new DOMImplementationRegistry(sources);
+!!!10392987.java!!!	getDOMImplementation(in features : String) : DOMImplementation
+	int size = sources.size();
+	String name = null;
+	for (int i = 0; i < size; i++) {
+	    DOMImplementationSource source =
+		(DOMImplementationSource) sources.elementAt(i);
+	    DOMImplementation impl = source.getDOMImplementation(features);
+	    if (impl != null) {
+		return impl;
+	    }
+	}
+	return null;
+!!!10393115.java!!!	getDOMImplementationList(in features : String) : DOMImplementationList
+	final Vector implementations = new Vector();
+	int size = sources.size();
+	for (int i = 0; i < size; i++) {
+	    DOMImplementationSource source =
+		(DOMImplementationSource) sources.elementAt(i);
+	    DOMImplementationList impls =
+		source.getDOMImplementationList(features);
+	    for (int j = 0; j < impls.getLength(); j++) {
+		DOMImplementation impl = impls.item(j);
+		implementations.addElement(impl);
+	    }
+	}
+	return new DOMImplementationList() {
+		public DOMImplementation item(final int index) {
+		    if (index >= 0 && index < implementations.size()) {
+			try {
+			    return (DOMImplementation)
+				implementations.elementAt(index);
+			} catch (ArrayIndexOutOfBoundsException e) {
+			    return null;
+			}
+		    }
+		    return null;
+		}
+		
+		public int getLength() {
+		    return implementations.size();
+		}
+	    };
+!!!10393243.java!!!	addSource(in s : DOMImplementationSource) : void
+	if (s == null) {
+	    throw new NullPointerException();
+	}
+	if (!sources.contains(s)) {
+	    sources.addElement(s);
+	}
+!!!10393371.java!!!	getClassLoader() : ClassLoader
+	try {
+	    ClassLoader contextClassLoader = getContextClassLoader();
+	    
+	    if (contextClassLoader != null) {
+		return contextClassLoader;
+	    }
+	} catch (Exception e) {
+	    // Assume that the DOM application is in a JRE 1.1, use the
+	    // current ClassLoader
+	    return DOMImplementationRegistry.class.getClassLoader();
+	}
+	return DOMImplementationRegistry.class.getClassLoader();
+!!!10393499.java!!!	getServiceValue(in classLoader : ClassLoader) : String
+	String serviceId = "META-INF/services/" + PROPERTY;
+	// try to find services in CLASSPATH
+	try {
+	    InputStream is = getResourceAsStream(classLoader, serviceId);
+	    
+	    if (is != null) {
+		BufferedReader rd;
+		try {
+		    rd =
+			new BufferedReader(new InputStreamReader(is, "UTF-8"),
+					   DEFAULT_LINE_LENGTH);
+		} catch (java.io.UnsupportedEncodingException e) {
+		    rd =
+			new BufferedReader(new InputStreamReader(is),
+					   DEFAULT_LINE_LENGTH);
+		}		
+		String serviceValue = rd.readLine();
+		rd.close();
+		if (serviceValue != null && serviceValue.length() > 0) {
+		    return serviceValue;
+		}
+	    }
+	} catch (Exception ex) {
+	    return null;
+	}
+	return null;
+!!!10393627.java!!!	isJRE11() : boolean
+	try {
+	    Class c = Class.forName("java.security.AccessController");
+	    // java.security.AccessController existed since 1.2 so, if no
+	    // exception was thrown, the DOM application is running in a JRE
+	    // 1.2 or higher
+	    return false;
+	} catch (Exception ex) {
+	    // ignore 
+	}
+	return true;
+!!!10393755.java!!!	getContextClassLoader() : ClassLoader
+	return isJRE11()
+	    ? null
+	    : (ClassLoader)
+ 	      AccessController.doPrivileged(new PrivilegedAction() {
+		    public Object run() {
+			ClassLoader classLoader = null;
+			try {
+			    classLoader =
+				Thread.currentThread().getContextClassLoader();
+			} catch (SecurityException ex) {
+			}
+			return classLoader;
+		    }
+		});
+!!!10393883.java!!!	getSystemProperty(in name : String) : String
+	return isJRE11()
+	    ? (String) System.getProperty(name)
+	    : (String) AccessController.doPrivileged(new PrivilegedAction() {
+		    public Object run() {
+			return System.getProperty(name);
+		    }
+		});
+!!!10394011.java!!!	getResourceAsStream(in classLoader : ClassLoader, in name : String) : InputStream
+	if (isJRE11()) {
+	    InputStream ris;
+	    if (classLoader == null) {
+		ris = ClassLoader.getSystemResourceAsStream(name);
+	    } else {
+		ris = classLoader.getResourceAsStream(name);
+	    }    
+	    return ris;
+	} else {
+	    return (InputStream)
+		AccessController.doPrivileged(new PrivilegedAction() {
+			public Object run() {
+			    InputStream ris;
+			    if (classLoader == null) {
+				ris =
+				    ClassLoader.getSystemResourceAsStream(name);
+			    } else {
+				ris = classLoader.getResourceAsStream(name);
+			    }
+			    return ris;
+			}
+		    });
+	}

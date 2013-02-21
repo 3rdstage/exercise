@@ -1,0 +1,136 @@
+class TransletOutputHandlerFactory
+!!!4735771.java!!!	newInstance() : TransletOutputHandlerFactory
+	return new TransletOutputHandlerFactory();
+!!!4735899.java!!!	setOutputType(in outputType : int) : void
+	_outputType = outputType;
+!!!4736027.java!!!	setEncoding(in encoding : String) : void
+	if (encoding != null) {
+	    _encoding = encoding;
+	}
+!!!4736155.java!!!	setOutputMethod(in method : String) : void
+	_method = method;
+!!!4736283.java!!!	setOutputStream(inout ostream : OutputStream) : void
+	_ostream = ostream;
+!!!4736411.java!!!	setWriter(inout writer : Writer) : void
+	_writer = writer;
+!!!4736539.java!!!	setHandler(inout handler : ContentHandler) : void
+        _handler = handler;
+!!!4736667.java!!!	setLexicalHandler(inout lex : LexicalHandler) : void
+	_lexHandler = lex;
+!!!4736795.java!!!	setNode(inout node : Node) : void
+	_node = node;
+!!!4736923.java!!!	getNode() : Node
+	return (_handler instanceof SAX2DOM) ? ((SAX2DOM)_handler).getDOM() 
+	   : null;
+!!!4737051.java!!!	setIndentNumber(in value : int) : void
+	_indentNumber = value;
+!!!4737179.java!!!	getSerializationHandler() : SerializationHandler
+        SerializationHandler result = null;
+        switch (_outputType)
+        {
+            case STREAM :
+
+                if (_method == null)
+                {
+                    result = new ToUnknownStream();
+                }
+                else if (_method.equalsIgnoreCase("xml"))
+                {
+
+                    result = new ToXMLStream();
+
+                }
+                else if (_method.equalsIgnoreCase("html"))
+                {
+
+                    result = new ToHTMLStream();
+
+                }
+                else if (_method.equalsIgnoreCase("text"))
+                {
+
+                    result = new ToTextStream();
+
+                }
+
+                if (result != null && _indentNumber >= 0)
+                {
+                    result.setIndentAmount(_indentNumber);
+                }
+
+                result.setEncoding(_encoding);
+
+                if (_writer != null)
+                {
+                    result.setWriter(_writer);
+                }
+                else
+                {
+                    result.setOutputStream(_ostream);
+                }
+                return result;
+
+            case DOM :
+                _handler = (_node != null) ? new SAX2DOM(_node) : new SAX2DOM();
+                _lexHandler = (LexicalHandler) _handler;
+                // falls through
+            case SAX :
+                if (_method == null)
+                {
+                    _method = "xml"; // default case
+                }
+
+                if (_method.equalsIgnoreCase("xml"))
+                {
+
+                    if (_lexHandler == null)
+                    {
+                        result = new ToXMLSAXHandler(_handler, _encoding);
+                    }
+                    else
+                    {
+                        result =
+                            new ToXMLSAXHandler(
+                                _handler,
+                                _lexHandler,
+                                _encoding);
+                    }
+
+                }
+                else if (_method.equalsIgnoreCase("html"))
+                {
+
+                    if (_lexHandler == null)
+                    {
+                        result = new ToHTMLSAXHandler(_handler, _encoding);
+                    }
+                    else
+                    {
+                        result =
+                            new ToHTMLSAXHandler(
+                                _handler,
+                                _lexHandler,
+                                _encoding);
+                    }
+
+                }
+                else if (_method.equalsIgnoreCase("text"))
+                {
+
+                    if (_lexHandler == null)
+                    {
+                        result = new ToTextSAXHandler(_handler, _encoding);
+                    }
+                    else
+                    {
+                        result =
+                            new ToTextSAXHandler(
+                                _handler,
+                                _lexHandler,
+                                _encoding);
+                    }
+
+                }
+                return result;
+        }
+        return null;

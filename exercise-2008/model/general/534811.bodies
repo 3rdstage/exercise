@@ -1,0 +1,53 @@
+class SnmpOidDatabaseSupport
+!!!3311899.java!!!	SnmpOidDatabaseSupport()
+        tables=new Vector();
+!!!3312027.java!!!	SnmpOidDatabaseSupport(inout table : SnmpOidTable)
+        tables=new Vector();
+        tables.addElement(table);
+!!!3312155.java!!!	add(inout table : SnmpOidTable) : void
+        if (!tables.contains(table)) {
+            tables.addElement(table);
+        }
+!!!3312283.java!!!	remove(inout table : SnmpOidTable) : void
+        if (!tables.contains(table)) {
+            throw new SnmpStatusException("The specified SnmpOidTable does not exist in this SnmpOidDatabase");
+        }
+        tables.removeElement(table);    
+!!!3312411.java!!!	resolveVarName(in name : String) : SnmpOidRecord
+        for (int i=0;i<tables.size();i++) {
+            try {
+                return (((SnmpOidTable)tables.elementAt(i)).resolveVarName(name));
+            }
+            catch (SnmpStatusException e) {
+                if (i==tables.size()-1) {
+                    throw new SnmpStatusException(e.getMessage());		    
+                }
+            }
+        }
+        return null;
+!!!3312539.java!!!	resolveVarOid(in oid : String) : SnmpOidRecord
+        for (int i=0;i<tables.size();i++) {
+            try {
+                return (((SnmpOidTable)tables.elementAt(i)).resolveVarOid(oid));
+            }
+            catch (SnmpStatusException e) {
+                if (i==tables.size()-1) {
+                    throw new SnmpStatusException(e.getMessage());
+                }
+            }
+        }
+        return null;
+!!!3312667.java!!!	getAllEntries() : Vector
+        Vector res = new Vector();
+        for (int i=0;i<tables.size();i++) {
+	    Vector tmp = ((SnmpOidTable)tables.elementAt(i)).getAllEntries();
+	    if (tmp != null) {
+		for(int ii=0; ii<tmp.size(); ii++) {
+			res.addElement(tmp.elementAt(ii));
+		}
+	    }
+	}
+//	res.addAll(((SnmpOidTable)tables.elementAt(i)).getAllEntries());
+        return res;
+!!!3312795.java!!!	removeAll() : void
+        tables.removeAllElements() ;

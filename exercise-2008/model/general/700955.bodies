@@ -1,0 +1,1030 @@
+class BasisLibrary
+!!!4716699.java!!!	countF(inout iterator : DTMAxisIterator) : int
+	return(iterator.getLast());
+!!!4716827.java!!!	positionF(inout iterator : DTMAxisIterator) : int
+        return iterator.isReverse()
+                     ? iterator.getLast() - iterator.getPosition() + 1
+                     : iterator.getPosition();
+!!!4716955.java!!!	sumF(inout iterator : DTMAxisIterator, inout dom : DOM) : double
+	try {
+	    double result = 0.0;
+	    int node;
+	    while ((node = iterator.next()) != DTMAxisIterator.END) {
+		result += Double.parseDouble(dom.getStringValueX(node));
+	    }
+	    return result;
+	}
+	catch (NumberFormatException e) {
+	    return Double.NaN;
+	}
+!!!4717083.java!!!	stringF(in node : int, inout dom : DOM) : String
+	return dom.getStringValueX(node);
+!!!4717211.java!!!	stringF(inout obj : Object, inout dom : DOM) : String
+	if (obj instanceof DTMAxisIterator) {
+	    return dom.getStringValueX(((DTMAxisIterator)obj).reset().next());
+	}
+	else if (obj instanceof Node) {
+	    return dom.getStringValueX(((Node)obj).node);
+	}
+	else if (obj instanceof DOM) {
+	    return ((DOM)obj).getStringValue();
+	}
+	else {
+	    return obj.toString();
+	}
+!!!4717339.java!!!	stringF(inout obj : Object, in node : int, inout dom : DOM) : String
+	if (obj instanceof DTMAxisIterator) {
+	    return dom.getStringValueX(((DTMAxisIterator)obj).reset().next());
+	}
+	else if (obj instanceof Node) {
+	    return dom.getStringValueX(((Node)obj).node);
+	}
+	else if (obj instanceof DOM) {
+	    // When the first argument is a DOM we want the whole fecking
+	    // DOM and not just a single node - that would not make sense.
+	    //return ((DOM)obj).getStringValueX(node);
+	    return ((DOM)obj).getStringValue();
+	}
+	else if (obj instanceof Double) {
+	    Double d = (Double)obj;
+	    final String result = d.toString();
+	    final int length = result.length();
+	    if ((result.charAt(length-2)=='.') &&
+		(result.charAt(length-1) == '0'))
+		return result.substring(0, length-2);
+	    else
+		return result;
+	}
+	else {
+	    if (obj != null)
+		return obj.toString();
+	    else
+		return stringF(node, dom);
+	}
+!!!4717467.java!!!	numberF(in node : int, inout dom : DOM) : double
+	return stringToReal(dom.getStringValueX(node));
+!!!4717595.java!!!	numberF(inout obj : Object, inout dom : DOM) : double
+	if (obj instanceof Double) {
+	    return ((Double) obj).doubleValue();
+	}
+	else if (obj instanceof Integer) {
+	    return ((Integer) obj).doubleValue();
+	}
+	else if (obj instanceof Boolean) {
+	    return  ((Boolean) obj).booleanValue() ? 1.0 : 0.0;
+	}
+	else if (obj instanceof String) {
+	    return stringToReal((String) obj);
+	}
+	else if (obj instanceof DTMAxisIterator) {
+	    DTMAxisIterator iter = (DTMAxisIterator) obj;
+	    return stringToReal(dom.getStringValueX(iter.reset().next()));
+	}
+	else if (obj instanceof Node) {
+	    return stringToReal(dom.getStringValueX(((Node) obj).node));
+	}
+	else if (obj instanceof DOM) {
+	    return stringToReal(((DOM) obj).getStringValue());
+	}
+	else {
+	    final String className = obj.getClass().getName();
+	    runTimeError(INVALID_ARGUMENT_ERR, className, "number()");
+	    return 0.0;
+	}
+!!!4717723.java!!!	roundF(in d : double) : double
+            return (d<-0.5 || d>0.0)?Math.floor(d+0.5):((d==0.0)?
+                        d:(Double.isNaN(d)?Double.NaN:-0.0));
+!!!4717851.java!!!	booleanF(inout obj : Object) : boolean
+	if (obj instanceof Double) {
+	    final double temp = ((Double) obj).doubleValue();
+	    return temp != 0.0 && !Double.isNaN(temp);
+	}
+	else if (obj instanceof Integer) {
+	    return ((Integer) obj).doubleValue() != 0;
+	}
+	else if (obj instanceof Boolean) {
+	    return  ((Boolean) obj).booleanValue();
+	}
+	else if (obj instanceof String) {
+	    return !((String) obj).equals(EMPTYSTRING);
+	}
+	else if (obj instanceof DTMAxisIterator) {
+	    DTMAxisIterator iter = (DTMAxisIterator) obj;
+	    return iter.reset().next() != DTMAxisIterator.END;
+	}
+	else if (obj instanceof Node) {
+	    return true;
+	}
+	else if (obj instanceof DOM) {
+	    String temp = ((DOM) obj).getStringValue();
+	    return !temp.equals(EMPTYSTRING);
+	}
+	else {
+	    final String className = obj.getClass().getName();
+	    runTimeError(INVALID_ARGUMENT_ERR, className, "number()");
+	}
+	return false;
+!!!4717979.java!!!	substringF(in value : String, in start : double) : String
+	try {
+	    final int strlen = value.length();
+	    int istart = (int)Math.round(start) - 1;
+
+	    if (Double.isNaN(start)) return(EMPTYSTRING);
+	    if (istart > strlen) return(EMPTYSTRING);
+ 	    if (istart < 1) istart = 0;
+
+	    return value.substring(istart);
+	}
+	catch (IndexOutOfBoundsException e) {
+	    runTimeError(RUN_TIME_INTERNAL_ERR, "substring()");
+	    return null;
+	}
+!!!4718107.java!!!	substringF(in value : String, in start : double, in length : double) : String
+	try {
+	    final int strlen  = value.length();
+	    int istart = (int)Math.round(start) - 1;
+	    int isum   = istart + (int)Math.round(length);
+
+	    if (Double.isInfinite(length)) isum = Integer.MAX_VALUE;
+
+	    if (Double.isNaN(start) || Double.isNaN(length))
+		return(EMPTYSTRING);
+	    if (Double.isInfinite(start)) return(EMPTYSTRING);
+	    if (istart > strlen) return(EMPTYSTRING);
+	    if (isum < 0) return(EMPTYSTRING);
+ 	    if (istart < 0) istart = 0;
+
+	    if (isum > strlen)
+		return value.substring(istart);
+	    else
+		return value.substring(istart, isum);
+	}
+	catch (IndexOutOfBoundsException e) {
+	    runTimeError(RUN_TIME_INTERNAL_ERR, "substring()");
+	    return null;
+	}
+!!!4718235.java!!!	substring_afterF(in value : String, in substring : String) : String
+	final int index = value.indexOf(substring);
+	if (index >= 0)
+	    return value.substring(index + substring.length());
+	else
+	    return EMPTYSTRING;
+!!!4718363.java!!!	substring_beforeF(in value : String, in substring : String) : String
+	final int index = value.indexOf(substring);
+	if (index >= 0)
+	    return value.substring(0, index);
+	else
+	    return EMPTYSTRING;
+!!!4718491.java!!!	translateF(in value : String, in from : String, in to : String) : String
+	final int tol = to.length();
+	final int froml = from.length();
+	final int valuel = value.length();
+
+	final StringBuffer result = new StringBuffer();
+	for (int j, i = 0; i < valuel; i++) {
+	    final char ch = value.charAt(i);
+	    for (j = 0; j < froml; j++) {
+		if (ch == from.charAt(j)) {
+		    if (j < tol)
+			result.append(to.charAt(j));
+		    break;
+		}
+	    }	
+	    if (j == froml)
+		result.append(ch);
+	}
+	return result.toString();
+!!!4718619.java!!!	normalize_spaceF(in node : int, inout dom : DOM) : String
+	return normalize_spaceF(dom.getStringValueX(node));
+!!!4718747.java!!!	normalize_spaceF(in value : String) : String
+	int i = 0, n = value.length();
+	StringBuffer result = new StringBuffer();
+
+	while (i < n && isWhiteSpace(value.charAt(i)))
+	    i++;
+
+	while (true) {
+	    while (i < n && !isWhiteSpace(value.charAt(i))) {
+		result.append(value.charAt(i++));
+	    }
+	    if (i == n)
+		break;
+	    while (i < n && isWhiteSpace(value.charAt(i))) {
+		i++;
+	    }
+	    if (i < n)
+		result.append(' ');
+	}
+	return result.toString();
+!!!4718875.java!!!	generate_idF(in node : int) : String
+	if (node > 0)
+	    // Only generate ID if node exists
+	    return "N" + node;
+	else
+	    // Otherwise return an empty string
+	    return EMPTYSTRING;
+!!!4719003.java!!!	getLocalName(in value : String) : String
+	int idx = value.lastIndexOf(':');
+	if (idx >= 0) value = value.substring(idx + 1);
+	idx = value.lastIndexOf('@');
+	if (idx >= 0) value = value.substring(idx + 1);
+	return(value);
+!!!4719131.java!!!	unresolved_externalF(in name : String) : void
+	runTimeError(EXTERNAL_FUNC_ERR, name);
+!!!4719259.java!!!	unallowed_extension_functionF(in name : String) : void
+        runTimeError(UNALLOWED_EXTENSION_FUNCTION_ERR, name);
+!!!4719387.java!!!	unallowed_extension_elementF(in name : String) : void
+        runTimeError(UNALLOWED_EXTENSION_ELEMENT_ERR, name);
+!!!4719515.java!!!	unsupported_ElementF(in qname : String, inout isExtension : boolean) : void
+	if (isExtension)
+	    runTimeError(UNSUPPORTED_EXT_ERR, qname);
+	else
+	    runTimeError(UNSUPPORTED_XSL_ERR, qname);
+!!!4719643.java!!!	namespace_uriF(inout iter : DTMAxisIterator, inout dom : DOM) : String
+	return namespace_uriF(iter.next(), dom);
+!!!4719771.java!!!	system_propertyF(in name : String) : String
+	if (name.equals("xsl:version"))
+	    return("1.0");
+	if (name.equals("xsl:vendor"))
+	    return("Apache Software Foundation (Xalan XSLTC)");
+	if (name.equals("xsl:vendor-url"))
+	    return("http://xml.apache.org/xalan-j");
+	
+	runTimeError(INVALID_ARGUMENT_ERR, name, "system-property()");
+	return(EMPTYSTRING);
+!!!4719899.java!!!	namespace_uriF(in node : int, inout dom : DOM) : String
+	final String value = dom.getNodeName(node);
+	final int colon = value.lastIndexOf(':');
+	if (colon >= 0)
+	    return value.substring(0, colon);
+	else
+	    return EMPTYSTRING;
+!!!4720027.java!!!	objectTypeF(inout obj : Object) : String
+      if (obj instanceof String)
+        return "string";
+      else if (obj instanceof Boolean)
+        return "boolean";
+      else if (obj instanceof Number)
+        return "number";
+      else if (obj instanceof DOM)
+        return "RTF";
+      else if (obj instanceof DTMAxisIterator)
+        return "node-set";
+      else
+        return "unknown";
+!!!4720155.java!!!	nodesetF(inout obj : Object) : DTMAxisIterator
+	if (obj instanceof DOM) {
+	   //final DOMAdapter adapter = (DOMAdapter) obj;
+	   final DOM dom = (DOM)obj;
+	   return new SingletonIterator(dom.getDocument(), true);
+	}
+        else if (obj instanceof DTMAxisIterator) {
+	   return (DTMAxisIterator) obj;
+        }
+        else {
+	    final String className = obj.getClass().getName();
+	    runTimeError(DATA_CONVERSION_ERR, "node-set", className);
+	    return null;
+        }
+!!!4720283.java!!!	isWhiteSpace(in ch : char) : boolean
+	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
+!!!4720411.java!!!	compareStrings(in lstring : String, in rstring : String, in op : int, inout dom : DOM) : boolean
+	switch (op) {
+	case EQ:
+	    return lstring.equals(rstring);
+
+	case NE:
+	    return !lstring.equals(rstring);
+
+	case GT:
+	    return numberF(lstring, dom) > numberF(rstring, dom);
+
+	case LT:
+	    return numberF(lstring, dom) < numberF(rstring, dom);
+
+	case GE:
+	    return numberF(lstring, dom) >= numberF(rstring, dom);
+
+	case LE:
+	    return numberF(lstring, dom) <= numberF(rstring, dom);
+
+	default:
+	    runTimeError(RUN_TIME_INTERNAL_ERR, "compare()");
+	    return false;
+	}
+!!!4720539.java!!!	compare(inout left : DTMAxisIterator, inout right : DTMAxisIterator, in op : int, inout dom : DOM) : boolean
+	int lnode;
+	left.reset();
+	
+	while ((lnode = left.next()) != DTMAxisIterator.END) {
+	    final String lvalue = dom.getStringValueX(lnode);
+	    
+	    int rnode;
+	    right.reset();
+	    while ((rnode = right.next()) != DTMAxisIterator.END) {
+                // String value must be the same if both nodes are the same
+                if (lnode == rnode) {
+                    if (op == EQ) {
+                        return true;
+                    } else if (op == NE) {
+                        continue;
+                    }
+                }
+		if (compareStrings(lvalue, dom.getStringValueX(rnode), op,
+                                   dom)) {
+		    return true;
+		}
+	    }
+	} 
+	return false;
+!!!4720667.java!!!	compare(in node : int, inout iterator : DTMAxisIterator, in op : int, inout dom : DOM) : boolean
+	//iterator.reset();
+
+	int rnode;
+	String value;
+
+	switch(op) {
+	case EQ:
+            rnode = iterator.next();
+            if (rnode != DTMAxisIterator.END) {
+	        value = dom.getStringValueX(node);
+                do {
+		    if (node == rnode
+                          || value.equals(dom.getStringValueX(rnode))) {
+                       return true;
+                    }
+	        } while ((rnode = iterator.next()) != DTMAxisIterator.END);
+            }
+	    break;
+	case NE:
+            rnode = iterator.next();
+            if (rnode != DTMAxisIterator.END) {
+	        value = dom.getStringValueX(node);
+                do {
+		    if (node != rnode
+                          && !value.equals(dom.getStringValueX(rnode))) {
+                        return true;
+                    }
+	        } while ((rnode = iterator.next()) != DTMAxisIterator.END);
+            }
+	    break;
+	case LT:
+	    // Assume we're comparing document order here
+	    while ((rnode = iterator.next()) != DTMAxisIterator.END) {
+		if (rnode > node) return true;
+	    }
+	    break;
+	case GT:
+	    // Assume we're comparing document order here
+	    while ((rnode = iterator.next()) != DTMAxisIterator.END) {
+		if (rnode < node) return true;
+	    }
+	    break;
+	} 
+	return(false);
+!!!4720795.java!!!	compare(inout left : DTMAxisIterator, in rnumber : double, in op : int, inout dom : DOM) : boolean
+	int node;
+	//left.reset();
+
+	switch (op) {
+	case EQ:
+	    while ((node = left.next()) != DTMAxisIterator.END) {
+		if (numberF(dom.getStringValueX(node), dom) == rnumber)
+		    return true;
+	    }
+	    break;
+
+	case NE:
+	    while ((node = left.next()) != DTMAxisIterator.END) {
+		if (numberF(dom.getStringValueX(node), dom) != rnumber)
+		    return true;
+	    }
+	    break;
+
+	case GT:
+	    while ((node = left.next()) != DTMAxisIterator.END) {
+		if (numberF(dom.getStringValueX(node), dom) > rnumber)
+		    return true;
+	    }
+	    break;
+
+	case LT:
+	    while ((node = left.next()) != DTMAxisIterator.END) {
+		if (numberF(dom.getStringValueX(node), dom) < rnumber)
+		    return true;
+	    }
+	    break;
+
+	case GE:
+	    while ((node = left.next()) != DTMAxisIterator.END) {
+		if (numberF(dom.getStringValueX(node), dom) >= rnumber)
+		    return true;
+	    }
+	    break;
+
+	case LE:
+	    while ((node = left.next()) != DTMAxisIterator.END) {
+		if (numberF(dom.getStringValueX(node), dom) <= rnumber)
+		    return true;
+	    }
+	    break;
+
+	default:
+	    runTimeError(RUN_TIME_INTERNAL_ERR, "compare()");
+	}
+
+	return false;
+!!!4720923.java!!!	compare(inout left : DTMAxisIterator, in rstring : String, in op : int, inout dom : DOM) : boolean
+	int node;
+	//left.reset();
+	while ((node = left.next()) != DTMAxisIterator.END) {
+	    if (compareStrings(dom.getStringValueX(node), rstring, op, dom)) {
+		return true;
+	    }
+	}
+	return false;
+!!!4721051.java!!!	compare(inout left : Object, inout right : Object, in op : int, inout dom : DOM) : boolean
+ 
+	boolean result = false;
+	boolean hasSimpleArgs = hasSimpleType(left) && hasSimpleType(right);
+
+	if (op != EQ && op != NE) {
+	    // If node-boolean comparison -> convert node to boolean
+	    if (left instanceof Node || right instanceof Node) {
+		if (left instanceof Boolean) {
+		    right = new Boolean(booleanF(right));
+		    hasSimpleArgs = true;
+		}
+		if (right instanceof Boolean) {
+		    left = new Boolean(booleanF(left));
+		    hasSimpleArgs = true;
+		}
+	    }
+
+	    if (hasSimpleArgs) {
+		switch (op) {
+		case GT:
+		    return numberF(left, dom) > numberF(right, dom);
+		    
+		case LT:
+		    return numberF(left, dom) < numberF(right, dom);
+		    
+		case GE:
+		    return numberF(left, dom) >= numberF(right, dom);
+		    
+		case LE:
+		    return numberF(left, dom) <= numberF(right, dom);
+		    
+		default:
+		    runTimeError(RUN_TIME_INTERNAL_ERR, "compare()");
+		}
+	    }
+	    // falls through
+	}
+
+	if (hasSimpleArgs) {
+	    if (left instanceof Boolean || right instanceof Boolean) {
+		result = booleanF(left) == booleanF(right);
+	    }
+	    else if (left instanceof Double || right instanceof Double ||
+		     left instanceof Integer || right instanceof Integer) {
+		result = numberF(left, dom) == numberF(right, dom);
+	    }
+	    else { // compare them as strings
+		result = stringF(left, dom).equals(stringF(right, dom));
+	    }
+
+	    if (op == Operators.NE) {
+		result = !result;
+	    }
+	}
+	else {
+	    if (left instanceof Node) {
+		left = new SingletonIterator(((Node)left).node);
+	    }
+	    if (right instanceof Node) {
+		right = new SingletonIterator(((Node)right).node);
+	    }
+
+	    if (hasSimpleType(left) ||
+		left instanceof DOM && right instanceof DTMAxisIterator) {
+		// swap operands
+		final Object temp = right; right = left; left = temp;
+	    }
+
+	    if (left instanceof DOM) {
+		if (right instanceof Boolean) {
+		    result = ((Boolean)right).booleanValue();
+		    return result == (op == Operators.EQ);
+		}
+
+		final String sleft = ((DOM)left).getStringValue();
+
+		if (right instanceof Number) {
+		    result = ((Number)right).doubleValue() ==
+			stringToReal(sleft);
+		}
+		else if (right instanceof String) {
+		    result = sleft.equals((String)right);
+		}
+		else if (right instanceof DOM) {
+		    result = sleft.equals(((DOM)right).getStringValue());
+		}
+
+		if (op == Operators.NE) {
+		    result = !result;
+		}
+		return result;
+	    }
+
+	    // Next, node-set/t for t in {real, string, node-set, result-tree}
+
+	    DTMAxisIterator iter = ((DTMAxisIterator)left).reset();
+
+	    if (right instanceof DTMAxisIterator) {
+		result = compare(iter, (DTMAxisIterator)right, op, dom);
+	    }
+	    else if (right instanceof String) {
+		result = compare(iter, (String)right, op, dom);
+	    }	
+	    else if (right instanceof Number) {
+		final double temp = ((Number)right).doubleValue();
+		result = compare(iter, temp, op, dom);
+	    }
+	    else if (right instanceof Boolean) {
+		boolean temp = ((Boolean)right).booleanValue();
+		result = (iter.reset().next() != DTMAxisIterator.END) == temp;
+	    }
+	    else if (right instanceof DOM) {
+		result = compare(iter, ((DOM)right).getStringValue(),
+				 op, dom);
+	    }
+	    else if (right == null) {
+		return(false);
+	    }
+	    else {
+		final String className = right.getClass().getName();
+		runTimeError(INVALID_ARGUMENT_ERR, className, "compare()");
+	    }
+	}
+	return result;
+!!!4721179.java!!!	testLanguage(in testLang : String, inout dom : DOM, in node : int) : boolean
+	// language for context node (if any)
+	String nodeLang = dom.getLanguage(node);
+	if (nodeLang == null)
+	    return(false);
+	else
+	    nodeLang = nodeLang.toLowerCase();
+
+	// compare context node's language agains test language
+	testLang = testLang.toLowerCase();
+	if (testLang.length() == 2) {
+	    return(nodeLang.startsWith(testLang));
+	}
+	else {
+	    return(nodeLang.equals(testLang));
+	}
+!!!4721307.java!!!	hasSimpleType(inout obj : Object) : boolean
+	return obj instanceof Boolean || obj instanceof Double ||
+	    obj instanceof Integer || obj instanceof String ||
+	    obj instanceof Node || obj instanceof DOM; 
+!!!4721435.java!!!	stringToReal(in s : String) : double
+	try {
+	    return Double.valueOf(s).doubleValue();
+	}
+	catch (NumberFormatException e) {
+	    return Double.NaN;
+	}
+!!!4721563.java!!!	stringToInt(in s : String) : int
+	try {
+	    return Integer.parseInt(s);
+	}
+	catch (NumberFormatException e) {
+	    return(-1); // ???
+	}
+!!!4721691.java!!!	realToString(in d : double) : String
+	final double m = Math.abs(d);
+	if ((m >= lowerBounds) && (m < upperBounds)) {
+	    final String result = Double.toString(d);
+	    final int length = result.length();
+	    // Remove leading zeros.
+	    if ((result.charAt(length-2) == '.') &&
+		(result.charAt(length-1) == '0'))
+		return result.substring(0, length-2);
+	    else
+		return result;
+	}
+	else {
+	    if (Double.isNaN(d) || Double.isInfinite(d))
+		return(Double.toString(d));
+	    return formatNumber(d, defaultPattern, defaultFormatter);
+	}
+!!!4721819.java!!!	realToInt(in d : double) : int
+	return (int)d;
+!!!4721947.java!!!	formatNumber(in number : double, in pattern : String, inout formatter : DecimalFormat) : String
+        // bugzilla fix 12813 
+	if (formatter == null) {
+	    formatter = defaultFormatter;
+	}
+	try {
+	    StringBuffer result = new StringBuffer();
+	    if (pattern != defaultPattern) {
+		formatter.applyLocalizedPattern(pattern);
+	    }
+            formatter.format(number, result, _fieldPosition);
+	    return result.toString();
+	}
+	catch (IllegalArgumentException e) {
+	    runTimeError(FORMAT_NUMBER_ERR, Double.toString(number), pattern);
+	    return(EMPTYSTRING);
+	}
+!!!4722075.java!!!	referenceToNodeSet(inout obj : Object) : DTMAxisIterator
+	// Convert var/param -> node
+	if (obj instanceof Node) {
+	    return(new SingletonIterator(((Node)obj).node));
+	}
+	// Convert var/param -> node-set
+	else if (obj instanceof DTMAxisIterator) {
+	    return(((DTMAxisIterator)obj).cloneIterator());
+	}
+	else {
+	    final String className = obj.getClass().getName();
+	    runTimeError(DATA_CONVERSION_ERR, className, "node-set");
+	    return null;
+	}
+!!!4722203.java!!!	referenceToNodeList(inout obj : Object, inout dom : DOM) : NodeList
+        if (obj instanceof Node || obj instanceof DTMAxisIterator) {
+            DTMAxisIterator iter = referenceToNodeSet(obj);
+            return dom.makeNodeList(iter);
+        }
+        else if (obj instanceof DOM) {
+          dom = (DOM)obj;
+          return dom.makeNodeList(DTMDefaultBase.ROOTNODE);
+        }
+	else {
+	    final String className = obj.getClass().getName();
+	    runTimeError(DATA_CONVERSION_ERR, className, 
+                "org.w3c.dom.NodeList");
+	    return null;
+	}
+!!!4722331.java!!!	referenceToNode(inout obj : Object, inout dom : DOM) : Node
+        if (obj instanceof Node || obj instanceof DTMAxisIterator) {
+            DTMAxisIterator iter = referenceToNodeSet(obj);
+            return dom.makeNode(iter);
+        }
+        else if (obj instanceof DOM) {
+          dom = (DOM)obj;
+          DTMAxisIterator iter = dom.getChildren(DTMDefaultBase.ROOTNODE);
+          return dom.makeNode(iter);
+        }
+	else {
+	    final String className = obj.getClass().getName();
+	    runTimeError(DATA_CONVERSION_ERR, className, "org.w3c.dom.Node");
+	    return null;
+	}
+!!!4722459.java!!!	referenceToLong(inout obj : Object) : long
+        if (obj instanceof Number) {
+            return ((Number) obj).longValue();    // handles Integer and Double
+        }
+        else {
+	    final String className = obj.getClass().getName();
+	    runTimeError(DATA_CONVERSION_ERR, className, Long.TYPE);
+	    return 0;
+        }
+!!!4722587.java!!!	referenceToDouble(inout obj : Object) : double
+        if (obj instanceof Number) {
+            return ((Number) obj).doubleValue();   // handles Integer and Double
+        }
+        else {
+	    final String className = obj.getClass().getName();
+	    runTimeError(DATA_CONVERSION_ERR, className, Double.TYPE);
+	    return 0;
+        }
+!!!4722715.java!!!	referenceToBoolean(inout obj : Object) : boolean
+        if (obj instanceof Boolean) {
+            return ((Boolean) obj).booleanValue();
+        }
+        else {
+	    final String className = obj.getClass().getName();
+	    runTimeError(DATA_CONVERSION_ERR, className, Boolean.TYPE);
+	    return false;
+        }
+!!!4722843.java!!!	referenceToString(inout obj : Object, inout dom : DOM) : String
+        if (obj instanceof String) {
+            return (String) obj;
+        }
+        else if (obj instanceof DTMAxisIterator) {
+	    return dom.getStringValueX(((DTMAxisIterator)obj).reset().next());
+	}
+	else if (obj instanceof Node) {
+	    return dom.getStringValueX(((Node)obj).node);
+	}
+	else if (obj instanceof DOM) {
+	    return ((DOM) obj).getStringValue();
+	}
+        else {
+	    final String className = obj.getClass().getName();
+	    runTimeError(DATA_CONVERSION_ERR, className, String.class);
+	    return null;
+        }
+!!!4722971.java!!!	node2Iterator(inout node : Node, inout translet : Translet, inout dom : DOM) : DTMAxisIterator
+        final org.w3c.dom.Node inNode = node;
+        // Create a dummy NodeList which only contains the given node to make 
+        // use of the nodeList2Iterator() interface.
+        org.w3c.dom.NodeList nodelist = new org.w3c.dom.NodeList() {            
+            public int getLength() {
+                return 1;
+            }
+            
+            public org.w3c.dom.Node item(int index) {
+                if (index == 0)
+                    return inNode;
+                else
+                    return null;
+            }
+        };
+        
+        return nodeList2Iterator(nodelist, translet, dom);
+!!!4723099.java!!!	copyNodes(inout nodeList : NodeList, inout doc : Document, inout parent : Node) : void
+        final int size = nodeList.getLength();
+
+          // copy Nodes from NodeList into new w3c DOM
+        for (int i = 0; i < size; i++) 
+        {
+            org.w3c.dom.Node curr = nodeList.item(i);
+            int nodeType = curr.getNodeType();
+            String value = null;
+            try {
+                value = curr.getNodeValue();
+            } catch (DOMException ex) {
+                runTimeError(RUN_TIME_INTERNAL_ERR, ex.getMessage());
+                return;
+            }
+            
+            String nodeName = curr.getNodeName();
+            org.w3c.dom.Node newNode = null; 
+            switch (nodeType){
+                case org.w3c.dom.Node.ATTRIBUTE_NODE:
+                     newNode = doc.createAttributeNS(curr.getNamespaceURI(), 
+			nodeName);
+                     break;
+                case org.w3c.dom.Node.CDATA_SECTION_NODE: 
+                     newNode = doc.createCDATASection(value);
+                     break;
+                case org.w3c.dom.Node.COMMENT_NODE: 
+                     newNode = doc.createComment(value);
+                     break;
+                case org.w3c.dom.Node.DOCUMENT_FRAGMENT_NODE: 
+                     newNode = doc.createDocumentFragment();
+                     break;
+                case org.w3c.dom.Node.DOCUMENT_NODE:
+                     newNode = doc.createElementNS(null, "__document__");
+                     copyNodes(curr.getChildNodes(), doc, newNode);
+                     break;
+                case org.w3c.dom.Node.DOCUMENT_TYPE_NODE:
+                     // nothing?
+                     break;
+                case org.w3c.dom.Node.ELEMENT_NODE: 
+                     // For Element node, also copy the children and the 
+		     // attributes.
+                     org.w3c.dom.Element element = doc.createElementNS(
+			curr.getNamespaceURI(), nodeName);
+                     if (curr.hasAttributes())
+                     {
+                       org.w3c.dom.NamedNodeMap attributes = curr.getAttributes();
+                       for (int k = 0; k < attributes.getLength(); k++) {
+                         org.w3c.dom.Node attr = attributes.item(k);
+                         element.setAttributeNS(attr.getNamespaceURI(), 
+                                 attr.getNodeName(), attr.getNodeValue());
+                       }
+                     }
+                     copyNodes(curr.getChildNodes(), doc, element);
+                     newNode = element;
+                     break;
+                case org.w3c.dom.Node.ENTITY_NODE: 
+                     // nothing ? 
+                     break;
+                case org.w3c.dom.Node.ENTITY_REFERENCE_NODE: 
+                     newNode = doc.createEntityReference(nodeName);
+                     break;
+                case org.w3c.dom.Node.NOTATION_NODE: 
+                     // nothing ? 
+                     break;
+                case org.w3c.dom.Node.PROCESSING_INSTRUCTION_NODE: 
+                     newNode = doc.createProcessingInstruction(nodeName,
+                        value);
+                     break;
+                case org.w3c.dom.Node.TEXT_NODE: 
+                     newNode = doc.createTextNode(value);
+                     break;
+            }
+            try {
+                parent.appendChild(newNode);
+            } catch (DOMException e) {
+                runTimeError(RUN_TIME_INTERNAL_ERR, e.getMessage());
+                return;
+            }           
+        }
+!!!4723227.java!!!	nodeList2Iterator(inout nodeList : NodeList, inout translet : Translet, inout dom : DOM) : DTMAxisIterator
+	// w3c NodeList -> w3c DOM
+  	Document doc = null;
+  	try {
+           doc = ((AbstractTranslet) translet).newDocument("", "__top__");
+	} catch (javax.xml.parsers.ParserConfigurationException e) {
+	    runTimeError(RUN_TIME_INTERNAL_ERR, e.getMessage());
+            return null;
+	}
+	
+        copyNodes(nodeList, doc, doc.getDocumentElement());
+
+        // w3cDOM -> DTM -> DOMImpl
+	if (dom instanceof MultiDOM) {
+            final MultiDOM multiDOM = (MultiDOM) dom;
+
+	    DTMDefaultBase dtm = (DTMDefaultBase)((DOMAdapter)multiDOM.getMain()).getDOMImpl();
+	    DTMManager dtmManager = dtm.getManager();
+	    
+	    DOM idom = (DOM)dtmManager.getDTM(new DOMSource(doc), false,
+					      null, true, false);
+	    // Create DOMAdapter and register with MultiDOM
+	    DOMAdapter domAdapter = new DOMAdapter(idom, 
+                translet.getNamesArray(),
+                translet.getUrisArray(),
+                translet.getTypesArray(),
+		translet.getNamespaceArray());
+            multiDOM.addDOMAdapter(domAdapter);
+
+	    DTMAxisIterator iter1 = idom.getAxisIterator(Axis.CHILD);
+	    DTMAxisIterator iter2 = idom.getAxisIterator(Axis.CHILD);
+            DTMAxisIterator iter = new AbsoluteIterator(
+                new StepIterator(iter1, iter2));
+
+ 	    iter.setStartNode(DTMDefaultBase.ROOTNODE);
+	    return iter;
+	}
+        else {
+	    runTimeError(RUN_TIME_INTERNAL_ERR, "nodeList2Iterator()");
+	    return null;
+        }
+!!!4723355.java!!!	referenceToResultTree(inout obj : Object) : DOM
+	try {
+	    return ((DOM) obj);
+	}
+	catch (IllegalArgumentException e) {
+	    final String className = obj.getClass().getName();
+	    runTimeError(DATA_CONVERSION_ERR, "reference", className);
+	    return null;
+	}
+!!!4723483.java!!!	getSingleNode(inout iterator : DTMAxisIterator) : DTMAxisIterator
+	int node = iterator.next();
+	return(new SingletonIterator(node));
+!!!4723611.java!!!	copy(inout obj : Object, inout handler : SerializationHandler, in node : int, inout dom : DOM) : void
+	try {
+	    if (obj instanceof DTMAxisIterator) 
+      {
+		DTMAxisIterator iter = (DTMAxisIterator) obj;
+		dom.copy(iter.reset(), handler);
+	    }
+	    else if (obj instanceof Node) {
+		dom.copy(((Node) obj).node, handler);
+	    }
+	    else if (obj instanceof DOM) {
+		//((DOM)obj).copy(((com.sun.org.apache.xml.internal.dtm.ref.DTMDefaultBase)((DOMAdapter)obj).getDOMImpl()).getDocument(), handler);
+		DOM newDom = (DOM)obj;
+		newDom.copy(newDom.getDocument(), handler);
+	    }
+	    else {
+		String string = obj.toString();		// or call stringF()
+		final int length = string.length();
+		if (length > _characterArray.length)
+		    _characterArray = new char[length];
+		string.getChars(0, length, _characterArray, 0);
+		handler.characters(_characterArray, 0, length);
+	    }
+	}
+	catch (SAXException e) {
+	    runTimeError(RUN_TIME_COPY_ERR);
+	}
+!!!4723739.java!!!	checkAttribQName(in name : String) : void
+        final int firstOccur = name.indexOf(":");
+        final int lastOccur = name.lastIndexOf(":");
+        final String localName = name.substring(lastOccur + 1);
+        
+        if (firstOccur > 0) {
+            final String newPrefix = name.substring(0, firstOccur); 
+        
+            if (firstOccur != lastOccur) {
+               final String oriPrefix = name.substring(firstOccur+1, lastOccur); 
+                if (!XMLChar.isValidNCName(oriPrefix)) {
+                    // even though the orignal prefix is ignored, it should still get checked for valid NCName
+                    runTimeError(INVALID_QNAME_ERR,oriPrefix+":"+localName);
+                }
+            }
+            
+            // prefix must be a valid NCName
+            if (!XMLChar.isValidNCName(newPrefix)) {
+                runTimeError(INVALID_QNAME_ERR,newPrefix+":"+localName); 
+            }  
+        }
+                
+        // local name must be a valid NCName and must not be XMLNS
+        if ((!XMLChar.isValidNCName(localName))||(localName.equals(Constants.XMLNS_PREFIX))) {
+            runTimeError(INVALID_QNAME_ERR,localName); 
+        }
+!!!4723867.java!!!	checkNCName(in name : String) : void
+        if (!XMLChar.isValidNCName(name)) {
+            runTimeError(INVALID_NCNAME_ERR,name); 
+        }  
+!!!4723995.java!!!	checkQName(in name : String) : void
+        if (!XMLChar.isValidQName(name)) {
+            runTimeError(INVALID_QNAME_ERR,name); 
+        }  
+!!!4724123.java!!!	startXslElement(in qname : String, in namespace : String, inout handler : SerializationHandler, inout dom : DOM, in node : int) : String
+        try {
+            // Get prefix from qname
+            String prefix;
+            final int index = qname.indexOf(':');
+            
+            if (index > 0) {
+                prefix = qname.substring(0, index);
+                
+                // Handle case when prefix is not known at compile time
+                if (namespace == null || namespace.length() == 0) {
+                    try {
+                        // not sure if this line of code ever works
+                        namespace = dom.lookupNamespace(node, prefix);
+                    }
+                    catch(RuntimeException e) {
+                        handler.flushPending();  // need to flush or else can't get namespacemappings
+                        NamespaceMappings nm = handler.getNamespaceMappings();
+                        namespace = nm.lookupNamespace(prefix);
+                        if (namespace == null) {
+                            runTimeError(NAMESPACE_PREFIX_ERR,prefix);
+                        }
+                    }
+                }
+                
+                handler.startElement(namespace, qname.substring(index+1),
+                                         qname);
+                handler.namespaceAfterStartElement(prefix, namespace); 
+            }
+            else {                      
+                // Need to generate a prefix?
+                if (namespace != null && namespace.length() > 0) {
+                    prefix = generatePrefix();
+                    qname = prefix + ':' + qname;   
+                    handler.startElement(namespace, qname, qname);   
+                    handler.namespaceAfterStartElement(prefix, namespace);
+                }
+                else {
+                    handler.startElement(null, null, qname);   
+                }
+            }
+        }
+        catch (SAXException e) {
+            throw new RuntimeException(e.getMessage());
+        }
+    
+        return qname;
+!!!4724251.java!!!	getPrefix(in qname : String) : String
+	final int index = qname.indexOf(':');
+	return (index > 0) ? qname.substring(0, index) : null;
+!!!4724379.java!!!	generatePrefix() : String
+	return ("ns" + prefixIndex++);
+!!!4724507.java!!!	runTimeError(in code : String) : void
+	throw new RuntimeException(m_bundle.getString(code));
+!!!4724635.java!!!	runTimeError(in code : String, inout args : Object) : void
+	final String message = MessageFormat.format(m_bundle.getString(code),
+                                                    args);
+	throw new RuntimeException(message);
+!!!4724763.java!!!	runTimeError(in code : String, inout arg0 : Object) : void
+	runTimeError(code, new Object[]{ arg0 } );
+!!!4724891.java!!!	runTimeError(in code : String, inout arg0 : Object, inout arg1 : Object) : void
+	runTimeError(code, new Object[]{ arg0, arg1 } );
+!!!4725019.java!!!	consoleOutput(in msg : String) : void
+	System.out.println(msg);
+!!!4725147.java!!!	replace(in base : String, in ch : char, in str : String) : String
+	return (base.indexOf(ch) < 0) ? base : 
+	    replace(base, String.valueOf(ch), new String[] { str });
+!!!4725275.java!!!	replace(in base : String, in delim : String, in str : String) : String
+	final int len = base.length();
+	final StringBuffer result = new StringBuffer();
+
+	for (int i = 0; i < len; i++) {
+	    final char ch = base.charAt(i);
+	    final int k = delim.indexOf(ch);
+
+	    if (k >= 0) {
+		result.append(str[k]);
+	    }
+	    else {
+		result.append(ch);
+	    }
+	}
+	return result.toString();
+!!!4725403.java!!!	mapQNameToJavaName(in base : String) : String
+       return replace(base, ".-:/{}?#%*",
+                      new String[] { "$dot$", "$dash$" ,"$colon$", "$slash$",
+                                     "","$colon$","$ques$","$hash$","$per$",
+                                     "$aster$"});
+

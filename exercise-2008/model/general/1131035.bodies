@@ -1,0 +1,53 @@
+class ProgressMonitorInputStream
+!!!9253659.java!!!	ProgressMonitorInputStream(inout parentComponent : Component, inout message : Object, inout in : InputStream)
+        super(in);
+        try {
+            size = in.available();
+        }
+        catch(IOException ioe) {
+            size = 0;
+        }
+        monitor = new ProgressMonitor(parentComponent, message, null, 0, size);
+!!!9253787.java!!!	getProgressMonitor() : ProgressMonitor
+        return monitor;
+!!!9253915.java!!!	read() : int
+        int c = in.read();
+        if (c >= 0) monitor.setProgress(++nread);
+        if (monitor.isCanceled()) {
+            InterruptedIOException exc =
+                                    new InterruptedIOException("progress");
+            exc.bytesTransferred = nread;
+            throw exc;
+        }
+        return c;
+!!!9254043.java!!!	read(in b : byte) : int
+        int nr = in.read(b);
+        if (nr > 0) monitor.setProgress(nread += nr);
+        if (monitor.isCanceled()) {
+            InterruptedIOException exc =
+                                    new InterruptedIOException("progress");
+            exc.bytesTransferred = nread;
+            throw exc;
+        }
+        return nr;
+!!!9254171.java!!!	read(in b : byte, in off : int, in len : int) : int
+        int nr = in.read(b, off, len);
+        if (nr > 0) monitor.setProgress(nread += nr);
+        if (monitor.isCanceled()) {
+            InterruptedIOException exc =
+                                    new InterruptedIOException("progress");
+            exc.bytesTransferred = nread;
+            throw exc;
+        }
+        return nr;
+!!!9254299.java!!!	skip(in n : long) : long
+        long nr = in.skip(n);
+        if (nr > 0) monitor.setProgress(nread += nr);
+        return nr;
+!!!9254427.java!!!	close() : void
+        in.close();
+        monitor.close();
+!!!9254555.java!!!	reset() : void
+        in.reset();
+        nread = size - in.available();
+        monitor.setProgress(nread);

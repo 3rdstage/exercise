@@ -1,0 +1,64 @@
+class DefaultListCellRenderer
+!!!2245019.java!!!	DefaultListCellRenderer()
+	super();
+	setOpaque(true);
+        setBorder(getNoFocusBorder());
+!!!2245147.java!!!	getNoFocusBorder() : Border
+        if (System.getSecurityManager() != null) {
+            return SAFE_NO_FOCUS_BORDER;
+        } else {
+            return noFocusBorder;
+        }
+!!!2245275.java!!!	getListCellRendererComponent(inout list : JList, inout value : Object, in index : int, inout isSelected : boolean, inout cellHasFocus : boolean) : Component
+        setComponentOrientation(list.getComponentOrientation());
+	if (isSelected) {
+	    setBackground(list.getSelectionBackground());
+	    setForeground(list.getSelectionForeground());
+	}
+	else {
+	    setBackground(list.getBackground());
+	    setForeground(list.getForeground());
+	}
+
+	if (value instanceof Icon) {
+	    setIcon((Icon)value);
+	    setText("");
+	}
+	else {
+	    setIcon(null);
+	    setText((value == null) ? "" : value.toString());
+	}
+
+	setEnabled(list.isEnabled());
+	setFont(list.getFont());
+
+        Border border = null;
+        if (cellHasFocus) {
+            if (isSelected) {
+                border = UIManager.getBorder("List.focusSelectedCellHighlightBorder");
+            }
+            if (border == null) {
+                border = UIManager.getBorder("List.focusCellHighlightBorder");
+            }
+        } else {
+            border = getNoFocusBorder();
+        }
+	setBorder(border);
+
+	return this;
+!!!2245403.java!!!	isOpaque() : boolean
+ 
+	Color back = getBackground();
+	Component p = getParent(); 
+	if (p != null) { 
+	    p = p.getParent(); 
+	}
+	// p should now be the JList. 
+	boolean colorMatch = (back != null) && (p != null) && 
+	    back.equals(p.getBackground()) && 
+			p.isOpaque();
+	return !colorMatch && super.isOpaque(); 
+!!!2246299.java!!!	firePropertyChange(in propertyName : String, inout oldValue : Object, inout newValue : Object) : void
+	// Strings get interned...
+	if (propertyName=="text")
+	    super.firePropertyChange(propertyName, oldValue, newValue);

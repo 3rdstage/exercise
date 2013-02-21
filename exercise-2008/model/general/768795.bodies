@@ -1,0 +1,71 @@
+class XSDocumentInfo
+!!!5348379.java!!!	XSDocumentInfo(inout schemaDoc : Document, inout attrChecker : XSAttributeChecker, inout symbolTable : SymbolTable)
+        fSchemaDoc = schemaDoc;
+        fNamespaceSupport = new SchemaNamespaceSupport();
+        fNamespaceSupport.reset();
+        fIsChameleonSchema = false;
+
+        fSymbolTable = symbolTable;
+        fAttrChecker = attrChecker;
+
+        if(schemaDoc != null) {
+            Element root = DOMUtil.getRoot(schemaDoc);
+            fSchemaAttrs = attrChecker.checkAttributes(root, true, this);
+            // schemaAttrs == null means it's not an <xsd:schema> element
+            // throw an exception, but we don't know the document systemId,
+            // so we leave that to the caller.
+            if (fSchemaAttrs == null) {
+                throw new XMLSchemaException(null, null);
+            }
+            fAreLocalAttributesQualified =
+                ((XInt)fSchemaAttrs[XSAttributeChecker.ATTIDX_AFORMDEFAULT]).intValue() == SchemaSymbols.FORM_QUALIFIED;
+            fAreLocalElementsQualified =
+                ((XInt)fSchemaAttrs[XSAttributeChecker.ATTIDX_EFORMDEFAULT]).intValue() == SchemaSymbols.FORM_QUALIFIED;
+            fBlockDefault =
+                ((XInt)fSchemaAttrs[XSAttributeChecker.ATTIDX_BLOCKDEFAULT]).shortValue();
+            fFinalDefault =
+                ((XInt)fSchemaAttrs[XSAttributeChecker.ATTIDX_FINALDEFAULT]).shortValue();
+            fTargetNamespace =
+                (String)fSchemaAttrs[XSAttributeChecker.ATTIDX_TARGETNAMESPACE];
+            if (fTargetNamespace != null)
+                fTargetNamespace = symbolTable.addSymbol(fTargetNamespace);
+
+            fNamespaceSupportRoot = new SchemaNamespaceSupport(fNamespaceSupport);
+
+            //set namespace support
+            fValidationContext.setNamespaceSupport(fNamespaceSupport);
+            fValidationContext.setSymbolTable(symbolTable);
+            // pass null as the schema document, so that the namespace
+            // context is not popped.
+
+            // don't return the attribute array yet!
+            //attrChecker.returnAttrArray(schemaAttrs, null);
+        }
+!!!5348507.java!!!	backupNSSupport(inout nsSupport : SchemaNamespaceSupport) : void
+        SchemaNamespaceSupportStack.push(fNamespaceSupport);
+        if (nsSupport == null)
+            nsSupport = fNamespaceSupportRoot;
+        fNamespaceSupport = new SchemaNamespaceSupport(nsSupport);
+
+        fValidationContext.setNamespaceSupport(fNamespaceSupport);
+!!!5348635.java!!!	restoreNSSupport() : void
+        fNamespaceSupport = (SchemaNamespaceSupport)SchemaNamespaceSupportStack.pop();
+        fValidationContext.setNamespaceSupport(fNamespaceSupport);
+!!!5348763.java!!!	toString() : String
+        return fTargetNamespace == null?"no targetNamspace":"targetNamespace is " + fTargetNamespace;
+!!!5348891.java!!!	addAllowedNS(in namespace : String) : void
+        fImportedNS.addElement(namespace == null ? "" : namespace);
+!!!5349019.java!!!	isAllowedNS(in namespace : String) : boolean
+        return fImportedNS.contains(namespace == null ? "" : namespace);
+!!!5349147.java!!!	needReportTNSError(in uri : String) : boolean
+        if (fReportedTNS == null)
+            fReportedTNS = new Vector();
+        else if (fReportedTNS.contains(uri))
+            return false;
+        fReportedTNS.addElement(uri);
+        return true;
+!!!5349275.java!!!	getSchemaAttrs() : Object
+        return fSchemaAttrs;
+!!!5349403.java!!!	returnSchemaAttrs() : void
+        fAttrChecker.returnAttrArray (fSchemaAttrs, null);
+        fSchemaAttrs = null;

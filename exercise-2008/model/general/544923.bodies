@@ -1,0 +1,99 @@
+class ThreadService
+!!!3546011.java!!!	ThreadService(in threadNumber : int)
+	if (threadNumber <= 0) {
+	    throw new IllegalArgumentException("The thread number should bigger than zero.");
+	}
+
+	minThreads = threadNumber;
+	threadList = new ExecutorThread[threadNumber];
+
+// 	for (int i=0; i<threadNumber; i++) {
+// 	    threadList[i] = new ExecutorThread();
+// 	    threadList[i].start();
+// 	}
+
+	priority = Thread.currentThread().getPriority();
+	cloader = Thread.currentThread().getContextClassLoader();
+
+//System.out.println("---jsl: ThreadService: running threads = "+threadNumber);
+!!!3546139.java!!!	submitTask(inout task : Task) : void
+	submitTask((Runnable)task);
+!!!3546267.java!!!	submitTask(inout task : Runnable) : void
+	stateCheck();
+
+	if (task == null) {
+	    throw new IllegalArgumentException("No task specified.");
+	}
+
+	synchronized(jobList) {
+	    jobList.add(jobList.size(), task);
+//System.out.println("jsl-ThreadService: added job "+addedJobs++);
+
+	    jobList.notify();
+	}
+
+	createThread();
+!!!3546395.java!!!	removeTask(inout task : Runnable) : Runnable
+	stateCheck();
+
+	Runnable removed = null;
+	synchronized(jobList) {
+	    int lg = jobList.indexOf(task);
+	    if (lg >= 0) {
+		removed = (Runnable)jobList.remove(lg);
+	    }
+	}
+	if (removed != null && removed instanceof Task) 
+	    ((Task) removed).cancel();
+	return removed;
+!!!3546523.java!!!	removeAll() : void
+	stateCheck();
+	
+	final Object[] jobs;
+	synchronized(jobList) {
+	    jobs = jobList.toArray();
+	    jobList.clear();
+	}
+	final int len = jobs.length;
+	for (int i=0; i<len ; i++) {
+	    final Object o = jobs[i];
+	    if (o!= null && o instanceof Task) ((Task)o).cancel();
+	}
+!!!3546651.java!!!	terminate() : void
+
+	if (terminated == true) {
+	    return;
+	}
+
+	terminated = true;
+
+	synchronized(jobList) {
+	    jobList.notifyAll();
+	}
+
+	removeAll();
+
+	for (int i=0; i<currThreds; i++) {
+	    try {
+		threadList[i].interrupt();
+	    } catch (Exception e) {
+		// TODO
+	    }
+	}
+
+	threadList = null;
+!!!3547035.java!!!	stateCheck() : void
+	if (terminated) {
+	    throw new IllegalStateException("The thread service has been terminated.");
+	}
+!!!3547163.java!!!	createThread() : void
+	if (idle < 1) {
+	    synchronized(threadList) {
+		if (jobList.size() > 0 && currThreds < minThreads) {
+		    ExecutorThread et = new ExecutorThread();
+		    et.start();
+		    threadList[currThreds++] = et;
+//System.out.println("jsl-ThreadService: create new thread: "+currThreds);
+		}
+	    }
+	}

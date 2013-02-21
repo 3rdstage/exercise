@@ -1,0 +1,46 @@
+class LazyIterator
+!!!3275291.java!!!	LazyIterator(inout service : Class, inout loader : ClassLoader)
+	    this.service = service;
+	    this.loader = loader;
+!!!3275419.java!!!	hasNext() : boolean
+	    if (nextName != null) {
+		return true;
+	    }
+	    if (configs == null) {
+		try {
+		    String fullName = prefix + service.getName();
+		    if (loader == null)
+			configs = ClassLoader.getSystemResources(fullName);
+		    else
+			configs = loader.getResources(fullName);
+		} catch (IOException x) {
+		    fail(service, ": " + x);
+		}
+	    }
+	    while ((pending == null) || !pending.hasNext()) {
+		if (!configs.hasMoreElements()) {
+		    return false;
+		}
+		pending = parse(service, (URL)configs.nextElement(), returned);
+	    }
+	    nextName = (String)pending.next();
+	    return true;
+!!!3275547.java!!!	next() : Object
+	    if (!hasNext()) {
+		throw new NoSuchElementException();
+	    }
+	    String cn = nextName;
+	    nextName = null;
+	    try {
+		return Class.forName(cn, true, loader).newInstance();
+	    } catch (ClassNotFoundException x) {
+		fail(service,
+		     "Provider " + cn + " not found");
+	    } catch (Exception x) {
+		fail(service,
+		     "Provider " + cn + " could not be instantiated: " + x,
+		     x);
+	    }
+	    return null;	/* This cannot happen */
+!!!3275675.java!!!	remove() : void
+	    throw new UnsupportedOperationException();

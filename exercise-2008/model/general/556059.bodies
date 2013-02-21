@@ -1,0 +1,206 @@
+class SnmpAcl
+!!!3539355.java!!!	SnmpAcl(in Owner : String)
+   
+	this(Owner,null);
+!!!3539483.java!!!	SnmpAcl(in Owner : String, in aclFileName : String)
+   
+        trapDestList= new Hashtable();
+        informDestList= new Hashtable();
+        
+        // PrincipalImpl() take the current host as entry
+        owner = new PrincipalImpl();
+        try {
+            acl = new AclImpl(owner,Owner);
+            AclEntry ownEntry = new AclEntryImpl(owner);
+            ownEntry.addPermission(READ);
+            ownEntry.addPermission(WRITE);
+            acl.addEntry(owner,ownEntry);
+        } catch (NotOwnerException ex) {
+            if (isDebugOn()) {
+                debug("constructor", 
+		      "Should never get NotOwnerException as the owner"+
+		      " is built in this constructor");
+            }
+        }
+        if (aclFileName == null) setDefaultFileName();
+	else setAuthorizedListFile(aclFileName);
+        readAuthorizedListFile();
+!!!3539611.java!!!	entries() : Enumeration
+        return acl.entries();
+!!!3539739.java!!!	communities() : Enumeration
+	HashSet set = new HashSet();
+	Vector res = new Vector();
+	for (Enumeration e = acl.entries() ; e.hasMoreElements() ;) {
+	    AclEntryImpl entry = (AclEntryImpl) e.nextElement();
+	    for (Enumeration cs = entry.communities(); 
+		 cs.hasMoreElements() ;) {
+		set.add((String) cs.nextElement());
+	    }
+	}
+	Object[] objs = set.toArray();
+	for(int i = 0; i < objs.length; i++)
+	    res.addElement(objs[i]);
+
+	return res.elements();
+!!!3539867.java!!!	getName() : String
+        return acl.getName();
+!!!3539995.java!!!	getREAD() : PermissionImpl
+        return READ;
+!!!3540123.java!!!	getWRITE() : PermissionImpl
+        return WRITE;
+!!!3540251.java!!!	getDefaultAclFileName() : String
+	final String fileSeparator = 
+	    System.getProperty("file.separator");
+	final StringBuffer defaultAclName = 
+	    new StringBuffer(System.getProperty("java.home")).
+	    append(fileSeparator).append("lib").append(fileSeparator).
+	    append("snmp.acl");
+	return defaultAclName.toString();
+!!!3540379.java!!!	setAuthorizedListFile(in filename : String) : void
+	File file = new File(filename);
+	if (!file.isFile() ) {
+	    if (isDebugOn()) {
+		debug("setAuthorizedListFile", 
+		      "ACL file not found: " + filename);
+	    }
+	    throw new 
+		IllegalArgumentException("The specified file ["+file+"] "+
+					 "doesn't exist or is not a file, "+
+					 "no configuration loaded");
+	}
+        if (isTraceOn()) {
+            trace("setAuthorizedListFile", "Default file set to " + filename);
+        }
+        authorizedListFile = filename;
+!!!3540507.java!!!	rereadTheFile() : void
+        alwaysAuthorized = false;
+        acl.removeAll(owner);
+        trapDestList.clear();
+        informDestList.clear();
+        AclEntry ownEntry = new AclEntryImpl(owner);
+        ownEntry.addPermission(READ);
+        ownEntry.addPermission(WRITE);  
+        acl.addEntry(owner,ownEntry);
+        readAuthorizedListFile();
+!!!3540635.java!!!	getAuthorizedListFile() : String
+        return authorizedListFile;
+!!!3540763.java!!!	checkReadPermission(inout address : InetAddress) : boolean
+        if (alwaysAuthorized) return ( true );
+        PrincipalImpl p = new PrincipalImpl(address);
+        return acl.checkPermission(p, READ);
+!!!3540891.java!!!	checkReadPermission(inout address : InetAddress, in community : String) : boolean
+        if (alwaysAuthorized) return ( true );
+        PrincipalImpl p = new PrincipalImpl(address);
+        return acl.checkPermission(p, community, READ);
+!!!3541019.java!!!	checkCommunity(in community : String) : boolean
+        return acl.checkCommunity(community);
+!!!3541147.java!!!	checkWritePermission(inout address : InetAddress) : boolean
+        if (alwaysAuthorized) return ( true );
+        PrincipalImpl p = new PrincipalImpl(address);
+        return acl.checkPermission(p, WRITE);
+!!!3541275.java!!!	checkWritePermission(inout address : InetAddress, in community : String) : boolean
+        if (alwaysAuthorized) return ( true );
+        PrincipalImpl p = new PrincipalImpl(address);
+        return acl.checkPermission(p, community, WRITE);
+!!!3541403.java!!!	getTrapDestinations() : Enumeration
+        return trapDestList.keys();
+!!!3541531.java!!!	getTrapCommunities(inout i : InetAddress) : Enumeration
+        Vector list = null;
+        if ((list = (Vector)trapDestList.get(i)) != null ) {
+            if (isTraceOn()) {
+                trace("getTrapCommunities", "["+i.toString()+"] is in list");
+            }
+            return list.elements();
+        } else {
+            list = new Vector();
+            if (isTraceOn()) {
+                trace("getTrapCommunities", "["+i.toString()+"] is not in list");
+            }
+            return list.elements();
+        } 
+!!!3541659.java!!!	getInformDestinations() : Enumeration
+        return informDestList.keys();
+!!!3541787.java!!!	getInformCommunities(inout i : InetAddress) : Enumeration
+        Vector list = null;
+        if ((list = (Vector)informDestList.get(i)) != null ) {
+            if (isTraceOn()) {
+                trace("getInformCommunities", "["+i.toString()+"] is in list");
+            }
+            return list.elements();
+        } else {
+            list = new Vector();
+            if (isTraceOn()) {
+                trace("getInformCommunities", "["+i.toString()+"] is not in list");
+            }
+            return list.elements();
+        } 
+!!!3541915.java!!!	readAuthorizedListFile() : void
+
+        alwaysAuthorized = false;
+
+        if (authorizedListFile == null) {
+            if (isTraceOn()) {
+                trace("readAuthorizedListFile", "alwaysAuthorized set to true");
+            }
+            alwaysAuthorized = true ;
+        } else {
+            // Read the file content
+            Parser parser = null;  
+            try {
+                parser= new Parser(new FileInputStream(getAuthorizedListFile()));
+            } catch (FileNotFoundException e) {
+                if (isDebugOn()) {
+                    debug("readAuthorizedListFile", "The specified file was not found, authorize everybody");
+                }
+                alwaysAuthorized = true ;
+                return;
+            }
+          
+            try {
+                JDMSecurityDefs n = parser.SecurityDefs();
+                n.buildAclEntries(owner, acl);
+                n.buildTrapEntries(trapDestList);
+                n.buildInformEntries(informDestList);
+            } catch (ParseException e) {
+                if (isDebugOn()) {
+                    debug("readAuthorizedListFile", "Parsing exception " + e);
+                }
+		throw new IllegalArgumentException(e.getMessage());
+            } catch (Error err) {
+                if (isDebugOn()) {
+                    debug("readAuthorizedListFile", "Error exception");
+                }
+		throw new IllegalArgumentException(err.getMessage());
+            }
+          
+            for(Enumeration e = acl.entries(); e.hasMoreElements();) {
+                AclEntryImpl aa = (AclEntryImpl) e.nextElement();
+                if (isTraceOn()) {
+                    trace("readAuthorizedListFile", "===> " + aa.getPrincipal().toString());
+                }
+                for (Enumeration eee = aa.permissions();eee.hasMoreElements();) {
+                    java.security.acl.Permission perm = (java.security.acl.Permission)eee.nextElement();
+                    if (isTraceOn()) {
+                        trace("readAuthorizedListFile", "perm = " + perm);
+                    }
+                }
+            }
+        }
+!!!3542043.java!!!	setDefaultFileName() : void
+	try {
+	    setAuthorizedListFile(getDefaultAclFileName());
+	} catch (IllegalArgumentException x) {
+	    // OK...
+	}
+!!!3542171.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_SNMP);
+!!!3542299.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_SNMP, clz, func, info);
+!!!3542427.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!3542555.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_SNMP);
+!!!3542683.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_SNMP, clz, func, info);
+!!!3542811.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);

@@ -1,0 +1,48 @@
+class MatchingIterator
+!!!4632091.java!!!	MatchingIterator(in match : int, inout source : DTMAxisIterator)
+	_source = source;
+	_match = match;
+!!!4632219.java!!!	setRestartable(inout isRestartable : boolean) : void
+	_isRestartable = isRestartable;
+	_source.setRestartable(isRestartable);
+!!!4632347.java!!!	cloneIterator() : DTMAxisIterator
+
+	try {
+	    final MatchingIterator clone = (MatchingIterator) super.clone();
+	    clone._source = _source.cloneIterator();
+	    clone._isRestartable = false;
+	    return clone.reset();
+	}
+	catch (CloneNotSupportedException e) {
+	    BasisLibrary.runTimeError(BasisLibrary.ITERATOR_CLONE_ERR,
+				      e.toString());
+	    return null;
+	}
+!!!4632475.java!!!	setStartNode(in node : int) : DTMAxisIterator
+	if (_isRestartable) {
+	    // iterator is not a clone
+	    _source.setStartNode(node);
+
+	    // Calculate the position of the node in the set
+	    _position = 1;
+	    while ((node = _source.next()) != END && node != _match) {
+		_position++;
+	    }
+	}
+	return this;
+!!!4632603.java!!!	reset() : DTMAxisIterator
+	_source.reset();
+	return resetPosition();
+!!!4632731.java!!!	next() : int
+	return _source.next();
+!!!4632859.java!!!	getLast() : int
+        if (_last == -1) {
+            _last = _source.getLast();
+        }
+        return _last;
+!!!4632987.java!!!	getPosition() : int
+	return _position;
+!!!4633115.java!!!	setMark() : void
+	_source.setMark();
+!!!4633243.java!!!	gotoMark() : void
+	_source.gotoMark();

@@ -1,0 +1,47 @@
+class Reader
+!!!3673755.java!!!	Reader()
+	this.lock = this;
+!!!3673883.java!!!	Reader(inout lock : Object)
+	if (lock == null) {
+	    throw new NullPointerException();
+	}
+	this.lock = lock;
+!!!3674011.java!!!	read(inout target : CharBuffer) : int
+        int len = target.remaining();
+        char[] cbuf = new char[len];
+        int n = read(cbuf, 0, len);
+        if (n > 0)
+            target.put(cbuf, 0, n);
+        return n;
+!!!3674139.java!!!	read() : int
+	char cb[] = new char[1];
+	if (read(cb, 0, 1) == -1)
+	    return -1;
+	else
+	    return cb[0];
+!!!3674267.java!!!	read(in cbuf : char) : int
+	return read(cbuf, 0, cbuf.length);
+!!!3674523.java!!!	skip(in n : long) : long
+	if (n < 0L) 
+	    throw new IllegalArgumentException("skip value is negative");
+	int nn = (int) Math.min(n, maxSkipBufferSize);
+	synchronized (lock) {
+	    if ((skipBuffer == null) || (skipBuffer.length < nn))
+		skipBuffer = new char[nn];
+	    long r = n;
+	    while (r > 0) {
+		int nc = read(skipBuffer, 0, (int)Math.min(r, nn));
+		if (nc == -1)
+		    break;
+		r -= nc;
+	    }
+	    return n - r;
+	}
+!!!3674651.java!!!	ready() : boolean
+	return false;
+!!!3674779.java!!!	markSupported() : boolean
+	return false;
+!!!3674907.java!!!	mark(in readAheadLimit : int) : void
+	throw new IOException("mark() not supported");
+!!!3675035.java!!!	reset() : void
+	throw new IOException("reset() not supported");

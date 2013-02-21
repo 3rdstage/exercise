@@ -1,0 +1,242 @@
+class FileSystemView
+!!!9361051.java!!!	getFileSystemView() : FileSystemView
+        useSystemExtensionsHiding = UIManager.getDefaults().getBoolean("FileChooser.useSystemExtensionHiding");
+        UIManager.addPropertyChangeListener(new PropertyChangeListener() {
+            public void propertyChange(PropertyChangeEvent e) {
+               if (e.getPropertyName().equals("lookAndFeel")) {
+                   useSystemExtensionsHiding = UIManager.getDefaults().getBoolean("FileChooser.useSystemExtensionHiding");
+               }
+            }
+        });
+
+	if(File.separatorChar == '\\') {
+	    if(windowsFileSystemView == null) {
+		windowsFileSystemView = new WindowsFileSystemView();
+	    }
+	    return windowsFileSystemView;
+	}
+
+	if(File.separatorChar == '/') {
+	    if(unixFileSystemView == null) {
+		unixFileSystemView = new UnixFileSystemView();
+	    }
+	    return unixFileSystemView;
+	}
+
+	// if(File.separatorChar == ':') {
+	//    if(macFileSystemView == null) {
+	//	macFileSystemView = new MacFileSystemView();
+	//    }
+	//    return macFileSystemView;
+	//}
+
+	if(genericFileSystemView == null) {
+	    genericFileSystemView = new GenericFileSystemView();
+	}
+	return genericFileSystemView;
+!!!9361179.java!!!	isRoot(inout f : File) : boolean
+	if (f == null || !f.isAbsolute()) {
+	    return false;
+	}
+
+	File[] roots = getRoots();
+	for (int i = 0; i < roots.length; i++) {
+	    if (roots[i].equals(f)) {
+		return true;
+	    }
+	}
+	return false;
+!!!9361307.java!!!	isTraversable(inout f : File) : Boolean
+	return Boolean.valueOf(f.isDirectory());
+!!!9361435.java!!!	getSystemDisplayName(inout f : File) : String
+	String name = null;
+	if (f != null) {
+	    name = f.getName();
+	    if (!name.equals("..") && !name.equals(".") &&
+                (useSystemExtensionsHiding ||
+                 !isFileSystem(f) ||
+                 isFileSystemRoot(f)) &&
+		((f instanceof ShellFolder) ||
+		 f.exists())) {
+
+		name = getShellFolder(f).getDisplayName();
+		if (name == null || name.length() == 0) {
+		    name = f.getPath();	// e.g. "/"
+		}
+	    }
+	}
+	return name;
+!!!9361563.java!!!	getSystemTypeDescription(inout f : File) : String
+	return null;
+!!!9361691.java!!!	getSystemIcon(inout f : File) : Icon
+	if (f != null) {
+	    ShellFolder sf = getShellFolder(f);
+	    Image img = sf.getIcon(false);
+	    if (img != null) {
+		return new ImageIcon(img, sf.getFolderType());
+	    } else {
+		return UIManager.getIcon(f.isDirectory() ? "FileView.directoryIcon" : "FileView.fileIcon");
+	    }
+	} else {
+	    return null;
+	}
+!!!9361819.java!!!	isParent(inout folder : File, inout file : File) : boolean
+	if (folder == null || file == null) {
+	    return false;
+	} else if (folder instanceof ShellFolder) {
+		File parent = file.getParentFile();
+		if (parent != null && parent.equals(folder)) {
+		    return true;
+		}
+	    File[] children = getFiles(folder, false);
+	    for (int i = 0; i < children.length; i++) {
+		if (file.equals(children[i])) {
+		    return true;
+		}
+	    }
+	    return false;
+	} else {
+	    return folder.equals(file.getParentFile());
+	}
+!!!9361947.java!!!	getChild(inout parent : File, in fileName : String) : File
+	if (parent instanceof ShellFolder) {
+	    File[] children = getFiles(parent, false);
+	    for (int i = 0; i < children.length; i++) {
+		if (children[i].getName().equals(fileName)) {
+		    return children[i];
+		}
+	    }
+	}
+	return createFileObject(parent, fileName);
+!!!9362075.java!!!	isFileSystem(inout f : File) : boolean
+	if (f instanceof ShellFolder) {
+	    ShellFolder sf = (ShellFolder)f;
+	    // Shortcuts to directories are treated as not being file system objects,
+	    // so that they are never returned by JFileChooser.
+	    return sf.isFileSystem() && !(sf.isLink() && sf.isDirectory());
+	} else {
+	    return true;
+	}
+!!!9362331.java!!!	isHiddenFile(inout f : File) : boolean
+	return f.isHidden();
+!!!9362459.java!!!	isFileSystemRoot(inout dir : File) : boolean
+	return ShellFolder.isFileSystemRoot(dir);
+!!!9362587.java!!!	isDrive(inout dir : File) : boolean
+	return false;
+!!!9362715.java!!!	isFloppyDrive(inout dir : File) : boolean
+	return false;
+!!!9362843.java!!!	isComputerNode(inout dir : File) : boolean
+	return ShellFolder.isComputerNode(dir);
+!!!9362971.java!!!	getRoots() : File
+	// Don't cache this array, because filesystem might change
+	File[] roots = (File[])ShellFolder.get("roots");
+
+	for (int i = 0; i < roots.length; i++) {
+	    if (isFileSystemRoot(roots[i])) {
+		roots[i] = createFileSystemRoot(roots[i]);
+	    }
+	}
+	return roots;
+!!!9363099.java!!!	getHomeDirectory() : File
+	return createFileObject(System.getProperty("user.home"));
+!!!9363227.java!!!	getDefaultDirectory() : File
+	File f = (File)ShellFolder.get("fileChooserDefaultFolder");
+	if (isFileSystemRoot(f)) {
+	    f = createFileSystemRoot(f);
+	}
+	return f;
+!!!9363355.java!!!	createFileObject(inout dir : File, in filename : String) : File
+	if(dir == null) {
+	    return new File(filename);
+	} else {
+	    return new File(dir, filename);
+	}
+!!!9363483.java!!!	createFileObject(in path : String) : File
+	File f = new File(path);
+	if (isFileSystemRoot(f)) {
+	    f = createFileSystemRoot(f);
+	}
+	return f;
+!!!9363611.java!!!	getFiles(inout dir : File, inout useFileHiding : boolean) : File
+	Vector files = new Vector();
+
+
+	// add all files in dir
+	File[] names;
+	    if (!(dir instanceof ShellFolder)) {
+		dir = getShellFolder(dir);
+	    }
+
+	    names = ((ShellFolder)dir).listFiles(!useFileHiding);
+	File f;
+
+	int nameCount = (names == null) ? 0 : names.length;
+	for (int i = 0; i < nameCount; i++) {
+	    if (Thread.currentThread().isInterrupted()) {
+		break;
+	    }
+	    f = names[i];
+	    if (!(f instanceof ShellFolder)) {
+		if (isFileSystemRoot(f)) {
+		    f = createFileSystemRoot(f);
+		}
+		try {
+		    f = ShellFolder.getShellFolder(f);
+		} catch (FileNotFoundException e) {
+		    // Not a valid file (wouldn't show in native file chooser)
+		    // Example: C:\pagefile.sys
+		    continue;
+		} catch (InternalError e) {
+		    // Not a valid file (wouldn't show in native file chooser)
+		    // Example C:\Winnt\Profiles\joe\history\History.IE5
+		    continue;
+		}
+	    }
+	    if (!useFileHiding || !isHiddenFile(f)) {
+		files.addElement(f);
+	    }
+	}
+
+	return (File[])files.toArray(new File[files.size()]);
+!!!9363739.java!!!	getParentDirectory(inout dir : File) : File
+	if (dir != null && dir.exists()) {
+	    ShellFolder sf = getShellFolder(dir);
+	    File psf = sf.getParentFile();
+	    if (psf != null) {
+		if (isFileSystem(psf)) {
+		    File f = psf;
+		    if (f != null && !f.exists()) {
+			// This could be a node under "Network Neighborhood".
+			File ppsf = psf.getParentFile();
+			if (ppsf == null || !isFileSystem(ppsf)) {
+			    // We're mostly after the exists() override for windows below.
+			    f = createFileSystemRoot(f);
+			}
+		    }
+		    return f;
+		} else {
+		    return psf;
+		}
+	    }
+	}
+	return null;
+!!!9363867.java!!!	getShellFolder(inout f : File) : ShellFolder
+	if (!(f instanceof ShellFolder)
+	    && !(f instanceof FileSystemRoot)
+	    && isFileSystemRoot(f)) {
+
+	    f = createFileSystemRoot(f);
+	}
+	try {
+	    return ShellFolder.getShellFolder(f);
+	} catch (FileNotFoundException e) {
+	    System.err.println("FileSystemView.getShellFolder: f="+f);
+	    e.printStackTrace();
+	    return null;
+	} catch (InternalError e) {
+	    System.err.println("FileSystemView.getShellFolder: f="+f);
+	    e.printStackTrace();
+	    return null;
+	}
+!!!9363995.java!!!	createFileSystemRoot(inout f : File) : File
+	return new FileSystemRoot(f);

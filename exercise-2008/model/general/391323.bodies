@@ -1,0 +1,38 @@
+class PopupInvocationHelper
+!!!2262555.java!!!	PopupInvocationHelper()
+            super();
+            AccessController.doPrivileged(this);
+!!!2262683.java!!!	run() : Object
+            Toolkit tk = Toolkit.getDefaultToolkit();
+            if(invocator == null) {
+                tk.addAWTEventListener(this, AWTEvent.MOUSE_EVENT_MASK);
+            } else {
+                tk.removeAWTEventListener(invocator);
+            }
+            // Return value not used.
+            return null;
+!!!2262811.java!!!	eventDispatched(inout ev : AWTEvent) : void
+            if((ev.getID() & AWTEvent.MOUSE_EVENT_MASK) != 0) {
+                MouseEvent me = (MouseEvent) ev;
+                if(me.isPopupTrigger()) {
+                    MenuElement[] elems = MenuSelectionManager
+                            .defaultManager()
+                            .getSelectedPath();
+                    if(elems != null && elems.length != 0) {
+                        return;
+                        // We shall not interfere with already opened menu
+                    }
+                    Object c = me.getSource();
+                    if(c instanceof JComponent) {
+                        JComponent src = (JComponent) c;
+                        if(src.getComponentPopupMenu() != null) {
+                            Point pt = src.getPopupLocation(me);
+                            if(pt == null) {
+                                pt = me.getPoint();
+                            }
+                            src.getComponentPopupMenu().show(src, pt.x, pt.y);
+                            me.consume();
+                        }
+                    }
+                }
+            }

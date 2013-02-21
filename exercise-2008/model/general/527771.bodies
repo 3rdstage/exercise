@@ -1,0 +1,75 @@
+class MBeanServerFileAccessController
+!!!3255451.java!!!	MBeanServerFileAccessController(in accessFileName : String)
+        super();
+        this.accessFileName = accessFileName;
+        props = propertiesFromFile(accessFileName);
+        checkValues(props);
+!!!3255579.java!!!	MBeanServerFileAccessController(in accessFileName : String, inout mbs : MBeanServer)
+        this(accessFileName);
+        setMBeanServer(mbs);
+!!!3255707.java!!!	MBeanServerFileAccessController(inout accessFileProps : Properties)
+        super();
+        if (accessFileProps == null)
+            throw new IllegalArgumentException("Null properties");
+        originalProps = accessFileProps;
+        props = (Properties) accessFileProps.clone();
+        checkValues(props);
+!!!3255835.java!!!	MBeanServerFileAccessController(inout accessFileProps : Properties, inout mbs : MBeanServer)
+        this(accessFileProps);
+        setMBeanServer(mbs);
+!!!3255963.java!!!	checkRead() : void
+        checkAccessLevel(READONLY);
+!!!3256091.java!!!	checkWrite() : void
+        checkAccessLevel(READWRITE);
+!!!3256219.java!!!	refresh() : void
+        synchronized (props) {
+            if (accessFileName == null)
+                props = (Properties) originalProps.clone();
+            else
+                props = propertiesFromFile(accessFileName);
+            checkValues(props);
+        }
+!!!3256347.java!!!	propertiesFromFile(in fname : String) : Properties
+        FileInputStream fin = new FileInputStream(fname);
+        Properties p = new Properties();
+        p.load(fin);
+        fin.close();
+        return p;
+!!!3256475.java!!!	checkAccessLevel(in accessLevel : String) : void
+        final AccessControlContext acc = AccessController.getContext();
+        final Subject s = (Subject)
+            AccessController.doPrivileged(new PrivilegedAction() {
+                    public Object run() {
+                        return Subject.getSubject(acc);
+                    }
+                });
+        if (s == null) return; /* security has not been enabled */
+        final Set principals = s.getPrincipals();
+        for (Iterator i = principals.iterator(); i.hasNext(); ) {
+            final Principal p = (Principal) i.next();
+            String grantedAccessLevel;
+            synchronized (props) {
+                grantedAccessLevel = props.getProperty(p.getName());
+            }
+            if (grantedAccessLevel != null) {
+                if (accessLevel.equals(READONLY) &&
+                    (grantedAccessLevel.equals(READONLY) ||
+                     grantedAccessLevel.equals(READWRITE)))
+                    return;
+                if (accessLevel.equals(READWRITE) &&
+                    grantedAccessLevel.equals(READWRITE))
+                    return;
+            }
+        }
+        throw new SecurityException("Access denied! Invalid access level for " +
+                                    "requested MBeanServer operation.");
+!!!3256603.java!!!	checkValues(inout props : Properties) : void
+        Collection c = props.values();
+        for (Iterator i = c.iterator(); i.hasNext(); ) {
+            final String accessLevel = (String) i.next();
+            if (!accessLevel.equals(READONLY) &&
+                !accessLevel.equals(READWRITE)) {
+                throw new IllegalArgumentException(
+                    "Syntax error in access level entry [" + accessLevel + "]");
+            }
+        }

@@ -1,0 +1,44 @@
+class StateEdit
+!!!10071195.java!!!	StateEdit(inout anObject : StateEditable)
+        super();
+	init (anObject,null);
+!!!10071323.java!!!	StateEdit(inout anObject : StateEditable, in name : String)
+	super();
+	init (anObject,name);
+!!!10071451.java!!!	init(inout anObject : StateEditable, in name : String) : void
+	this.object = anObject;
+	this.preState = new Hashtable(11);
+	this.object.storeState(this.preState);
+	this.postState = null;
+	this.undoRedoName = name;
+!!!10071579.java!!!	end() : void
+	this.postState = new Hashtable(11);
+	this.object.storeState(this.postState);
+	this.removeRedundantState();
+!!!10071707.java!!!	undo() : void
+	super.undo();
+	this.object.restoreState(preState);
+!!!10071835.java!!!	redo() : void
+	super.redo();
+	this.object.restoreState(postState);
+!!!10071963.java!!!	getPresentationName() : String
+	return this.undoRedoName;
+!!!10072091.java!!!	removeRedundantState() : void
+	Vector uselessKeys = new Vector();
+	Enumeration myKeys = preState.keys();
+
+	// Locate redundant state
+	while (myKeys.hasMoreElements()) {
+	    Object myKey = myKeys.nextElement();
+	    if (postState.containsKey(myKey) &&
+		postState.get(myKey).equals(preState.get(myKey))) {
+		uselessKeys.addElement(myKey);
+	    }
+	}
+
+	// Remove redundant state
+	for (int i = uselessKeys.size()-1; i >= 0; i--) {
+	    Object myKey = uselessKeys.elementAt(i);
+	    preState.remove(myKey);
+	    postState.remove(myKey);
+	}

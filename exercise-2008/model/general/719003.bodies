@@ -1,0 +1,129 @@
+class XMLAttributesProxy
+!!!4877851.java!!!	setAttributes(inout attributes : AttributeMap, inout doc : CoreDocumentImpl, inout elem : ElementImpl) : void
+            fDocument = doc;
+            fAttributes = attributes;
+            fElement = elem;
+            if (attributes != null) {
+                int length = attributes.getLength();
+                
+                fAugmentations.setSize(length);
+                // REVISIT: this implementation does not store any value in augmentations
+                //          and basically not keeping augs in parallel to attributes map
+                //          untill all attributes are added (default attributes)
+                for (int i = 0; i < length; i++) {
+                    fAugmentations.setElementAt(new AugmentationsImpl(), i);
+                }
+            } else {
+                fAugmentations.setSize(0);
+            }
+!!!4877979.java!!!	addAttribute(inout qname : QName, in attrType : String, in attrValue : String) : int
+            int index = fElement.getXercesAttribute(qname.uri, qname.localpart);
+            // add defaults to the tree
+            if (index < 0) {
+                // the default attribute was removed by a user and needed to
+                // be added back
+                AttrImpl attr = (AttrImpl)
+                ((CoreDocumentImpl) fElement.getOwnerDocument()).createAttributeNS(
+                qname.uri,
+                qname.rawname,
+                qname.localpart);
+                // REVISIT: the following should also update ID table
+                index = fElement.setXercesAttributeNode(attr);
+                attr.setNodeValue(attrValue);
+                fAugmentations.insertElementAt(new AugmentationsImpl(), index);
+                attr.setSpecified(false);
+            }
+            else {
+                // default attribute is in the tree
+                // we don't need to do anything since prefix was already fixed
+                // at the namespace fixup time and value must be same value, otherwise
+                // attribute will be treated as specified and we will never reach
+                // this method.
+                
+            }
+            return index;
+!!!4878107.java!!!	removeAllAttributes() : void
+            // REVISIT: implement
+!!!4878235.java!!!	removeAttributeAt(in attrIndex : int) : void
+            // REVISIT: implement
+!!!4878363.java!!!	getLength() : int
+            return(fAttributes != null)?fAttributes.getLength():0;
+!!!4878491.java!!!	getIndex(in qName : String) : int
+            // REVISIT: implement
+            return -1;
+!!!4878619.java!!!	getIndex(in uri : String, in localPart : String) : int
+            // REVISIT: implement
+            return -1;
+!!!4878747.java!!!	setName(in attrIndex : int, inout attrName : QName) : void
+            // REVISIT: implement
+!!!4878875.java!!!	getName(in attrIndex : int, inout attrName : QName) : void
+            if (fAttributes !=null) {
+                updateQName((Node)fAttributes.getItem(attrIndex), attrName);
+            }
+!!!4879003.java!!!	getPrefix(in index : int) : String
+            // REVISIT: implement
+            return null;
+!!!4879131.java!!!	getURI(in index : int) : String
+            // REVISIT: implement
+            return null;
+!!!4879259.java!!!	getLocalName(in index : int) : String
+			Object ob = fAttributes.item(index);
+			if( ob instanceof AttrNSImpl)
+				return ((AttrNSImpl)ob).getLocalName();
+			else
+				return ((AttrImpl)ob).getNodeName();
+!!!4879387.java!!!	getQName(in index : int) : String
+			return fAttributes.item(index).getNodeName();
+!!!4879515.java!!!	setType(in attrIndex : int, in attrType : String) : void
+            // REVISIT: implement
+!!!4879643.java!!!	getType(in index : int) : String
+            return "CDATA";
+!!!4879771.java!!!	getType(in qName : String) : String
+            return "CDATA";
+!!!4879899.java!!!	getType(in uri : String, in localName : String) : String
+            return "CDATA";
+!!!4880027.java!!!	setValue(in attrIndex : int, in attrValue : String) : void
+            // REVISIT: is this desired behaviour?
+            // The values are updated in the case datatype-normalization is turned on
+            // in this case we need to make sure that specified attributes stay specified
+            
+            if (fAttributes != null){
+                AttrImpl attr = (AttrImpl)fAttributes.getItem(attrIndex);
+                boolean specified = attr.getSpecified();
+                attr.setValue(attrValue);
+                attr.setSpecified(specified);
+                
+            }
+!!!4880155.java!!!	getValue(in index : int) : String
+            return (fAttributes !=null)?fAttributes.item(index).getNodeValue():"";
+            
+!!!4880283.java!!!	getValue(in qName : String) : String
+            // REVISIT: implement
+            return null;
+!!!4880411.java!!!	getValue(in uri : String, in localName : String) : String
+            if (fAttributes != null) {
+                Node node =  fAttributes.getNamedItemNS(uri, localName);
+                return(node != null)? node.getNodeValue():null;
+            }
+            return null;
+!!!4880539.java!!!	setNonNormalizedValue(in attrIndex : int, in attrValue : String) : void
+            // REVISIT: implement
+            
+!!!4880667.java!!!	getNonNormalizedValue(in attrIndex : int) : String
+            // REVISIT: implement
+            return null;
+!!!4880795.java!!!	setSpecified(in attrIndex : int, inout specified : boolean) : void
+            AttrImpl attr = (AttrImpl)fAttributes.getItem(attrIndex);
+            attr.setSpecified(specified);
+!!!4880923.java!!!	isSpecified(in attrIndex : int) : boolean
+            return((Attr)fAttributes.getItem(attrIndex)).getSpecified();
+!!!4881051.java!!!	getAugmentations(in attributeIndex : int) : Augmentations
+            return(Augmentations)fAugmentations.elementAt(attributeIndex);
+!!!4881179.java!!!	getAugmentations(in uri : String, in localPart : String) : Augmentations
+            // REVISIT: implement
+            return null;
+!!!4881307.java!!!	getAugmentations(in qName : String) : Augmentations
+            // REVISIT: implement
+            return null;
+!!!4881435.java!!!	setAugmentations(in attrIndex : int, inout augs : Augmentations) : void
+            fAugmentations.setElementAt(augs, attrIndex);

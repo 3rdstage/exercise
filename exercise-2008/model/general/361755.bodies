@@ -1,0 +1,858 @@
+class JTextComponent
+!!!2698395.java!!!	JTextComponent()
+        super();
+	// enable InputMethodEvent for on-the-spot pre-editing
+	enableEvents(AWTEvent.KEY_EVENT_MASK | AWTEvent.INPUT_METHOD_EVENT_MASK);
+        caretEvent = new MutableCaretEvent(this);
+        addMouseListener(caretEvent);
+        addFocusListener(caretEvent);
+        setEditable(true);
+	setDragEnabled(false);
+        setLayout(null); // layout is managed by View hierarchy
+        updateUI();
+!!!2698523.java!!!	getUI() : TextUI
+ return (TextUI)ui;
+!!!2698651.java!!!	setUI(inout ui : TextUI) : void
+        super.setUI(ui);
+!!!2698779.java!!!	updateUI() : void
+        setUI((TextUI)UIManager.getUI(this));
+        invalidate();
+!!!2698907.java!!!	addCaretListener(inout listener : CaretListener) : void
+        listenerList.add(CaretListener.class, listener);
+!!!2699035.java!!!	removeCaretListener(inout listener : CaretListener) : void
+        listenerList.remove(CaretListener.class, listener);
+!!!2699163.java!!!	getCaretListeners() : CaretListener
+        return (CaretListener[])listenerList.getListeners(CaretListener.class);
+!!!2699291.java!!!	fireCaretUpdate(inout e : CaretEvent) : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==CaretListener.class) {
+                ((CaretListener)listeners[i+1]).caretUpdate(e);
+            }
+        }
+!!!2699419.java!!!	setDocument(inout doc : Document) : void
+        Document old = model;
+
+	/*
+	 * aquire a read lock on the old model to prevent notification of
+	 * mutations while we disconnecting the old model.
+	 */
+	try {
+	    if (old instanceof AbstractDocument) {
+		((AbstractDocument)old).readLock();
+	    }
+	    if (accessibleContext != null) {
+		model.removeDocumentListener(
+		    ((AccessibleJTextComponent)accessibleContext));
+	    }
+	    if (inputMethodRequestsHandler != null) {
+		model.removeDocumentListener((DocumentListener)inputMethodRequestsHandler);
+	    }
+	    model = doc;
+
+            // Set the document's run direction property to match the
+            // component's ComponentOrientation property.
+            Boolean runDir = getComponentOrientation().isLeftToRight() 
+                             ? TextAttribute.RUN_DIRECTION_LTR
+                             : TextAttribute.RUN_DIRECTION_RTL;
+            doc.putProperty( TextAttribute.RUN_DIRECTION, runDir );
+
+	    firePropertyChange("document", old, doc);
+	} finally {
+	    if (old instanceof AbstractDocument) {
+		((AbstractDocument)old).readUnlock();
+	    }
+	}
+
+        revalidate();
+        repaint();
+        if (accessibleContext != null) {
+            model.addDocumentListener(
+                ((AccessibleJTextComponent)accessibleContext));
+        }
+	if (inputMethodRequestsHandler != null) {
+            model.addDocumentListener((DocumentListener)inputMethodRequestsHandler);
+        }
+!!!2699547.java!!!	getDocument() : Document
+        return model;
+!!!2699675.java!!!	setComponentOrientation(inout o : ComponentOrientation) : void
+        // Set the document's run direction property to match the
+        // ComponentOrientation property.
+        Document doc = getDocument();
+        if( doc !=  null ) {
+            Boolean runDir = o.isLeftToRight() 
+                             ? TextAttribute.RUN_DIRECTION_LTR
+                             : TextAttribute.RUN_DIRECTION_RTL;
+            doc.putProperty( TextAttribute.RUN_DIRECTION, runDir );
+        }
+        super.setComponentOrientation( o );
+!!!2699803.java!!!	getActions() : Action
+      
+        return getUI().getEditorKit(this).getActions(); 
+!!!2699931.java!!!	setMargin(inout m : Insets) : void
+        Insets old = margin;
+        margin = m;
+        firePropertyChange("margin", old, m);
+        invalidate();
+!!!2700059.java!!!	getMargin() : Insets
+        return margin;
+!!!2700187.java!!!	setNavigationFilter(inout filter : NavigationFilter) : void
+        navigationFilter = filter;
+!!!2700315.java!!!	getNavigationFilter() : NavigationFilter
+        return navigationFilter;
+!!!2700443.java!!!	getCaret() : Caret
+        return caret;
+!!!2700571.java!!!	setCaret(inout c : Caret) : void
+        if (caret != null) {
+            caret.removeChangeListener(caretEvent);
+            caret.deinstall(this);
+        }
+        Caret old = caret;
+        caret = c;
+        if (caret != null) {
+            caret.install(this);
+            caret.addChangeListener(caretEvent);
+        }
+        firePropertyChange("caret", old, caret);
+!!!2700699.java!!!	getHighlighter() : Highlighter
+        return highlighter;
+!!!2700827.java!!!	setHighlighter(inout h : Highlighter) : void
+        if (highlighter != null) {
+            highlighter.deinstall(this);
+        }
+        Highlighter old = highlighter;
+        highlighter = h;
+        if (highlighter != null) {
+            highlighter.install(this);
+        }
+        firePropertyChange("highlighter", old, h);
+!!!2700955.java!!!	setKeymap(inout map : Keymap) : void
+        Keymap old = keymap;
+        keymap = map;
+        firePropertyChange("keymap", old, keymap);
+	updateInputMap(old, map);
+!!!2701083.java!!!	setDragEnabled(inout b : boolean) : void
+        if (b && GraphicsEnvironment.isHeadless()) {
+            throw new HeadlessException();
+        }
+	dragEnabled = b;
+!!!2701211.java!!!	getDragEnabled() : boolean
+	return dragEnabled;
+!!!2701339.java!!!	updateInputMap(inout oldKm : Keymap, inout newKm : Keymap) : void
+	// Locate the current KeymapWrapper.
+	InputMap km = getInputMap(JComponent.WHEN_FOCUSED);
+	InputMap last = km;
+	while (km != null && !(km instanceof KeymapWrapper)) {
+	    last = km;
+	    km = km.getParent();
+	}
+	if (km != null) {
+	    // Found it, tweak the InputMap that points to it, as well
+	    // as anything it points to.
+	    if (newKm == null) {
+		if (last != km) {
+		    last.setParent(km.getParent());
+		}
+		else {
+		    last.setParent(null);
+		}
+	    }
+	    else {
+		InputMap newKM = new KeymapWrapper(newKm);
+		last.setParent(newKM);
+		if (last != km) {
+		    newKM.setParent(km.getParent());
+		}
+	    }
+	}
+	else if (newKm != null) {
+	    km = getInputMap(JComponent.WHEN_FOCUSED);
+	    if (km != null) {
+		// Couldn't find it.
+		// Set the parent of WHEN_FOCUSED InputMap to be the new one.
+		InputMap newKM = new KeymapWrapper(newKm);
+		newKM.setParent(km.getParent());
+		km.setParent(newKM);
+	    }
+	}
+
+	// Do the same thing with the ActionMap
+	ActionMap am = getActionMap();
+	ActionMap lastAM = am;
+	while (am != null && !(am instanceof KeymapActionMap)) {
+	    lastAM = am;
+	    am = am.getParent();
+	}
+	if (am != null) {
+	    // Found it, tweak the Actionap that points to it, as well
+	    // as anything it points to.
+	    if (newKm == null) {
+		if (lastAM != am) {
+		    lastAM.setParent(am.getParent());
+		}
+		else {
+		    lastAM.setParent(null);
+		}
+	    }
+	    else {
+		ActionMap newAM = new KeymapActionMap(newKm);
+		lastAM.setParent(newAM);
+		if (lastAM != am) {
+		    newAM.setParent(am.getParent());
+		}
+	    }
+	}
+	else if (newKm != null) {
+	    am = getActionMap();
+	    if (am != null) {
+		// Couldn't find it.
+		// Set the parent of ActionMap to be the new one.
+		ActionMap newAM = new KeymapActionMap(newKm);
+		newAM.setParent(am.getParent());
+		am.setParent(newAM);
+	    }
+	}
+!!!2701467.java!!!	getKeymap() : Keymap
+        return keymap;
+!!!2701595.java!!!	addKeymap(in nm : String, inout parent : Keymap) : Keymap
+        Keymap map = new DefaultKeymap(nm, parent); 
+        if (nm != null) {
+            // add a named keymap, a class of bindings
+            getKeymapTable().put(nm, map);
+        }
+        return map;
+!!!2701723.java!!!	removeKeymap(in nm : String) : Keymap
+        return getKeymapTable().remove(nm);
+!!!2701851.java!!!	getKeymap(in nm : String) : Keymap
+        return getKeymapTable().get(nm);
+!!!2701979.java!!!	getKeymapTable() : HashMap
+        AppContext appContext = AppContext.getAppContext();
+        HashMap<String,Keymap> keymapTable = 
+            (HashMap<String,Keymap>)appContext.get(KEYMAP_TABLE);
+        if (keymapTable == null) {
+            keymapTable = new HashMap<String,Keymap>(17);
+            appContext.put(KEYMAP_TABLE, keymapTable);
+            //initialize default keymap
+            Keymap binding = addKeymap(DEFAULT_KEYMAP, null);
+            binding.setDefaultAction(new 
+                                     DefaultEditorKit.DefaultKeyTypedAction());
+        }
+        return keymapTable;
+!!!2702235.java!!!	loadKeymap(inout map : Keymap, inout bindings : KeyBinding, inout actions : Action) : void
+        Hashtable h = new Hashtable();
+        for (int i = 0; i < actions.length; i++) {
+            Action a = actions[i];
+            String value = (String)a.getValue(Action.NAME);
+            h.put((value!=null ? value:""), a);
+        }
+        for (int i = 0; i < bindings.length; i++) {
+            Action a = (Action) h.get(bindings[i].actionName);
+            if (a != null) {
+                map.addActionForKeyStroke(bindings[i].key, a);
+            }
+        }
+!!!2702363.java!!!	isProcessInputMethodEventOverridden(inout klass : Class) : Boolean
+        if (klass == JTextComponent.class) {
+            return Boolean.FALSE;
+        }
+        Boolean retValue = (Boolean)overrideMap.get(klass.getName());
+
+        if (retValue != null) {
+            return retValue;
+        }
+        Boolean sOverriden = isProcessInputMethodEventOverridden(
+                                       klass.getSuperclass());
+
+        if (sOverriden.booleanValue()) {
+            // If our superclass has overriden it, then by definition klass
+            // overrides it.
+            overrideMap.put(klass.getName(), sOverriden);
+            return sOverriden;
+        }
+        // klass's superclass didn't override it, check for an override in
+        // klass.
+        try {
+            Class[] classes = new Class[1];
+            classes[0] = InputMethodEvent.class;
+
+            Method m = klass.getDeclaredMethod("processInputMethodEvent",
+                                               classes);
+            retValue = Boolean.TRUE;
+        } catch (NoSuchMethodException nsme) {
+            retValue = Boolean.FALSE;
+        }
+        overrideMap.put(klass.getName(), retValue);
+        return retValue;
+!!!2702491.java!!!	getCaretColor() : Color
+        return caretColor;
+!!!2702619.java!!!	setCaretColor(inout c : Color) : void
+        Color old = caretColor;
+        caretColor = c;
+        firePropertyChange("caretColor", old, caretColor);
+!!!2702747.java!!!	getSelectionColor() : Color
+        return selectionColor;
+!!!2702875.java!!!	setSelectionColor(inout c : Color) : void
+        Color old = selectionColor;
+        selectionColor = c;
+        firePropertyChange("selectionColor", old, selectionColor);
+!!!2703003.java!!!	getSelectedTextColor() : Color
+        return selectedTextColor;
+!!!2703131.java!!!	setSelectedTextColor(inout c : Color) : void
+        Color old = selectedTextColor;
+        selectedTextColor = c;
+        firePropertyChange("selectedTextColor", old, selectedTextColor);
+!!!2703259.java!!!	getDisabledTextColor() : Color
+        return disabledTextColor;
+!!!2703387.java!!!	setDisabledTextColor(inout c : Color) : void
+        Color old = disabledTextColor;
+        disabledTextColor = c;
+        firePropertyChange("disabledTextColor", old, disabledTextColor);
+!!!2703515.java!!!	replaceSelection(in content : String) : void
+        Document doc = getDocument();
+        if (doc != null) {
+            try {
+		boolean composedTextSaved = saveComposedText(caret.getDot());
+                int p0 = Math.min(caret.getDot(), caret.getMark());
+                int p1 = Math.max(caret.getDot(), caret.getMark());
+                if (doc instanceof AbstractDocument) {
+                    ((AbstractDocument)doc).replace(p0, p1 - p0, content,null);
+                }
+                else {
+                    if (p0 != p1) {
+                        doc.remove(p0, p1 - p0);
+                    }
+                    if (content != null && content.length() > 0) {
+                        doc.insertString(p0, content, null);
+                    }
+                }
+		if (composedTextSaved) {
+		    restoreComposedText();
+		}
+            } catch (BadLocationException e) {
+		UIManager.getLookAndFeel().provideErrorFeedback(JTextComponent.this);
+            }
+        }
+!!!2703643.java!!!	getText(in offs : int, in len : int) : String
+        return getDocument().getText(offs, len);
+!!!2703771.java!!!	modelToView(in pos : int) : Rectangle
+        return getUI().modelToView(this, pos);
+!!!2703899.java!!!	viewToModel(inout pt : Point) : int
+        return getUI().viewToModel(this, pt);
+!!!2704027.java!!!	cut() : void
+	if (isEditable() && isEnabled()) {
+            invokeAction("cut", TransferHandler.getCutAction());
+	}
+!!!2704155.java!!!	copy() : void
+        invokeAction("copy", TransferHandler.getCopyAction());
+!!!2704283.java!!!	paste() : void
+	if (isEditable() && isEnabled()) {
+            invokeAction("paste", TransferHandler.getPasteAction());
+	}
+!!!2704411.java!!!	invokeAction(in name : String, inout altAction : Action) : void
+        ActionMap map = getActionMap();
+        Action action = null;
+
+        if (map != null) {
+            action = map.get(name);
+        }
+        if (action == null) {
+            installDefaultTransferHandlerIfNecessary();
+            action = altAction;
+        }
+        action.actionPerformed(new ActionEvent(this,
+                               ActionEvent.ACTION_PERFORMED, (String)action.
+                               getValue(Action.NAME),
+                               EventQueue.getMostRecentEventTime(),
+                               getCurrentEventModifiers()));
+!!!2704539.java!!!	installDefaultTransferHandlerIfNecessary() : void
+        if (getTransferHandler() == null) {
+            if (defaultTransferHandler == null) {
+                defaultTransferHandler = new DefaultTransferHandler();
+            }
+            setTransferHandler(defaultTransferHandler);
+        }
+!!!2704667.java!!!	moveCaretPosition(in pos : int) : void
+        Document doc = getDocument();
+        if (doc != null) {
+            if (pos > doc.getLength() || pos < 0) {
+                throw new IllegalArgumentException("bad position: " + pos);
+            }
+            caret.moveDot(pos);
+        }
+!!!2704795.java!!!	setFocusAccelerator(in aKey : char) : void
+        aKey = Character.toUpperCase(aKey);
+        char old = focusAccelerator;
+        focusAccelerator = aKey;
+        // Fix for 4341002: value of FOCUS_ACCELERATOR_KEY is wrong.
+        // So we fire both FOCUS_ACCELERATOR_KEY, for compatibility,
+        // and the correct event here.
+        firePropertyChange(FOCUS_ACCELERATOR_KEY, old, focusAccelerator);
+        firePropertyChange("focusAccelerator", old, focusAccelerator);
+!!!2704923.java!!!	getFocusAccelerator() : char
+        return focusAccelerator;
+!!!2705051.java!!!	read(inout in : Reader, inout desc : Object) : void
+        EditorKit kit = getUI().getEditorKit(this);
+        Document doc = kit.createDefaultDocument();
+        if (desc != null) {
+            doc.putProperty(Document.StreamDescriptionProperty, desc);
+        }
+        try {
+            kit.read(in, doc, 0);
+            setDocument(doc);
+        } catch (BadLocationException e) {
+            throw new IOException(e.getMessage());
+        }
+!!!2705179.java!!!	write(inout out : Writer) : void
+        Document doc = getDocument();
+        try {
+            getUI().getEditorKit(this).write(out, doc, 0, doc.getLength());
+        } catch (BadLocationException e) {
+            throw new IOException(e.getMessage());
+        }
+!!!2705307.java!!!	removeNotify() : void
+        super.removeNotify();
+        if (getFocusedComponent() == this) {
+            AppContext.getAppContext().remove(FOCUSED_COMPONENT);
+        }
+!!!2705435.java!!!	setCaretPosition(in position : int) : void
+        Document doc = getDocument();
+        if (doc != null) {
+	    if (position > doc.getLength() || position < 0) {
+		throw new IllegalArgumentException("bad position: " + position);
+	    }
+            caret.setDot(position);
+        }
+!!!2705563.java!!!	getCaretPosition() : int
+        return caret.getDot();
+!!!2705691.java!!!	setText(in t : String) : void
+        try {
+            Document doc = getDocument();
+            if (doc instanceof AbstractDocument) {
+                ((AbstractDocument)doc).replace(0, doc.getLength(), t,null);
+            }
+            else {
+                doc.remove(0, doc.getLength());
+                doc.insertString(0, t, null);
+            }
+        } catch (BadLocationException e) {
+	    UIManager.getLookAndFeel().provideErrorFeedback(JTextComponent.this);
+        }
+!!!2705819.java!!!	getText() : String
+        Document doc = getDocument();
+        String txt;
+        try {
+            txt = doc.getText(0, doc.getLength());
+        } catch (BadLocationException e) {
+            txt = null;
+        }
+        return txt;
+!!!2705947.java!!!	getSelectedText() : String
+        String txt = null;
+        int p0 = Math.min(caret.getDot(), caret.getMark());
+        int p1 = Math.max(caret.getDot(), caret.getMark());
+        if (p0 != p1) {
+            try {
+                Document doc = getDocument();
+                txt = doc.getText(p0, p1 - p0);
+            } catch (BadLocationException e) {
+		throw new IllegalArgumentException(e.getMessage());
+            }
+        }
+        return txt;
+!!!2706075.java!!!	isEditable() : boolean
+        return editable;
+!!!2706203.java!!!	setEditable(inout b : boolean) : void
+	if (b != editable) {
+	    boolean oldVal = editable;
+	    editable = b;
+	    if (editable) {
+		setCursor(Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR));
+	    } else {
+		setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+	    }
+	    enableInputMethods(editable);
+	    firePropertyChange("editable", Boolean.valueOf(oldVal), Boolean.valueOf(editable));
+	    repaint();
+	}
+!!!2706331.java!!!	getSelectionStart() : int
+        int start = Math.min(caret.getDot(), caret.getMark());
+        return start;
+!!!2706459.java!!!	setSelectionStart(in selectionStart : int) : void
+        /* Route through select method to enforce consistent policy
+         * between selectionStart and selectionEnd.
+         */
+        select(selectionStart, getSelectionEnd());
+!!!2706587.java!!!	getSelectionEnd() : int
+        int end = Math.max(caret.getDot(), caret.getMark());
+        return end;
+!!!2706715.java!!!	setSelectionEnd(in selectionEnd : int) : void
+        /* Route through select method to enforce consistent policy
+         * between selectionStart and selectionEnd.
+         */
+        select(getSelectionStart(), selectionEnd);
+!!!2706843.java!!!	select(in selectionStart : int, in selectionEnd : int) : void
+	// argument adjustment done by java.awt.TextComponent
+        int docLength = getDocument().getLength();
+        
+	if (selectionStart < 0) {
+	    selectionStart = 0;
+	}
+        if (selectionStart > docLength) {
+            selectionStart = docLength;
+        }
+        if (selectionEnd > docLength) {
+            selectionEnd = docLength;
+	}
+	if (selectionEnd < selectionStart) {
+	    selectionEnd = selectionStart;
+	}
+
+        setCaretPosition(selectionStart);
+        moveCaretPosition(selectionEnd);
+!!!2706971.java!!!	selectAll() : void
+        Document doc = getDocument();
+        if (doc != null) {
+            setCaretPosition(0);
+            moveCaretPosition(doc.getLength());
+        }
+!!!2707099.java!!!	getToolTipText(inout event : MouseEvent) : String
+        String retValue = super.getToolTipText(event);
+
+        if (retValue == null) {
+            TextUI ui = getUI();
+            if (ui != null) {
+                retValue = ui.getToolTipText(this, new Point(event.getX(),
+                                                             event.getY()));
+            }
+        }
+        return retValue;
+!!!2707227.java!!!	getPreferredScrollableViewportSize() : Dimension
+        return getPreferredSize();
+!!!2707355.java!!!	getScrollableUnitIncrement(inout visibleRect : Rectangle, in orientation : int, in direction : int) : int
+        switch(orientation) {
+        case SwingConstants.VERTICAL:
+            return visibleRect.height / 10;
+        case SwingConstants.HORIZONTAL:
+            return visibleRect.width / 10;
+        default:
+            throw new IllegalArgumentException("Invalid orientation: " + orientation);
+        }
+!!!2707483.java!!!	getScrollableBlockIncrement(inout visibleRect : Rectangle, in orientation : int, in direction : int) : int
+        switch(orientation) {
+        case SwingConstants.VERTICAL:
+            return visibleRect.height;
+        case SwingConstants.HORIZONTAL:
+            return visibleRect.width;
+        default:
+            throw new IllegalArgumentException("Invalid orientation: " + orientation);
+        }
+!!!2707611.java!!!	getScrollableTracksViewportWidth() : boolean
+	if (getParent() instanceof JViewport) {
+	    return (((JViewport)getParent()).getWidth() > getPreferredSize().width);
+	}
+	return false;
+!!!2707739.java!!!	getScrollableTracksViewportHeight() : boolean
+	if (getParent() instanceof JViewport) {
+	    return (((JViewport)getParent()).getHeight() > getPreferredSize().height);
+	}
+	return false;
+!!!2707867.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJTextComponent();
+        }
+        return accessibleContext;
+!!!2717339.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+        caretEvent = new MutableCaretEvent(this);
+        addMouseListener(caretEvent);
+        addFocusListener(caretEvent);
+!!!2717467.java!!!	paramString() : String
+        String editableString = (editable ?
+				 "true" : "false");
+        String caretColorString = (caretColor != null ?
+				   caretColor.toString() : "");
+        String selectionColorString = (selectionColor != null ?
+				       selectionColor.toString() : "");
+        String selectedTextColorString = (selectedTextColor != null ?
+					  selectedTextColor.toString() : "");
+        String disabledTextColorString = (disabledTextColor != null ?
+					  disabledTextColor.toString() : "");
+        String marginString = (margin != null ?
+			       margin.toString() : "");
+
+        return super.paramString() +
+        ",caretColor=" + caretColorString +
+        ",disabledTextColor=" + disabledTextColorString +
+        ",editable=" + editableString +
+        ",margin=" + marginString +
+        ",selectedTextColor=" + selectedTextColorString +
+        ",selectionColor=" + selectionColorString;
+!!!2718235.java!!!	getFocusedComponent() : JTextComponent
+        return (JTextComponent)AppContext.getAppContext().
+            get(FOCUSED_COMPONENT);
+!!!2718363.java!!!	getCurrentEventModifiers() : int
+        int modifiers = 0;
+        AWTEvent currentEvent = EventQueue.getCurrentEvent();
+        if (currentEvent instanceof InputEvent) {
+            modifiers = ((InputEvent)currentEvent).getModifiers();
+        } else if (currentEvent instanceof ActionEvent) {
+            modifiers = ((ActionEvent)currentEvent).getModifiers();
+        }
+        return modifiers;
+!!!2728219.java!!!	processInputMethodEvent(inout e : InputMethodEvent) : void
+	// let listeners handle the events
+	super.processInputMethodEvent(e);
+
+	if (!e.isConsumed()) {
+            if (! isEditable()) {
+                return;
+            } else {
+  	        switch (e.getID()) {
+		case InputMethodEvent.INPUT_METHOD_TEXT_CHANGED:
+		    replaceInputMethodText(e);
+
+		    // fall through
+
+		case InputMethodEvent.CARET_POSITION_CHANGED:
+		    setInputMethodCaretPosition(e);
+		    break;
+		}
+	    }
+
+	    e.consume();
+	}
+!!!2728347.java!!!	getInputMethodRequests() : InputMethodRequests
+    	if (inputMethodRequestsHandler == null) {
+	    inputMethodRequestsHandler = 
+	        (InputMethodRequests)new InputMethodRequestsHandler();
+	    Document doc = getDocument();
+	    if (doc != null) {
+		doc.addDocumentListener((DocumentListener)inputMethodRequestsHandler);
+	    }
+	}
+
+	return inputMethodRequestsHandler;
+!!!2728475.java!!!	addInputMethodListener(inout l : InputMethodListener) : void
+    	super.addInputMethodListener(l);
+	if (l != null) {
+	    needToSendKeyTypedEvent = false;
+            checkedInputOverride = true;
+	}
+!!!2730779.java!!!	replaceInputMethodText(inout e : InputMethodEvent) : void
+    	int commitCount = e.getCommittedCharacterCount();
+	AttributedCharacterIterator text = e.getText();
+	int composedTextIndex;
+
+	// old composed text deletion
+	Document doc = getDocument();
+	if (composedTextExists()) {
+	    try {	
+	        doc.remove(composedTextStart.getOffset(), 
+                           composedTextEnd.getOffset() - 
+                           composedTextStart.getOffset());
+	    } catch (BadLocationException ble) {}
+	    composedTextStart = composedTextEnd = null;
+	    composedTextAttribute = null;
+	    composedTextContent = null;
+	}
+	
+	if (text != null) {
+	    text.first();
+	    int committedTextStartIndex = 0;
+	    int committedTextEndIndex = 0;
+
+	    // committed text insertion
+	    if (commitCount > 0) {
+		// Remember latest committed text start index
+		committedTextStartIndex = caret.getDot();
+
+		// Need to generate KeyTyped events for the committed text for components
+		// that are not aware they are active input method clients.
+		if (shouldSynthensizeKeyEvents()) {
+		    for (char c = text.current(); commitCount > 0; 
+		         c = text.next(), commitCount--) {
+			KeyEvent ke = new KeyEvent(this, KeyEvent.KEY_TYPED, 
+						   EventQueue.getMostRecentEventTime(),
+						   0, KeyEvent.VK_UNDEFINED, c);
+			processKeyEvent(ke);
+		    }
+		} else {
+		    StringBuffer strBuf = new StringBuffer();
+		    for (char c = text.current(); commitCount > 0; 
+		         c = text.next(), commitCount--) {
+			strBuf.append(c);
+		    }
+		
+		    // map it to an ActionEvent
+		    mapCommittedTextToAction(new String(strBuf));
+		}
+		
+		// Remember latest committed text end index 
+		committedTextEndIndex = caret.getDot();
+	    }
+
+	    // new composed text insertion
+	    composedTextIndex = text.getIndex();
+	    if (composedTextIndex < text.getEndIndex()) {
+		createComposedTextAttribute(composedTextIndex, text);
+		try {	
+		    replaceSelection(null);
+		    doc.insertString(caret.getDot(), composedTextContent, 
+		    			composedTextAttribute);
+		    composedTextStart = doc.createPosition(caret.getDot() -
+						composedTextContent.length());
+                    composedTextEnd = doc.createPosition(caret.getDot());
+		} catch (BadLocationException ble) {
+	            composedTextStart = composedTextEnd = null;
+	            composedTextAttribute = null;
+	            composedTextContent = null;
+		}	
+	    }
+
+	    // Save the latest committed text information
+	    if (committedTextStartIndex != committedTextEndIndex) {
+		try {	
+		    latestCommittedTextStart = doc.
+                        createPosition(committedTextStartIndex);
+                    latestCommittedTextEnd = doc.
+                        createPosition(committedTextEndIndex);
+		} catch (BadLocationException ble) {
+		    latestCommittedTextStart = 
+                        latestCommittedTextEnd = null;
+		}
+	    } else {
+		latestCommittedTextStart = 
+                    latestCommittedTextEnd = null;
+	    }
+	}
+!!!2730907.java!!!	createComposedTextAttribute(in composedIndex : int, inout text : AttributedCharacterIterator) : void
+	Document doc = getDocument();
+        StringBuffer strBuf = new StringBuffer();
+
+	// create attributed string with no attributes
+	for (char c = text.setIndex(composedIndex); 
+             c != CharacterIterator.DONE; c = text.next()) {
+	    strBuf.append(c);
+	}
+	
+	composedTextContent = new String(strBuf);	
+	composedTextAttribute = new SimpleAttributeSet();	
+	composedTextAttribute.addAttribute(StyleConstants.ComposedTextAttribute, 
+		new AttributedString(text, composedIndex, text.getEndIndex()));
+!!!2731035.java!!!	saveComposedText(in pos : int) : boolean
+	if (composedTextExists()) {
+	    int start = composedTextStart.getOffset();
+	    int len = composedTextEnd.getOffset() - 
+                composedTextStart.getOffset();
+	    if (pos >= start && pos <= start + len) {
+		try {	
+		    getDocument().remove(start, len);
+		    return true;
+		} catch (BadLocationException ble) {}
+	    }
+	}
+	return false;
+!!!2731163.java!!!	restoreComposedText() : void
+	Document doc = getDocument();
+	try {
+	    doc.insertString(caret.getDot(),
+                             composedTextContent, 
+		    	     composedTextAttribute);
+	    composedTextStart = doc.createPosition(caret.getDot() - 
+				composedTextContent.length());
+            composedTextEnd = doc.createPosition(caret.getDot());
+	} catch (BadLocationException ble) {}
+!!!2731291.java!!!	mapCommittedTextToAction(in committedText : String) : void
+        Keymap binding = getKeymap();
+        if (binding != null) {
+            Action a = null;
+            if (committedText.length() == 1) {
+		KeyStroke k = KeyStroke.getKeyStroke(committedText.charAt(0));
+                a = binding.getAction(k);
+	    }
+
+	    if (a == null) { 
+	        a = binding.getDefaultAction();
+	    }
+
+            if (a != null) {
+                ActionEvent ae =
+                    new ActionEvent(this, ActionEvent.ACTION_PERFORMED, 
+                                    committedText,
+                                    EventQueue.getMostRecentEventTime(),
+                                    getCurrentEventModifiers());
+                a.actionPerformed(ae);
+            }
+        }
+!!!2731419.java!!!	setInputMethodCaretPosition(inout e : InputMethodEvent) : void
+	int dot;
+	
+	if (composedTextExists()) {
+	    dot = composedTextStart.getOffset();
+	    if (!(caret instanceof ComposedTextCaret)) {
+		if (composedTextCaret == null) {
+		    composedTextCaret = new ComposedTextCaret();
+		}
+		originalCaret = caret;	
+		// Sets composed text caret
+	        exchangeCaret(originalCaret, composedTextCaret);
+	    }
+
+	    TextHitInfo caretPos = e.getCaret();
+	    if (caretPos != null) {
+		int index = caretPos.getInsertionIndex();
+		dot += index;
+		if (index == 0) {
+		    // Scroll the component if needed so that the composed text
+		    // becomes visible.
+		    try {
+			Rectangle d = modelToView(dot);
+			Rectangle end = modelToView(composedTextEnd.getOffset());
+			Rectangle b = getBounds(); 
+			d.x += Math.min(end.x - d.x, b.width);
+			scrollRectToVisible(d);
+		    } catch (BadLocationException ble) {}
+		}
+	    }
+	    caret.setDot(dot);
+	} else if (caret instanceof ComposedTextCaret) {
+	    dot = caret.getDot();
+	    // Restores original caret
+	    exchangeCaret(caret, originalCaret);
+	    caret.setDot(dot);
+	}
+!!!2731547.java!!!	exchangeCaret(inout oldCaret : Caret, inout newCaret : Caret) : void
+	int blinkRate = oldCaret.getBlinkRate();
+	setCaret(newCaret);
+	caret.setBlinkRate(blinkRate);
+	caret.setVisible(hasFocus());
+!!!2731675.java!!!	shouldSynthensizeKeyEvents() : boolean
+        if (!checkedInputOverride) {
+            checkedInputOverride = true;
+            needToSendKeyTypedEvent =
+                             !isProcessInputMethodEventOverridden();
+        }
+        return needToSendKeyTypedEvent;
+!!!2731803.java!!!	isProcessInputMethodEventOverridden() : boolean
+        if (overrideMap == null) {
+            overrideMap = Collections.synchronizedMap(new HashMap());
+        }
+        Boolean retValue = (Boolean)overrideMap.get(getClass().getName());
+
+        if (retValue != null) {
+            return retValue.booleanValue();
+        }
+	Boolean ret = (Boolean)AccessController.doPrivileged(new
+                       PrivilegedAction() {
+            public Object run() {
+                return isProcessInputMethodEventOverridden(
+                                JTextComponent.this.getClass());
+            }
+        });
+
+	return ret.booleanValue();
+!!!2731931.java!!!	composedTextExists() : boolean
+	return (composedTextStart != null);

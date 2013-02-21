@@ -1,0 +1,441 @@
+class AccessibleJTableCell
+!!!9149723.java!!!	AccessibleJTableCell(inout t : JTable, in r : int, in c : int, in i : int)
+                parent = t;
+                row = r;
+                column = c;
+                index = i;
+                this.setAccessibleParent(parent);
+!!!9149851.java!!!	getAccessibleContext() : AccessibleContext
+                return this;
+!!!9149979.java!!!	getCurrentAccessibleContext() : AccessibleContext
+                TableColumn aColumn = getColumnModel().getColumn(column);
+                TableCellRenderer renderer = aColumn.getCellRenderer();
+                if (renderer == null) {
+                    Class<?> columnClass = getColumnClass(column);
+                    renderer = getDefaultRenderer(columnClass);
+                }
+                Component component = renderer.getTableCellRendererComponent(
+                                  JTable.this, getValueAt(row, column),
+				  false, false, row, column);
+                if (component instanceof Accessible) {
+                    return ((Accessible) component).getAccessibleContext();
+                } else {
+                    return null;
+                }
+!!!9150107.java!!!	getCurrentComponent() : Component
+                TableColumn aColumn = getColumnModel().getColumn(column);
+                TableCellRenderer renderer = aColumn.getCellRenderer();
+                if (renderer == null) {
+                    Class<?> columnClass = getColumnClass(column);
+                    renderer = getDefaultRenderer(columnClass);
+                }
+                return renderer.getTableCellRendererComponent(
+                                  JTable.this, null, false, false,
+                                  row, column);
+!!!9150235.java!!!	getAccessibleName() : String
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    String name = ac.getAccessibleName();
+                    if ((name != null) && (name != "")) {
+                        return ac.getAccessibleName();
+                    }
+                }
+                if ((accessibleName != null) && (accessibleName != "")) {
+                    return accessibleName;
+                } else {
+		    return null;
+                }
+!!!9150363.java!!!	setAccessibleName(in s : String) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    ac.setAccessibleName(s);
+                } else {
+                    super.setAccessibleName(s);
+                }
+!!!9150491.java!!!	getAccessibleDescription() : String
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    return ac.getAccessibleDescription();
+                } else {
+                    return super.getAccessibleDescription();
+                }
+!!!9150619.java!!!	setAccessibleDescription(in s : String) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    ac.setAccessibleDescription(s);
+                } else {
+                    super.setAccessibleDescription(s);
+                }
+!!!9150747.java!!!	getAccessibleRole() : AccessibleRole
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    return ac.getAccessibleRole();
+                } else {
+                    return AccessibleRole.UNKNOWN;
+                }
+!!!9150875.java!!!	getAccessibleStateSet() : AccessibleStateSet
+                AccessibleContext ac = getCurrentAccessibleContext();
+		AccessibleStateSet as = null;
+
+                if (ac != null) {
+                    as = ac.getAccessibleStateSet();
+                }
+		if (as == null) {
+                    as = new AccessibleStateSet();
+                }
+		Rectangle rjt = JTable.this.getVisibleRect();
+                Rectangle rcell = JTable.this.getCellRect(row, column, false);
+		if (rjt.intersects(rcell)) {
+		    as.add(AccessibleState.SHOWING);
+                } else {
+                    if (as.contains(AccessibleState.SHOWING)) {
+			 as.remove(AccessibleState.SHOWING);
+		    }
+		}
+                if (parent.isCellSelected(row, column)) {
+	            as.add(AccessibleState.SELECTED);
+                } else if (as.contains(AccessibleState.SELECTED)) {
+		    as.remove(AccessibleState.SELECTED);
+                }
+		if ((row == getSelectedRow()) && (column == getSelectedColumn())) {
+		    as.add(AccessibleState.ACTIVE);
+		}
+	        as.add(AccessibleState.TRANSIENT);
+                return as;
+!!!9151003.java!!!	getAccessibleParent() : Accessible
+                return parent;
+!!!9151131.java!!!	getAccessibleIndexInParent() : int
+                return index;
+!!!9151259.java!!!	getAccessibleChildrenCount() : int
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    return ac.getAccessibleChildrenCount();
+                } else {
+                    return 0;
+                }
+!!!9151387.java!!!	getAccessibleChild(in i : int) : Accessible
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    Accessible accessibleChild = ac.getAccessibleChild(i);
+                    ac.setAccessibleParent(this);
+                    return accessibleChild;
+                } else {
+                    return null;
+                }
+!!!9151515.java!!!	getLocale() : Locale
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    return ac.getLocale();
+                } else {
+                    return null;
+                }
+!!!9151643.java!!!	addPropertyChangeListener(inout l : PropertyChangeListener) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    ac.addPropertyChangeListener(l);
+                } else {
+                    super.addPropertyChangeListener(l);
+                }
+!!!9151771.java!!!	removePropertyChangeListener(inout l : PropertyChangeListener) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac != null) {
+                    ac.removePropertyChangeListener(l);
+                } else {
+                    super.removePropertyChangeListener(l);
+                }
+!!!9151899.java!!!	getAccessibleAction() : AccessibleAction
+                return getCurrentAccessibleContext().getAccessibleAction();
+!!!9152027.java!!!	getAccessibleComponent() : AccessibleComponent
+                return this; // to override getBounds()
+!!!9152155.java!!!	getAccessibleSelection() : AccessibleSelection
+                return getCurrentAccessibleContext().getAccessibleSelection();
+!!!9152283.java!!!	getAccessibleText() : AccessibleText
+                return getCurrentAccessibleContext().getAccessibleText();
+!!!9152411.java!!!	getAccessibleValue() : AccessibleValue
+                return getCurrentAccessibleContext().getAccessibleValue();
+!!!9152539.java!!!	getBackground() : Color
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).getBackground();
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.getBackground();
+                    } else {
+                        return null;
+                    }
+                }
+!!!9152667.java!!!	setBackground(inout c : Color) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).setBackground(c);
+                } else {
+                    Component cp = getCurrentComponent();
+                    if (cp != null) {
+                        cp.setBackground(c);
+                    }
+                }
+!!!9152795.java!!!	getForeground() : Color
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).getForeground();
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.getForeground();
+                    } else {
+                        return null;
+                    }
+                }
+!!!9152923.java!!!	setForeground(inout c : Color) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).setForeground(c);
+                } else {
+                    Component cp = getCurrentComponent();
+                    if (cp != null) {
+                        cp.setForeground(c);
+                    }
+                }
+!!!9153051.java!!!	getCursor() : Cursor
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).getCursor();
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.getCursor();
+                    } else {
+                        Accessible ap = getAccessibleParent();
+                        if (ap instanceof AccessibleComponent) {
+                            return ((AccessibleComponent) ap).getCursor();
+                        } else {
+                            return null;
+                        }
+                    }
+                }
+!!!9153179.java!!!	setCursor(inout c : Cursor) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).setCursor(c);
+                } else {
+                    Component cp = getCurrentComponent();
+                    if (cp != null) {
+                        cp.setCursor(c);
+                    }
+                }
+!!!9153307.java!!!	getFont() : Font
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).getFont();
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.getFont();
+                    } else {
+                        return null;
+                    }
+                }
+!!!9153435.java!!!	setFont(inout f : Font) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).setFont(f);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        c.setFont(f);
+                    }
+                }
+!!!9153563.java!!!	getFontMetrics(inout f : Font) : FontMetrics
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).getFontMetrics(f);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.getFontMetrics(f);
+                    } else {
+                        return null;
+                    }
+                }
+!!!9153691.java!!!	isEnabled() : boolean
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).isEnabled();
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.isEnabled();
+                    } else {
+                        return false;
+                    }
+                }
+!!!9153819.java!!!	setEnabled(inout b : boolean) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).setEnabled(b);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        c.setEnabled(b);
+                    }
+                }
+!!!9153947.java!!!	isVisible() : boolean
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).isVisible();
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.isVisible();
+                    } else {
+                        return false;
+                    }
+                }
+!!!9154075.java!!!	setVisible(inout b : boolean) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).setVisible(b);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        c.setVisible(b);
+                    }
+                }
+!!!9154203.java!!!	isShowing() : boolean
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    if (ac.getAccessibleParent() != null) {
+                        return ((AccessibleComponent) ac).isShowing();
+                    } else {
+                        // Fixes 4529616 - AccessibleJTableCell.isShowing()
+                        // returns false when the cell on the screen
+                        // if no parent
+                        return isVisible();
+                    }
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.isShowing();
+                    } else {
+                        return false;
+                    }
+                }
+!!!9154331.java!!!	contains(inout p : Point) : boolean
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    Rectangle r = ((AccessibleComponent) ac).getBounds();
+                    return r.contains(p);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        Rectangle r = c.getBounds();
+                        return r.contains(p);
+                    } else {
+                        return getBounds().contains(p);
+                    }
+                }
+!!!9154459.java!!!	getLocationOnScreen() : Point
+                if (parent != null) {
+                    Point parentLocation = parent.getLocationOnScreen();
+                    Point componentLocation = getLocation();
+                    componentLocation.translate(parentLocation.x, parentLocation.y);
+                    return componentLocation;
+                } else {
+                    return null;
+                }
+!!!9154587.java!!!	getLocation() : Point
+                if (parent != null) {
+                    Rectangle r = parent.getCellRect(row, column, false);
+                    if (r != null) {
+                        return r.getLocation();
+                    }
+                }
+                return null;
+!!!9154715.java!!!	setLocation(inout p : Point) : void
+//              if ((parent != null)  && (parent.contains(p))) {
+//                  ensureIndexIsVisible(indexInParent);
+//              }
+!!!9154843.java!!!	getBounds() : Rectangle
+                if (parent != null) {
+                    return parent.getCellRect(row, column, false);
+                } else {
+                    return null;
+                }
+!!!9154971.java!!!	setBounds(inout r : Rectangle) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).setBounds(r);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        c.setBounds(r);
+                    }
+                }
+!!!9155099.java!!!	getSize() : Dimension
+                if (parent != null) {
+                    Rectangle r = parent.getCellRect(row, column, false);
+                    if (r != null) {
+                        return r.getSize();
+                    }
+                }
+                return null;
+!!!9155227.java!!!	setSize(inout d : Dimension) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).setSize(d);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        c.setSize(d);
+                    }
+                }
+!!!9155355.java!!!	getAccessibleAt(inout p : Point) : Accessible
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).getAccessibleAt(p);
+                } else {
+                    return null;
+                }
+!!!9155483.java!!!	isFocusTraversable() : boolean
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    return ((AccessibleComponent) ac).isFocusTraversable();
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        return c.isFocusTraversable();
+                    } else {
+                        return false;
+                    }
+                }
+!!!9155611.java!!!	requestFocus() : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).requestFocus();
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        c.requestFocus();
+                    }
+                }
+!!!9155739.java!!!	addFocusListener(inout l : FocusListener) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).addFocusListener(l);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        c.addFocusListener(l);
+                    }
+                }
+!!!9155867.java!!!	removeFocusListener(inout l : FocusListener) : void
+                AccessibleContext ac = getCurrentAccessibleContext();
+                if (ac instanceof AccessibleComponent) {
+                    ((AccessibleComponent) ac).removeFocusListener(l);
+                } else {
+                    Component c = getCurrentComponent();
+                    if (c != null) {
+                        c.removeFocusListener(l);
+                    }
+                }

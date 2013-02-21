@@ -1,0 +1,21 @@
+class SecureCallbackHandler
+!!!8678811.java!!!	SecureCallbackHandler(inout acc : AccessControlContext, inout ch : CallbackHandler)
+	    this.acc = acc;
+	    this.ch = ch;
+!!!8678939.java!!!	handle(in callbacks : Callback) : void
+	    try {
+		java.security.AccessController.doPrivileged
+		    (new java.security.PrivilegedExceptionAction() {
+		    public Object run() throws java.io.IOException,
+					UnsupportedCallbackException {	
+			ch.handle(callbacks);
+			return null;
+		    }
+		}, acc);
+	    } catch (java.security.PrivilegedActionException pae) {
+		if (pae.getException() instanceof java.io.IOException) {
+		    throw (java.io.IOException)pae.getException();
+		} else {
+		    throw (UnsupportedCallbackException)pae.getException();
+		}
+	    }

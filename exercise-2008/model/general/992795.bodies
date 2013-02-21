@@ -1,0 +1,75 @@
+class COWSubList
+!!!7915931.java!!!	COWSubList(inout list : CopyOnWriteArrayList, in fromIndex : int, in toIndex : int)
+            l = list;
+            expectedArray = l.array();
+            offset = fromIndex;
+            size = toIndex - fromIndex;
+!!!7916059.java!!!	checkForComodification() : void
+            if (l.array != expectedArray)
+                throw new ConcurrentModificationException();
+!!!7916187.java!!!	rangeCheck(in index : int) : void
+            if (index<0 || index>=size)
+                throw new IndexOutOfBoundsException("Index: "+index+ ",Size: "+size);
+!!!7916315.java!!!	set(in index : int, inout element : E) : E
+            synchronized(l) {
+                rangeCheck(index);
+                checkForComodification();
+                E x = l.set(index+offset, element);
+                expectedArray = l.array;
+                return x;
+            }
+!!!7916443.java!!!	get(in index : int) : E
+            synchronized(l) {
+                rangeCheck(index);
+                checkForComodification();
+                return l.get(index+offset);
+            }
+!!!7916571.java!!!	size() : int
+            synchronized(l) {
+                checkForComodification();
+                return size;
+            }
+!!!7916699.java!!!	add(in index : int, inout element : E) : void
+            synchronized(l) {
+                checkForComodification();
+                if (index<0 || index>size)
+                    throw new IndexOutOfBoundsException();
+                l.add(index+offset, element);
+                expectedArray = l.array;
+                size++;
+            }
+!!!7916827.java!!!	clear() : void
+            synchronized(l) {
+                checkForComodification();
+                l.removeRange(offset, offset+size);
+                expectedArray = l.array;
+                size = 0;
+            }
+!!!7916955.java!!!	remove(in index : int) : E
+            synchronized(l) {
+                rangeCheck(index);
+                checkForComodification();
+                E result = l.remove(index+offset);
+                expectedArray = l.array;
+                size--;
+                return result;
+            }
+!!!7917083.java!!!	iterator() : Iterator
+            synchronized(l) {
+                checkForComodification();
+                return new COWSubListIterator<E>(l, 0, offset, size);
+            }
+!!!7917211.java!!!	listIterator(in index : int) : ListIterator
+            synchronized(l) {
+                checkForComodification();
+                if (index<0 || index>size)
+                    throw new IndexOutOfBoundsException("Index: "+index+", Size: "+size);
+                return new COWSubListIterator<E>(l, index, offset, size);
+            }
+!!!7917339.java!!!	subList(in fromIndex : int, in toIndex : int) : List
+            synchronized(l) {
+                checkForComodification();
+                if (fromIndex<0 || toIndex>size)
+                    throw new IndexOutOfBoundsException();
+                return new COWSubList<E>(l, fromIndex+offset, toIndex+offset);
+            }

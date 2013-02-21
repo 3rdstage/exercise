@@ -1,0 +1,180 @@
+class ObjectVector
+!!!5816091.java!!!	ObjectVector()
+
+    m_blocksize = 32;
+    m_mapSize = m_blocksize;
+    m_map = new Object[m_blocksize];
+!!!5816219.java!!!	ObjectVector(in blocksize : int)
+
+    m_blocksize = blocksize;
+    m_mapSize = blocksize;
+    m_map = new Object[blocksize];
+!!!5816347.java!!!	ObjectVector(in blocksize : int, in increaseSize : int)
+
+    m_blocksize = increaseSize;
+    m_mapSize = blocksize;
+    m_map = new Object[blocksize];
+!!!5816475.java!!!	ObjectVector(inout v : ObjectVector)
+  	m_map = new Object[v.m_mapSize];
+    m_mapSize = v.m_mapSize;
+    m_firstFree = v.m_firstFree;
+  	m_blocksize = v.m_blocksize;
+  	System.arraycopy(v.m_map, 0, m_map, 0, m_firstFree);
+!!!5816603.java!!!	size() : int
+    return m_firstFree;
+!!!5816731.java!!!	setSize(in sz : int) : void
+    m_firstFree = sz;
+!!!5816859.java!!!	addElement(inout value : Object) : void
+
+    if ((m_firstFree + 1) >= m_mapSize)
+    {
+      m_mapSize += m_blocksize;
+
+      Object newMap[] = new Object[m_mapSize];
+
+      System.arraycopy(m_map, 0, newMap, 0, m_firstFree + 1);
+
+      m_map = newMap;
+    }
+
+    m_map[m_firstFree] = value;
+
+    m_firstFree++;
+!!!5816987.java!!!	addElements(inout value : Object, in numberOfElements : int) : void
+
+    if ((m_firstFree + numberOfElements) >= m_mapSize)
+    {
+      m_mapSize += (m_blocksize+numberOfElements);
+
+      Object newMap[] = new Object[m_mapSize];
+
+      System.arraycopy(m_map, 0, newMap, 0, m_firstFree + 1);
+
+      m_map = newMap;
+    }
+
+    for (int i = 0; i < numberOfElements; i++) 
+    {
+      m_map[m_firstFree] = value;
+      m_firstFree++;
+    }
+!!!5817115.java!!!	addElements(in numberOfElements : int) : void
+
+    if ((m_firstFree + numberOfElements) >= m_mapSize)
+    {
+      m_mapSize += (m_blocksize+numberOfElements);
+
+      Object newMap[] = new Object[m_mapSize];
+
+      System.arraycopy(m_map, 0, newMap, 0, m_firstFree + 1);
+
+      m_map = newMap;
+    }
+    
+    m_firstFree += numberOfElements;
+!!!5817243.java!!!	insertElementAt(inout value : Object, in at : int) : void
+
+    if ((m_firstFree + 1) >= m_mapSize)
+    {
+      m_mapSize += m_blocksize;
+
+      Object newMap[] = new Object[m_mapSize];
+
+      System.arraycopy(m_map, 0, newMap, 0, m_firstFree + 1);
+
+      m_map = newMap;
+    }
+
+    if (at <= (m_firstFree - 1))
+    {
+      System.arraycopy(m_map, at, m_map, at + 1, m_firstFree - at);
+    }
+
+    m_map[at] = value;
+
+    m_firstFree++;
+!!!5817371.java!!!	removeAllElements() : void
+
+    for (int i = 0; i < m_firstFree; i++)
+    {
+      m_map[i] = null;
+    }
+
+    m_firstFree = 0;
+!!!5817499.java!!!	removeElement(inout s : Object) : boolean
+
+    for (int i = 0; i < m_firstFree; i++)
+    {
+      if (m_map[i] == s)
+      {
+        if ((i + 1) < m_firstFree)
+          System.arraycopy(m_map, i + 1, m_map, i - 1, m_firstFree - i);
+        else
+          m_map[i] = null;
+
+        m_firstFree--;
+
+        return true;
+      }
+    }
+
+    return false;
+!!!5817627.java!!!	removeElementAt(in i : int) : void
+
+    if (i > m_firstFree)
+      System.arraycopy(m_map, i + 1, m_map, i, m_firstFree);
+    else
+      m_map[i] = null;
+
+    m_firstFree--;
+!!!5817755.java!!!	setElementAt(inout value : Object, in index : int) : void
+    m_map[index] = value;
+!!!5817883.java!!!	elementAt(in i : int) : Object
+    return m_map[i];
+!!!5818011.java!!!	contains(inout s : Object) : boolean
+
+    for (int i = 0; i < m_firstFree; i++)
+    {
+      if (m_map[i] == s)
+        return true;
+    }
+
+    return false;
+!!!5818139.java!!!	indexOf(inout elem : Object, in index : int) : int
+
+    for (int i = index; i < m_firstFree; i++)
+    {
+      if (m_map[i] == elem)
+        return i;
+    }
+
+    return java.lang.Integer.MIN_VALUE;
+!!!5818267.java!!!	indexOf(inout elem : Object) : int
+
+    for (int i = 0; i < m_firstFree; i++)
+    {
+      if (m_map[i] == elem)
+        return i;
+    }
+
+    return java.lang.Integer.MIN_VALUE;
+!!!5818395.java!!!	lastIndexOf(inout elem : Object) : int
+
+    for (int i = (m_firstFree - 1); i >= 0; i--)
+    {
+      if (m_map[i] == elem)
+        return i;
+    }
+
+    return java.lang.Integer.MIN_VALUE;
+!!!5818523.java!!!	setToSize(in size : int) : void
+    
+    Object newMap[] = new Object[size];
+    
+    System.arraycopy(m_map, 0, newMap, 0, m_firstFree);
+    m_mapSize = size;
+
+    m_map = newMap;
+    
+!!!5818651.java!!!	clone() : Object
+  	return new ObjectVector(this);

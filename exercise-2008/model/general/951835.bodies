@@ -1,0 +1,101 @@
+class Naming
+!!!7517083.java!!!	lookup(in name : String) : Remote
+	ParsedNamingURL parsed = parseURL(name);
+	Registry registry = getRegistry(parsed);
+
+	if (parsed.name == null)
+	    return registry;
+	return registry.lookup(parsed.name);
+!!!7517211.java!!!	bind(in name : String, inout obj : Remote) : void
+	ParsedNamingURL parsed = parseURL(name);
+	Registry registry = getRegistry(parsed);
+
+	if (obj == null)
+	    throw new NullPointerException("cannot bind to null");
+
+	registry.bind(parsed.name, obj);
+!!!7517339.java!!!	unbind(in name : String) : void
+	ParsedNamingURL parsed = parseURL(name);
+	Registry registry = getRegistry(parsed);
+
+	registry.unbind(parsed.name);
+!!!7517467.java!!!	rebind(in name : String, inout obj : Remote) : void
+	ParsedNamingURL parsed = parseURL(name);
+	Registry registry = getRegistry(parsed);
+
+	if (obj == null)
+	    throw new NullPointerException("cannot bind to null");
+
+	registry.rebind(parsed.name, obj);
+!!!7517595.java!!!	list(in name : String) : String
+	ParsedNamingURL parsed = parseURL(name);
+	Registry registry = getRegistry(parsed);
+
+	String prefix = "";
+ 	if (parsed.port > 0 || !parsed.host.equals(""))
+	    prefix += "//" + parsed.host;
+	if (parsed.port > 0)
+	    prefix += ":" + parsed.port;
+	prefix += "/";
+
+	String[] names = registry.list();
+	for (int i = 0; i < names.length; i++) {
+	    names[i] = prefix + names[i];
+	}
+	return names;
+!!!7517723.java!!!	getRegistry(inout parsed : ParsedNamingURL) : Registry
+	return LocateRegistry.getRegistry(parsed.host, parsed.port);
+!!!7517851.java!!!	parseURL(in str : String) : ParsedNamingURL
+	try {
+	    URI uri = new URI(str);
+	    if (uri.getFragment() != null) {
+		throw new MalformedURLException(
+		    "invalid character, '#', in URL name: " + str);
+	    } else if (uri.getQuery() != null) {
+		throw new MalformedURLException(
+		    "invalid character, '?', in URL name: " + str);
+	    } else if (uri.getUserInfo() != null) {
+		throw new MalformedURLException(
+		    "invalid character, '@', in URL host: " + str);
+	    }
+	    String scheme = uri.getScheme();
+	    if (scheme != null && !scheme.equals("rmi")) {
+		throw new MalformedURLException("invalid URL scheme: " + str);
+	    }
+
+	    String name = uri.getPath();
+	    if (name != null) {
+		if (name.startsWith("/")) {
+		    name = name.substring(1);
+		}
+		if (name.length() == 0) {
+		    name = null;
+		}
+	    }
+
+	    String host = uri.getHost();
+	    if (host == null) {
+		host = "";
+		if (uri.getPort() == -1) {
+		    /* handle URIs with explicit port but no host
+		     * (e.g., "//:1098/foo"); although they do not strictly
+		     * conform to RFC 2396, Naming's javadoc explicitly allows
+		     * them.
+		     */
+		    String authority = uri.getAuthority();
+		    if (authority != null && authority.startsWith(":")) {
+			authority = "localhost" + authority;
+			uri = new URI(null, authority, null, null, null);
+		    }
+		}
+	    }
+	    int port = uri.getPort();
+	    if (port == -1) {
+		port = Registry.REGISTRY_PORT;
+	    }
+	    return new ParsedNamingURL(host, port, name);
+
+	} catch (URISyntaxException ex) {
+	    throw (MalformedURLException) new MalformedURLException(
+		"invalid URL string: " + str).initCause(ex);
+	}

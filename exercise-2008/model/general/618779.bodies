@@ -1,0 +1,194 @@
+class HTMLCollectionImpl
+!!!4043931.java!!!	HTMLCollectionImpl(inout topLevel : HTMLElement, in lookingFor : short)
+        if ( topLevel == null )
+            throw new NullPointerException( "HTM011 Argument 'topLevel' is null." );
+        _topLevel = topLevel;
+       _lookingFor = lookingFor;
+!!!4044059.java!!!	getLength() : int
+        // Call recursive function on top-level element.
+        return getLength( _topLevel );
+!!!4044187.java!!!	item(in index : int) : Node
+        if ( index < 0 )
+            throw new IllegalArgumentException( "HTM012 Argument 'index' is negative." );
+        // Call recursive function on top-level element.
+        return item( _topLevel, new CollectionIndex( index ) );
+!!!4044315.java!!!	namedItem(in name : String) : Node
+        if ( name == null )
+            throw new NullPointerException( "HTM013 Argument 'name' is null." );
+        // Call recursive function on top-level element.
+        return namedItem( _topLevel, name );
+!!!4044443.java!!!	getLength(inout topLevel : Element) : int
+        int        length;
+        Node    node;
+    
+        synchronized ( topLevel )
+        {
+            // Always count from zero and traverse all the childs of the
+            // current element in the order they appear.
+            length = 0;
+            node = topLevel.getFirstChild();
+            while ( node != null )
+            {
+                // If a particular node is an element (could be HTML or XML),
+		// do two things: if it's the one we're looking for, count
+		// another matched element; at any rate, traverse it's
+		// children as well.
+                if ( node instanceof Element )
+                {
+                    if ( collectionMatch( (Element) node, null ) )
+                        ++ length;
+                    else if ( recurse() )
+                        length += getLength( (Element) node );
+                }
+                node = node.getNextSibling(); 
+            }
+        }
+        return length;
+!!!4044571.java!!!	item(inout topLevel : Element, inout index : CollectionIndex) : Node
+        Node    node;
+        Node    result;
+
+        synchronized ( topLevel )
+        {
+            // Traverse all the childs of the current element in the order
+	    // they appear. Count from the index backwards until you reach
+	    // matching element with an index of zero. Return that element.
+            node = topLevel.getFirstChild();
+            while ( node != null )
+            {
+                // If a particular node is an element (could be HTML or XML),
+		// do two things: if it's the one we're looking for, decrease
+		// the index and if zero, return this node; at any rate,
+		// traverse it's children as well.
+                if ( node instanceof Element )
+                {
+                    if ( collectionMatch( (Element) node, null ) )
+                    {
+                        if ( index.isZero() )
+                            return node;
+                        index.decrement();
+                    } else if ( recurse() )
+                    {
+                        result = item( (Element) node, index );
+                        if ( result != null )
+                            return result;
+                    }
+                }
+                node = node.getNextSibling(); 
+            }
+        }
+        return null;
+!!!4044699.java!!!	namedItem(inout topLevel : Element, in name : String) : Node
+        Node    node;
+        Node    result;
+
+        synchronized ( topLevel )
+        {
+            // Traverse all the childs of the current element in the order
+	    // they appear.
+            node = topLevel.getFirstChild();
+            while ( node != null )
+            {
+                // If a particular node is an element (could be HTML or XML),
+                // do two things: if it's the one we're looking for, and the
+		// name (id attribute) attribute is the one we're looking for,
+		// return this element; otherwise, traverse it's children.
+                if ( node instanceof Element )
+                {
+                    if ( collectionMatch( (Element) node, name ) )
+                        return node;
+                    else if ( recurse() )
+                    {
+                        result = namedItem( (Element) node, name );
+                        if ( result != null )
+                            return result;
+                    }
+                }
+                node = node.getNextSibling(); 
+            }
+            return node;
+        }
+!!!4044827.java!!!	recurse() : boolean
+        return _lookingFor > 0;
+!!!4044955.java!!!	collectionMatch(inout elem : Element, in name : String) : boolean
+        boolean    match;
+        
+        synchronized ( elem )
+        {
+            // Begin with no matching. Depending on what we're looking for,
+            // attempt to match based on the element type. This is the quickest
+            // way to match involving only a cast. Do the expensive string
+            // comparison later on.
+            match = false;
+            switch ( _lookingFor )
+            {
+            case ANCHOR:
+                // Anchor is an <A> element with a 'name' attribute. Otherwise, it's
+                // just a link.
+                match = ( elem instanceof HTMLAnchorElement ) &&
+                        elem.getAttribute( "name" ).length() > 0;
+                break;
+            case FORM:
+                // Any <FORM> element.
+                match = ( elem instanceof HTMLFormElement );
+                break;
+            case IMAGE:
+                // Any <IMG> element. <OBJECT> elements with images are not returned.
+                match = ( elem instanceof HTMLImageElement );
+                break;
+            case APPLET:
+                // Any <APPLET> element, and any <OBJECT> element which represents an
+                // Applet. This is determined by 'codetype' attribute being
+                // 'application/java' or 'classid' attribute starting with 'java:'.
+                match = ( elem instanceof HTMLAppletElement ) ||
+                        ( elem instanceof HTMLObjectElement &&
+                          ( "application/java".equals( elem.getAttribute( "codetype" ) ) ||
+                            elem.getAttribute( "classid" ).startsWith( "java:" ) ) );
+                break;
+            case ELEMENT:
+                // All form elements implement HTMLFormControl for easy identification.
+                match = ( elem instanceof HTMLFormControl );
+                break;
+            case LINK:
+                // Any <A> element, and any <AREA> elements with an 'href' attribute.
+                match = ( ( elem instanceof HTMLAnchorElement ||
+                            elem instanceof HTMLAreaElement ) &&
+                          elem.getAttribute( "href" ).length() > 0 );
+                break;
+            case AREA:
+                // Any <AREA> element.
+                match = ( elem instanceof HTMLAreaElement );
+                break;
+            case OPTION:
+                // Any <OPTION> element.
+                match = ( elem instanceof HTMLOptionElement );
+                break;
+            case ROW:
+                // Any <TR> element.
+                match = ( elem instanceof HTMLTableRowElement );
+                break;
+            case TBODY:
+                // Any <TBODY> element (one of three table section types).
+                match = ( elem instanceof HTMLTableSectionElement &&
+                          elem.getTagName().equals( "tbody" ) );
+                break;
+            case CELL:
+                // Any <TD> element.
+                match = ( elem instanceof HTMLTableCellElement );
+                break;
+            }
+        
+            // If element type was matched and a name was specified, must also match
+            // the name against either the 'id' or the 'name' attribute. The 'name'
+            // attribute is relevant only for <A> elements for backward compatibility.
+            if ( match && name != null )
+            {
+                // If an anchor and 'name' attribute matches, return true. Otherwise,
+                // try 'id' attribute.
+                if ( elem instanceof HTMLAnchorElement &&
+                     name.equals( elem.getAttribute( "name" ) ) )
+                    return true;
+                match = name.equals( elem.getAttribute( "id" ) );
+            }
+        }
+        return match;

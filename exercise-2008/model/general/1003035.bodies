@@ -1,0 +1,94 @@
+class FastInputStream
+!!!8035355.java!!!	FastInputStream(inout in : InputStream)
+	    this(in, 8192);
+!!!8035483.java!!!	FastInputStream(inout in : InputStream, in size : int)
+	    super(in);
+	    buf = new byte[size];
+!!!8035611.java!!!	read() : int
+	    if (pos >= count) {
+		fill();
+		if (pos >= count) {
+		    return -1;
+		}
+	    }
+	    return buf[pos++] & 0xff;
+!!!8035739.java!!!	read(in b : byte, in off : int, in len : int) : int
+	    int avail = count - pos;
+	    if (avail <= 0) {
+		if (len >= buf.length) {
+		    return in.read(b, off, len);
+		}
+		fill();
+		avail = count - pos;
+		if (avail <= 0) {
+		    return -1;
+		}
+	    }
+	    if (len > avail) {
+		len = avail;
+	    }
+	    System.arraycopy(buf, pos, b, off, len);
+	    pos += len;
+	    return len;
+!!!8035867.java!!!	readLine(in b : byte, in off : int, in len : int) : int
+	    byte[] tbuf = this.buf;
+	    int total = 0;
+	    while (total < len) {
+		int avail = count - pos;
+		if (avail <= 0) {
+		    fill();
+		    avail = count - pos;
+		    if (avail <= 0) {
+			return -1;
+		    }
+		}
+		int n = len - total;
+		if (n > avail) {
+		    n = avail;
+		}
+		int tpos = pos;
+		int maxpos = tpos + n;
+		while (tpos < maxpos && tbuf[tpos++] != '\n') ;
+		n = tpos - pos;
+		System.arraycopy(tbuf, pos, b, off, n);
+		off += n;
+		total += n;
+		pos = tpos;
+		if (tbuf[tpos-1] == '\n') {
+		    break;
+		}
+	    }
+	    return total;
+!!!8035995.java!!!	peek() : byte
+	    if (pos == count)
+		fill();
+	    return buf[pos];
+!!!8036123.java!!!	readLine(in b : byte) : int
+	    return readLine(b, 0, b.length);
+!!!8036251.java!!!	skip(in n : long) : long
+	    if (n <= 0) {
+		return 0;
+	    }
+	    long avail = count - pos;
+	    if (avail <= 0) {
+		return in.skip(n);
+	    }
+	    if (n > avail) {
+		n = avail;
+	    }
+	    pos += n;
+	    return n;
+!!!8036379.java!!!	available() : int
+	    return (count - pos) + in.available();
+!!!8036507.java!!!	close() : void
+	    if (in != null) {
+		in.close();
+		in = null;
+		buf = null;
+	    }
+!!!8036635.java!!!	fill() : void
+	    count = pos = 0;
+	    int n = in.read(buf, 0, buf.length);
+	    if (n > 0) {
+		count = n;
+	    }

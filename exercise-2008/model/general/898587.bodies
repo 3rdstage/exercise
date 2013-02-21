@@ -1,0 +1,93 @@
+class PropertyEditorManager
+!!!6786075.java!!!	registerEditor(inout targetType : Class, inout editorClass : Class) : void
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {
+	    sm.checkPropertiesAccess();
+	}
+	initialize();
+	if (editorClass == null) {
+	    registry.remove(targetType);
+	} else {
+	    registry.put(targetType, editorClass);
+	}
+!!!6786203.java!!!	findEditor(inout targetType : Class) : PropertyEditor
+	initialize();
+	Class editorClass = (Class)registry.get(targetType);
+	if (editorClass != null) {
+	    try {
+		Object o = editorClass.newInstance();
+        	return (PropertyEditor)o;
+	    } catch (Exception ex) {
+	 	System.err.println("Couldn't instantiate type editor \"" +
+			editorClass.getName() + "\" : " + ex);
+	    }
+	}
+
+	// Now try adding "Editor" to the class name.
+
+	String editorName = targetType.getName() + "Editor";
+	try {
+	    return (PropertyEditor) Introspector.instantiate(targetType, editorName);
+	} catch (Exception ex) {
+	   // Silently ignore any errors.
+	}
+
+	// Now try looking for <searchPath>.fooEditor
+	editorName = targetType.getName();
+   	while (editorName.indexOf('.') > 0) {
+	    editorName = editorName.substring(editorName.indexOf('.')+1);
+	}
+	for (int i = 0; i < searchPath.length; i++) {
+	    String name = searchPath[i] + "." + editorName + "Editor";
+	    try {
+	        return (PropertyEditor) Introspector.instantiate(targetType, name);
+	    } catch (Exception ex) {
+	       // Silently ignore any errors.
+	    }
+	}
+
+	// We couldn't find a suitable Editor.
+	return null;
+!!!6786331.java!!!	getEditorSearchPath() : String
+	// Return a copy of the searchPath.
+	String result[] = new String[searchPath.length];
+	for (int i = 0; i < searchPath.length; i++) {
+	    result[i] = searchPath[i];
+	}
+	return result;
+!!!6786459.java!!!	setEditorSearchPath(in path : String) : void
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {
+	    sm.checkPropertiesAccess();
+	}
+	initialize();
+	if (path == null) {
+	    path = new String[0];
+	}
+	searchPath = path;
+!!!6786587.java!!!	load(inout targetType : Class, in name : String) : void
+	String editorName = name;
+	for (int i = 0; i < searchPath.length; i++) {
+	    try {
+	        editorName = searchPath[i] + "." + name;
+	        Class cls = Class.forName(editorName);
+	        registry.put(targetType, cls);
+		return;
+	    } catch (Exception ex) {
+		// Drop through and try next package.
+	    }
+	}
+	// This shouldn't happen.
+	System.err.println("load of " + editorName + " failed");
+!!!6786715.java!!!	initialize() : void
+	if (registry != null) {
+	    return;
+	}
+	registry = new java.util.Hashtable();
+	load(Byte.TYPE, "ByteEditor");
+	load(Short.TYPE, "ShortEditor");
+	load(Integer.TYPE, "IntEditor");
+	load(Long.TYPE ,"LongEditor");
+	load(Boolean.TYPE, "BoolEditor");
+	load(Float.TYPE, "FloatEditor");
+	load(Double.TYPE, "DoubleEditor");

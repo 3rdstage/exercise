@@ -1,0 +1,126 @@
+class AccessibleJList
+!!!8993051.java!!!	AccessibleJList()
+            super();
+            JList.this.addPropertyChangeListener(this);
+            JList.this.getSelectionModel().addListSelectionListener(this);
+            JList.this.getModel().addListDataListener(this);
+            leadSelectionIndex = JList.this.getLeadSelectionIndex();
+!!!8993179.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+            String name = e.getPropertyName();
+            Object oldValue = e.getOldValue();
+            Object newValue = e.getNewValue();
+
+                // re-set listData listeners
+            if (name.compareTo("model") == 0) {
+
+                if (oldValue != null && oldValue instanceof ListModel) {
+                    ((ListModel) oldValue).removeListDataListener(this);
+                }
+                if (newValue != null && newValue instanceof ListModel) {
+                    ((ListModel) newValue).addListDataListener(this);
+                }
+
+                // re-set listSelectionModel listeners
+            } else if (name.compareTo("selectionModel") == 0) {
+
+                if (oldValue != null && oldValue instanceof ListSelectionModel) {
+                    ((ListSelectionModel) oldValue).removeListSelectionListener(this);
+                }
+                if (newValue != null && newValue instanceof ListSelectionModel) {
+                    ((ListSelectionModel) newValue).addListSelectionListener(this);
+                }
+
+		firePropertyChange(
+		    AccessibleContext.ACCESSIBLE_SELECTION_PROPERTY,
+		    Boolean.valueOf(false), Boolean.valueOf(true));
+	    }
+!!!8993307.java!!!	valueChanged(inout e : ListSelectionEvent) : void
+	    int oldLeadSelectionIndex = leadSelectionIndex;
+            leadSelectionIndex = JList.this.getLeadSelectionIndex();
+	    if (oldLeadSelectionIndex != leadSelectionIndex) {
+		Accessible oldLS, newLS;
+		oldLS = (oldLeadSelectionIndex >= 0) 
+			? getAccessibleChild(oldLeadSelectionIndex)
+			: null;
+		newLS = (leadSelectionIndex >= 0) 
+			? getAccessibleChild(leadSelectionIndex)
+			: null;
+                firePropertyChange(AccessibleContext.ACCESSIBLE_ACTIVE_DESCENDANT_PROPERTY,
+                                   oldLS, newLS);
+	    }
+
+            firePropertyChange(AccessibleContext.ACCESSIBLE_VISIBLE_DATA_PROPERTY,
+                               Boolean.valueOf(false), Boolean.valueOf(true));
+            firePropertyChange(AccessibleContext.ACCESSIBLE_SELECTION_PROPERTY,
+                               Boolean.valueOf(false), Boolean.valueOf(true));
+
+            // Process the State changes for Multiselectable
+            AccessibleStateSet s = getAccessibleStateSet();
+            ListSelectionModel lsm = JList.this.getSelectionModel();
+            if (lsm.getSelectionMode() != ListSelectionModel.SINGLE_SELECTION) {
+                if (!s.contains(AccessibleState.MULTISELECTABLE)) {
+                    s.add(AccessibleState.MULTISELECTABLE);
+                    firePropertyChange(AccessibleContext.ACCESSIBLE_STATE_PROPERTY,
+                                       null, AccessibleState.MULTISELECTABLE);
+                }
+            } else {
+                if (s.contains(AccessibleState.MULTISELECTABLE)) {
+                    s.remove(AccessibleState.MULTISELECTABLE);
+                    firePropertyChange(AccessibleContext.ACCESSIBLE_STATE_PROPERTY,
+                                       AccessibleState.MULTISELECTABLE, null);
+                }
+            }
+!!!8993435.java!!!	intervalAdded(inout e : ListDataEvent) : void
+            firePropertyChange(AccessibleContext.ACCESSIBLE_VISIBLE_DATA_PROPERTY,
+                               Boolean.valueOf(false), Boolean.valueOf(true));
+!!!8993563.java!!!	intervalRemoved(inout e : ListDataEvent) : void
+            firePropertyChange(AccessibleContext.ACCESSIBLE_VISIBLE_DATA_PROPERTY,
+                               Boolean.valueOf(false), Boolean.valueOf(true));
+!!!8993691.java!!!	contentsChanged(inout e : ListDataEvent) : void
+             firePropertyChange(AccessibleContext.ACCESSIBLE_VISIBLE_DATA_PROPERTY,
+                                Boolean.valueOf(false), Boolean.valueOf(true));
+!!!8993819.java!!!	getAccessibleStateSet() : AccessibleStateSet
+            AccessibleStateSet states = super.getAccessibleStateSet();
+            if (selectionModel.getSelectionMode() !=
+                ListSelectionModel.SINGLE_SELECTION) {
+                states.add(AccessibleState.MULTISELECTABLE);
+            }
+            return states;
+!!!8993947.java!!!	getAccessibleRole() : AccessibleRole
+            return AccessibleRole.LIST;
+!!!8994075.java!!!	getAccessibleAt(inout p : Point) : Accessible
+            int i = locationToIndex(p);
+            if (i >= 0) {
+                return new AccessibleJListChild(JList.this, i);
+            } else {
+                return null;
+            }
+!!!8994203.java!!!	getAccessibleChildrenCount() : int
+            return getModel().getSize();
+!!!8994331.java!!!	getAccessibleChild(in i : int) : Accessible
+            if (i >= getModel().getSize()) {
+                return null;
+            } else {
+                return new AccessibleJListChild(JList.this, i);
+            }
+!!!8994459.java!!!	getAccessibleSelection() : AccessibleSelection
+            return this;
+!!!8994587.java!!!	getAccessibleSelectionCount() : int
+             return JList.this.getSelectedIndices().length;
+!!!8994715.java!!!	getAccessibleSelection(in i : int) : Accessible
+             int len = getAccessibleSelectionCount();
+             if (i < 0 || i >= len) {
+                 return null;
+             } else {
+                 return getAccessibleChild(JList.this.getSelectedIndices()[i]);
+             }
+!!!8994843.java!!!	isAccessibleChildSelected(in i : int) : boolean
+            return isSelectedIndex(i);
+!!!8994971.java!!!	addAccessibleSelection(in i : int) : void
+             JList.this.addSelectionInterval(i, i);
+!!!8995099.java!!!	removeAccessibleSelection(in i : int) : void
+             JList.this.removeSelectionInterval(i, i);
+!!!8995227.java!!!	clearAccessibleSelection() : void
+             JList.this.clearSelection();
+!!!8995355.java!!!	selectAllAccessibleSelection() : void
+             JList.this.addSelectionInterval(0, getAccessibleChildrenCount() -1);

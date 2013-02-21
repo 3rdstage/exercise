@@ -1,0 +1,88 @@
+class FileCacheImageOutputStream
+!!!8209947.java!!!	FileCacheImageOutputStream(inout stream : OutputStream, inout cacheDir : File)
+        if (stream == null) {
+            throw new IllegalArgumentException("stream == null!");
+        }
+        if ((cacheDir != null) && !(cacheDir.isDirectory())) {
+            throw new IllegalArgumentException("Not a directory!");
+        }
+        this.stream = stream;
+        this.cacheFile =
+            File.createTempFile("imageio", ".tmp", cacheDir);
+        this.cache = new RandomAccessFile(cacheFile, "rw");
+	StreamCloser.addToQueue(this);
+!!!8210075.java!!!	read() : int
+        bitOffset = 0;
+        int val =  cache.read();
+        if (val != -1) {
+            ++streamPos;
+        }
+        return val;
+!!!8210203.java!!!	read(in b : byte, in off : int, in len : int) : int
+        bitOffset = 0;
+        int nbytes = cache.read(b, off, len);
+        if (nbytes != -1) {
+            streamPos += nbytes;
+        }
+        return nbytes;
+!!!8210331.java!!!	write(in b : int) : void
+        flushBits();
+        cache.write(b);
+        ++streamPos;
+        maxStreamPos = Math.max(maxStreamPos, streamPos);
+!!!8210459.java!!!	write(in b : byte, in off : int, in len : int) : void
+        flushBits();
+        cache.write(b, off, len);
+        streamPos += len;
+        maxStreamPos = Math.max(maxStreamPos, streamPos);
+!!!8210587.java!!!	length() : long
+        try {
+            return cache.length();
+        } catch (IOException e) {
+            return -1L;
+        }
+!!!8210715.java!!!	seek(in pos : long) : void
+        checkClosed();
+
+        if (pos < flushedPos) {
+            throw new IndexOutOfBoundsException();
+        }
+
+        cache.seek(pos);
+        this.streamPos = cache.getFilePointer();
+        maxStreamPos = Math.max(maxStreamPos, streamPos);
+        this.bitOffset = 0;
+!!!8210843.java!!!	isCached() : boolean
+        return true;
+!!!8210971.java!!!	isCachedFile() : boolean
+        return true;
+!!!8211099.java!!!	isCachedMemory() : boolean
+        return false;
+!!!8211227.java!!!	close() : void
+        maxStreamPos = cache.length();
+
+        seek(maxStreamPos);
+        flushBefore(maxStreamPos);
+        super.close();
+        cache.close();
+        cacheFile.delete();
+        stream.flush();
+        stream = null;
+	StreamCloser.removeFromQueue(this);
+!!!8211355.java!!!	flushBefore(in pos : long) : void
+        long oFlushedPos = flushedPos;
+        super.flushBefore(pos);
+
+        long flushBytes = flushedPos - oFlushedPos;
+        if (flushBytes > 0) {
+            int bufLen = 512;
+            byte[] buf = new byte[bufLen];
+            cache.seek(oFlushedPos);
+            while (flushBytes > 0) {
+                int len = (int)Math.min(flushBytes, bufLen);
+                cache.readFully(buf, 0, len);
+                stream.write(buf, 0, len);
+                flushBytes -= len;
+            }
+            stream.flush();
+        }

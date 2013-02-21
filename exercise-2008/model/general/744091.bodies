@@ -1,0 +1,79 @@
+class MonthDV
+!!!5077403.java!!!	getActualValue(in content : String, inout context : ValidationContext) : Object
+        try{
+            return new DateTimeData(parse(content), this);
+        } catch(Exception ex){
+            throw new InvalidDatatypeValueException("cvc-datatype-valid.1.2.1", new Object[]{content, "gMonth"});
+        }
+!!!5077531.java!!!	parse(in str : String) : int
+        int len = str.length();
+        int[] date=new int[TOTAL_SIZE];
+        int[] timeZone = new int[2];
+
+        //set constants
+        date[CY]=YEAR;
+        date[D]=DAY;
+        if (str.charAt(0)!='-' || str.charAt(1)!='-') {
+            throw new SchemaDateTimeException("Invalid format for gMonth: "+str);
+        }
+        int stop = 4;
+        date[M]=parseInt(str,2,stop);
+
+        // REVISIT: allow both --MM and --MM-- now.
+        // need to remove the following 4 lines to disallow --MM--
+        // when the errata is offically in the rec.
+        if (str.length() >= stop+2 &&
+            str.charAt(stop) == '-' && str.charAt(stop+1) == '-') {
+            stop += 2;
+        }
+        if (stop < len) {
+            int sign = findUTCSign(str, stop, len);
+            if ( sign<0 ) {
+                throw new SchemaDateTimeException ("Error in month parsing: "+str);
+            }
+            else {
+                getTimeZone(str, date, sign, len, timeZone);
+            }
+        }
+        //validate and normalize
+        validateDateTime(date, timeZone);
+
+        if ( date[utc]!=0 && date[utc]!='Z' ) {
+            normalize(date, timeZone);
+        }
+        return date;
+!!!5077659.java!!!	compareDates(in date1 : int, in date2 : int) : short
+
+        if ( date1[utc]==date2[utc] ) {
+            return (short)((date1[M]>=date2[M])?(date1[M]>date2[M])?1:0:-1);
+        }
+
+        if ( date1[utc]=='Z' || date2[utc]=='Z' ) {
+
+            if ( date1[M]==date2[M] ) {
+                //--05--Z and --05--
+                return INDETERMINATE;
+            }
+            if ( (date1[M]+1 == date2[M] || date1[M]-1 == date2[M]) ) {
+                //--05--Z and (--04-- or --05--)
+                //REVISIT: should this case be less than or equal?
+                //         maxExclusive should fail but what about maxInclusive
+                //
+                return INDETERMINATE;
+            }
+        }
+
+        if ( date1[M]<date2[M] ) {
+            return -1;
+        }
+        else {
+            return 1;
+        }
+
+!!!5077787.java!!!	dateToString(in date : int) : String
+        StringBuffer message = new StringBuffer(5);
+        message.append('-');
+        message.append('-');
+        append(message, date[M], 2);
+        append(message, (char)date[utc], 0);
+        return message.toString();

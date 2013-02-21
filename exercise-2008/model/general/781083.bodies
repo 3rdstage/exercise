@@ -1,0 +1,98 @@
+class XMLGrammarCachingConfiguration
+!!!5474843.java!!!	XMLGrammarCachingConfiguration()
+        this(fStaticSymbolTable, fStaticGrammarPool, null);
+!!!5474971.java!!!	XMLGrammarCachingConfiguration(inout symbolTable : SymbolTable)
+        this(symbolTable, fStaticGrammarPool, null);
+!!!5475099.java!!!	XMLGrammarCachingConfiguration(inout symbolTable : SymbolTable, inout grammarPool : XMLGrammarPool)
+        this(symbolTable, grammarPool, null);
+!!!5475227.java!!!	XMLGrammarCachingConfiguration(inout symbolTable : SymbolTable, inout grammarPool : XMLGrammarPool, inout parentSettings : XMLComponentManager)
+        super(symbolTable, grammarPool, parentSettings);
+
+        // REVISIT:  may need to add some features/properties
+        // specific to this configuration at some point...
+
+        // add default recognized features
+        // set state for default features
+        // add default recognized properties
+        // create and register missing components
+        fSchemaLoader = new XMLSchemaLoader(fSymbolTable);
+        fSchemaLoader.setProperty(XMLGRAMMAR_POOL, fGrammarPool);
+
+        // and set up the DTD loader too:
+        fDTDLoader = new XMLDTDLoader(fSymbolTable, fGrammarPool);
+!!!5475355.java!!!	lockGrammarPool() : void
+        fGrammarPool.lockPool();
+!!!5475483.java!!!	clearGrammarPool() : void
+        fGrammarPool.clear();
+!!!5475611.java!!!	unlockGrammarPool() : void
+        fGrammarPool.unlockPool();
+!!!5475739.java!!!	parseGrammar(in type : String, in uri : String) : Grammar
+        XMLInputSource source = new XMLInputSource(null, uri, null);
+        return parseGrammar(type, source);
+
+!!!5475867.java!!!	parseGrammar(in type : String, inout is : XMLInputSource) : Grammar
+        if(type.equals(XMLGrammarDescription.XML_SCHEMA)) {
+            // by default, make all XMLGrammarPoolImpl's schema grammars available to fSchemaHandler
+            return parseXMLSchema(is);
+        } else if(type.equals(XMLGrammarDescription.XML_DTD)) {
+            return parseDTD(is);
+        }
+        // don't know this grammar...
+        return null;
+!!!5475995.java!!!	checkFeature(in featureId : String) : void
+
+        super.checkFeature(featureId);
+
+!!!5476123.java!!!	checkProperty(in propertyId : String) : void
+        super.checkProperty(propertyId);
+
+!!!5476251.java!!!	parseXMLSchema(inout is : XMLInputSource) : SchemaGrammar
+        XMLEntityResolver resolver = getEntityResolver();
+        if(resolver != null) {
+            fSchemaLoader.setEntityResolver(resolver);
+        }
+        if (fErrorReporter.getMessageFormatter(XSMessageFormatter.SCHEMA_DOMAIN) == null) {
+            fErrorReporter.putMessageFormatter(XSMessageFormatter.SCHEMA_DOMAIN, new XSMessageFormatter());
+        } 
+        fSchemaLoader.setProperty(ERROR_REPORTER, fErrorReporter);
+
+        String propPrefix = Constants.XERCES_PROPERTY_PREFIX;
+        String propName = propPrefix + Constants.SCHEMA_LOCATION;
+        fSchemaLoader.setProperty(propName, getProperty(propName));
+        propName = propPrefix + Constants.SCHEMA_NONS_LOCATION;
+        fSchemaLoader.setProperty(propName, getProperty(propName));
+        propName = Constants.JAXP_PROPERTY_PREFIX+Constants.SCHEMA_SOURCE;
+        fSchemaLoader.setProperty(propName, getProperty(propName));
+        fSchemaLoader.setFeature(SCHEMA_FULL_CHECKING, getFeature(SCHEMA_FULL_CHECKING));
+
+        // Should check whether the grammar with this namespace is already in
+        // the grammar resolver. But since we don't know the target namespace
+        // of the document here, we leave such check to XSDHandler
+        SchemaGrammar grammar = (SchemaGrammar)fSchemaLoader.loadGrammar(is);
+        // by default, hand it off to the grammar pool
+        if (grammar != null) {
+            fGrammarPool.cacheGrammars(XMLGrammarDescription.XML_SCHEMA,
+                                      new Grammar[]{grammar});
+        }
+        
+        return grammar;
+
+!!!5476379.java!!!	parseDTD(inout is : XMLInputSource) : DTDGrammar
+        XMLEntityResolver resolver = getEntityResolver();
+        if(resolver != null) {
+            fDTDLoader.setEntityResolver(resolver);
+        }
+        fDTDLoader.setProperty(ERROR_REPORTER, fErrorReporter);
+
+        // Should check whether the grammar with this namespace is already in
+        // the grammar resolver. But since we don't know the target namespace
+        // of the document here, we leave such check to the application...
+        DTDGrammar grammar = (DTDGrammar)fDTDLoader.loadGrammar(is);
+        // by default, hand it off to the grammar pool
+        if (grammar != null) {
+            fGrammarPool.cacheGrammars(XMLGrammarDescription.XML_DTD,
+                                      new Grammar[]{grammar});
+        }
+        
+        return grammar;
+

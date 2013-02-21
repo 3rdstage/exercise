@@ -1,0 +1,200 @@
+class BasicPopupMenuUI
+!!!2763931.java!!!	createUI(inout x : JComponent) : ComponentUI
+	return new BasicPopupMenuUI();
+!!!2764059.java!!!	BasicPopupMenuUI()
+        BasicLookAndFeel.hasPopups = true;
+        LookAndFeel laf = UIManager.getLookAndFeel();
+        if (laf instanceof BasicLookAndFeel) {
+            ((BasicLookAndFeel)laf).createdPopup();
+        }
+!!!2764187.java!!!	installUI(inout c : JComponent) : void
+	popupMenu = (JPopupMenu) c;
+
+	installDefaults();
+        installListeners();
+        installKeyboardActions();
+!!!2764315.java!!!	installDefaults() : void
+	if (popupMenu.getLayout() == null ||
+	    popupMenu.getLayout() instanceof UIResource)
+	    popupMenu.setLayout(new DefaultMenuLayout(popupMenu, BoxLayout.Y_AXIS));
+
+	LookAndFeel.installProperty(popupMenu, "opaque", Boolean.TRUE);
+	LookAndFeel.installBorder(popupMenu, "PopupMenu.border");
+	LookAndFeel.installColorsAndFont(popupMenu,
+					 "PopupMenu.background",
+					 "PopupMenu.foreground",
+					 "PopupMenu.font");
+!!!2764443.java!!!	installListeners() : void
+        if (popupMenuListener == null) {
+	    popupMenuListener = new BasicPopupMenuListener();
+	}
+ 	popupMenu.addPopupMenuListener(popupMenuListener);
+
+        if (menuKeyListener == null) {
+            menuKeyListener = new BasicMenuKeyListener();
+        }
+        popupMenu.addMenuKeyListener(menuKeyListener);
+
+	if (mouseGrabber == null) {
+	    mouseGrabber = new MouseGrabber();
+	}
+
+        if (!menuKeyboardHelperInstalled) {
+            if (menuKeyboardHelper == null) {
+                menuKeyboardHelper = new MenuKeyboardHelper();
+            }
+            MenuSelectionManager msm = MenuSelectionManager.defaultManager();
+            msm.addChangeListener(menuKeyboardHelper);
+            menuKeyboardHelperInstalled = true;
+        }
+!!!2764699.java!!!	getInputMap(inout popup : JPopupMenu, inout c : JComponent) : InputMap
+        InputMap windowInputMap = null;
+	Object[] bindings = (Object[])UIManager.get("PopupMenu.selectedWindowInputMapBindings");
+	if (bindings != null) {
+	    windowInputMap = LookAndFeel.makeComponentInputMap(c, bindings);
+	    if (!popup.getComponentOrientation().isLeftToRight()) {
+		Object[] km = (Object[])UIManager.get("PopupMenu.selectedWindowInputMapBindings.RightToLeft");
+		if (km != null) {
+		    InputMap rightToLeftInputMap = LookAndFeel.makeComponentInputMap(c, km);
+		    rightToLeftInputMap.setParent(windowInputMap);
+		    windowInputMap = rightToLeftInputMap;
+		}
+	    }
+        }
+        return windowInputMap;
+!!!2764827.java!!!	getActionMap() : ActionMap
+        return LazyActionMap.getActionMap(BasicPopupMenuUI.class,
+                                          "PopupMenu.actionMap");
+!!!2764955.java!!!	loadActionMap(inout map : LazyActionMap) : void
+	map.put(new Actions(Actions.CANCEL));
+        map.put(new Actions(Actions.SELECT_NEXT));
+        map.put(new Actions(Actions.SELECT_PREVIOUS));
+	map.put(new Actions(Actions.SELECT_PARENT));
+	map.put(new Actions(Actions.SELECT_CHILD));
+	map.put(new Actions(Actions.RETURN));
+        BasicLookAndFeel.installAudioActionMap(map);
+!!!2765083.java!!!	uninstallUI(inout c : JComponent) : void
+        uninstallDefaults();
+        uninstallListeners();
+        uninstallKeyboardActions();
+	
+	popupMenu = null;
+!!!2765211.java!!!	uninstallDefaults() : void
+	LookAndFeel.uninstallBorder(popupMenu);
+!!!2765339.java!!!	uninstallListeners() : void
+        if (popupMenuListener != null) {
+            popupMenu.removePopupMenuListener(popupMenuListener);
+	}
+        if (menuKeyListener != null) {
+            popupMenu.removeMenuKeyListener(menuKeyListener);
+        }
+        if(mouseGrabber != null) {
+            MenuSelectionManager msm = MenuSelectionManager.defaultManager();
+            msm.removeChangeListener(mouseGrabber);
+            mouseGrabber.ungrabWindow();
+            mouseGrabber = null;
+        }
+!!!2765467.java!!!	uninstallKeyboardActions() : void
+	SwingUtilities.replaceUIActionMap(popupMenu, null);
+	SwingUtilities.replaceUIInputMap(popupMenu, 
+				  JComponent.WHEN_IN_FOCUSED_WINDOW, null);
+!!!2765595.java!!!	getFirstPopup() : MenuElement
+	MenuSelectionManager msm = MenuSelectionManager.defaultManager();
+	MenuElement[] p = msm.getSelectedPath();
+	MenuElement me = null;	    
+	
+	for(int i = 0 ; me == null && i < p.length ; i++) {
+	    if (p[i] instanceof JPopupMenu)
+		me = p[i];
+	}
+	
+	return me;
+!!!2765723.java!!!	doUnpostPopupOnDeactivation() : boolean
+        if (!checkedUnpostPopup) {
+            Boolean b = java.security.AccessController.doPrivileged(
+                new java.security.PrivilegedAction <Boolean> () {
+                    public Boolean run() {
+                        String pKey =
+                            "sun.swing.unpostPopupsOnWindowDeactivation";
+                        String value = System.getProperty(pKey, "true");
+                        return Boolean.valueOf(value);
+                    }
+                }
+            );
+            unpostPopup = b.booleanValue();
+            checkedUnpostPopup = true;
+        }
+        return unpostPopup;
+!!!2765851.java!!!	getLastPopup() : JPopupMenu
+	MenuSelectionManager msm = MenuSelectionManager.defaultManager();
+	MenuElement[] p = msm.getSelectedPath();
+	JPopupMenu popup = null;	    
+	
+	for(int i = p.length - 1; popup == null && i >= 0; i--) {
+	    if (p[i] instanceof JPopupMenu)
+		popup = (JPopupMenu)p[i];
+	}
+	return popup;
+!!!2765979.java!!!	getPopups() : List
+	MenuSelectionManager msm = MenuSelectionManager.defaultManager();
+	MenuElement[] p = msm.getSelectedPath();
+	
+	List list = new ArrayList(p.length); 
+	for(int i = 0; i < p.length; i++) {
+	    if (p[i] instanceof JPopupMenu) {
+		list.add((JPopupMenu)p[i]);
+	    }
+	}
+	return list;
+!!!2766107.java!!!	isPopupTrigger(inout e : MouseEvent) : boolean
+	return ((e.getID()==MouseEvent.MOUSE_RELEASED) 
+		&& ((e.getModifiers() & MouseEvent.BUTTON3_MASK)!=0));
+!!!2766235.java!!!	checkInvokerEqual(inout present : MenuElement, inout last : MenuElement) : boolean
+        Component invokerPresent = present.getComponent();
+        Component invokerLast = last.getComponent();
+
+        if (invokerPresent instanceof JPopupMenu) {
+            invokerPresent = ((JPopupMenu)invokerPresent).getInvoker();
+    }
+        if (invokerLast instanceof JPopupMenu) {
+            invokerLast = ((JPopupMenu)invokerLast).getInvoker();
+        }
+        return (invokerPresent == invokerLast);
+!!!2768283.java!!!	nextEnabledChild(inout e : MenuElement, in fromIndex : int, in toIndex : int) : MenuElement
+	for (int i=fromIndex; i<=toIndex; i++) {
+	    if (e[i] != null) {
+		Component comp = e[i].getComponent();
+		if (comp != null && comp.isEnabled() && comp.isVisible()) {
+                    return e[i];
+                }
+	    }
+	}
+	return null;
+!!!2768411.java!!!	previousEnabledChild(inout e : MenuElement, in fromIndex : int, in toIndex : int) : MenuElement
+	for (int i=fromIndex; i>=toIndex; i--) {
+	    if (e[i] != null) {
+		Component comp = e[i].getComponent();
+		if (comp != null && comp.isEnabled() && comp.isVisible()) {
+                    return e[i];
+                }
+	    }
+	}
+	return null;
+!!!2768539.java!!!	findEnabledChild(inout e : MenuElement, in fromIndex : int, inout forward : boolean) : MenuElement
+        MenuElement result = null;
+        if (forward) {
+            result = nextEnabledChild(e, fromIndex+1, e.length-1);
+            if (result == null) result = nextEnabledChild(e, 0, fromIndex-1);
+        } else {
+            result = previousEnabledChild(e, fromIndex-1, 0);
+            if (result == null) result = previousEnabledChild(e, e.length-1,
+                                                              fromIndex+1);
+        }
+	return result;
+!!!2768667.java!!!	findEnabledChild(inout e : MenuElement, inout elem : MenuElement, inout forward : boolean) : MenuElement
+        for (int i=0; i<e.length; i++) {
+            if (e[i] == elem) {
+                return findEnabledChild(e, i, forward);
+            }
+        }
+        return null;

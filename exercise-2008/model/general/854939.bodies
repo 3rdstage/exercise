@@ -1,0 +1,100 @@
+class SequencedEvent
+!!!6363675.java!!!	SequencedEvent(inout nested : AWTEvent)
+	super(nested.getSource(), ID);
+	this.nested = nested;
+	synchronized (SequencedEvent.class) {
+	    list.add(this);
+	}
+!!!6363803.java!!!	dispatch() : void
+        try {
+            appContext = AppContext.getAppContext();
+
+            if (getFirst() != this) {
+                if (EventQueue.isDispatchThread()) {
+                    EventDispatchThread edt = (EventDispatchThread)
+                        Thread.currentThread();
+                    edt.pumpEvents(SentEvent.ID, new Conditional() {
+                        public boolean evaluate() {
+                            return !SequencedEvent.this.isFirstOrDisposed();
+                        }
+                    });
+                } else {
+                    while(!isFirstOrDisposed()) {
+                        synchronized (SequencedEvent.class) {
+                            try {                             
+                                SequencedEvent.class.wait(1000);
+                            } catch (InterruptedException e) {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!disposed) {
+                KeyboardFocusManager.getCurrentKeyboardFocusManager().
+                    setCurrentSequencedEvent(this);
+                Toolkit.getEventQueue().dispatchEvent(nested);
+            }
+        } finally {
+            dispose();
+        }
+!!!6363931.java!!!	isOwnerAppContextDisposed(inout se : SequencedEvent) : boolean
+        if (se != null) {
+            Object target = se.nested.getSource();
+            if (target instanceof Component) {
+                return ((Component)target).appContext.isDisposed();
+            }
+        }
+        return false;
+!!!6364059.java!!!	isFirstOrDisposed() : boolean
+        if (disposed) {
+            return true;
+        }
+        // getFirstWithContext can dispose this
+        return this == getFirstWithContext() || disposed;
+!!!6364187.java!!!	getFirst() : SequencedEvent
+        return (SequencedEvent)list.getFirst();
+!!!6364315.java!!!	getFirstWithContext() : SequencedEvent
+        SequencedEvent first = getFirst();
+        while(isOwnerAppContextDisposed(first)) {
+            first.dispose();
+            first = getFirst();
+        }        
+        return first;
+!!!6364443.java!!!	dispose() : void
+      synchronized (SequencedEvent.class) {
+            if (disposed) {
+                return;
+            }
+            if (KeyboardFocusManager.getCurrentKeyboardFocusManager().
+                    getCurrentSequencedEvent() == this) {
+                KeyboardFocusManager.getCurrentKeyboardFocusManager().
+                    setCurrentSequencedEvent(null);
+            }
+            disposed = true;
+        }
+        // Wake myself up
+        if (appContext != null) {
+            SunToolkit.postEvent(appContext, new SentEvent());
+        }
+        
+        SequencedEvent next = null;
+        
+        synchronized (SequencedEvent.class) {
+          SequencedEvent.class.notifyAll();
+
+          if (list.getFirst() == this) {
+              list.removeFirst();
+
+              if (!list.isEmpty()) {
+                    next = (SequencedEvent)list.getFirst();
+              }
+          } else {
+              list.remove(this);
+          }
+      }
+        // Wake up waiting threads
+        if (next != null && next.appContext != null) {
+            SunToolkit.postEvent(next.appContext, new SentEvent());
+        }

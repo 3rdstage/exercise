@@ -1,0 +1,352 @@
+class XPathContext
+!!!5917851.java!!!	getDTMManager() : DTMManager
+     return m_dtmManager;
+!!!5917979.java!!!	getDTM(inout source : Source, inout unique : boolean, inout wsfilter : DTMWSFilter, inout incremental : boolean, inout doIndexing : boolean) : DTM
+    return m_dtmManager.getDTM(source, unique, wsfilter, 
+                               incremental, doIndexing);
+!!!5918107.java!!!	getDTM(in nodeHandle : int) : DTM
+    return m_dtmManager.getDTM(nodeHandle);
+!!!5918235.java!!!	getDTMHandleFromNode(inout node : Node) : int
+    return m_dtmManager.getDTMHandleFromNode(node);
+!!!5918363.java!!!	getDTMIdentity(inout dtm : DTM) : int
+    return m_dtmManager.getDTMIdentity(dtm);
+!!!5918491.java!!!	createDocumentFragment() : DTM
+    return m_dtmManager.createDocumentFragment();
+!!!5918619.java!!!	release(inout dtm : DTM, inout shouldHardDelete : boolean) : boolean
+    // %REVIEW% If it's a DTM which may contain multiple Result Tree
+    // Fragments, we can't discard it unless we know not only that it
+    // is empty, but that the XPathContext itself is going away. So do
+    // _not_ accept the request. (May want to do it as part of
+    // reset(), though.)
+    if(m_rtfdtm_stack!=null && m_rtfdtm_stack.contains(dtm))
+    {
+      return false;
+    }
+  	
+    return m_dtmManager.release(dtm, shouldHardDelete);
+!!!5918747.java!!!	createDTMIterator(inout xpathCompiler : Object, in pos : int) : DTMIterator
+    return m_dtmManager.createDTMIterator(xpathCompiler, pos);
+!!!5918875.java!!!	createDTMIterator(in xpathString : String, inout presolver : PrefixResolver) : DTMIterator
+    return m_dtmManager.createDTMIterator(xpathString, presolver);
+!!!5919003.java!!!	createDTMIterator(in whatToShow : int, inout filter : DTMFilter, inout entityReferenceExpansion : boolean) : DTMIterator
+    return m_dtmManager.createDTMIterator(whatToShow, filter, entityReferenceExpansion);
+!!!5919131.java!!!	createDTMIterator(in node : int) : DTMIterator
+    // DescendantIterator iter = new DescendantIterator();
+    DTMIterator iter = new com.sun.org.apache.xpath.internal.axes.OneStepIteratorForward(Axis.SELF);
+    iter.setRoot(node, this);
+    return iter;
+    // return m_dtmManager.createDTMIterator(node);
+!!!5919259.java!!!	XPathContext()
+    m_prefixResolvers.push(null);
+    m_currentNodes.push(DTM.NULL);
+    m_currentExpressionNodes.push(DTM.NULL);
+    m_saxLocations.push(null);
+!!!5919387.java!!!	XPathContext(inout owner : Object)
+    m_owner = owner;
+    try {
+      m_ownerGetErrorListener = m_owner.getClass().getMethod("getErrorListener", new Class[] {});
+    }
+    catch (NoSuchMethodException nsme) {}
+    m_prefixResolvers.push(null);
+    m_currentNodes.push(DTM.NULL);
+    m_currentExpressionNodes.push(DTM.NULL);
+    m_saxLocations.push(null);
+!!!5919515.java!!!	reset() : void
+  	// These couldn't be disposed of earlier (see comments in release()); zap them now.
+  	if(m_rtfdtm_stack!=null)
+  		 for (java.util.Enumeration e = m_rtfdtm_stack.elements() ; e.hasMoreElements() ;) 
+  		 	m_dtmManager.release((DTM)e.nextElement(), true);
+
+    m_rtfdtm_stack=null; // drop our references too
+    m_which_rtfdtm=-1;
+    
+    if(m_global_rtfdtm!=null)
+  		 	m_dtmManager.release(m_global_rtfdtm,true);
+    m_global_rtfdtm=null;
+  	
+    m_dtmManager = DTMManager.newInstance(
+                   com.sun.org.apache.xpath.internal.objects.XMLStringFactoryImpl.getFactory());
+                   
+    m_saxLocations.removeAllElements();   
+	m_axesIteratorStack.removeAllElements();
+	m_contextNodeLists.removeAllElements();
+	m_currentExpressionNodes.removeAllElements();
+	m_currentNodes.removeAllElements();
+	m_iteratorRoots.RemoveAllNoClear();
+	m_predicatePos.removeAllElements();
+	m_predicateRoots.RemoveAllNoClear();
+	m_prefixResolvers.removeAllElements();
+	
+	m_prefixResolvers.push(null);
+    m_currentNodes.push(DTM.NULL);
+    m_currentExpressionNodes.push(DTM.NULL);
+    m_saxLocations.push(null);
+!!!5919643.java!!!	setSAXLocator(inout location : SourceLocator) : void
+    m_saxLocations.setTop(location);
+!!!5919771.java!!!	pushSAXLocator(inout location : SourceLocator) : void
+    m_saxLocations.push(location);
+!!!5919899.java!!!	pushSAXLocatorNull() : void
+    m_saxLocations.push(null);
+!!!5920027.java!!!	popSAXLocator() : void
+    m_saxLocations.pop();
+!!!5920155.java!!!	getSAXLocator() : SourceLocator
+    return (SourceLocator) m_saxLocations.peek();
+!!!5920283.java!!!	getOwnerObject() : Object
+    return m_owner;
+!!!5920411.java!!!	getVarStack() : VariableStack
+    return m_variableStacks;
+!!!5920539.java!!!	setVarStack(inout varStack : VariableStack) : void
+    m_variableStacks = varStack;
+!!!5920667.java!!!	getSourceTreeManager() : SourceTreeManager
+    return m_sourceTreeManager;
+!!!5920795.java!!!	setSourceTreeManager(inout mgr : SourceTreeManager) : void
+    m_sourceTreeManager = mgr;
+!!!5920923.java!!!	getErrorListener() : ErrorListener
+
+    if (null != m_errorListener)
+        return m_errorListener;
+
+    ErrorListener retval = null;
+
+    try {
+      if (null != m_ownerGetErrorListener)
+        retval = (ErrorListener) m_ownerGetErrorListener.invoke(m_owner, new Object[] {});
+    }
+    catch (Exception e) {}
+
+    if (null == retval)
+    {
+      if (null == m_defaultErrorListener) 
+        m_defaultErrorListener = new com.sun.org.apache.xml.internal.utils.DefaultErrorHandler();
+      retval = m_defaultErrorListener;
+    }
+
+    return retval;
+!!!5921051.java!!!	setErrorListener(inout listener : ErrorListener) : void
+    if (listener == null) 
+      throw new IllegalArgumentException(XSLMessages.createXPATHMessage(XPATHErrorResources.ER_NULL_ERROR_HANDLER, null)); //"Null error handler");
+    m_errorListener = listener;
+!!!5921179.java!!!	getURIResolver() : URIResolver
+    return m_uriResolver;
+!!!5921307.java!!!	setURIResolver(inout resolver : URIResolver) : void
+    m_uriResolver = resolver;
+!!!5921435.java!!!	getPrimaryReader() : XMLReader
+    return m_primaryReader;
+!!!5921563.java!!!	setPrimaryReader(inout reader : XMLReader) : void
+    m_primaryReader = reader;
+!!!5921691.java!!!	assertion(inout b : boolean, in msg : String) : void
+    if (!b) 
+    {
+      ErrorListener errorHandler = getErrorListener();
+
+      if (errorHandler != null)
+      {
+        errorHandler.fatalError(
+          new TransformerException(
+            XSLMessages.createMessage(
+              XPATHErrorResources.ER_INCORRECT_PROGRAMMER_ASSERTION,
+              new Object[]{ msg }), (SAXSourceLocator)this.getSAXLocator()));
+      }
+    }
+!!!5921819.java!!!	getContextNodeListsStack() : Stack
+ return m_contextNodeLists;
+!!!5921947.java!!!	setContextNodeListsStack(inout s : Stack) : void
+ m_contextNodeLists = s;
+!!!5922075.java!!!	getContextNodeList() : DTMIterator
+
+    if (m_contextNodeLists.size() > 0)
+      return (DTMIterator) m_contextNodeLists.peek();
+    else
+      return null;
+!!!5922203.java!!!	pushContextNodeList(inout nl : DTMIterator) : void
+    m_contextNodeLists.push(nl);
+!!!5922331.java!!!	popContextNodeList() : void
+  	if(m_contextNodeLists.isEmpty())
+  	  System.err.println("Warning: popContextNodeList when stack is empty!");
+  	else
+      m_contextNodeLists.pop();
+!!!5922459.java!!!	getCurrentNodeStack() : IntStack
+return m_currentNodes;
+!!!5922587.java!!!	setCurrentNodeStack(inout nv : IntStack) : void
+ m_currentNodes = nv;
+!!!5922715.java!!!	getCurrentNode() : int
+    return m_currentNodes.peek();
+!!!5922843.java!!!	pushCurrentNodeAndExpression(in cn : int, in en : int) : void
+    m_currentNodes.push(cn);
+    m_currentExpressionNodes.push(cn);
+!!!5922971.java!!!	popCurrentNodeAndExpression() : void
+    m_currentNodes.quickPop(1);
+    m_currentExpressionNodes.quickPop(1);
+!!!5923099.java!!!	pushExpressionState(in cn : int, in en : int, inout nc : PrefixResolver) : void
+    m_currentNodes.push(cn);
+    m_currentExpressionNodes.push(cn);
+    m_prefixResolvers.push(nc);
+!!!5923227.java!!!	popExpressionState() : void
+    m_currentNodes.quickPop(1);
+    m_currentExpressionNodes.quickPop(1);
+    m_prefixResolvers.pop();
+!!!5923355.java!!!	pushCurrentNode(in n : int) : void
+    m_currentNodes.push(n);
+!!!5923483.java!!!	popCurrentNode() : void
+    m_currentNodes.quickPop(1);
+!!!5923611.java!!!	pushPredicateRoot(in n : int) : void
+    m_predicateRoots.push(n);
+!!!5923739.java!!!	popPredicateRoot() : void
+    m_predicateRoots.popQuick();
+!!!5923867.java!!!	getPredicateRoot() : int
+    return m_predicateRoots.peepOrNull();
+!!!5923995.java!!!	pushIteratorRoot(in n : int) : void
+    m_iteratorRoots.push(n);
+!!!5924123.java!!!	popIteratorRoot() : void
+    m_iteratorRoots.popQuick();
+!!!5924251.java!!!	getIteratorRoot() : int
+    return m_iteratorRoots.peepOrNull();
+!!!5924379.java!!!	getCurrentExpressionNodeStack() : IntStack
+ return m_currentExpressionNodes;
+!!!5924507.java!!!	setCurrentExpressionNodeStack(inout nv : IntStack) : void
+ m_currentExpressionNodes = nv;
+!!!5924635.java!!!	getPredicatePos() : int
+    return m_predicatePos.peek();
+!!!5924763.java!!!	pushPredicatePos(in n : int) : void
+    m_predicatePos.push(n);
+!!!5924891.java!!!	popPredicatePos() : void
+    m_predicatePos.pop();
+!!!5925019.java!!!	getCurrentExpressionNode() : int
+    return m_currentExpressionNodes.peek();
+!!!5925147.java!!!	pushCurrentExpressionNode(in n : int) : void
+    m_currentExpressionNodes.push(n);
+!!!5925275.java!!!	popCurrentExpressionNode() : void
+    m_currentExpressionNodes.quickPop(1);
+!!!5925403.java!!!	getNamespaceContext() : PrefixResolver
+    return (PrefixResolver) m_prefixResolvers.peek();
+!!!5925531.java!!!	setNamespaceContext(inout pr : PrefixResolver) : void
+    m_prefixResolvers.setTop(pr);
+!!!5925659.java!!!	pushNamespaceContext(inout pr : PrefixResolver) : void
+    m_prefixResolvers.push(pr);
+!!!5925787.java!!!	pushNamespaceContextNull() : void
+    m_prefixResolvers.push(null);
+!!!5925915.java!!!	popNamespaceContext() : void
+    m_prefixResolvers.pop();
+!!!5926043.java!!!	getAxesIteratorStackStacks() : Stack
+ return m_axesIteratorStack;
+!!!5926171.java!!!	setAxesIteratorStackStacks(inout s : Stack) : void
+ m_axesIteratorStack = s;
+!!!5926299.java!!!	pushSubContextList(inout iter : SubContextList) : void
+    m_axesIteratorStack.push(iter);
+!!!5926427.java!!!	popSubContextList() : void
+    m_axesIteratorStack.pop();
+!!!5926555.java!!!	getSubContextList() : SubContextList
+    return m_axesIteratorStack.isEmpty()
+           ? null : (SubContextList) m_axesIteratorStack.peek();
+!!!5926683.java!!!	getCurrentNodeList() : SubContextList
+    return m_axesIteratorStack.isEmpty()
+           ? null : (SubContextList) m_axesIteratorStack.elementAt(0);
+!!!5926811.java!!!	getContextNode() : int
+    return this.getCurrentNode();
+!!!5926939.java!!!	getContextNodes() : DTMIterator
+
+    try
+    {
+      DTMIterator cnl = getContextNodeList();
+
+      if (null != cnl)
+        return cnl.cloneWithReset();
+      else
+        return null;  // for now... this might ought to be an empty iterator.
+    }
+    catch (CloneNotSupportedException cnse)
+    {
+      return null;  // error reporting?
+    }
+!!!5927067.java!!!	getExpressionContext() : ExpressionContext
+    return expressionContext;
+!!!5928219.java!!!	getGlobalRTFDTM() : DTM
+  	// We probably should _NOT_ be applying whitespace filtering at this stage!
+  	//
+  	// Some magic has been applied in DTMManagerDefault to recognize this set of options
+  	// and generate an instance of DTM which can contain multiple documents
+  	// (SAX2RTFDTM). Perhaps not the optimal way of achieving that result, but
+  	// I didn't want to change the manager API at this time, or expose 
+  	// too many dependencies on its internals. (Ideally, I'd like to move
+  	// isTreeIncomplete all the way up to DTM, so we wouldn't need to explicitly
+  	// specify the subclass here.)
+
+	// If it doesn't exist, or if the one already existing is in the middle of
+	// being constructed, we need to obtain a new DTM to write into. I'm not sure
+	// the latter will ever arise, but I'd rather be just a bit paranoid..
+	if( m_global_rtfdtm==null || m_global_rtfdtm.isTreeIncomplete() )
+	{
+  		m_global_rtfdtm=(SAX2RTFDTM)m_dtmManager.getDTM(null,true,null,false,false);
+	}
+    return m_global_rtfdtm;
+!!!5928347.java!!!	getRTFDTM() : DTM
+  	SAX2RTFDTM rtfdtm;
+
+  	// We probably should _NOT_ be applying whitespace filtering at this stage!
+  	//
+  	// Some magic has been applied in DTMManagerDefault to recognize this set of options
+  	// and generate an instance of DTM which can contain multiple documents
+  	// (SAX2RTFDTM). Perhaps not the optimal way of achieving that result, but
+  	// I didn't want to change the manager API at this time, or expose 
+  	// too many dependencies on its internals. (Ideally, I'd like to move
+  	// isTreeIncomplete all the way up to DTM, so we wouldn't need to explicitly
+  	// specify the subclass here.)
+
+	if(m_rtfdtm_stack==null)
+	{
+		m_rtfdtm_stack=new Vector();
+  		rtfdtm=(SAX2RTFDTM)m_dtmManager.getDTM(null,true,null,false,false);
+    m_rtfdtm_stack.addElement(rtfdtm);
+		++m_which_rtfdtm;
+	}
+	else if(m_which_rtfdtm<0)
+	{
+		rtfdtm=(SAX2RTFDTM)m_rtfdtm_stack.elementAt(++m_which_rtfdtm);
+	}
+	else
+	{
+		rtfdtm=(SAX2RTFDTM)m_rtfdtm_stack.elementAt(m_which_rtfdtm);
+  		
+	  	// It might already be under construction -- the classic example would be
+ 	 	// an xsl:variable which uses xsl:call-template as part of its value. To
+  		// handle this recursion, we have to start a new RTF DTM, pushing the old
+  		// one onto a stack so we can return to it. This is not as uncommon a case
+  		// as we might wish, unfortunately, as some folks insist on coding XSLT
+  		// as if it were a procedural language...
+  		if(rtfdtm.isTreeIncomplete())
+	  	{
+	  		if(++m_which_rtfdtm < m_rtfdtm_stack.size())
+				rtfdtm=(SAX2RTFDTM)m_rtfdtm_stack.elementAt(m_which_rtfdtm);
+	  		else
+	  		{
+		  		rtfdtm=(SAX2RTFDTM)m_dtmManager.getDTM(null,true,null,false,false);
+          m_rtfdtm_stack.addElement(rtfdtm); 	
+	  		}
+ 	 	}
+	}
+		
+    return rtfdtm;
+!!!5928475.java!!!	pushRTFContext() : void
+  	m_last_pushed_rtfdtm.push(m_which_rtfdtm);
+  	if(null!=m_rtfdtm_stack)
+	  	((SAX2RTFDTM)(getRTFDTM())).pushRewindMark();
+!!!5928603.java!!!	popRTFContext() : void
+  	int previous=m_last_pushed_rtfdtm.pop();
+  	if(null==m_rtfdtm_stack)
+  		return;
+  
+  	if(m_which_rtfdtm==previous)
+  	{
+  		if(previous>=0) // guard against none-active
+  		{
+	  		boolean isEmpty=((SAX2RTFDTM)(m_rtfdtm_stack.elementAt(previous))).popRewindMark();
+  		}
+  	}
+  	else while(m_which_rtfdtm!=previous)
+  	{
+  		// Empty each DTM before popping, so it's ready for reuse
+  		// _DON'T_ pop the previous, since it's still open (which is why we
+  		// stacked up more of these) and did not receive a mark.
+  		boolean isEmpty=((SAX2RTFDTM)(m_rtfdtm_stack.elementAt(m_which_rtfdtm))).popRewindMark();
+  		--m_which_rtfdtm; 
+  	}

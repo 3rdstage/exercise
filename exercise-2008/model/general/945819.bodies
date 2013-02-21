@@ -1,0 +1,40 @@
+class AbstractInterruptibleChannel
+!!!7475739.java!!!	close() : void
+	synchronized (closeLock) {
+	    if (!open)
+		return;
+	    open = false;
+	    implCloseChannel();
+	}
+!!!7475995.java!!!	isOpen() : boolean
+	return open;
+!!!7476123.java!!!	begin() : void
+	if (interruptor == null) {
+	    interruptor = new Interruptible() {
+		    public void interrupt() {
+			synchronized (closeLock) {
+			    if (!open)
+				return;
+			    interrupted = true;
+			    open = false;
+			    try {
+				AbstractInterruptibleChannel.this.implCloseChannel();
+			    } catch (IOException x) { }
+			}
+		    }};
+	}
+	blockedOn(interruptor);
+	if (Thread.currentThread().isInterrupted())
+	    interruptor.interrupt();
+!!!7476251.java!!!	end(inout completed : boolean) : void
+	blockedOn(null);
+	if (completed) {
+	    interrupted = false;
+	    return;
+	}
+	if (interrupted) throw new ClosedByInterruptException();
+	if (!open) throw new AsynchronousCloseException();
+!!!7476379.java!!!	blockedOn(inout intr : Interruptible) : void
+ 	// package-private
+        sun.misc.SharedSecrets.getJavaLangAccess().blockedOn(Thread.currentThread(),
+							     intr);

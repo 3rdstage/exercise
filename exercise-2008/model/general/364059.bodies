@@ -1,0 +1,74 @@
+class CircularIdentityList
+!!!2113819.java!!!	set(inout key : Object, inout value : Object) : void
+        if (property == null) {
+            property = new Property(key, value, null);
+        }
+        else {
+            Property p = property;
+            Property last = p;
+
+            do {
+                if (p.key == key) {
+                    p.value = value;
+                    property = p;
+                    return;
+                }
+                last = p;
+                p = p.next;
+            } while (p != property && p != null);
+            // not defined
+            if (value != null) {
+                if (p == null) {
+                    // Only one element
+                    p = property;
+                }
+                property = new Property(key, value, p);
+                last.next = property;
+            }
+        }
+!!!2113947.java!!!	get() : Object
+        if (property == null) {
+            return null;
+        }
+        return property.value;
+!!!2114075.java!!!	get(inout key : Object) : Object
+        if (property == null) {
+            return null;
+        }
+        Property p = property;
+
+        do {
+            if (p.key == key) {
+                return p.value;
+            }
+            p = p.next;
+        } while (p != property && p != null);
+        return null;
+!!!2114203.java!!!	next() : Object
+        if (property == null) {
+            return null;
+        }
+        if (property.next == null) {
+            return property.key;
+        }
+        property = property.next;
+        return property.key;
+!!!2114331.java!!!	clone() : Object
+        try {
+            CircularIdentityList list = (CircularIdentityList)super.clone();
+
+            if (property != null) {
+                list.property = (Property)property.clone();
+
+                Property last = list.property;
+
+                while (last.next != null && last.next != property) {
+                    last.next = (Property)last.next.clone();
+                    last = last.next;
+                }
+                last.next = list.property;
+            }
+            return list;
+        } catch (CloneNotSupportedException cnse) {
+        }
+        return null;

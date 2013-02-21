@@ -1,0 +1,617 @@
+class BasicTextUI
+!!!2465307.java!!!	BasicTextUI()
+        painted = false;
+!!!2465435.java!!!	createCaret() : Caret
+        return new BasicCaret();
+!!!2465563.java!!!	createHighlighter() : Highlighter
+        return new BasicHighlighter();
+!!!2465691.java!!!	getKeymapName() : String
+	String nm = getClass().getName();
+	int index = nm.lastIndexOf('.');
+	if (index >= 0) {
+	    nm = nm.substring(index+1, nm.length());
+	}
+	return nm;
+!!!2465819.java!!!	createKeymap() : Keymap
+	String nm = getKeymapName();
+	Keymap map = JTextComponent.getKeymap(nm);
+	if (map == null) {
+	    Keymap parent = JTextComponent.getKeymap(JTextComponent.DEFAULT_KEYMAP);
+	    map = JTextComponent.addKeymap(nm, parent);
+	    String prefix = getPropertyPrefix();
+	    Object o = DefaultLookup.get(editor, this,
+                prefix + ".keyBindings");
+	    if ((o != null) && (o instanceof JTextComponent.KeyBinding[])) {
+		JTextComponent.KeyBinding[] bindings = (JTextComponent.KeyBinding[]) o;
+		JTextComponent.loadKeymap(map, bindings, getComponent().getActions());
+	    }
+	}
+	return map;
+!!!2466203.java!!!	installDefaults() : void
+        String prefix = getPropertyPrefix();
+        Font f = editor.getFont();
+        if ((f == null) || (f instanceof UIResource)) {
+            editor.setFont(UIManager.getFont(prefix + ".font"));
+        }
+
+        Color bg = editor.getBackground();
+        if ((bg == null) || (bg instanceof UIResource)) {
+            editor.setBackground(UIManager.getColor(prefix + ".background"));
+        }
+        
+        Color fg = editor.getForeground();
+        if ((fg == null) || (fg instanceof UIResource)) {
+            editor.setForeground(UIManager.getColor(prefix + ".foreground"));
+        }
+
+        Color color = editor.getCaretColor();
+        if ((color == null) || (color instanceof UIResource)) {
+            editor.setCaretColor(UIManager.getColor(prefix + ".caretForeground"));
+        }
+
+        Color s = editor.getSelectionColor();
+        if ((s == null) || (s instanceof UIResource)) {
+            editor.setSelectionColor(UIManager.getColor(prefix + ".selectionBackground"));
+        }
+
+        Color sfg = editor.getSelectedTextColor();
+        if ((sfg == null) || (sfg instanceof UIResource)) {
+            editor.setSelectedTextColor(UIManager.getColor(prefix + ".selectionForeground"));
+        }
+
+        Color dfg = editor.getDisabledTextColor();
+        if ((dfg == null) || (dfg instanceof UIResource)) {
+            editor.setDisabledTextColor(UIManager.getColor(prefix + ".inactiveForeground"));
+        }
+
+        Border b = editor.getBorder();
+        if ((b == null) || (b instanceof UIResource)) {
+            editor.setBorder(UIManager.getBorder(prefix + ".border"));
+        }
+
+        Insets margin = editor.getMargin();
+        if (margin == null || margin instanceof UIResource) {
+            editor.setMargin(UIManager.getInsets(prefix + ".margin"));
+        }
+!!!2466331.java!!!	installDefaults2() : void
+        editor.addMouseListener(dragListener);
+        editor.addMouseMotionListener(dragListener);
+	
+        String prefix = getPropertyPrefix();
+
+        Caret caret = editor.getCaret();
+        if (caret == null || caret instanceof UIResource) {
+            caret = createCaret();
+            editor.setCaret(caret);
+        
+            int rate = DefaultLookup.getInt(getComponent(), this, prefix + ".caretBlinkRate", 500);
+            caret.setBlinkRate(rate);
+        }
+
+        Highlighter highlighter = editor.getHighlighter();
+        if (highlighter == null || highlighter instanceof UIResource) {
+            editor.setHighlighter(createHighlighter());
+        }
+
+	TransferHandler th = editor.getTransferHandler();
+	if (th == null || th instanceof UIResource) {
+	    editor.setTransferHandler(getTransferHandler());
+	}
+	DropTarget dropTarget = editor.getDropTarget();
+	if (dropTarget instanceof UIResource) {
+            if (defaultDropTargetListener == null) {
+                defaultDropTargetListener = new TextDropTargetListener();
+            }
+	    try {
+		dropTarget.addDropTargetListener(defaultDropTargetListener);
+	    } catch (TooManyListenersException tmle) {
+		// should not happen... swing drop target is multicast
+	    }
+	}
+!!!2466459.java!!!	uninstallDefaults() : void
+        editor.removeMouseListener(dragListener);
+        editor.removeMouseMotionListener(dragListener);
+
+        if (editor.getCaretColor() instanceof UIResource) {
+            editor.setCaretColor(null);
+        }
+                                                                                         
+        if (editor.getSelectionColor() instanceof UIResource) {
+            editor.setSelectionColor(null);
+        }
+
+        if (editor.getDisabledTextColor() instanceof UIResource) {
+            editor.setDisabledTextColor(null);
+        }
+
+        if (editor.getSelectedTextColor() instanceof UIResource) {
+            editor.setSelectedTextColor(null);
+        }
+
+        if (editor.getBorder() instanceof UIResource) {
+            editor.setBorder(null);
+        }
+
+        if (editor.getMargin() instanceof UIResource) {
+            editor.setMargin(null);
+        }
+
+        if (editor.getCaret() instanceof UIResource) {
+            editor.setCaret(null);
+        }
+
+        if (editor.getHighlighter() instanceof UIResource) {
+            editor.setHighlighter(null);
+        }
+
+	if (editor.getTransferHandler() instanceof UIResource) {
+	    editor.setTransferHandler(null);
+	}
+!!!2466843.java!!!	installKeyboardActions() : void
+	// backward compatibility support... keymaps for the UI
+	// are now installed in the more friendly input map.
+        editor.setKeymap(createKeymap()); 
+
+        InputMap km = getInputMap();
+	if (km != null) {
+	    SwingUtilities.replaceUIInputMap(editor, JComponent.WHEN_FOCUSED,
+					     km);
+	}
+	
+	ActionMap map = getActionMap();
+	if (map != null) {
+	    SwingUtilities.replaceUIActionMap(editor, map);
+	}
+
+	updateFocusAcceleratorBinding(false);
+!!!2466971.java!!!	getInputMap() : InputMap
+	InputMap map = new InputMapUIResource();
+
+	InputMap shared = 
+	    (InputMap)DefaultLookup.get(editor, this,
+            getPropertyPrefix() + ".focusInputMap");
+	if (shared != null) {
+	    map.setParent(shared);
+	}
+	return map;
+!!!2467099.java!!!	updateFocusAcceleratorBinding(inout changed : boolean) : void
+	char accelerator = editor.getFocusAccelerator();
+
+	if (changed || accelerator != '\0') {
+	    InputMap km = SwingUtilities.getUIInputMap
+		        (editor, JComponent.WHEN_IN_FOCUSED_WINDOW);
+
+	    if (km == null && accelerator != '\0') {
+		km = new ComponentInputMapUIResource(editor);
+		SwingUtilities.replaceUIInputMap(editor, JComponent.
+						 WHEN_IN_FOCUSED_WINDOW, km);
+		ActionMap am = getActionMap();
+		SwingUtilities.replaceUIActionMap(editor, am);
+	    }
+	    if (km != null) {
+		km.clear();
+		if (accelerator != '\0') {
+		    km.put(KeyStroke.getKeyStroke(accelerator,
+						  ActionEvent.ALT_MASK),
+			   "requestFocus");
+		}
+	    }
+	}
+!!!2467227.java!!!	updateFocusTraversalKeys() : void
+	/*
+	 * Fix for 4514331 Non-editable JTextArea and similar 
+	 * should allow Tab to keyboard - accessibility 
+	 */
+	EditorKit editorKit = getEditorKit(editor);
+	if ( editorKit != null
+	     && editorKit instanceof DefaultEditorKit) {
+	    Set storedForwardTraversalKeys = editor.
+		getFocusTraversalKeys(KeyboardFocusManager.
+				      FORWARD_TRAVERSAL_KEYS);
+	    Set storedBackwardTraversalKeys = editor.
+		getFocusTraversalKeys(KeyboardFocusManager.
+				      BACKWARD_TRAVERSAL_KEYS);
+	    Set forwardTraversalKeys = 
+		new HashSet(storedForwardTraversalKeys);
+	    Set backwardTraversalKeys = 
+		new HashSet(storedBackwardTraversalKeys);
+	    if (editor.isEditable()) {
+		forwardTraversalKeys.
+		    remove(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 0));
+		backwardTraversalKeys.
+		    remove(KeyStroke.getKeyStroke(KeyEvent.VK_TAB, 
+						  InputEvent.SHIFT_MASK));
+	    } else {
+		forwardTraversalKeys.add(KeyStroke.
+					 getKeyStroke(KeyEvent.VK_TAB, 0));
+		backwardTraversalKeys.
+		    add(KeyStroke.
+			getKeyStroke(KeyEvent.VK_TAB, InputEvent.SHIFT_MASK));
+	    }
+            LookAndFeel.installProperty(editor,
+                                        "focusTraversalKeysForward",
+					 forwardTraversalKeys);
+            LookAndFeel.installProperty(editor,
+                                        "focusTraversalKeysBackward",
+					 backwardTraversalKeys);
+	}
+
+!!!2467355.java!!!	getTransferHandler() : TransferHandler
+        return defaultTransferHandler;
+!!!2467483.java!!!	getActionMap() : ActionMap
+	String mapName = getPropertyPrefix() + ".actionMap";
+	ActionMap map = (ActionMap)UIManager.get(mapName);
+
+	if (map == null) {
+	    map = createActionMap();
+	    if (map != null) {
+		UIManager.getLookAndFeelDefaults().put(mapName, map);
+	    }
+	}
+        ActionMap componentMap = new ActionMapUIResource();
+        componentMap.put("requestFocus", new FocusAction());
+	/* 
+	 * fix for bug 4515750 
+	 * JTextField & non-editable JTextArea bind return key - default btn not accessible
+	 *
+	 * Wrap the return action so that it is only enabled when the
+	 * component is editable. This allows the default button to be
+	 * processed when the text component has focus and isn't editable.
+	 * 
+	 */
+	if (getEditorKit(editor) instanceof DefaultEditorKit) {
+	    if (map != null) {
+		Object obj = map.get(DefaultEditorKit.insertBreakAction);
+		if (obj != null  
+		    && obj instanceof DefaultEditorKit.InsertBreakAction) {
+		    Action action =  new TextActionWrapper((TextAction)obj);
+		    componentMap.put(action.getValue(Action.NAME),action);
+		}
+	    }
+	}
+        if (map != null) {
+            componentMap.setParent(map);
+        }
+	return componentMap;
+!!!2467611.java!!!	createActionMap() : ActionMap
+	ActionMap map = new ActionMapUIResource();
+	Action[] actions = editor.getActions();
+	//System.out.println("building map for UI: " + getPropertyPrefix());
+	int n = actions.length;
+	for (int i = 0; i < n; i++) {
+	    Action a = actions[i];
+	    map.put(a.getValue(Action.NAME), a);
+	    //System.out.println("  " + a.getValue(Action.NAME));
+	}
+        map.put(TransferHandler.getCutAction().getValue(Action.NAME),
+                TransferHandler.getCutAction());
+        map.put(TransferHandler.getCopyAction().getValue(Action.NAME),
+                TransferHandler.getCopyAction());
+        map.put(TransferHandler.getPasteAction().getValue(Action.NAME),
+                TransferHandler.getPasteAction());
+	return map;
+!!!2467739.java!!!	uninstallKeyboardActions() : void
+        editor.setKeymap(null);
+	SwingUtilities.replaceUIInputMap(editor, JComponent.
+					 WHEN_IN_FOCUSED_WINDOW, null);
+	SwingUtilities.replaceUIActionMap(editor, null);
+!!!2467867.java!!!	paintBackground(inout g : Graphics) : void
+        g.setColor(editor.getBackground());
+        g.fillRect(0, 0, editor.getWidth(), editor.getHeight());
+!!!2467995.java!!!	getComponent() : JTextComponent
+        return editor;
+!!!2468123.java!!!	modelChanged() : void
+        // create a view hierarchy
+        ViewFactory f = rootView.getViewFactory();
+        Document doc = editor.getDocument();
+        Element elem = doc.getDefaultRootElement();
+        setView(f.create(elem));
+!!!2468251.java!!!	setView(inout v : View) : void
+        rootView.setView(v);
+        painted = false;
+        editor.revalidate();
+        editor.repaint();
+!!!2468379.java!!!	paintSafely(inout g : Graphics) : void
+	painted = true;
+	Highlighter highlighter = editor.getHighlighter();
+	Caret caret = editor.getCaret();
+	
+	// paint the background
+	if (editor.isOpaque()) {
+	    paintBackground(g);
+	}
+	
+	// paint the highlights
+	if (highlighter != null) {
+	    highlighter.paint(g);
+	}
+
+	// paint the view hierarchy
+	Rectangle alloc = getVisibleEditorRect();
+        if (alloc != null) {
+            rootView.paint(g, alloc);
+        }
+        
+	// paint the caret
+	if (caret != null) {
+	    caret.paint(g);
+	}
+!!!2468507.java!!!	installUI(inout c : JComponent) : void
+        if (c instanceof JTextComponent) {
+            editor = (JTextComponent) c;
+
+            // install defaults
+            installDefaults();
+            installDefaults2();
+
+            // common case is background painted... this can
+            // easily be changed by subclasses or from outside
+            // of the component.
+            LookAndFeel.installProperty(editor, "opaque", Boolean.TRUE);
+            LookAndFeel.installProperty(editor, "autoscrolls", Boolean.TRUE);
+
+            // attach to the model and editor
+            editor.addPropertyChangeListener(updateHandler);
+            Document doc = editor.getDocument();
+            if (doc == null) {
+                // no model, create a default one.  This will
+                // fire a notification to the updateHandler 
+                // which takes care of the rest. 
+                editor.setDocument(getEditorKit(editor).createDefaultDocument());
+            } else {
+                doc.addDocumentListener(updateHandler);
+                modelChanged();
+            }
+
+            // install keymap
+            installListeners();
+            installKeyboardActions();
+
+	    LayoutManager oldLayout = editor.getLayout();
+	    if ((oldLayout == null) || (oldLayout instanceof UIResource)) {
+		// by default, use default LayoutManger implementation that
+		// will position the components associated with a View object.
+		editor.setLayout(updateHandler);
+	    }
+
+        } else {
+            throw new Error("TextUI needs JTextComponent");
+        }
+!!!2468635.java!!!	uninstallUI(inout c : JComponent) : void
+        // detach from the model
+        editor.removePropertyChangeListener(updateHandler);
+        editor.getDocument().removeDocumentListener(updateHandler);
+
+        // view part
+        painted = false;
+        uninstallDefaults();
+        rootView.setView(null);
+        c.removeAll();
+	LayoutManager lm = c.getLayout();
+	if (lm instanceof UIResource) {
+	    c.setLayout(null);
+	}
+
+        // controller part
+        uninstallKeyboardActions();
+        uninstallListeners();
+
+        editor = null;
+!!!2468763.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+	paint(g, c);
+!!!2468891.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+	if ((rootView.getViewCount() > 0) && (rootView.getView(0) != null)) {
+	    Document doc = editor.getDocument();
+	    if (doc instanceof AbstractDocument) {
+		((AbstractDocument)doc).readLock();
+	    }
+	    try {
+		paintSafely(g);
+	    } finally {
+		if (doc instanceof AbstractDocument) {
+		    ((AbstractDocument)doc).readUnlock();
+		}
+	    }
+	}
+!!!2469019.java!!!	getPreferredSize(inout c : JComponent) : Dimension
+	Document doc = editor.getDocument();
+	Insets i = c.getInsets();
+	Dimension d = c.getSize();
+
+	if (doc instanceof AbstractDocument) {
+	    ((AbstractDocument)doc).readLock();
+	}
+	try {
+	    if ((d.width > (i.left + i.right)) && (d.height > (i.top + i.bottom))) {
+		rootView.setSize(d.width - i.left - i.right, d.height - i.top - i.bottom);
+	    }
+            else if (d.width == 0 && d.height == 0) {
+                // Probably haven't been layed out yet, force some sort of
+                // initial sizing.
+                rootView.setSize(Integer.MAX_VALUE, Integer.MAX_VALUE);
+            }
+	    d.width = (int) Math.min((long) rootView.getPreferredSpan(View.X_AXIS) +
+				     (long) i.left + (long) i.right, Integer.MAX_VALUE);
+	    d.height = (int) Math.min((long) rootView.getPreferredSpan(View.Y_AXIS) +
+				      (long) i.top + (long) i.bottom, Integer.MAX_VALUE);
+	} finally {
+	    if (doc instanceof AbstractDocument) {
+		((AbstractDocument)doc).readUnlock();
+	    }
+	}
+	return d;
+!!!2469147.java!!!	getMinimumSize(inout c : JComponent) : Dimension
+	Document doc = editor.getDocument();
+        Insets i = c.getInsets();
+	Dimension d = new Dimension();
+	if (doc instanceof AbstractDocument) {
+	    ((AbstractDocument)doc).readLock();
+	}
+	try {
+	    d.width = (int) rootView.getMinimumSpan(View.X_AXIS) + i.left + i.right;
+	    d.height = (int)  rootView.getMinimumSpan(View.Y_AXIS) + i.top + i.bottom;
+	} finally {
+	    if (doc instanceof AbstractDocument) {
+		((AbstractDocument)doc).readUnlock();
+	    }
+	}
+        return d;
+!!!2469275.java!!!	getMaximumSize(inout c : JComponent) : Dimension
+	Document doc = editor.getDocument();
+        Insets i = c.getInsets();
+	Dimension d = new Dimension();
+	if (doc instanceof AbstractDocument) {
+	    ((AbstractDocument)doc).readLock();
+	}
+	try {
+	    d.width = (int) Math.min((long) rootView.getMaximumSpan(View.X_AXIS) + 
+				     (long) i.left + (long) i.right, Integer.MAX_VALUE);
+	    d.height = (int) Math.min((long) rootView.getMaximumSpan(View.Y_AXIS) + 
+				      (long) i.top + (long) i.bottom, Integer.MAX_VALUE);
+	} finally {
+	    if (doc instanceof AbstractDocument) {
+		((AbstractDocument)doc).readUnlock();
+	    }
+	}
+        return d;
+!!!2469403.java!!!	getVisibleEditorRect() : Rectangle
+	Rectangle alloc = editor.getBounds();
+	if ((alloc.width > 0) && (alloc.height > 0)) {
+	    alloc.x = alloc.y = 0;
+	    Insets insets = editor.getInsets();
+	    alloc.x += insets.left;
+	    alloc.y += insets.top;
+	    alloc.width -= insets.left + insets.right;
+	    alloc.height -= insets.top + insets.bottom;
+	    return alloc;
+	}
+	return null;
+!!!2469531.java!!!	modelToView(inout tc : JTextComponent, in pos : int) : Rectangle
+	return modelToView(tc, pos, Position.Bias.Forward);
+!!!2469659.java!!!	modelToView(inout tc : JTextComponent, in pos : int, inout bias : Bias) : Rectangle
+	Document doc = editor.getDocument();
+	if (doc instanceof AbstractDocument) {
+	    ((AbstractDocument)doc).readLock();
+	}
+	try {
+	    Rectangle alloc = getVisibleEditorRect();
+	    if (alloc != null) {
+		rootView.setSize(alloc.width, alloc.height);
+		Shape s = rootView.modelToView(pos, alloc, bias);
+		if (s != null) {
+		  return s.getBounds();
+		}
+	    }
+	} finally {
+	    if (doc instanceof AbstractDocument) {
+		((AbstractDocument)doc).readUnlock();
+	    }
+	}
+	return null;
+!!!2469787.java!!!	viewToModel(inout tc : JTextComponent, inout pt : Point) : int
+	return viewToModel(tc, pt, discardBias);
+!!!2469915.java!!!	viewToModel(inout tc : JTextComponent, inout pt : Point, inout biasReturn : Bias) : int
+	int offs = -1;
+	Document doc = editor.getDocument();
+	if (doc instanceof AbstractDocument) {
+	    ((AbstractDocument)doc).readLock();
+	}
+	try {
+	    Rectangle alloc = getVisibleEditorRect();
+	    if (alloc != null) {
+		rootView.setSize(alloc.width, alloc.height);
+		offs = rootView.viewToModel(pt.x, pt.y, alloc, biasReturn);
+	    }
+	} finally {
+	    if (doc instanceof AbstractDocument) {
+		((AbstractDocument)doc).readUnlock();
+	    }
+	}
+        return offs;
+!!!2470043.java!!!	getNextVisualPositionFrom(inout t : JTextComponent, in pos : int, inout b : Bias, in direction : int, inout biasRet : Bias) : int
+	Document doc = editor.getDocument();
+	if (doc instanceof AbstractDocument) {
+	    ((AbstractDocument)doc).readLock();
+	}
+	try {
+	    if (painted) {
+		Rectangle alloc = getVisibleEditorRect();
+                if (alloc != null) {
+                    rootView.setSize(alloc.width, alloc.height);
+                }
+		return rootView.getNextVisualPositionFrom(pos, b, alloc, direction,
+							  biasRet);
+	    }
+	} finally {
+	    if (doc instanceof AbstractDocument) {
+		((AbstractDocument)doc).readUnlock();
+	    }
+	}
+	return -1;
+!!!2470171.java!!!	damageRange(inout tc : JTextComponent, in p0 : int, in p1 : int) : void
+	damageRange(tc, p0, p1, Position.Bias.Forward, Position.Bias.Backward);
+!!!2470299.java!!!	damageRange(inout t : JTextComponent, in p0 : int, in p1 : int, inout p0Bias : Bias, inout p1Bias : Bias) : void
+        if (painted) {
+            Rectangle alloc = getVisibleEditorRect();
+            if (alloc != null) {
+                Document doc = t.getDocument();
+                if (doc instanceof AbstractDocument) {
+                    ((AbstractDocument)doc).readLock();
+                }
+                try {
+                    rootView.setSize(alloc.width, alloc.height);
+                    Shape toDamage = rootView.modelToView(p0, p0Bias,
+                            p1, p1Bias, alloc);
+                    Rectangle rect = (toDamage instanceof Rectangle) ?
+                            (Rectangle)toDamage : toDamage.getBounds();
+                    editor.repaint(rect.x, rect.y, rect.width, rect.height);
+                } catch (BadLocationException e) {
+                } finally {
+                    if (doc instanceof AbstractDocument) {
+                        ((AbstractDocument)doc).readUnlock();
+                    }
+                }
+            }
+        }
+!!!2470427.java!!!	getEditorKit(inout tc : JTextComponent) : EditorKit
+        return defaultKit;
+!!!2470555.java!!!	getRootView(inout tc : JTextComponent) : View
+        return rootView;
+!!!2470683.java!!!	getToolTipText(inout t : JTextComponent, inout pt : Point) : String
+        if (!painted) {
+            return null;
+        }
+        Document doc = editor.getDocument();
+        String tt = null;
+        Rectangle alloc = getVisibleEditorRect();
+
+        if (alloc != null) {
+            if (doc instanceof AbstractDocument) {
+                ((AbstractDocument)doc).readLock();
+            }
+            try {
+                tt = rootView.getToolTipText(pt.x, pt.y, alloc);
+            } finally {
+                if (doc instanceof AbstractDocument) {
+                    ((AbstractDocument)doc).readUnlock();
+                }
+            }
+        }
+        return tt;
+!!!2470811.java!!!	create(inout elem : Element) : View
+        return null;
+!!!2470939.java!!!	create(inout elem : Element, in p0 : int, in p1 : int) : View
+        return null;
+!!!2515483.java!!!	getDragListener() : DragListener
+        synchronized(DragListener.class) {
+            DragListener listener =
+                (DragListener)AppContext.getAppContext().
+                    get(DragListener.class);
+
+            if (listener == null) {
+                listener = new DragListener();
+                AppContext.getAppContext().put(DragListener.class, listener);
+            }
+
+            return listener;
+        }

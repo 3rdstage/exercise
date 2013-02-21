@@ -1,0 +1,67 @@
+class HashSet
+!!!289563.java!!!	HashSet()
+	map = new HashMap<E,Object>();
+!!!289691.java!!!	HashSet(inout c : Collection)
+	map = new HashMap<E,Object>(Math.max((int) (c.size()/.75f) + 1, 16));
+	addAll(c);
+!!!289819.java!!!	HashSet(in initialCapacity : int, in loadFactor : float)
+	map = new HashMap<E,Object>(initialCapacity, loadFactor);
+!!!289947.java!!!	HashSet(in initialCapacity : int)
+	map = new HashMap<E,Object>(initialCapacity);
+!!!290075.java!!!	HashSet(in initialCapacity : int, in loadFactor : float, inout dummy : boolean)
+	map = new LinkedHashMap<E,Object>(initialCapacity, loadFactor);
+!!!290203.java!!!	iterator() : Iterator
+	return map.keySet().iterator();
+!!!290331.java!!!	size() : int
+	return map.size();
+!!!290459.java!!!	isEmpty() : boolean
+	return map.isEmpty();
+!!!290587.java!!!	contains(inout o : Object) : boolean
+	return map.containsKey(o);
+!!!290715.java!!!	add(inout o : E) : boolean
+	return map.put(o, PRESENT)==null;
+!!!290843.java!!!	remove(inout o : Object) : boolean
+	return map.remove(o)==PRESENT;
+!!!290971.java!!!	clear() : void
+	map.clear();
+!!!291099.java!!!	clone() : Object
+	try { 
+	    HashSet<E> newSet = (HashSet<E>) super.clone();
+	    newSet.map = (HashMap<E, Object>) map.clone();
+	    return newSet;
+	} catch (CloneNotSupportedException e) {
+	    throw new InternalError();
+	}
+!!!291227.java!!!	writeObject(inout s : java.io.ObjectOutputStream) : void
+	// Write out any hidden serialization magic
+	s.defaultWriteObject();
+
+        // Write out HashMap capacity and load factor
+        s.writeInt(map.capacity());
+        s.writeFloat(map.loadFactor());
+
+        // Write out size
+        s.writeInt(map.size());
+
+	// Write out all elements in the proper order.
+	for (Iterator i=map.keySet().iterator(); i.hasNext(); )
+            s.writeObject(i.next());
+!!!291355.java!!!	readObject(inout s : java.io.ObjectInputStream) : void
+	// Read in any hidden serialization magic
+	s.defaultReadObject();
+
+        // Read in HashMap capacity and load factor and create backing HashMap
+        int capacity = s.readInt();
+        float loadFactor = s.readFloat();
+        map = (((HashSet)this) instanceof LinkedHashSet ?
+               new LinkedHashMap<E,Object>(capacity, loadFactor) :
+               new HashMap<E,Object>(capacity, loadFactor));
+
+        // Read in size
+        int size = s.readInt();
+
+	// Read in all elements in the proper order.
+	for (int i=0; i<size; i++) {
+            E e = (E) s.readObject();
+            map.put(e, PRESENT);
+        }

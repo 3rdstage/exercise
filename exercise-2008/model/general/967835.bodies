@@ -1,0 +1,206 @@
+class Policy
+!!!7603355.java!!!	isSet() : boolean
+	return policy != null;
+!!!7603483.java!!!	getPolicy() : Policy
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null)
+	    sm.checkPermission(SecurityConstants.GET_POLICY_PERMISSION);
+	return getPolicyNoCheck();
+!!!7603611.java!!!	getPolicyNoCheck() : Policy
+	if (policy == null) {
+	    String policy_class = null;
+	    policy_class = (String)AccessController.doPrivileged(
+                new PrivilegedAction() {
+		    public Object run() {
+			return Security.getProperty("policy.provider");
+		    }
+		});
+	    if (policy_class == null) {
+		policy_class = "sun.security.provider.PolicyFile";
+	    }
+
+	/**
+          * Install a bootstrap (sandbox) policy to avoid recursion
+          * while the configured policy implementation initializes itself.
+          * After the configured implementation loads, install it over
+          * the bootstrap policy.
+          */
+        policy = new sun.security.provider.PolicyFile(true);
+
+	    try {
+		policy = (Policy)
+		    Class.forName(policy_class).newInstance();
+	    } catch (Exception e) {
+
+		// policy_class seems to be an extension 
+			
+		final String pc = policy_class;
+		Policy p = (Policy)
+		    AccessController.doPrivileged(new PrivilegedAction() {
+			public Object run() {
+			    try {
+				ClassLoader cl =
+					ClassLoader.getSystemClassLoader();
+				// we want the extension loader 
+				ClassLoader extcl = null;
+				while (cl != null) {
+				    extcl = cl;
+				    cl = cl.getParent();
+				} 
+				return (extcl != null? Class.forName
+					(pc, true, extcl).newInstance():
+					null);
+			    } catch (Exception e) {
+				return null;
+			    }
+			}
+		    });
+		/*
+		 * if it loaded install it as the policy provider. Otherwise
+		 * continue to use the bootstrap implementation
+		 */
+		if (p != null) 
+		    policy = p;
+			
+		if (p == null && debug != null) {
+		    debug.println("policy provider " + 
+				  policy_class + " not available;using " +
+				  "sun.security.provider.PolicyFile");
+		    e.printStackTrace();
+		}
+	    }
+	}
+	return policy;
+!!!7603739.java!!!	setPolicy(inout p : Policy) : void
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null) sm.checkPermission(
+				 new SecurityPermission("setPolicy"));
+	if (p != null) {
+	    initPolicy(p);
+	}
+	synchronized (Policy.class) {
+	    Policy.policy = p;
+	}
+!!!7603867.java!!!	initPolicy(in p : Policy) : void
+	/*
+	 * A policy provider not on the bootclasspath could trigger
+	 * security checks fulfilling a call to either Policy.implies
+	 * or Policy.getPermissions. If this does occur the provider
+	 * must be able to answer for it's own ProtectionDomain
+	 * without triggering additional security checks, otherwise
+	 * the policy implementation will end up in an infinite
+	 * recursion.
+	 * 
+	 * To mitigate this, the provider can collect it's own
+	 * ProtectionDomain and associate a PermissionCollection while
+	 * it is being installed. The currently installed policy
+	 * provider (if there is one) will handle calls to
+	 * Policy.implies or Policy.getPermissions during this
+	 * process.
+	 * 
+	 * This Policy superclass caches away the ProtectionDomain and
+	 * statically binds permissions so that legacy Policy 
+	 * implementations will continue to function.
+	 */
+
+	ProtectionDomain policyDomain = (ProtectionDomain)
+		AccessController.doPrivileged(new PrivilegedAction() {
+		    public Object run() {
+			return p.getClass().getProtectionDomain();
+		    }
+		});
+
+	/*
+	 * Collect the permissions granted to this protection domain
+	 * so that the provider can be security checked while processing
+	 * calls to Policy.implies or Policy.getPermissions.
+	 */
+	PermissionCollection policyPerms = null;
+	synchronized (p) {
+	   if (p.pdMapping == null) {
+	       p.pdMapping = new WeakHashMap();
+	   }
+	}
+
+	if (policyDomain.getCodeSource() != null) {
+	    if (Policy.isSet()) {
+		policyPerms = policy.getPermissions(policyDomain);
+	    }
+
+	    if (policyPerms == null) { // assume it has all
+		policyPerms = new Permissions();
+		policyPerms.add(SecurityConstants.ALL_PERMISSION);
+	    }
+
+	    synchronized (p.pdMapping) {
+		// cache of pd to permissions
+		p.pdMapping.put(policyDomain, policyPerms);
+	    }
+	}
+	return;
+!!!7604123.java!!!	getPermissions(inout domain : ProtectionDomain) : PermissionCollection
+	PermissionCollection pc = null;
+
+	if (domain == null)
+	    return new Permissions();
+
+	if (pdMapping == null) {
+	    initPolicy(this);
+	}
+
+	synchronized (pdMapping) {
+	    pc = (PermissionCollection)pdMapping.get(domain);
+	}
+
+	if (pc != null) {
+	    Permissions perms = new Permissions();
+	    synchronized (pc) {
+		for (Enumeration e = pc.elements() ; e.hasMoreElements() ;) {
+		    perms.add((Permission)e.nextElement());
+		}
+	    }
+	    return perms;
+	}
+
+	pc = getPermissions(domain.getCodeSource());
+	if (pc == null) {
+	    pc = new Permissions();
+	}
+
+	addStaticPerms(pc, domain.getPermissions());
+	return pc;
+!!!7604251.java!!!	addStaticPerms(inout perms : PermissionCollection, inout statics : PermissionCollection) : void
+	if (statics != null) {
+	    synchronized (statics) {
+		Enumeration e = statics.elements();
+		while (e.hasMoreElements()) {
+		    perms.add((Permission)e.nextElement());
+		}
+	    }
+	}
+!!!7604379.java!!!	implies(inout domain : ProtectionDomain, inout permission : Permission) : boolean
+	PermissionCollection pc;
+
+	if (pdMapping == null) {
+	    initPolicy(this);
+	}
+
+	synchronized (pdMapping) {
+	    pc = (PermissionCollection)pdMapping.get(domain);
+	}
+
+	if (pc != null) {
+	    return pc.implies(permission);
+	} 
+	
+	pc = getPermissions(domain);
+	if (pc == null) {
+	    return false;
+	}
+
+	synchronized (pdMapping) {
+	    // cache it 
+	    pdMapping.put(domain, pc);
+	}
+	
+	return pc.implies(permission);

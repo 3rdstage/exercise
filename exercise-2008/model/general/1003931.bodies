@@ -1,0 +1,58 @@
+class ZipFileInputStream
+!!!8017307.java!!!	ZipFileInputStream(in jzentry : long)
+	    pos = 0;
+	    rem = getCSize(jzentry);
+            size = getSize(jzentry);
+	    this.jzentry = jzentry;
+!!!8017435.java!!!	read(in b : byte, in off : int, in len : int) : int
+	    if (rem == 0) {
+		return -1;
+	    }
+	    if (len <= 0) {
+		return 0;
+	    }
+	    if (len > rem) {
+		len = (int) rem;
+	    }
+            synchronized (ZipFile.this) {
+		ensureOpenOrZipException();
+
+		len = ZipFile.read(ZipFile.this.jzfile, jzentry, pos, b,
+				   off, len);
+            }
+	    if (len > 0) {
+		pos += len;
+		rem -= len;
+	    }
+	    if (rem == 0) {
+		close();
+	    }
+	    return len;
+!!!8017563.java!!!	read() : int
+	    byte[] b = new byte[1];
+	    if (read(b, 0, 1) == 1) {
+		return b[0] & 0xff;
+	    } else {
+		return -1;
+	    }
+!!!8017691.java!!!	skip(in n : long) : long
+	    if (n > rem)
+		n = rem;
+	    pos += n;
+	    rem -= n;
+	    if (rem == 0) {
+		close();
+	    }
+	    return n;
+!!!8017819.java!!!	available() : int
+	    return rem > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) rem;
+!!!8017947.java!!!	size() : long
+            return size;
+!!!8018075.java!!!	close() : void
+            rem = 0;
+            synchronized (ZipFile.this) {
+                if (jzentry != 0 && ZipFile.this.jzfile != 0) {
+                    freeEntry(ZipFile.this.jzfile, jzentry);
+                    jzentry = 0;
+                }
+            }

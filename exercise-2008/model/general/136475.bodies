@@ -1,0 +1,216 @@
+class AbstractMap
+!!!154907.java!!!	size() : int
+	return entrySet().size();
+!!!155035.java!!!	isEmpty() : boolean
+	return size() == 0;
+!!!155163.java!!!	containsValue(inout value : Object) : boolean
+	Iterator<Entry<K,V>> i = entrySet().iterator();
+	if (value==null) {
+	    while (i.hasNext()) {
+		Entry<K,V> e = i.next();
+		if (e.getValue()==null)
+		    return true;
+	    }
+	} else {
+	    while (i.hasNext()) {
+		Entry<K,V> e = i.next();
+		if (value.equals(e.getValue()))
+		    return true;
+	    }
+	}
+	return false;
+!!!155291.java!!!	containsKey(inout key : Object) : boolean
+	Iterator<Map.Entry<K,V>> i = entrySet().iterator();
+	if (key==null) {
+	    while (i.hasNext()) {
+		Entry<K,V> e = i.next();
+		if (e.getKey()==null)
+		    return true;
+	    }
+	} else {
+	    while (i.hasNext()) {
+		Entry<K,V> e = i.next();
+		if (key.equals(e.getKey()))
+		    return true;
+	    }
+	}
+	return false;
+!!!155419.java!!!	get(inout key : Object) : V
+	Iterator<Entry<K,V>> i = entrySet().iterator();
+	if (key==null) {
+	    while (i.hasNext()) {
+		Entry<K,V> e = i.next();
+		if (e.getKey()==null)
+		    return e.getValue();
+	    }
+	} else {
+	    while (i.hasNext()) {
+		Entry<K,V> e = i.next();
+		if (key.equals(e.getKey()))
+		    return e.getValue();
+	    }
+	}
+	return null;
+!!!155547.java!!!	put(inout key : K, inout value : V) : V
+	throw new UnsupportedOperationException();
+!!!155675.java!!!	remove(inout key : Object) : V
+	Iterator<Entry<K,V>> i = entrySet().iterator();
+	Entry<K,V> correctEntry = null;
+	if (key==null) {
+	    while (correctEntry==null && i.hasNext()) {
+		Entry<K,V> e = i.next();
+		if (e.getKey()==null)
+		    correctEntry = e;
+	    }
+	} else {
+	    while (correctEntry==null && i.hasNext()) {
+		Entry<K,V> e = i.next();
+		if (key.equals(e.getKey()))
+		    correctEntry = e;
+	    }
+	}
+
+	V oldValue = null;
+	if (correctEntry !=null) {
+	    oldValue = correctEntry.getValue();
+	    i.remove();
+	}
+	return oldValue;
+!!!155803.java!!!	putAll(inout t : Map) : void
+	Iterator<? extends Entry<? extends K, ? extends V>> i = t.entrySet().iterator();
+	while (i.hasNext()) {
+	    Entry<? extends K, ? extends V> e = i.next();
+	    put(e.getKey(), e.getValue());
+	}
+!!!155931.java!!!	clear() : void
+	entrySet().clear();
+!!!156059.java!!!	keySet() : Set
+	if (keySet == null) {
+	    keySet = new AbstractSet<K>() {
+		public Iterator<K> iterator() {
+		    return new Iterator<K>() {
+			private Iterator<Entry<K,V>> i = entrySet().iterator();
+
+			public boolean hasNext() {
+			    return i.hasNext();
+			}
+
+			public K next() {
+			    return i.next().getKey();
+			}
+
+			public void remove() {
+			    i.remove();
+			}
+                    };
+		}
+
+		public int size() {
+		    return AbstractMap.this.size();
+		}
+
+		public boolean contains(Object k) {
+		    return AbstractMap.this.containsKey(k);
+		}
+	    };
+	}
+	return keySet;
+!!!156187.java!!!	values() : Collection
+	if (values == null) {
+	    values = new AbstractCollection<V>() {
+		public Iterator<V> iterator() {
+		    return new Iterator<V>() {
+			private Iterator<Entry<K,V>> i = entrySet().iterator();
+
+			public boolean hasNext() {
+			    return i.hasNext();
+			}
+
+			public V next() {
+			    return i.next().getValue();
+			}
+
+			public void remove() {
+			    i.remove();
+			}
+                    };
+                }
+
+		public int size() {
+		    return AbstractMap.this.size();
+		}
+
+		public boolean contains(Object v) {
+		    return AbstractMap.this.containsValue(v);
+		}
+	    };
+	}
+	return values;
+!!!156443.java!!!	equals(inout o : Object) : boolean
+	if (o == this)
+	    return true;
+
+	if (!(o instanceof Map))
+	    return false;
+	Map<K,V> t = (Map<K,V>) o;
+	if (t.size() != size())
+	    return false;
+
+        try {
+            Iterator<Entry<K,V>> i = entrySet().iterator();
+            while (i.hasNext()) {
+                Entry<K,V> e = i.next();
+		K key = e.getKey();
+                V value = e.getValue();
+                if (value == null) {
+                    if (!(t.get(key)==null && t.containsKey(key)))
+                        return false;
+                } else {
+                    if (!value.equals(t.get(key)))
+                        return false;
+                }
+            }
+        } catch(ClassCastException unused) {
+            return false;
+        } catch(NullPointerException unused) {
+            return false;
+        }
+
+	return true;
+!!!156571.java!!!	hashCode() : int
+	int h = 0;
+	Iterator<Entry<K,V>> i = entrySet().iterator();
+	while (i.hasNext())
+	    h += i.next().hashCode();
+	return h;
+!!!156699.java!!!	toString() : String
+	StringBuffer buf = new StringBuffer();
+	buf.append("{");
+
+	Iterator<Entry<K,V>> i = entrySet().iterator();
+        boolean hasNext = i.hasNext();
+        while (hasNext) {
+	    Entry<K,V> e = i.next();
+	    K key = e.getKey();
+            V value = e.getValue();
+	    if (key == this)
+		buf.append("(this Map)");
+	    else
+		buf.append(key);
+	    buf.append("=");
+	    if (value == this)
+		buf.append("(this Map)");
+	    else
+		buf.append(value);
+            hasNext = i.hasNext();
+            if (hasNext)
+                buf.append(", ");
+        }
+
+	buf.append("}");
+	return buf.toString();
+!!!156827.java!!!	clone() : Object
+        AbstractMap<K,V> result = (AbstractMap<K,V>)super.clone();
+        result.keySet = null;
+        result.values = null;
+        return result;

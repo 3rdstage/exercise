@@ -1,0 +1,53 @@
+class IORTemplateImpl
+!!!854171.java!!!	equals(inout obj : Object) : boolean
+	if (obj == null)
+	    return false ;
+
+	if (!(obj instanceof IORTemplateImpl))
+	    return false ;
+
+	IORTemplateImpl other = (IORTemplateImpl)obj ;
+
+	return super.equals( obj ) && oktemp.equals( other.getObjectKeyTemplate() ) ;
+!!!854299.java!!!	hashCode() : int
+	return super.hashCode() ^ oktemp.hashCode() ;
+!!!854427.java!!!	getObjectKeyTemplate() : ObjectKeyTemplate
+	return oktemp ;
+!!!854555.java!!!	IORTemplateImpl(inout oktemp : ObjectKeyTemplate)
+	this.oktemp = oktemp ;
+!!!854683.java!!!	makeIOR(inout orb : ORB, in typeid : String, inout oid : ObjectId) : IOR
+	return new IORImpl( orb, typeid, this, oid ) ;
+!!!854811.java!!!	isEquivalent(inout other : IORFactory) : boolean
+	if (!(other instanceof IORTemplate))
+	    return false ;
+
+	IORTemplate list = (IORTemplate)other ;
+
+	Iterator thisIterator = iterator() ;
+	Iterator listIterator = list.iterator() ;
+	while (thisIterator.hasNext() && listIterator.hasNext()) {
+	    TaggedProfileTemplate thisTemplate = 
+		(TaggedProfileTemplate)thisIterator.next() ;
+	    TaggedProfileTemplate listTemplate = 
+		(TaggedProfileTemplate)listIterator.next() ;
+	    if (!thisTemplate.isEquivalent( listTemplate ))
+		return false ;
+	}
+
+	return (thisIterator.hasNext() == listIterator.hasNext()) &&
+	    getObjectKeyTemplate().equals( list.getObjectKeyTemplate() ) ;
+!!!854939.java!!!	makeImmutable() : void
+	makeElementsImmutable() ;
+	super.makeImmutable() ;
+!!!855067.java!!!	write(inout os : OutputStream) : void
+	oktemp.write( os ) ;
+	EncapsulationUtility.writeIdentifiableSequence( this, os ) ;
+!!!855195.java!!!	IORTemplateImpl(inout is : InputStream)
+	ORB orb = (ORB)(is.orb()) ;
+    	IdentifiableFactoryFinder finder = 
+	    orb.getTaggedProfileTemplateFactoryFinder() ;
+
+	oktemp = orb.getObjectKeyFactory().createTemplate( is ) ;
+	EncapsulationUtility.readIdentifiableSequence( this, finder, is ) ;
+
+	makeImmutable() ;

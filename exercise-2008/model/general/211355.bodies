@@ -1,0 +1,43 @@
+class PICurrent
+!!!769947.java!!!	PICurrent(inout myORB : ORB)
+	this.myORB = myORB;
+	wrapper = OMGSystemException.get( myORB, 
+	    CORBALogDomains.RPC_PROTOCOL ) ;
+	this.orbInitializing = true;
+        slotCounter = 0;
+!!!770075.java!!!	allocateSlotId() : int
+        int slotId = slotCounter;
+        slotCounter = slotCounter + 1;
+        return slotId;
+!!!770203.java!!!	getSlotTable() : SlotTable
+        SlotTable table = (SlotTable)
+                ((SlotTableStack)threadLocalSlotTable.get()).peekSlotTable();
+        return table;
+!!!770331.java!!!	pushSlotTable() : void
+        SlotTableStack st = (SlotTableStack)threadLocalSlotTable.get();
+        st.pushSlotTable( );
+!!!770459.java!!!	popSlotTable() : void
+        SlotTableStack st = (SlotTableStack)threadLocalSlotTable.get();
+        st.popSlotTable( );
+!!!770587.java!!!	set_slot(in id : int, inout data : Any) : void
+	if( orbInitializing ) {
+	    // As per ptc/00-08-06 if the ORB is still initializing, disallow
+	    // calls to get_slot and set_slot.  If an attempt is made to call,
+	    // throw a BAD_INV_ORDER.
+	    throw wrapper.invalidPiCall3() ;
+	}
+
+        getSlotTable().set_slot( id, data );
+!!!770715.java!!!	get_slot(in id : int) : Any
+	if( orbInitializing ) {
+	    // As per ptc/00-08-06 if the ORB is still initializing, disallow
+	    // calls to get_slot and set_slot.  If an attempt is made to call,
+	    // throw a BAD_INV_ORDER.
+	    throw wrapper.invalidPiCall4() ;
+	}
+
+        return getSlotTable().get_slot( id );
+!!!770843.java!!!	resetSlotTable() : void
+        getSlotTable().resetSlots();
+!!!770971.java!!!	setORBInitializing(inout init : boolean) : void
+	this.orbInitializing = init;

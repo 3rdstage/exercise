@@ -1,0 +1,111 @@
+class SynthDesktopIconUI
+!!!9674395.java!!!	createUI(inout c : JComponent) : ComponentUI
+        return new SynthDesktopIconUI();
+!!!9674523.java!!!	installComponents() : void
+	if (UIManager.getBoolean("InternalFrame.useTaskBar")) {
+	    iconPane = new JToggleButton(frame.getTitle(), frame.getFrameIcon()) {
+		public String getToolTipText() {
+		    return getText();
+		}
+
+		public JPopupMenu getComponentPopupMenu() {
+		    return frame.getComponentPopupMenu();
+		}
+	    };
+	    ToolTipManager.sharedInstance().registerComponent(iconPane);
+	    iconPane.setFont(desktopIcon.getFont());
+	    iconPane.setBackground(desktopIcon.getBackground());
+	    iconPane.setForeground(desktopIcon.getForeground());
+	} else {
+	    iconPane = new SynthInternalFrameTitlePane(frame);
+	    iconPane.setName("InternalFrame.northPane");
+	}
+	desktopIcon.setLayout(new BorderLayout());
+	desktopIcon.add(iconPane, BorderLayout.CENTER);
+!!!9674651.java!!!	installListeners() : void
+        super.installListeners();
+        desktopIcon.addPropertyChangeListener(this);
+
+	if (iconPane instanceof JToggleButton) {
+	    frame.addPropertyChangeListener(this);
+	    ((JToggleButton)iconPane).addActionListener(this);
+	}
+!!!9674779.java!!!	uninstallListeners() : void
+	if (iconPane instanceof JToggleButton) {
+	    frame.removePropertyChangeListener(this);	
+	}
+        desktopIcon.removePropertyChangeListener(this);
+        super.uninstallListeners();
+!!!9674907.java!!!	installDefaults() : void
+        updateStyle(desktopIcon);
+!!!9675035.java!!!	updateStyle(inout c : JComponent) : void
+        SynthContext context = getContext(c, ENABLED);
+        style = SynthLookAndFeel.updateStyle(context, this);
+        context.dispose();
+!!!9675163.java!!!	uninstallDefaults() : void
+        SynthContext context = getContext(desktopIcon, ENABLED);
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+!!!9675291.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9675419.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        Region region = getRegion(c);
+        return SynthContext.getContext(SynthContext.class, c, region,
+                                       style, state);
+!!!9675547.java!!!	getComponentState(inout c : JComponent) : int
+        return SynthLookAndFeel.getComponentState(c);
+!!!9675675.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9675803.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintDesktopIconBackground(context, g, 0, 0,
+                                                  c.getWidth(), c.getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9675931.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9676187.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        context.getPainter().paintDesktopIconBorder(context, g, x, y, w, h);
+!!!9676315.java!!!	actionPerformed(inout evt : ActionEvent) : void
+	if (evt.getSource() instanceof JToggleButton) {
+	    // Either iconify the frame or deiconify and activate it.
+	    JToggleButton button = (JToggleButton)evt.getSource();
+	    try {
+		boolean selected = button.isSelected();
+		if (!selected && !frame.isIconifiable()) {
+		    button.setSelected(true);
+		} else {
+		    frame.setIcon(!selected);
+		    if (selected) {
+			frame.setSelected(true);
+		    }
+		}
+	    } catch (PropertyVetoException e2) {
+	    }
+	}
+!!!9676443.java!!!	propertyChange(inout evt : PropertyChangeEvent) : void
+	if (evt.getSource() instanceof JInternalFrame.JDesktopIcon) {
+	    if (SynthLookAndFeel.shouldUpdateStyle(evt)) {
+		updateStyle((JInternalFrame.JDesktopIcon)evt.getSource());
+	    }
+	} else if (evt.getSource() instanceof JInternalFrame) {
+	    JInternalFrame frame = (JInternalFrame)evt.getSource();
+	    if (iconPane instanceof JToggleButton) {
+		JToggleButton button = (JToggleButton)iconPane;
+		String prop = evt.getPropertyName();
+		if (prop == "title") {
+		    button.setText((String)evt.getNewValue());
+		} else if (prop == "frameIcon") {
+		    button.setIcon((Icon)evt.getNewValue());
+		} else if (prop == JInternalFrame.IS_ICON_PROPERTY ||
+			   prop == JInternalFrame.IS_SELECTED_PROPERTY) {
+		    button.setSelected(!frame.isIcon() && frame.isSelected());
+		}
+	    }
+	}

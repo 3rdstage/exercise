@@ -1,0 +1,50 @@
+class DynamicStubImpl
+!!!1538075.java!!!	setSelf(inout self : DynamicStub) : void
+	// XXX Should probably only allow this once.
+	this.self = self ;
+!!!1538203.java!!!	getSelf() : DynamicStub
+	return self ;
+!!!1538331.java!!!	DynamicStubImpl(in typeIds : String)
+	this.typeIds = typeIds ;
+	ior = null ;
+!!!1538459.java!!!	setDelegate(inout delegate : Delegate) : void
+	_set_delegate( delegate ) ;
+!!!1538587.java!!!	getDelegate() : Delegate
+	return _get_delegate() ;
+!!!1538715.java!!!	getORB() : ORB
+	return (ORB)_orb() ;
+!!!1538843.java!!!	_ids() : String
+	return typeIds ;
+!!!1538971.java!!!	getTypeIds() : String
+	return _ids() ;
+!!!1539099.java!!!	connect(inout orb : ORB) : void
+	ior = StubConnectImpl.connect( ior, self, this, orb ) ;
+!!!1539227.java!!!	isLocal() : boolean
+	return _is_local() ;
+!!!1539355.java!!!	request(in operation : String, inout responseExpected : boolean) : OutputStream
+	return _request( operation, responseExpected ) ; 
+!!!1539483.java!!!	readObject(inout stream : ObjectInputStream) : void
+	ior = new StubIORImpl() ;
+	ior.doRead( stream ) ;
+!!!1539611.java!!!	writeObject(inout stream : ObjectOutputStream) : void
+	if (ior == null) 
+	    ior = new StubIORImpl( this ) ;
+	ior.doWrite( stream ) ;
+!!!1539739.java!!!	readResolve() : Object
+	String repositoryId = ior.getRepositoryId() ;
+	String cname = RepositoryId.cache.getId( repositoryId ).getClassName() ; 
+
+	Class cls = null ;
+
+	try {
+	    cls = JDKBridge.loadClass( cname, null, null ) ;
+	} catch (ClassNotFoundException exc) {
+	    // XXX log this
+	}
+
+	PresentationManager pm = 
+	    com.sun.corba.se.spi.orb.ORB.getPresentationManager() ;
+	PresentationManager.ClassData classData = pm.getClassData( cls ) ;
+	InvocationHandlerFactoryImpl ihfactory = 
+	    (InvocationHandlerFactoryImpl)classData.getInvocationHandlerFactory() ;
+	return ihfactory.getInvocationHandler( this ) ;

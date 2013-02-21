@@ -1,0 +1,324 @@
+class Hashtable
+!!!291483.java!!!	Hashtable(in initialCapacity : int, in loadFactor : float)
+	if (initialCapacity < 0)
+	    throw new IllegalArgumentException("Illegal Capacity: "+
+                                               initialCapacity);
+        if (loadFactor <= 0 || Float.isNaN(loadFactor))
+            throw new IllegalArgumentException("Illegal Load: "+loadFactor);
+
+        if (initialCapacity==0)
+            initialCapacity = 1;
+	this.loadFactor = loadFactor;
+	table = new Entry[initialCapacity];
+	threshold = (int)(initialCapacity * loadFactor);
+!!!291611.java!!!	Hashtable(in initialCapacity : int)
+	this(initialCapacity, 0.75f);
+!!!291739.java!!!	Hashtable()
+	this(11, 0.75f);
+!!!291867.java!!!	Hashtable(inout t : Map)
+	this(Math.max(2*t.size(), 11), 0.75f);
+	putAll(t);
+!!!291995.java!!!	size() : int
+	return count;
+!!!292123.java!!!	isEmpty() : boolean
+	return count == 0;
+!!!292251.java!!!	keys() : Enumeration
+	return this.<K>getEnumeration(KEYS);
+!!!292379.java!!!	elements() : Enumeration
+	return this.<V>getEnumeration(VALUES);
+!!!292507.java!!!	contains(inout value : Object) : boolean
+	if (value == null) {
+	    throw new NullPointerException();
+	}
+
+	Entry tab[] = table;
+	for (int i = tab.length ; i-- > 0 ;) {
+	    for (Entry<K,V> e = tab[i] ; e != null ; e = e.next) {
+		if (e.value.equals(value)) {
+		    return true;
+		}
+	    }
+	}
+	return false;
+!!!292635.java!!!	containsValue(inout value : Object) : boolean
+	return contains(value);
+!!!292763.java!!!	containsKey(inout key : Object) : boolean
+	Entry tab[] = table;
+	int hash = key.hashCode();
+	int index = (hash & 0x7FFFFFFF) % tab.length;
+	for (Entry<K,V> e = tab[index] ; e != null ; e = e.next) {
+	    if ((e.hash == hash) && e.key.equals(key)) {
+		return true;
+	    }
+	}
+	return false;
+!!!292891.java!!!	get(inout key : Object) : V
+	Entry tab[] = table;
+	int hash = key.hashCode();
+	int index = (hash & 0x7FFFFFFF) % tab.length;
+	for (Entry<K,V> e = tab[index] ; e != null ; e = e.next) {
+	    if ((e.hash == hash) && e.key.equals(key)) {
+		return e.value;
+	    }
+	}
+	return null;
+!!!293019.java!!!	rehash() : void
+	int oldCapacity = table.length;
+	Entry[] oldMap = table;
+
+	int newCapacity = oldCapacity * 2 + 1;
+	Entry[] newMap = new Entry[newCapacity];
+
+	modCount++;
+	threshold = (int)(newCapacity * loadFactor);
+	table = newMap;
+
+	for (int i = oldCapacity ; i-- > 0 ;) {
+	    for (Entry<K,V> old = oldMap[i] ; old != null ; ) {
+		Entry<K,V> e = old;
+		old = old.next;
+
+		int index = (e.hash & 0x7FFFFFFF) % newCapacity;
+		e.next = newMap[index];
+		newMap[index] = e;
+	    }
+	}
+!!!293147.java!!!	put(inout key : K, inout value : V) : V
+	// Make sure the value is not null
+	if (value == null) {
+	    throw new NullPointerException();
+	}
+
+	// Makes sure the key is not already in the hashtable.
+	Entry tab[] = table;
+	int hash = key.hashCode();
+	int index = (hash & 0x7FFFFFFF) % tab.length;
+	for (Entry<K,V> e = tab[index] ; e != null ; e = e.next) {
+	    if ((e.hash == hash) && e.key.equals(key)) {
+		V old = e.value;
+		e.value = value;
+		return old;
+	    }
+	}
+
+	modCount++;
+	if (count >= threshold) {
+	    // Rehash the table if the threshold is exceeded
+	    rehash();
+
+            tab = table;
+            index = (hash & 0x7FFFFFFF) % tab.length;
+	} 
+
+	// Creates the new entry.
+	Entry<K,V> e = tab[index];
+	tab[index] = new Entry<K,V>(hash, key, value, e);
+	count++;
+	return null;
+!!!293275.java!!!	remove(inout key : Object) : V
+	Entry tab[] = table;
+	int hash = key.hashCode();
+	int index = (hash & 0x7FFFFFFF) % tab.length;
+	for (Entry<K,V> e = tab[index], prev = null ; e != null ; prev = e, e = e.next) {
+	    if ((e.hash == hash) && e.key.equals(key)) {
+		modCount++;
+		if (prev != null) {
+		    prev.next = e.next;
+		} else {
+		    tab[index] = e.next;
+		}
+		count--;
+		V oldValue = e.value;
+		e.value = null;
+		return oldValue;
+	    }
+	}
+	return null;
+!!!293403.java!!!	putAll(inout t : Map) : void
+	Iterator<? extends Map.Entry<? extends K, ? extends V>> i = t.entrySet().iterator();
+	while (i.hasNext()) {
+	    Map.Entry<? extends K, ? extends V> e = i.next();
+	    put(e.getKey(), e.getValue());
+	}
+!!!293531.java!!!	clear() : void
+	Entry tab[] = table;
+	modCount++;
+	for (int index = tab.length; --index >= 0; )
+	    tab[index] = null;
+	count = 0;
+!!!293659.java!!!	clone() : Object
+	try { 
+	    Hashtable<K,V> t = (Hashtable<K,V>) super.clone();
+	    t.table = new Entry[table.length];
+	    for (int i = table.length ; i-- > 0 ; ) {
+		t.table[i] = (table[i] != null) 
+		    ? (Entry<K,V>) table[i].clone() : null;
+	    }
+	    t.keySet = null;
+	    t.entrySet = null;
+            t.values = null;
+	    t.modCount = 0;
+	    return t;
+	} catch (CloneNotSupportedException e) { 
+	    // this shouldn't happen, since we are Cloneable
+	    throw new InternalError();
+	}
+!!!293787.java!!!	toString() : String
+	int max = size() - 1;
+	StringBuffer buf = new StringBuffer();
+	Iterator<Map.Entry<K,V>> it = entrySet().iterator();
+
+	buf.append("{");
+	for (int i = 0; i <= max; i++) {
+	    Map.Entry<K,V> e = it.next();
+            K key = e.getKey();
+            V value = e.getValue();
+            buf.append((key   == this ? "(this Map)" : (""+key)) + "=" + 
+                       (value == this ? "(this Map)" : (""+value)));
+
+	    if (i < max)
+		buf.append(", ");
+	}
+	buf.append("}");
+	return buf.toString();
+!!!293915.java!!!	getEnumeration(in type : int) : Enumeration
+	if (count == 0) {
+	    return (Enumeration<T>)emptyEnumerator;
+	} else {
+	    return new Enumerator<T>(type, false);
+	}
+!!!294043.java!!!	getIterator(in type : int) : Iterator
+	if (count == 0) {
+	    return (Iterator<T>) emptyIterator;
+	} else {
+	    return new Enumerator<T>(type, true);
+	}
+!!!294171.java!!!	keySet() : Set
+	if (keySet == null)
+	    keySet = Collections.synchronizedSet(new KeySet(), this);
+	return keySet;
+!!!294939.java!!!	entrySet() : Set
+	if (entrySet==null)
+	    entrySet = Collections.synchronizedSet(new EntrySet(), this);
+	return entrySet;
+!!!295835.java!!!	values() : Collection
+	if (values==null)
+	    values = Collections.synchronizedCollection(new ValueCollection(),
+                                                        this);
+        return values;
+!!!296475.java!!!	equals(inout o : Object) : boolean
+	if (o == this)
+	    return true;
+
+	if (!(o instanceof Map))
+	    return false;
+	Map<K,V> t = (Map<K,V>) o;
+	if (t.size() != size())
+	    return false;
+
+        try {
+            Iterator<Map.Entry<K,V>> i = entrySet().iterator();
+            while (i.hasNext()) {
+                Map.Entry<K,V> e = i.next();
+                K key = e.getKey();
+                V value = e.getValue();
+                if (value == null) {
+                    if (!(t.get(key)==null && t.containsKey(key)))
+                        return false;
+                } else {
+                    if (!value.equals(t.get(key)))
+                        return false;
+                }
+            }
+        } catch(ClassCastException unused)   {
+            return false;
+        } catch(NullPointerException unused) {
+            return false;
+        }
+
+	return true;
+!!!296603.java!!!	hashCode() : int
+        /*
+         * This code detects the recursion caused by computing the hash code
+         * of a self-referential hash table and prevents the stack overflow
+         * that would otherwise result.  This allows certain 1.1-era
+         * applets with self-referential hash tables to work.  This code
+         * abuses the loadFactor field to do double-duty as a hashCode
+         * in progress flag, so as not to worsen the space performance.
+         * A negative load factor indicates that hash code computation is
+         * in progress.
+         */
+        int h = 0;
+        if (count == 0 || loadFactor < 0)
+            return h;  // Returns zero
+
+        loadFactor = -loadFactor;  // Mark hashCode computation in progress
+        Entry[] tab = table;
+        for (int i = 0; i < tab.length; i++)
+            for (Entry e = tab[i]; e != null; e = e.next)
+                h += e.key.hashCode() ^ e.value.hashCode();
+        loadFactor = -loadFactor;  // Mark hashCode computation complete
+
+	return h;
+!!!296731.java!!!	writeObject(inout s : java.io.ObjectOutputStream) : void
+	// Write out the length, threshold, loadfactor
+	s.defaultWriteObject();
+
+	// Write out length, count of elements and then the key/value objects
+	s.writeInt(table.length);
+	s.writeInt(count);
+	for (int index = table.length-1; index >= 0; index--) {
+	    Entry entry = table[index];
+
+	    while (entry != null) {
+		s.writeObject(entry.key);
+		s.writeObject(entry.value);
+		entry = entry.next;
+	    }
+	}
+!!!296859.java!!!	readObject(inout s : java.io.ObjectInputStream) : void
+	// Read in the length, threshold, and loadfactor
+	s.defaultReadObject();
+
+	// Read the original length of the array and number of elements
+	int origlength = s.readInt();
+	int elements = s.readInt();
+
+	// Compute new size with a bit of room 5% to grow but
+	// no larger than the original size.  Make the length
+	// odd if it's large enough, this helps distribute the entries.
+	// Guard against the length ending up zero, that's not valid.
+	int length = (int)(elements * loadFactor) + (elements / 20) + 3;
+	if (length > elements && (length & 1) == 0)
+	    length--;
+	if (origlength > 0 && length > origlength)
+	    length = origlength;
+
+	table = new Entry[length];
+	count = 0;
+
+	// Read the number of elements and then all the key/value objects
+	for (; elements > 0; elements--) {
+	    K key = (K)s.readObject();
+	    V value = (V)s.readObject();
+            // synch could be eliminated for performance
+            reconstitutionPut(key, value); 
+	}
+!!!296987.java!!!	reconstitutionPut(inout key : K, inout value : V) : void
+        if (value == null) {
+            throw new java.io.StreamCorruptedException();
+        }
+        // Makes sure the key is not already in the hashtable.
+        // This should not happen in deserialized version.
+        Entry[] tab = table;
+        int hash = key.hashCode();
+        int index = (hash & 0x7FFFFFFF) % tab.length;
+        for (Entry<K,V> e = tab[index] ; e != null ; e = e.next) {
+            if ((e.hash == hash) && e.key.equals(key)) {
+                throw new java.io.StreamCorruptedException();
+            }
+        }
+        // Creates the new entry.
+        Entry<K,V> e = tab[index];
+        tab[index] = new Entry<K,V>(hash, key, value, e);
+        count++;

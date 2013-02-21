@@ -1,0 +1,58 @@
+class SAXParserFactoryImpl
+!!!5380251.java!!!	newSAXParser() : SAXParser
+        SAXParser saxParserImpl;
+        try {
+            saxParserImpl = new SAXParserImpl(this, features);
+        } catch (SAXException se) {
+            // Translate to ParserConfigurationException
+            throw new ParserConfigurationException(se.getMessage());
+        }
+        return saxParserImpl;
+!!!5380379.java!!!	newSAXParserImpl() : SAXParserImpl
+        SAXParserImpl saxParserImpl;
+        try {
+            saxParserImpl = new SAXParserImpl(this, features);
+        } catch (SAXNotSupportedException e) {
+            throw e;
+        } catch (SAXNotRecognizedException e) {
+            throw e;
+        } catch (SAXException se) {
+            throw new ParserConfigurationException(se.getMessage());
+        }
+        return saxParserImpl;
+!!!5380507.java!!!	setFeature(in name : String, inout value : boolean) : void
+        // XXX This is ugly.  We have to collect the features and then
+        // later create an XMLReader to verify the features.
+        if (features == null) {
+            features = new Hashtable();
+        }
+        features.put(name, value ? Boolean.TRUE : Boolean.FALSE);
+
+        // Test the feature by possibly throwing SAX exceptions
+        try {
+            newSAXParserImpl();
+        } catch (SAXNotSupportedException e) {
+            features.remove(name);
+            throw e;
+        } catch (SAXNotRecognizedException e) {
+            features.remove(name);
+            throw e;
+        }
+!!!5380635.java!!!	getFeature(in name : String) : boolean
+        // Check for valid name by creating a dummy XMLReader to get
+        // feature value
+		if(name.equals(XMLConstants.FEATURE_SECURE_PROCESSING) && features != null){
+			Boolean ob =(Boolean) features.get(name);
+			if(ob == null )
+				return false;
+			return ob.booleanValue();
+		}
+        return newSAXParserImpl().getXMLReader().getFeature(name);
+!!!5380763.java!!!	getSchema() : Schema
+        return grammar;
+!!!5380891.java!!!	setSchema(inout grammar : Schema) : void
+        this.grammar = grammar;
+!!!5381019.java!!!	isXIncludeAware() : boolean
+        return this.isXIncludeAware;
+!!!5381147.java!!!	setXIncludeAware(inout state : boolean) : void
+        this.isXIncludeAware = state;

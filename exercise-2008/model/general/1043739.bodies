@@ -1,0 +1,226 @@
+class RelationTypeSupport
+!!!8387739.java!!!	RelationTypeSupport(in theRelTypeName : String, inout theRoleInfoArray : RoleInfo)
+
+	if (theRelTypeName == null || theRoleInfoArray == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isTraceOn())
+	    trace("Constructor: entering", theRelTypeName);
+
+	// Can throw InvalidRelationTypeException, ClassNotFoundException
+	// and NotCompliantMBeanException
+	initMembers(theRelTypeName, theRoleInfoArray);
+
+	if (isTraceOn())
+	    trace("Constructor: exiting", null);
+	return;
+!!!8387867.java!!!	RelationTypeSupport(in theRelTypeName : String)
+	if (theRelTypeName == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isTraceOn())
+	    trace("Protected constructor: entering", theRelTypeName);
+
+	typeName = theRelTypeName;
+
+	if (isTraceOn())
+	    trace("Protected constructor: exiting", null);
+	return;
+!!!8387995.java!!!	getRelationTypeName() : String
+	return typeName;
+!!!8388123.java!!!	getRoleInfos() : List
+	return new ArrayList(roleName2InfoMap.values());
+!!!8388251.java!!!	getRoleInfo(in theRoleInfoName : String) : RoleInfo
+
+	if (theRoleInfoName == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isTraceOn())
+	    trace("getRoleInfo: entering", theRoleInfoName);
+
+	// No null RoleInfo allowed, so use get()
+	RoleInfo result = (RoleInfo)(roleName2InfoMap.get(theRoleInfoName));
+
+	if (result == null) {
+	    StringBuffer excMsgStrB = new StringBuffer();
+	    // Revisit [cebro] Localize message
+	    String excMsg = "No role info for role ";
+	    excMsgStrB.append(excMsg);
+	    excMsgStrB.append(theRoleInfoName);
+	    throw new RoleInfoNotFoundException(excMsgStrB.toString());
+	}
+
+	if (isTraceOn())
+	    trace("getRoleInfo: exiting", null);
+	return result;
+!!!8388379.java!!!	addRoleInfo(inout theRoleInfo : RoleInfo) : void
+
+	if (theRoleInfo == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isDebugOn())
+	    debug("addRoleInfo: entering", theRoleInfo.toString());
+
+	if (isInRelationService) {
+	    // Trying to update a declared relation type
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Relation type cannot be updated as it is declared in the Relation Service.";
+	    throw new RuntimeException(excMsg);
+	}
+
+	String roleName = theRoleInfo.getName();
+
+	// Checks if the role info has already been described
+	if (roleName2InfoMap.containsKey(roleName)) {
+	    StringBuffer excMsgStrB = new StringBuffer();
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Two role infos provided for role ";
+	    excMsgStrB.append(excMsg);
+	    excMsgStrB.append(roleName);
+	    throw new InvalidRelationTypeException(excMsgStrB.toString());
+	}
+
+	roleName2InfoMap.put(roleName,
+			       new RoleInfo(theRoleInfo));
+
+	if (isDebugOn())
+	    debug("addRoleInfo: exiting", null);
+	return;
+!!!8388507.java!!!	setRelationServiceFlag(inout theFlg : boolean) : void
+	isInRelationService = theFlg;
+	return;
+!!!8388635.java!!!	initMembers(in theRelTypeName : String, inout theRoleInfoArray : RoleInfo) : void
+
+	if (theRelTypeName == null || theRoleInfoArray == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isDebugOn())
+	    debug("initMembers: entering", theRelTypeName);
+
+	typeName = theRelTypeName;
+
+	// Verifies role infos before setting them
+	// Can throw InvalidRelationTypeException
+	checkRoleInfos(theRoleInfoArray);
+
+	for (int i = 0; i < theRoleInfoArray.length; i++) {
+	    RoleInfo currRoleInfo = theRoleInfoArray[i];
+	    roleName2InfoMap.put(new String(currRoleInfo.getName()),
+				   new RoleInfo(currRoleInfo));
+	}
+
+	if (isDebugOn())
+	    debug("initMembers: exiting", null);
+	return;
+!!!8388763.java!!!	checkRoleInfos(inout theRoleInfoArray : RoleInfo) : void
+
+	if (theRoleInfoArray == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (theRoleInfoArray.length == 0) {
+	    // No role info provided
+	    // Revisit [cebro] Localize message
+	    String excMsg = "No role info provided.";
+	    throw new InvalidRelationTypeException(excMsg);
+	}
+
+
+	ArrayList roleNameList = new ArrayList();
+
+	for (int i = 0; i < theRoleInfoArray.length; i++) {
+	    RoleInfo currRoleInfo = theRoleInfoArray[i];
+
+	    if (currRoleInfo == null) {
+		// Revisit [cebro] Localize message
+		String excMsg = "Null role info provided.";
+		throw new InvalidRelationTypeException(excMsg);
+	    }
+
+	    String roleName = currRoleInfo.getName();
+
+	    // Checks if the role info has already been described
+	    if (roleNameList.contains(roleName)) {
+		StringBuffer excMsgStrB = new StringBuffer();
+		// Revisit [cebro] Localize message
+		String excMsg = "Two role infos provided for role ";
+		excMsgStrB.append(excMsg);
+		excMsgStrB.append(roleName);
+		throw new InvalidRelationTypeException(excMsgStrB.toString());
+	    }
+	    roleNameList.add(roleName);
+	}
+
+	return;
+!!!8388891.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_RELATION);
+!!!8389019.java!!!	trace(in methodName : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_RELATION, localClassName, methodName, info);
+	Trace.send(Trace.LEVEL_TRACE, Trace.INFO_RELATION, "", "", "\n");
+!!!8389147.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_RELATION);
+!!!8389275.java!!!	debug(in methodName : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_RELATION, localClassName, methodName, info);
+	Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_RELATION, "", "", "\n");
+!!!8389403.java!!!	readObject(inout in : ObjectInputStream) : void
+      if (compat)
+      {
+        // Read an object serialized in the old serial form
+        //
+        ObjectInputStream.GetField fields = in.readFields();
+	typeName = (String) fields.get("myTypeName", null);
+	if (fields.defaulted("myTypeName"))
+        {
+          throw new NullPointerException("myTypeName");
+        }
+	roleName2InfoMap = (Map) fields.get("myRoleName2InfoMap", null);
+	if (fields.defaulted("myRoleName2InfoMap"))
+        {
+          throw new NullPointerException("myRoleName2InfoMap");
+        }
+	isInRelationService = fields.get("myIsInRelServFlg", false);
+	if (fields.defaulted("myIsInRelServFlg"))
+        {
+          throw new NullPointerException("myIsInRelServFlg");
+        }
+      }
+      else
+      {
+        // Read an object serialized in the new serial form
+        //
+        in.defaultReadObject();
+      }
+!!!8389531.java!!!	writeObject(inout out : ObjectOutputStream) : void
+      if (compat)
+      {
+        // Serializes this instance in the old serial form
+        //
+        ObjectOutputStream.PutField fields = out.putFields();
+	fields.put("myTypeName", typeName);
+	fields.put("myRoleName2InfoMap", (HashMap)roleName2InfoMap);
+	fields.put("myIsInRelServFlg", isInRelationService);
+	out.writeFields();
+      }
+      else
+      {
+        // Serializes this instance in the new serial form
+        //
+        out.defaultWriteObject();
+      }

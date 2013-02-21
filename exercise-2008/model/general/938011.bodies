@@ -1,0 +1,114 @@
+class ByteBufferAsShortBufferB
+!!!7366811.java!!!	ByteBufferAsShortBufferB(inout bb : ByteBuffer)
+	// package-private
+
+	super(-1, 0,
+	      bb.remaining() >> 1,
+	      bb.remaining() >> 1);
+	this.bb = bb;
+	// enforce limit == capacity
+	int cap = this.capacity();
+	this.limit(cap);
+	int pos = this.position();
+	assert (pos <= cap);
+	offset = pos;
+
+
+
+!!!7366939.java!!!	ByteBufferAsShortBufferB(inout bb : ByteBuffer, in mark : int, in pos : int, in lim : int, in cap : int, in off : int)
+
+
+	super(mark, pos, lim, cap);
+	this.bb = bb;
+	offset = off;
+
+
+
+!!!7367067.java!!!	slice() : ShortBuffer
+
+	int pos = this.position();
+	int lim = this.limit();
+	assert (pos <= lim);
+	int rem = (pos <= lim ? lim - pos : 0);
+	int off = (pos << 1) + offset;
+        assert (off >= 0);
+	return new ByteBufferAsShortBufferB(bb, -1, 0, rem, rem, off);
+!!!7367195.java!!!	duplicate() : ShortBuffer
+
+	return new ByteBufferAsShortBufferB(bb,
+						    this.markValue(),
+						    this.position(),
+						    this.limit(),
+						    this.capacity(),
+						    offset);
+!!!7367323.java!!!	asReadOnlyBuffer() : ShortBuffer
+
+
+	return new ByteBufferAsShortBufferRB(bb,
+						 this.markValue(),
+						 this.position(),
+						 this.limit(),
+						 this.capacity(),
+						 offset);
+
+
+
+!!!7367451.java!!!	ix(in i : int) : int
+
+	return (i << 1) + offset;
+!!!7367579.java!!!	get() : short
+
+	return Bits.getShortB(bb, ix(nextGetIndex()));
+!!!7367707.java!!!	get(in i : int) : short
+
+	return Bits.getShortB(bb, ix(checkIndex(i)));
+!!!7367835.java!!!	put(in x : short) : ShortBuffer
+
+
+	Bits.putShortB(bb, ix(nextPutIndex()), x);
+	return this;
+
+
+
+!!!7367963.java!!!	put(in i : int, in x : short) : ShortBuffer
+
+
+	Bits.putShortB(bb, ix(checkIndex(i)), x);
+	return this;
+
+
+
+!!!7368091.java!!!	compact() : ShortBuffer
+
+
+	int pos = position();
+	int lim = limit();
+	assert (pos <= lim);
+	int rem = (pos <= lim ? lim - pos : 0);
+
+	ByteBuffer db = bb.duplicate();
+ 	db.limit(ix(lim));
+	db.position(ix(0));
+	ByteBuffer sb = db.slice();
+	sb.position(pos << 1);
+	sb.compact();
+ 	position(rem);
+	limit(capacity());
+	return this;
+
+
+
+!!!7368219.java!!!	isDirect() : boolean
+
+	return bb.isDirect();
+!!!7368347.java!!!	isReadOnly() : boolean
+
+	return false;
+!!!7368475.java!!!	order() : ByteOrder
+
+
+	return ByteOrder.BIG_ENDIAN;
+
+
+
+

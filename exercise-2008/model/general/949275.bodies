@@ -1,0 +1,33 @@
+class AbstractSelector
+!!!7496731.java!!!	AbstractSelector(inout provider : SelectorProvider)
+	this.provider = provider;
+!!!7496859.java!!!	cancel(inout k : SelectionKey) : void
+			// package-private
+	synchronized (cancelledKeys) {
+	    cancelledKeys.add(k);
+	}
+!!!7496987.java!!!	close() : void
+        boolean open = selectorOpen.getAndSet(false);
+        if (!open)
+            return;
+        implCloseSelector();
+!!!7497243.java!!!	isOpen() : boolean
+	return selectorOpen.get();
+!!!7497371.java!!!	provider() : SelectorProvider
+	return provider;
+!!!7497499.java!!!	cancelledKeys() : Set
+	return cancelledKeys;
+!!!7497755.java!!!	deregister(inout key : AbstractSelectionKey) : void
+	((AbstractSelectableChannel)key.channel()).removeKey(key);
+!!!7497883.java!!!	begin() : void
+	if (interruptor == null) {
+	    interruptor = new Interruptible() {
+		    public void interrupt() {
+			AbstractSelector.this.wakeup();
+		    }};
+	}
+	AbstractInterruptibleChannel.blockedOn(interruptor);
+	if (Thread.currentThread().isInterrupted())
+	    interruptor.interrupt();
+!!!7498011.java!!!	end() : void
+	AbstractInterruptibleChannel.blockedOn(null);

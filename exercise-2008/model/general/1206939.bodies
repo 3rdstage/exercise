@@ -1,0 +1,312 @@
+class OptionListModel
+!!!9979675.java!!!	getMinSelectionIndex() : int
+ return isSelectionEmpty() ? -1 : minIndex;
+!!!9979803.java!!!	getMaxSelectionIndex() : int
+ return maxIndex;
+!!!9979931.java!!!	getValueIsAdjusting() : boolean
+ return isAdjusting;
+!!!9980059.java!!!	getSelectionMode() : int
+ return selectionMode;
+!!!9980187.java!!!	setSelectionMode(in selectionMode : int) : void
+	switch (selectionMode) {
+	case SINGLE_SELECTION:
+	case SINGLE_INTERVAL_SELECTION:
+	case MULTIPLE_INTERVAL_SELECTION:
+	    this.selectionMode = selectionMode;
+	    break;
+	default:
+	    throw new IllegalArgumentException("invalid selectionMode");
+	}
+!!!9980315.java!!!	isSelectedIndex(in index : int) : boolean
+	return ((index < minIndex) || (index > maxIndex)) ? false : value.get(index);
+!!!9980443.java!!!	isSelectionEmpty() : boolean
+	return (minIndex > maxIndex);
+!!!9980571.java!!!	addListSelectionListener(inout l : ListSelectionListener) : void
+ 	listenerList.add(ListSelectionListener.class, l);
+!!!9980699.java!!!	removeListSelectionListener(inout l : ListSelectionListener) : void
+ 	listenerList.remove(ListSelectionListener.class, l);
+!!!9980827.java!!!	getListSelectionListeners() : ListSelectionListener
+        return (ListSelectionListener[])listenerList.getListeners(
+                ListSelectionListener.class);
+!!!9980955.java!!!	fireValueChanged(inout isAdjusting : boolean) : void
+	fireValueChanged(getMinSelectionIndex(), getMaxSelectionIndex(), isAdjusting);
+!!!9981083.java!!!	fireValueChanged(in firstIndex : int, in lastIndex : int) : void
+	fireValueChanged(firstIndex, lastIndex, getValueIsAdjusting());
+!!!9981211.java!!!	fireValueChanged(in firstIndex : int, in lastIndex : int, inout isAdjusting : boolean) : void
+	Object[] listeners = listenerList.getListenerList();
+	ListSelectionEvent e = null;
+
+	for (int i = listeners.length - 2; i >= 0; i -= 2) {
+	    if (listeners[i] == ListSelectionListener.class) {
+		if (e == null) {
+		    e = new ListSelectionEvent(this, firstIndex, lastIndex, isAdjusting);
+		}
+		((ListSelectionListener)listeners[i+1]).valueChanged(e);
+	    }
+	}
+!!!9981339.java!!!	fireValueChanged() : void
+	if (lastChangedIndex == MIN) {
+	    return;
+	}
+	/* Change the values before sending the event to the
+	 * listeners in case the event causes a listener to make
+	 * another change to the selection.
+	 */
+	int oldFirstChangedIndex = firstChangedIndex;
+	int oldLastChangedIndex = lastChangedIndex;
+	firstChangedIndex = MAX;
+	lastChangedIndex = MIN;
+        fireValueChanged(oldFirstChangedIndex, oldLastChangedIndex);
+!!!9981467.java!!!	markAsDirty(in r : int) : void
+        firstChangedIndex = Math.min(firstChangedIndex, r);
+	lastChangedIndex =  Math.max(lastChangedIndex, r);
+!!!9981595.java!!!	set(in r : int) : void
+	if (value.get(r)) {
+	    return;
+	}
+	value.set(r);
+	Option option = (Option)get(r);
+	option.setSelection(true);
+        markAsDirty(r);
+
+        // Update minimum and maximum indices
+        minIndex = Math.min(minIndex, r);
+        maxIndex = Math.max(maxIndex, r);
+!!!9981723.java!!!	clear(in r : int) : void
+	if (!value.get(r)) {
+	    return;
+	}
+	value.clear(r);
+	Option option = (Option)get(r);
+	option.setSelection(false);
+        markAsDirty(r);
+
+        // Update minimum and maximum indices
+        /*
+           If (r > minIndex) the minimum has not changed.
+           The case (r < minIndex) is not possible because r'th value was set.
+           We only need to check for the case when lowest entry has been cleared,
+           and in this case we need to search for the first value set above it.
+	*/
+	if (r == minIndex) {
+	    for(minIndex = minIndex + 1; minIndex <= maxIndex; minIndex++) {
+	        if (value.get(minIndex)) {
+	            break;
+	        }
+	    }
+	}
+        /*
+           If (r < maxIndex) the maximum has not changed.
+           The case (r > maxIndex) is not possible because r'th value was set.
+           We only need to check for the case when highest entry has been cleared,
+           and in this case we need to search for the first value set below it.
+	*/
+	if (r == maxIndex) {
+	    for(maxIndex = maxIndex - 1; minIndex <= maxIndex; maxIndex--) {
+	        if (value.get(maxIndex)) {
+	            break;
+	        }
+	    }
+	}
+	/* Performance note: This method is called from inside a loop in
+	   changeSelection() but we will only iterate in the loops
+	   above on the basis of one iteration per deselected cell - in total.
+	   Ie. the next time this method is called the work of the previous
+	   deselection will not be repeated.
+
+	   We also don't need to worry about the case when the min and max
+	   values are in their unassigned states. This cannot happen because
+	   this method's initial check ensures that the selection was not empty
+	   and therefore that the minIndex and maxIndex had 'real' values.
+
+	   If we have cleared the whole selection, set the minIndex and maxIndex
+	   to their cannonical values so that the next set command always works
+	   just by using Math.min and Math.max.
+	*/
+        if (isSelectionEmpty()) {
+            minIndex = MAX;
+            maxIndex = MIN;
+        }
+!!!9981851.java!!!	setLeadAnchorNotificationEnabled(inout flag : boolean) : void
+        leadAnchorNotificationEnabled = flag;
+!!!9981979.java!!!	isLeadAnchorNotificationEnabled() : boolean
+        return leadAnchorNotificationEnabled;
+!!!9982107.java!!!	updateLeadAnchorIndices(in anchorIndex : int, in leadIndex : int) : void
+        if (leadAnchorNotificationEnabled) {
+            if (this.anchorIndex != anchorIndex) {
+                if (this.anchorIndex != -1) { // The unassigned state.
+                    markAsDirty(this.anchorIndex);
+                }
+                markAsDirty(anchorIndex);
+            }
+
+            if (this.leadIndex != leadIndex) {
+                if (this.leadIndex != -1) { // The unassigned state.
+                    markAsDirty(this.leadIndex);
+                }
+                markAsDirty(leadIndex);
+            }
+        }
+        this.anchorIndex = anchorIndex;
+        this.leadIndex = leadIndex;
+!!!9982235.java!!!	contains(in a : int, in b : int, in i : int) : boolean
+        return (i >= a) && (i <= b);
+!!!9982363.java!!!	changeSelection(in clearMin : int, in clearMax : int, in setMin : int, in setMax : int, inout clearFirst : boolean) : void
+        for(int i = Math.min(setMin, clearMin); i <= Math.max(setMax, clearMax); i++) {
+
+            boolean shouldClear = contains(clearMin, clearMax, i);
+            boolean shouldSet = contains(setMin, setMax, i);
+
+            if (shouldSet && shouldClear) {
+                if (clearFirst) {
+                    shouldClear = false;
+                }
+                else {
+                    shouldSet = false;
+                }
+            }
+
+            if (shouldSet) {
+                set(i);
+            }
+            if (shouldClear) {
+                clear(i);
+            }
+        }
+        fireValueChanged();
+!!!9982491.java!!!	changeSelection(in clearMin : int, in clearMax : int, in setMin : int, in setMax : int) : void
+        changeSelection(clearMin, clearMax, setMin, setMax, true);
+!!!9982619.java!!!	clearSelection() : void
+	removeSelectionInterval(minIndex, maxIndex);
+!!!9982747.java!!!	setSelectionInterval(in index0 : int, in index1 : int) : void
+        if (index0 == -1 || index1 == -1) {
+            return;
+        }
+
+        if (getSelectionMode() == SINGLE_SELECTION) {
+            index0 = index1;
+        }
+
+        updateLeadAnchorIndices(index0, index1);
+
+        int clearMin = minIndex;
+        int clearMax = maxIndex;
+	int setMin = Math.min(index0, index1);
+	int setMax = Math.max(index0, index1);
+        changeSelection(clearMin, clearMax, setMin, setMax);
+!!!9982875.java!!!	addSelectionInterval(in index0 : int, in index1 : int) : void
+        if (index0 == -1 || index1 == -1) {
+            return;
+        }
+
+        if (getSelectionMode() != MULTIPLE_INTERVAL_SELECTION) {
+            setSelectionInterval(index0, index1);
+            return;
+        }
+
+        updateLeadAnchorIndices(index0, index1);
+
+        int clearMin = MAX;
+        int clearMax = MIN;
+	int setMin = Math.min(index0, index1);
+	int setMax = Math.max(index0, index1);
+        changeSelection(clearMin, clearMax, setMin, setMax);
+!!!9983003.java!!!	removeSelectionInterval(in index0 : int, in index1 : int) : void
+        if (index0 == -1 || index1 == -1) {
+            return;
+        }
+
+        updateLeadAnchorIndices(index0, index1);
+
+	int clearMin = Math.min(index0, index1);
+	int clearMax = Math.max(index0, index1);
+	int setMin = MAX;
+	int setMax = MIN;
+        changeSelection(clearMin, clearMax, setMin, setMax);
+!!!9983131.java!!!	setState(in index : int, inout state : boolean) : void
+        if (state) {
+	    set(index); 
+	}
+	else {
+	    clear(index); 
+	}
+!!!9983259.java!!!	insertIndexInterval(in index : int, in length : int, inout before : boolean) : void
+	/* The first new index will appear at insMinIndex and the last
+	 * one will appear at insMaxIndex
+	 */
+	int insMinIndex = (before) ? index : index + 1;
+	int insMaxIndex = (insMinIndex + length) - 1;
+
+	/* Right shift the entire bitset by length, beginning with
+	 * index-1 if before is true, index+1 if it's false (i.e. with
+	 * insMinIndex).
+	 */
+	for(int i = maxIndex; i >= insMinIndex; i--) {
+	    setState(i + length, value.get(i)); 
+	}
+
+	/* Initialize the newly inserted indices.
+	 */
+       	boolean setInsertedValues = value.get(index); 
+	for(int i = insMinIndex; i <= insMaxIndex; i++) { 
+	    setState(i, setInsertedValues); 
+	}
+!!!9983387.java!!!	removeIndexInterval(in index0 : int, in index1 : int) : void
+	int rmMinIndex = Math.min(index0, index1);
+	int rmMaxIndex = Math.max(index0, index1);
+	int gapLength = (rmMaxIndex - rmMinIndex) + 1;
+
+	/* Shift the entire bitset to the left to close the index0, index1
+	 * gap.
+	 */
+	for(int i = rmMinIndex; i <= maxIndex; i++) {
+	    setState(i, value.get(i + gapLength)); 
+	}
+!!!9983515.java!!!	setValueIsAdjusting(inout isAdjusting : boolean) : void
+	if (isAdjusting != this.isAdjusting) {
+	    this.isAdjusting = isAdjusting;
+	    this.fireValueChanged(isAdjusting);
+	}
+!!!9983643.java!!!	toString() : String
+	String s =  ((getValueIsAdjusting()) ? "~" : "=") + value.toString();
+	return getClass().getName() + " " + Integer.toString(hashCode()) + " " + s;
+!!!9983771.java!!!	clone() : Object
+	OptionListModel clone = (OptionListModel)super.clone();
+	clone.value = (BitSet)value.clone();
+	clone.listenerList = new EventListenerList();
+	return clone;
+!!!9983899.java!!!	getAnchorSelectionIndex() : int
+        return anchorIndex;
+!!!9984027.java!!!	getLeadSelectionIndex() : int
+        return leadIndex;
+!!!9984155.java!!!	setAnchorSelectionIndex(in anchorIndex : int) : void
+        this.anchorIndex = anchorIndex;
+!!!9984283.java!!!	setLeadSelectionIndex(in leadIndex : int) : void
+        int anchorIndex = this.anchorIndex;
+        if (getSelectionMode() == SINGLE_SELECTION) {
+            anchorIndex = leadIndex;
+        }
+
+        int oldMin = Math.min(this.anchorIndex, this.leadIndex);;
+        int oldMax = Math.max(this.anchorIndex, this.leadIndex);;
+	int newMin = Math.min(anchorIndex, leadIndex);
+	int newMax = Math.max(anchorIndex, leadIndex);
+        if (value.get(this.anchorIndex)) {
+            changeSelection(oldMin, oldMax, newMin, newMax);
+        }
+        else {
+            changeSelection(newMin, newMax, oldMin, oldMax, false);
+        }
+        this.anchorIndex = anchorIndex;
+        this.leadIndex = leadIndex;
+!!!9984411.java!!!	setInitialSelection(in i : int) : void
+	if (initialValue.get(i)) {
+	    return;
+	}
+	if (selectionMode == SINGLE_SELECTION) {
+	    // reset to empty
+	    initialValue.and(new BitSet());
+	}
+	initialValue.set(i);
+!!!9984539.java!!!	getInitialSelection() : BitSet
+	return initialValue;

@@ -1,0 +1,1828 @@
+class JTable
+!!!9114011.java!!!	JTable()
+        this(null, null, null);
+!!!9114139.java!!!	JTable(inout dm : TableModel)
+        this(dm, null, null);
+!!!9114267.java!!!	JTable(inout dm : TableModel, inout cm : TableColumnModel)
+        this(dm, cm, null);
+!!!9114395.java!!!	JTable(inout dm : TableModel, inout cm : TableColumnModel, inout sm : ListSelectionModel)
+        super();
+        setLayout(null);
+
+	setFocusTraversalKeys(KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS,
+			   JComponent.getManagingFocusForwardTraversalKeys());
+	setFocusTraversalKeys(KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS,
+			   JComponent.getManagingFocusBackwardTraversalKeys());
+
+        if (cm == null) {
+            cm = createDefaultColumnModel();
+            autoCreateColumnsFromModel = true;
+        }
+        setColumnModel(cm);
+
+        if (sm == null) {
+            sm = createDefaultSelectionModel();
+        }
+	setSelectionModel(sm);
+
+    // Set the model last, that way if the autoCreatColumnsFromModel has
+    // been set above, we will automatically populate an empty columnModel
+    // with suitable columns for the new model.
+        if (dm == null) {
+            dm = createDefaultDataModel();
+        }
+	setModel(dm);
+
+        initializeLocalVars();
+        updateUI();
+!!!9114523.java!!!	JTable(in numRows : int, in numColumns : int)
+        this(new DefaultTableModel(numRows, numColumns));
+!!!9114651.java!!!	JTable(inout rowData : Vector, inout columnNames : Vector)
+        this(new DefaultTableModel(rowData, columnNames));
+!!!9114779.java!!!	JTable(in rowData : Object, in columnNames : Object)
+        this(new AbstractTableModel() {
+            public String getColumnName(int column) { return columnNames[column].toString(); }
+            public int getRowCount() { return rowData.length; }
+            public int getColumnCount() { return columnNames.length; }
+            public Object getValueAt(int row, int col) { return rowData[row][col]; }
+            public boolean isCellEditable(int row, int column) { return true; }
+            public void setValueAt(Object value, int row, int col) {
+                rowData[row][col] = value;
+                fireTableCellUpdated(row, col);
+            }
+        });
+!!!9114907.java!!!	addNotify() : void
+        super.addNotify();
+        configureEnclosingScrollPane();
+!!!9115035.java!!!	configureEnclosingScrollPane() : void
+        Container p = getParent();
+        if (p instanceof JViewport) {
+            Container gp = p.getParent();
+            if (gp instanceof JScrollPane) {
+                JScrollPane scrollPane = (JScrollPane)gp;
+                // Make certain we are the viewPort's view and not, for
+                // example, the rowHeaderView of the scrollPane -
+                // an implementor of fixed columns might do this.
+                JViewport viewport = scrollPane.getViewport();
+                if (viewport == null || viewport.getView() != this) {
+                    return;
+                }
+                scrollPane.setColumnHeaderView(getTableHeader());
+		//  scrollPane.getViewport().setBackingStoreEnabled(true);
+                Border border = scrollPane.getBorder();
+                if (border == null || border instanceof UIResource) {
+                    scrollPane.setBorder(UIManager.getBorder("Table.scrollPaneBorder"));
+                }
+            }
+        }
+!!!9115163.java!!!	removeNotify() : void
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().
+            removePropertyChangeListener("permanentFocusOwner", editorRemover);
+	editorRemover = null;
+        unconfigureEnclosingScrollPane();
+        super.removeNotify();
+!!!9115291.java!!!	unconfigureEnclosingScrollPane() : void
+        Container p = getParent();
+        if (p instanceof JViewport) {
+            Container gp = p.getParent();
+            if (gp instanceof JScrollPane) {
+                JScrollPane scrollPane = (JScrollPane)gp;
+                // Make certain we are the viewPort's view and not, for
+                // example, the rowHeaderView of the scrollPane -
+                // an implementor of fixed columns might do this.
+                JViewport viewport = scrollPane.getViewport();
+                if (viewport == null || viewport.getView() != this) {
+                    return;
+                }
+                scrollPane.setColumnHeaderView(null);
+            }
+        }
+!!!9115419.java!!!	setUIProperty(in propertyName : String, inout value : Object) : void
+        if (propertyName == "rowHeight") {
+            if (!isRowHeightSet) {
+                setRowHeight(((Number)value).intValue());
+                isRowHeightSet = false;
+            }
+            return;
+        }
+        super.setUIProperty(propertyName, value);
+!!!9115547.java!!!	createScrollPaneForTable(inout aTable : JTable) : JScrollPane
+        return new JScrollPane(aTable);
+!!!9115675.java!!!	setTableHeader(inout tableHeader : JTableHeader) : void
+        if (this.tableHeader != tableHeader) {
+	    JTableHeader old = this.tableHeader;
+            // Release the old header
+            if (old != null) {
+                old.setTable(null);
+	    }
+            this.tableHeader = tableHeader;
+            if (tableHeader != null) {
+                tableHeader.setTable(this);
+	    }
+	    firePropertyChange("tableHeader", old, tableHeader);
+        }
+!!!9115803.java!!!	getTableHeader() : JTableHeader
+        return tableHeader;
+!!!9115931.java!!!	setRowHeight(in rowHeight : int) : void
+        if (rowHeight <= 0) {
+            throw new IllegalArgumentException("New row height less than 1");
+        }
+	int old = this.rowHeight;
+        this.rowHeight = rowHeight;
+	rowModel = null;
+        isRowHeightSet = true;
+        resizeAndRepaint();
+	firePropertyChange("rowHeight", old, rowHeight);
+!!!9116059.java!!!	getRowHeight() : int
+        return rowHeight;
+!!!9116187.java!!!	getRowModel() : SizeSequence
+	if (rowModel == null) {
+	    rowModel = new SizeSequence(getRowCount(), getRowHeight());
+	}
+	return rowModel;
+!!!9116315.java!!!	setRowHeight(in row : int, in rowHeight : int) : void
+        if (rowHeight <= 0) {
+            throw new IllegalArgumentException("New row height less than 1");
+        }
+	getRowModel().setSize(row, rowHeight);
+	resizeAndRepaint();
+!!!9116443.java!!!	getRowHeight(in row : int) : int
+	return (rowModel == null) ? getRowHeight() : rowModel.getSize(row);
+!!!9116571.java!!!	setRowMargin(in rowMargin : int) : void
+	int old = this.rowMargin;
+        this.rowMargin = rowMargin;
+        resizeAndRepaint();
+	firePropertyChange("rowMargin", old, rowMargin);
+!!!9116699.java!!!	getRowMargin() : int
+        return rowMargin;
+!!!9116827.java!!!	setIntercellSpacing(inout intercellSpacing : Dimension) : void
+        // Set the rowMargin here and columnMargin in the TableColumnModel
+        setRowMargin(intercellSpacing.height);
+        getColumnModel().setColumnMargin(intercellSpacing.width);
+
+        resizeAndRepaint();
+!!!9116955.java!!!	getIntercellSpacing() : Dimension
+        return new Dimension(getColumnModel().getColumnMargin(), rowMargin);
+!!!9117083.java!!!	setGridColor(inout gridColor : Color) : void
+        if (gridColor == null) {
+            throw new IllegalArgumentException("New color is null");
+        }
+	Color old = this.gridColor;
+        this.gridColor = gridColor;
+	firePropertyChange("gridColor", old, gridColor);
+        // Redraw
+        repaint();
+!!!9117211.java!!!	getGridColor() : Color
+        return gridColor;
+!!!9117339.java!!!	setShowGrid(inout showGrid : boolean) : void
+        setShowHorizontalLines(showGrid);
+        setShowVerticalLines(showGrid);
+
+        // Redraw
+        repaint();
+!!!9117467.java!!!	setShowHorizontalLines(inout showHorizontalLines : boolean) : void
+        boolean old = this.showHorizontalLines;
+	this.showHorizontalLines = showHorizontalLines;
+	firePropertyChange("showHorizontalLines", old, showHorizontalLines);
+
+        // Redraw
+        repaint();
+!!!9117595.java!!!	setShowVerticalLines(inout showVerticalLines : boolean) : void
+        boolean old = this.showVerticalLines;
+	this.showVerticalLines = showVerticalLines;
+	firePropertyChange("showVerticalLines", old, showVerticalLines);
+        // Redraw
+        repaint();
+!!!9117723.java!!!	getShowHorizontalLines() : boolean
+        return showHorizontalLines;
+!!!9117851.java!!!	getShowVerticalLines() : boolean
+        return showVerticalLines;
+!!!9117979.java!!!	setAutoResizeMode(in mode : int) : void
+        if ((mode == AUTO_RESIZE_OFF) ||
+            (mode == AUTO_RESIZE_NEXT_COLUMN) ||
+            (mode == AUTO_RESIZE_SUBSEQUENT_COLUMNS) ||
+            (mode == AUTO_RESIZE_LAST_COLUMN) ||
+            (mode == AUTO_RESIZE_ALL_COLUMNS)) {
+	    int old = autoResizeMode;
+            autoResizeMode = mode;
+            resizeAndRepaint();
+            if (tableHeader != null) {
+		tableHeader.resizeAndRepaint();
+	    }
+	    firePropertyChange("autoResizeMode", old, autoResizeMode);
+        }
+!!!9118107.java!!!	getAutoResizeMode() : int
+        return autoResizeMode;
+!!!9118235.java!!!	setAutoCreateColumnsFromModel(inout autoCreateColumnsFromModel : boolean) : void
+        if (this.autoCreateColumnsFromModel != autoCreateColumnsFromModel) {
+	    boolean old = this.autoCreateColumnsFromModel;
+            this.autoCreateColumnsFromModel = autoCreateColumnsFromModel;
+            if (autoCreateColumnsFromModel) {
+                createDefaultColumnsFromModel();
+	    }
+	    firePropertyChange("autoCreateColumnsFromModel", old, autoCreateColumnsFromModel);
+        }
+!!!9118363.java!!!	getAutoCreateColumnsFromModel() : boolean
+        return autoCreateColumnsFromModel;
+!!!9118491.java!!!	createDefaultColumnsFromModel() : void
+        TableModel m = getModel();
+        if (m != null) {
+            // Remove any current columns
+            TableColumnModel cm = getColumnModel();
+            while (cm.getColumnCount() > 0) {
+                cm.removeColumn(cm.getColumn(0));
+	    }
+
+            // Create new columns from the data model info
+            for (int i = 0; i < m.getColumnCount(); i++) {
+                TableColumn newColumn = new TableColumn(i);
+                addColumn(newColumn);
+            }
+        }
+!!!9118619.java!!!	setDefaultRenderer(inout columnClass : Class, inout renderer : TableCellRenderer) : void
+	if (renderer != null) {
+	    defaultRenderersByColumnClass.put(columnClass, renderer);
+	}
+	else {
+	    defaultRenderersByColumnClass.remove(columnClass);
+	}
+!!!9118747.java!!!	getDefaultRenderer(inout columnClass : Class) : TableCellRenderer
+        if (columnClass == null) {
+            return null;
+        }
+        else {
+            Object renderer = defaultRenderersByColumnClass.get(columnClass);
+            if (renderer != null) {
+                return (TableCellRenderer)renderer;
+            }
+            else {
+                return getDefaultRenderer(columnClass.getSuperclass());
+            }
+        }
+!!!9118875.java!!!	setDefaultEditor(inout columnClass : Class, inout editor : TableCellEditor) : void
+        if (editor != null) {
+	    defaultEditorsByColumnClass.put(columnClass, editor);
+	}
+	else {
+	    defaultEditorsByColumnClass.remove(columnClass);
+	}
+!!!9119003.java!!!	getDefaultEditor(inout columnClass : Class) : TableCellEditor
+        if (columnClass == null) {
+            return null;
+        }
+        else {
+            Object editor = defaultEditorsByColumnClass.get(columnClass);
+            if (editor != null) {
+                return (TableCellEditor)editor;
+            }
+            else {
+                return getDefaultEditor(columnClass.getSuperclass());
+            }
+        }
+!!!9119131.java!!!	setDragEnabled(inout b : boolean) : void
+        if (b && GraphicsEnvironment.isHeadless()) {
+            throw new HeadlessException();
+        }
+	dragEnabled = b;
+!!!9119259.java!!!	getDragEnabled() : boolean
+	return dragEnabled;
+!!!9119387.java!!!	setSelectionMode(in selectionMode : int) : void
+        clearSelection();
+        getSelectionModel().setSelectionMode(selectionMode);
+        getColumnModel().getSelectionModel().setSelectionMode(selectionMode);
+!!!9119515.java!!!	setRowSelectionAllowed(inout rowSelectionAllowed : boolean) : void
+	boolean old = this.rowSelectionAllowed;
+        this.rowSelectionAllowed = rowSelectionAllowed;
+        if (old != rowSelectionAllowed) {
+            repaint();
+        }
+	firePropertyChange("rowSelectionAllowed", old, rowSelectionAllowed);
+!!!9119643.java!!!	getRowSelectionAllowed() : boolean
+        return rowSelectionAllowed;
+!!!9119771.java!!!	setColumnSelectionAllowed(inout columnSelectionAllowed : boolean) : void
+	boolean old = columnModel.getColumnSelectionAllowed();
+        columnModel.setColumnSelectionAllowed(columnSelectionAllowed);
+        if (old != columnSelectionAllowed) {
+            repaint();
+        }
+	firePropertyChange("columnSelectionAllowed", old, columnSelectionAllowed);
+!!!9119899.java!!!	getColumnSelectionAllowed() : boolean
+        return columnModel.getColumnSelectionAllowed();
+!!!9120027.java!!!	setCellSelectionEnabled(inout cellSelectionEnabled : boolean) : void
+	setRowSelectionAllowed(cellSelectionEnabled);
+	setColumnSelectionAllowed(cellSelectionEnabled);
+        boolean old = this.cellSelectionEnabled;
+	this.cellSelectionEnabled = cellSelectionEnabled;
+	firePropertyChange("cellSelectionEnabled", old, cellSelectionEnabled);
+!!!9120155.java!!!	getCellSelectionEnabled() : boolean
+        return getRowSelectionAllowed() && getColumnSelectionAllowed();
+!!!9120283.java!!!	selectAll() : void
+        // If I'm currently editing, then I should stop editing
+        if (isEditing()) {
+            removeEditor();
+        }
+	if (getRowCount() > 0 && getColumnCount() > 0) {
+            int oldLead;
+            int oldAnchor;
+            ListSelectionModel selModel;
+
+            selModel = selectionModel;
+            selModel.setValueIsAdjusting(true);
+            oldLead = getAdjustedIndex(selModel.getLeadSelectionIndex(), true);
+            oldAnchor = getAdjustedIndex(selModel.getAnchorSelectionIndex(), true);
+
+            setRowSelectionInterval(0, getRowCount()-1);
+
+            if (oldAnchor == -1) {
+                oldAnchor = oldLead;
+            }
+
+            // this is done to restore the anchor and lead
+            if (oldLead == -1) {
+                selModel.setAnchorSelectionIndex(-1);
+                selModel.setLeadSelectionIndex(-1);
+            } else {
+                selModel.addSelectionInterval(oldAnchor, oldLead);
+            }
+
+            selModel.setValueIsAdjusting(false);
+
+            selModel = columnModel.getSelectionModel();
+            selModel.setValueIsAdjusting(true);
+            oldLead = getAdjustedIndex(selModel.getLeadSelectionIndex(), false);
+            oldAnchor = getAdjustedIndex(selModel.getAnchorSelectionIndex(), false);
+
+            setColumnSelectionInterval(0, getColumnCount()-1);
+
+            if (oldAnchor == -1) {
+                oldAnchor = oldLead;
+            }
+
+            // this is done to restore the anchor and lead
+            if (oldLead == -1) {
+                selModel.setAnchorSelectionIndex(-1);
+                selModel.setLeadSelectionIndex(-1);
+            } else {
+                selModel.addSelectionInterval(oldAnchor, oldLead);
+            }
+
+            selModel.setValueIsAdjusting(false);        
+	}
+!!!9120411.java!!!	clearSelection() : void
+        selectionModel.clearSelection();
+        columnModel.getSelectionModel().clearSelection();
+!!!9120539.java!!!	clearSelectionAndLeadAnchor() : void
+        selectionModel.setValueIsAdjusting(true);
+        columnModel.getSelectionModel().setValueIsAdjusting(true);
+        
+        clearSelection();
+
+        selectionModel.setAnchorSelectionIndex(-1);
+        selectionModel.setLeadSelectionIndex(-1);
+        columnModel.getSelectionModel().setAnchorSelectionIndex(-1);
+        columnModel.getSelectionModel().setLeadSelectionIndex(-1);
+
+        selectionModel.setValueIsAdjusting(false);
+        columnModel.getSelectionModel().setValueIsAdjusting(false);
+!!!9120667.java!!!	getAdjustedIndex(in index : int, inout row : boolean) : int
+        int compare = row ? getRowCount() : getColumnCount();
+        return index < compare ? index : -1;
+!!!9120795.java!!!	boundRow(in row : int) : int
+	if (row < 0 || row >= getRowCount()) {
+	    throw new IllegalArgumentException("Row index out of range");
+	}
+	return row;
+!!!9120923.java!!!	boundColumn(in col : int) : int
+	if (col< 0 || col >= getColumnCount()) {
+	    throw new IllegalArgumentException("Column index out of range");
+	}
+	return col;
+!!!9121051.java!!!	setRowSelectionInterval(in index0 : int, in index1 : int) : void
+        selectionModel.setSelectionInterval(boundRow(index0), boundRow(index1));
+!!!9121179.java!!!	setColumnSelectionInterval(in index0 : int, in index1 : int) : void
+        columnModel.getSelectionModel().setSelectionInterval(boundColumn(index0), boundColumn(index1));
+!!!9121307.java!!!	addRowSelectionInterval(in index0 : int, in index1 : int) : void
+        selectionModel.addSelectionInterval(boundRow(index0), boundRow(index1));
+!!!9121435.java!!!	addColumnSelectionInterval(in index0 : int, in index1 : int) : void
+        columnModel.getSelectionModel().addSelectionInterval(boundColumn(index0), boundColumn(index1));
+!!!9121563.java!!!	removeRowSelectionInterval(in index0 : int, in index1 : int) : void
+        selectionModel.removeSelectionInterval(boundRow(index0), boundRow(index1));
+!!!9121691.java!!!	removeColumnSelectionInterval(in index0 : int, in index1 : int) : void
+        columnModel.getSelectionModel().removeSelectionInterval(boundColumn(index0), boundColumn(index1));
+!!!9121819.java!!!	getSelectedRow() : int
+	return selectionModel.getMinSelectionIndex();
+!!!9121947.java!!!	getSelectedColumn() : int
+        return columnModel.getSelectionModel().getMinSelectionIndex();
+!!!9122075.java!!!	getSelectedRows() : int
+	int iMin = selectionModel.getMinSelectionIndex();
+	int iMax = selectionModel.getMaxSelectionIndex();
+
+	if ((iMin == -1) || (iMax == -1)) {
+	    return new int[0];
+	}
+
+	int[] rvTmp = new int[1+ (iMax - iMin)];
+	int n = 0;
+	for(int i = iMin; i <= iMax; i++) {
+	    if (selectionModel.isSelectedIndex(i)) {
+		rvTmp[n++] = i;
+	    }
+	}
+	int[] rv = new int[n];
+	System.arraycopy(rvTmp, 0, rv, 0, n);
+	return rv;
+!!!9122203.java!!!	getSelectedColumns() : int
+        return columnModel.getSelectedColumns();
+!!!9122331.java!!!	getSelectedRowCount() : int
+	int iMin = selectionModel.getMinSelectionIndex();
+	int iMax = selectionModel.getMaxSelectionIndex();
+	int count = 0;
+
+	for(int i = iMin; i <= iMax; i++) {
+	    if (selectionModel.isSelectedIndex(i)) {
+		count++;
+	    }
+	}
+	return count;
+!!!9122459.java!!!	getSelectedColumnCount() : int
+        return columnModel.getSelectedColumnCount();
+!!!9122587.java!!!	isRowSelected(in row : int) : boolean
+	return selectionModel.isSelectedIndex(row);
+!!!9122715.java!!!	isColumnSelected(in column : int) : boolean
+        return columnModel.getSelectionModel().isSelectedIndex(column);
+!!!9122843.java!!!	isCellSelected(in row : int, in column : int) : boolean
+	if (!getRowSelectionAllowed() && !getColumnSelectionAllowed()) {
+	    return false;
+	}
+	return (!getRowSelectionAllowed() || isRowSelected(row)) &&
+               (!getColumnSelectionAllowed() || isColumnSelected(column));
+!!!9122971.java!!!	changeSelectionModel(inout sm : ListSelectionModel, in index : int, inout toggle : boolean, inout extend : boolean, inout selected : boolean, inout row : boolean) : void
+        if (extend) {
+            if (toggle) {
+		sm.setAnchorSelectionIndex(index);
+	    }
+	    else {
+                int anchorIndex = getAdjustedIndex(sm.getAnchorSelectionIndex(), row);
+                if (anchorIndex == -1) {
+                    anchorIndex = 0;
+                }
+
+                sm.setSelectionInterval(anchorIndex, index);
+	    }
+        }
+	else {
+            if (toggle) {
+                if (selected) {
+                    sm.removeSelectionInterval(index, index);
+                }
+                else {
+                    sm.addSelectionInterval(index, index);
+                }
+            }
+	    else {
+                sm.setSelectionInterval(index, index);
+            }
+        }
+!!!9123099.java!!!	changeSelection(in rowIndex : int, in columnIndex : int, inout toggle : boolean, inout extend : boolean) : void
+        ListSelectionModel rsm = getSelectionModel();
+        ListSelectionModel csm = getColumnModel().getSelectionModel();
+
+	// Check the selection here rather than in each selection model.
+	// This is significant in cell selection mode if we are supposed
+	// to be toggling the selection. In this case it is better to
+	// ensure that the cell's selection state will indeed be changed.
+	// If this were done in the code for the selection model it
+	// might leave a cell in selection state if the row was
+	// selected but the column was not - as it would toggle them both.
+	boolean selected = isCellSelected(rowIndex, columnIndex);
+
+        changeSelectionModel(csm, columnIndex, toggle, extend, selected, false);
+        changeSelectionModel(rsm, rowIndex, toggle, extend, selected, true);
+
+        // Scroll after changing the selection as blit scrolling is immediate,
+        // so that if we cause the repaint after the scroll we end up painting
+        // everything!
+        if (getAutoscrolls()) {
+	    Rectangle cellRect = getCellRect(rowIndex, columnIndex, false);
+	    if (cellRect != null) {
+		scrollRectToVisible(cellRect);
+	    }
+	}
+!!!9123227.java!!!	getSelectionForeground() : Color
+        return selectionForeground;
+!!!9123355.java!!!	setSelectionForeground(inout selectionForeground : Color) : void
+        Color old = this.selectionForeground;
+        this.selectionForeground = selectionForeground;
+        firePropertyChange("selectionForeground", old, selectionForeground);
+        if ( !selectionForeground.equals(old) )
+        {
+            repaint();
+        }
+!!!9123483.java!!!	getSelectionBackground() : Color
+        return selectionBackground;
+!!!9123611.java!!!	setSelectionBackground(inout selectionBackground : Color) : void
+        Color old = this.selectionBackground;
+        this.selectionBackground = selectionBackground;
+        firePropertyChange("selectionBackground", old, selectionBackground);
+        if ( !selectionBackground.equals(old) )
+        {
+            repaint();
+        }
+!!!9123739.java!!!	getColumn(inout identifier : Object) : TableColumn
+        TableColumnModel cm = getColumnModel();
+        int columnIndex = cm.getColumnIndex(identifier);
+        return cm.getColumn(columnIndex);
+!!!9123867.java!!!	convertColumnIndexToModel(in viewColumnIndex : int) : int
+        if (viewColumnIndex < 0) {
+            return viewColumnIndex;
+        }
+        return getColumnModel().getColumn(viewColumnIndex).getModelIndex();
+!!!9123995.java!!!	convertColumnIndexToView(in modelColumnIndex : int) : int
+        if (modelColumnIndex < 0) {
+            return modelColumnIndex;
+        }
+        TableColumnModel cm = getColumnModel();
+        for (int column = 0; column < getColumnCount(); column++) {
+            if (cm.getColumn(column).getModelIndex() == modelColumnIndex) {
+                return column;
+            }
+        }
+        return -1;
+!!!9124123.java!!!	getRowCount() : int
+        return getModel().getRowCount();
+!!!9124251.java!!!	getColumnCount() : int
+        return getColumnModel().getColumnCount();
+!!!9124379.java!!!	getColumnName(in column : int) : String
+        return getModel().getColumnName(convertColumnIndexToModel(column));
+!!!9124507.java!!!	getColumnClass(in column : int) : Class
+        return getModel().getColumnClass(convertColumnIndexToModel(column));
+!!!9124635.java!!!	getValueAt(in row : int, in column : int) : Object
+        return getModel().getValueAt(row, convertColumnIndexToModel(column));
+!!!9124763.java!!!	setValueAt(inout aValue : Object, in row : int, in column : int) : void
+        getModel().setValueAt(aValue, row, convertColumnIndexToModel(column));
+!!!9124891.java!!!	isCellEditable(in row : int, in column : int) : boolean
+        return getModel().isCellEditable(row, convertColumnIndexToModel(column));
+!!!9125019.java!!!	addColumn(inout aColumn : TableColumn) : void
+        if (aColumn.getHeaderValue() == null) {
+	    int modelColumn = aColumn.getModelIndex();
+	    String columnName = getModel().getColumnName(modelColumn);
+            aColumn.setHeaderValue(columnName);
+        }
+        getColumnModel().addColumn(aColumn);
+!!!9125147.java!!!	removeColumn(inout aColumn : TableColumn) : void
+        getColumnModel().removeColumn(aColumn);
+!!!9125275.java!!!	moveColumn(in column : int, in targetColumn : int) : void
+        getColumnModel().moveColumn(column, targetColumn);
+!!!9125403.java!!!	columnAtPoint(inout point : Point) : int
+        int x = point.x;
+        if( !getComponentOrientation().isLeftToRight() ) {
+            x = getWidth() - x;
+        }
+        return getColumnModel().getColumnIndexAtX(x);
+!!!9125531.java!!!	rowAtPoint(inout point : Point) : int
+        int y = point.y;
+	int result = (rowModel == null) ?  y/getRowHeight() : rowModel.getIndex(y);
+        if (result < 0) {
+            return -1;
+        }
+        else if (result >= getRowCount()) {
+            return -1;
+        }
+        else {
+            return result;
+        }
+!!!9125659.java!!!	getCellRect(in row : int, in column : int, inout includeSpacing : boolean) : Rectangle
+        Rectangle r = new Rectangle();
+	boolean valid = true;
+	if (row < 0) {
+	    // y = height = 0;
+	    valid = false;
+	}
+	else if (row >= getRowCount()) {
+	    r.y = getHeight();
+	    valid = false;
+	}
+	else {
+	    r.height = getRowHeight(row);
+	    r.y = (rowModel == null) ? row * r.height : rowModel.getPosition(row);
+	}
+
+	if (column < 0) {
+	    if( !getComponentOrientation().isLeftToRight() ) {
+		r.x = getWidth();
+	    }
+	    // otherwise, x = width = 0;
+	    valid = false;
+	}
+	else if (column >= getColumnCount()) {
+	    if( getComponentOrientation().isLeftToRight() ) {
+		r.x = getWidth();
+	    }
+	    // otherwise, x = width = 0;
+	    valid = false;
+	}
+	else { 
+            TableColumnModel cm = getColumnModel(); 
+            if( getComponentOrientation().isLeftToRight() ) {
+                for(int i = 0; i < column; i++) { 
+                    r.x += cm.getColumn(i).getWidth();
+                }
+            } else {
+                for(int i = cm.getColumnCount()-1; i > column; i--) {
+                    r.x += cm.getColumn(i).getWidth();
+                }
+            }
+            r.width = cm.getColumn(column).getWidth(); 
+	}
+
+        if (valid && !includeSpacing) {
+            int rm = getRowMargin();
+            int cm = getColumnModel().getColumnMargin();
+            // This is not the same as grow(), it rounds differently.
+            r.setBounds(r.x + cm/2, r.y + rm/2, r.width - cm, r.height - rm);
+        }
+        return r;
+!!!9125787.java!!!	viewIndexForColumn(inout aColumn : TableColumn) : int
+	TableColumnModel cm = getColumnModel();
+	for (int column = 0; column < cm.getColumnCount(); column++) {
+	    if (cm.getColumn(column) == aColumn) {
+		return column;
+	    }
+	}
+	return -1;
+!!!9125915.java!!!	doLayout() : void
+	TableColumn resizingColumn = getResizingColumn();
+	if (resizingColumn == null) {
+            setWidthsFromPreferredWidths(false);
+	}
+        else {
+            // JTable behaves like a layout manger - but one in which the
+            // user can come along and dictate how big one of the children
+            // (columns) is supposed to be.
+
+            // A column has been resized and JTable may need to distribute
+            // any overall delta to other columns, according to the resize mode.
+	    int columnIndex = viewIndexForColumn(resizingColumn);
+	    int delta = getWidth() - getColumnModel().getTotalColumnWidth();
+	    accommodateDelta(columnIndex, delta);
+	    delta = getWidth() - getColumnModel().getTotalColumnWidth();
+            
+            // If the delta cannot be completely accomodated, then the
+            // resizing column will have to take any remainder. This means
+            // that the column is not being allowed to take the requested
+            // width. This happens under many circumstances: For example,
+            // AUTO_RESIZE_NEXT_COLUMN specifies that any delta be distributed
+            // to the column after the resizing column. If one were to attempt
+            // to resize the last column of the table, there would be no
+            // columns after it, and hence nowhere to distribute the delta.
+            // It would then be given entirely back to the resizing column,
+            // preventing it from changing size.
+	    if (delta != 0) {
+		resizingColumn.setWidth(resizingColumn.getWidth() + delta);
+	    }
+
+            // At this point the JTable has to work out what preferred sizes
+            // would have resulted in the layout the user has chosen.
+            // Thereafter, during window resizing etc. it has to work off
+            // the preferred sizes as usual - the idea being that, whatever
+            // the user does, everything stays in synch and things don't jump
+            // around.
+            setWidthsFromPreferredWidths(true);
+	}
+
+	super.doLayout();
+!!!9126043.java!!!	getResizingColumn() : TableColumn
+	return (tableHeader == null) ? null
+	                             : tableHeader.getResizingColumn();
+!!!9126171.java!!!	sizeColumnsToFit(inout lastColumnOnly : boolean) : void
+        int oldAutoResizeMode = autoResizeMode;
+        setAutoResizeMode(lastColumnOnly ? AUTO_RESIZE_LAST_COLUMN
+                                         : AUTO_RESIZE_ALL_COLUMNS);
+        sizeColumnsToFit(-1);
+        setAutoResizeMode(oldAutoResizeMode);
+!!!9126299.java!!!	sizeColumnsToFit(in resizingColumn : int) : void
+        if (resizingColumn == -1) {
+            setWidthsFromPreferredWidths(false);
+	}
+	else {
+	    if (autoResizeMode == AUTO_RESIZE_OFF) {
+                TableColumn aColumn = getColumnModel().getColumn(resizingColumn);
+                aColumn.setPreferredWidth(aColumn.getWidth());
+	    }
+	    else {
+                int delta = getWidth() - getColumnModel().getTotalColumnWidth();
+	        accommodateDelta(resizingColumn, delta);
+                setWidthsFromPreferredWidths(true);
+	    }
+	}
+!!!9126427.java!!!	setWidthsFromPreferredWidths(in inverse : boolean) : void
+        int totalWidth     = getWidth();
+	int totalPreferred = getPreferredSize().width;
+	int target = !inverse ? totalWidth : totalPreferred;
+
+	final TableColumnModel cm = columnModel;
+	Resizable3 r = new Resizable3() {
+	    public int  getElementCount()      { return cm.getColumnCount(); }
+	    public int  getLowerBoundAt(int i) { return cm.getColumn(i).getMinWidth(); }
+	    public int  getUpperBoundAt(int i) { return cm.getColumn(i).getMaxWidth(); }
+	    public int  getMidPointAt(int i)  {
+	        if (!inverse) {
+		    return cm.getColumn(i).getPreferredWidth();
+	        }
+	        else {
+		    return cm.getColumn(i).getWidth();
+	        }
+	    }
+	    public void setSizeAt(int s, int i) {
+	        if (!inverse) {
+		    cm.getColumn(i).setWidth(s);
+	        }
+	        else {
+		    cm.getColumn(i).setPreferredWidth(s);
+	        }
+	    }
+	};
+
+	adjustSizes(target, r, inverse);
+!!!9126555.java!!!	accommodateDelta(in resizingColumnIndex : int, in delta : int) : void
+        int columnCount = getColumnCount();
+        int from = resizingColumnIndex;
+        int to = columnCount;
+
+	// Use the mode to determine how to absorb the changes.
+	switch(autoResizeMode) {
+	    case AUTO_RESIZE_NEXT_COLUMN:
+		from = from + 1;
+		to = Math.min(from + 1, columnCount); break;
+	    case AUTO_RESIZE_SUBSEQUENT_COLUMNS:
+		from = from + 1;
+		to = columnCount; break;
+	    case AUTO_RESIZE_LAST_COLUMN:
+		from = columnCount - 1;
+		to = from + 1; break;
+	    case AUTO_RESIZE_ALL_COLUMNS:
+		from = 0;
+		to = columnCount; break;
+	    default:
+		return;
+	}
+
+	final int start = from;
+	final int end = to;
+	final TableColumnModel cm = columnModel;
+	Resizable3 r = new Resizable3() {
+	    public int  getElementCount()       { return end-start; }
+	    public int  getLowerBoundAt(int i)  { return cm.getColumn(i+start).getMinWidth(); }
+	    public int  getUpperBoundAt(int i)  { return cm.getColumn(i+start).getMaxWidth(); }
+	    public int  getMidPointAt(int i)    { return cm.getColumn(i+start).getWidth(); }
+	    public void setSizeAt(int s, int i) {        cm.getColumn(i+start).setWidth(s); }
+	};
+
+	int totalWidth = 0;
+        for(int i = from; i < to; i++) {
+            TableColumn aColumn = columnModel.getColumn(i);
+            int input = aColumn.getWidth();
+	    totalWidth = totalWidth + input;
+        }
+
+        adjustSizes(totalWidth + delta, r, false);
+
+	return;
+!!!9127323.java!!!	adjustSizes(in target : long, in r : Resizable3, inout inverse : boolean) : void
+	int N = r.getElementCount();
+	long totalPreferred = 0;
+	for(int i = 0; i < N; i++) {
+	    totalPreferred += r.getMidPointAt(i);
+	}
+	Resizable2 s;
+        if ((target < totalPreferred) == !inverse) {
+	    s = new Resizable2() {
+	        public int  getElementCount()      { return r.getElementCount(); }
+	        public int  getLowerBoundAt(int i) { return r.getLowerBoundAt(i); }
+	        public int  getUpperBoundAt(int i) { return r.getMidPointAt(i); }
+	        public void setSizeAt(int newSize, int i) { r.setSizeAt(newSize, i); }
+
+	    };
+	}
+	else {
+	    s = new Resizable2() {
+	        public int  getElementCount()      { return r.getElementCount(); }
+	        public int  getLowerBoundAt(int i) { return r.getMidPointAt(i); }
+	        public int  getUpperBoundAt(int i) { return r.getUpperBoundAt(i); }
+	        public void setSizeAt(int newSize, int i) { r.setSizeAt(newSize, i); }
+
+	    };
+	}
+	adjustSizes(target, s, !inverse);
+!!!9127451.java!!!	adjustSizes(in target : long, inout r : Resizable2, inout limitToRange : boolean) : void
+	long totalLowerBound = 0;
+	long totalUpperBound = 0;
+	for(int i = 0; i < r.getElementCount(); i++) {
+	    totalLowerBound += r.getLowerBoundAt(i);
+	    totalUpperBound += r.getUpperBoundAt(i);
+	}
+
+	if (limitToRange) {
+	    target = Math.min(Math.max(totalLowerBound, target), totalUpperBound);
+	}
+
+	for(int i = 0; i < r.getElementCount(); i++) {
+	    int lowerBound = r.getLowerBoundAt(i);
+	    int upperBound = r.getUpperBoundAt(i);
+	    // Check for zero. This happens when the distribution of the delta
+	    // finishes early due to a series of "fixed" entries at the end.
+	    // In this case, lowerBound == upperBound, for all subsequent terms.
+	    int newSize;
+	    if (totalLowerBound == totalUpperBound) {
+	        newSize = lowerBound;
+	    }
+	    else {
+	        double f = (double)(target - totalLowerBound)/(totalUpperBound - totalLowerBound);
+		newSize = (int)Math.round(lowerBound+f*(upperBound - lowerBound));
+		// We'd need to round manually in an all integer version.
+	        // size[i] = (int)(((totalUpperBound - target) * lowerBound +
+		//     (target - totalLowerBound) * upperBound)/(totalUpperBound-totalLowerBound));
+	    }
+	    r.setSizeAt(newSize, i);
+	    target -= newSize;
+	    totalLowerBound -= lowerBound;
+	    totalUpperBound -= upperBound;
+	}
+!!!9127579.java!!!	getToolTipText(inout event : MouseEvent) : String
+        String tip = null;
+        Point p = event.getPoint();
+
+        // Locate the renderer under the event location
+        int hitColumnIndex = columnAtPoint(p);
+        int hitRowIndex = rowAtPoint(p);
+
+        if ((hitColumnIndex != -1) && (hitRowIndex != -1)) {
+            TableCellRenderer renderer = getCellRenderer(hitRowIndex, hitColumnIndex);
+            Component component = prepareRenderer(renderer, hitRowIndex, hitColumnIndex);
+
+            // Now have to see if the component is a JComponent before
+            // getting the tip
+            if (component instanceof JComponent) {
+                // Convert the event to the renderer's coordinate system
+                Rectangle cellRect = getCellRect(hitRowIndex, hitColumnIndex, false);
+                p.translate(-cellRect.x, -cellRect.y);
+                MouseEvent newEvent = new MouseEvent(component, event.getID(),
+                                          event.getWhen(), event.getModifiers(),
+                                          p.x, p.y, event.getClickCount(),
+                                          event.isPopupTrigger());
+
+                tip = ((JComponent)component).getToolTipText(newEvent);
+            }
+        }
+
+        // No tip from the renderer get our own tip
+        if (tip == null)
+            tip = getToolTipText();
+
+        return tip;
+!!!9127707.java!!!	setSurrendersFocusOnKeystroke(inout surrendersFocusOnKeystroke : boolean) : void
+        this.surrendersFocusOnKeystroke = surrendersFocusOnKeystroke;
+!!!9127835.java!!!	getSurrendersFocusOnKeystroke() : boolean
+        return surrendersFocusOnKeystroke;
+!!!9127963.java!!!	editCellAt(in row : int, in column : int) : boolean
+        return editCellAt(row, column, null);
+!!!9128091.java!!!	editCellAt(in row : int, in column : int, inout e : EventObject) : boolean
+        if (cellEditor != null && !cellEditor.stopCellEditing()) {
+            return false;
+        }
+
+	if (row < 0 || row >= getRowCount() ||
+	    column < 0 || column >= getColumnCount()) {
+	    return false;
+	}
+
+        if (!isCellEditable(row, column))
+            return false;
+
+        if (editorRemover == null) {
+            KeyboardFocusManager fm =
+                KeyboardFocusManager.getCurrentKeyboardFocusManager();
+            editorRemover = new CellEditorRemover(fm);
+            fm.addPropertyChangeListener("permanentFocusOwner", editorRemover);
+        }
+
+        TableCellEditor editor = getCellEditor(row, column);
+        if (editor != null && editor.isCellEditable(e)) {
+	    editorComp = prepareEditor(editor, row, column);
+	    if (editorComp == null) {
+		removeEditor();
+		return false;
+	    }
+	    editorComp.setBounds(getCellRect(row, column, false));
+	    add(editorComp);
+	    editorComp.validate();
+
+	    setCellEditor(editor);
+	    setEditingRow(row);
+	    setEditingColumn(column);
+	    editor.addCellEditorListener(this);
+
+	    return true;
+        }
+        return false;
+!!!9128219.java!!!	isEditing() : boolean
+        return (cellEditor == null)? false : true;
+!!!9128347.java!!!	getEditorComponent() : Component
+        return editorComp;
+!!!9128475.java!!!	getEditingColumn() : int
+        return editingColumn;
+!!!9128603.java!!!	getEditingRow() : int
+        return editingRow;
+!!!9128731.java!!!	getUI() : TableUI
+        return (TableUI)ui;
+!!!9128859.java!!!	setUI(inout ui : TableUI) : void
+        if (this.ui != ui) {
+            super.setUI(ui);
+            repaint();
+        }
+!!!9128987.java!!!	updateSubComponentUI(inout componentShell : Object) : void
+        if (componentShell == null) {
+            return;
+        }
+        Component component = null;
+        if (componentShell instanceof Component) {
+            component = (Component)componentShell;
+        }
+        if (componentShell instanceof DefaultCellEditor) {
+            component = ((DefaultCellEditor)componentShell).getComponent();
+        }
+
+        if (component != null && component instanceof JComponent) {
+            ((JComponent)component).updateUI();
+        }
+!!!9129115.java!!!	updateUI() : void
+        // Update the UIs of the cell renderers, cell editors and header renderers.
+        TableColumnModel cm = getColumnModel();
+        for(int column = 0; column < cm.getColumnCount(); column++) {
+            TableColumn aColumn = cm.getColumn(column);
+	    updateSubComponentUI(aColumn.getCellRenderer());
+            updateSubComponentUI(aColumn.getCellEditor());
+	    updateSubComponentUI(aColumn.getHeaderRenderer());
+        }
+
+        // Update the UIs of all the default renderers.
+        Enumeration defaultRenderers = defaultRenderersByColumnClass.elements();
+        while (defaultRenderers.hasMoreElements()) {
+            updateSubComponentUI(defaultRenderers.nextElement());
+        }
+
+        // Update the UIs of all the default editors.
+        Enumeration defaultEditors = defaultEditorsByColumnClass.elements();
+        while (defaultEditors.hasMoreElements()) {
+            updateSubComponentUI(defaultEditors.nextElement());
+        }
+
+        // Update the UI of the table header
+        if (tableHeader != null && tableHeader.getParent() == null) {
+            tableHeader.updateUI();
+        }
+        
+        setUI((TableUI)UIManager.getUI(this));
+        resizeAndRepaint();
+!!!9129243.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!9129371.java!!!	setModel(inout dataModel : TableModel) : void
+        if (dataModel == null) {
+            throw new IllegalArgumentException("Cannot set a null TableModel");
+	}
+        if (this.dataModel != dataModel) {
+	    TableModel old = this.dataModel;
+            if (old != null) {
+                old.removeTableModelListener(this);
+	    }
+            this.dataModel = dataModel;
+            dataModel.addTableModelListener(this);
+
+            tableChanged(new TableModelEvent(dataModel, TableModelEvent.HEADER_ROW));
+
+	    firePropertyChange("model", old, dataModel);
+        }
+!!!9129499.java!!!	getModel() : TableModel
+        return dataModel;
+!!!9129627.java!!!	setColumnModel(inout columnModel : TableColumnModel) : void
+        if (columnModel == null) {
+            throw new IllegalArgumentException("Cannot set a null ColumnModel");
+        }
+        TableColumnModel old = this.columnModel;
+        if (columnModel != old) {
+            if (old != null) {
+                old.removeColumnModelListener(this);
+	    }
+            this.columnModel = columnModel;
+            columnModel.addColumnModelListener(this);
+
+            // Set the column model of the header as well.
+            if (tableHeader != null) {
+                tableHeader.setColumnModel(columnModel);
+            }
+
+	    firePropertyChange("columnModel", old, columnModel);
+            resizeAndRepaint();
+        }
+!!!9129755.java!!!	getColumnModel() : TableColumnModel
+        return columnModel;
+!!!9129883.java!!!	setSelectionModel(inout newModel : ListSelectionModel) : void
+        if (newModel == null) {
+            throw new IllegalArgumentException("Cannot set a null SelectionModel");
+        }
+
+        ListSelectionModel oldModel = selectionModel;
+
+        if (newModel != oldModel) {
+            if (oldModel != null) {
+                oldModel.removeListSelectionListener(this);
+            }
+
+            selectionModel = newModel;
+            newModel.addListSelectionListener(this);
+
+	    firePropertyChange("selectionModel", oldModel, newModel);
+            repaint();
+        }
+!!!9130011.java!!!	getSelectionModel() : ListSelectionModel
+        return selectionModel;
+!!!9130139.java!!!	tableChanged(inout e : TableModelEvent) : void
+        if (e == null || e.getFirstRow() == TableModelEvent.HEADER_ROW) {
+            // The whole thing changed
+            clearSelectionAndLeadAnchor();
+
+            rowModel = null;
+
+            if (getAutoCreateColumnsFromModel()) {
+		// This will effect invalidation of the JTable and JTableHeader.
+                createDefaultColumnsFromModel();
+		return;
+	    }
+
+	    resizeAndRepaint();
+            return;
+        }
+
+	// The totalRowHeight calculated below will be incorrect if
+	// there are variable height rows. Repaint the visible region,
+	// but don't return as a revalidate may be necessary as well.
+	if (rowModel != null) {
+	    repaint();
+	}
+
+        if (e.getType() == TableModelEvent.INSERT) {
+            tableRowsInserted(e);
+            return;
+        }
+
+        if (e.getType() == TableModelEvent.DELETE) {
+            tableRowsDeleted(e);
+            return;
+        }
+
+        int modelColumn = e.getColumn();
+        int start = e.getFirstRow();
+        int end = e.getLastRow();
+
+        Rectangle dirtyRegion;
+        if (modelColumn == TableModelEvent.ALL_COLUMNS) {
+            // 1 or more rows changed
+            dirtyRegion = new Rectangle(0, start * getRowHeight(),
+                                        getColumnModel().getTotalColumnWidth(), 0);
+        }
+        else {
+            // A cell or column of cells has changed.
+            // Unlike the rest of the methods in the JTable, the TableModelEvent
+            // uses the coordinate system of the model instead of the view.
+            // This is the only place in the JTable where this "reverse mapping"
+            // is used.
+            int column = convertColumnIndexToView(modelColumn);
+            dirtyRegion = getCellRect(start, column, false);
+        }
+
+        // Now adjust the height of the dirty region according to the value of "end".
+        // Check for Integer.MAX_VALUE as this will cause an overflow.
+        if (end != Integer.MAX_VALUE) {
+	    dirtyRegion.height = (end-start+1)*getRowHeight();
+            repaint(dirtyRegion.x, dirtyRegion.y, dirtyRegion.width, dirtyRegion.height);
+        }
+        // In fact, if the end is Integer.MAX_VALUE we need to revalidate anyway
+        // because the scrollbar may need repainting.
+        else {
+            clearSelectionAndLeadAnchor();
+            resizeAndRepaint();
+            rowModel = null;
+        }
+!!!9130267.java!!!	tableRowsInserted(inout e : TableModelEvent) : void
+        int start = e.getFirstRow();
+        int end = e.getLastRow();
+        if (start < 0) {
+            start = 0;
+	}
+	if (end < 0) {
+	    end = getRowCount()-1;
+	}
+
+        // Adjust the selection to account for the new rows.
+	int length = end - start + 1;
+	selectionModel.insertIndexInterval(start, length, true);
+
+	// If we have variable height rows, adjust the row model.
+	if (rowModel != null) {
+	    rowModel.insertEntries(start, length, getRowHeight());
+	}
+        int rh = getRowHeight() ;
+        Rectangle drawRect = new Rectangle(0, start * rh,
+                                        getColumnModel().getTotalColumnWidth(),
+                                           (getRowCount()-start) * rh);
+
+        revalidate();
+        // PENDING(milne) revalidate calls repaint() if parent is a ScrollPane
+	// repaint still required in the unusual case where there is no ScrollPane
+        repaint(drawRect);
+!!!9130395.java!!!	tableRowsDeleted(inout e : TableModelEvent) : void
+        int start = e.getFirstRow();
+        int end = e.getLastRow();
+        if (start < 0) {
+            start = 0;
+	}
+	if (end < 0) {
+	    end = getRowCount()-1;
+	}
+
+        int deletedCount = end - start + 1;
+        int previousRowCount = getRowCount() + deletedCount;
+        // Adjust the selection to account for the new rows
+	selectionModel.removeIndexInterval(start, end);
+
+	// If we have variable height rows, adjust the row model.
+	if (rowModel != null) {
+	    rowModel.removeEntries(start, deletedCount);
+	}
+
+        int rh = getRowHeight();
+        Rectangle drawRect = new Rectangle(0, start * rh,
+                                        getColumnModel().getTotalColumnWidth(),
+                                        (previousRowCount - start) * rh);
+
+        revalidate();
+        // PENDING(milne) revalidate calls repaint() if parent is a ScrollPane
+	// repaint still required in the unusual case where there is no ScrollPane
+        repaint(drawRect);
+!!!9130523.java!!!	columnAdded(inout e : TableColumnModelEvent) : void
+        // If I'm currently editing, then I should stop editing
+        if (isEditing()) {
+            removeEditor();
+        }
+        resizeAndRepaint();
+!!!9130651.java!!!	columnRemoved(inout e : TableColumnModelEvent) : void
+        // If I'm currently editing, then I should stop editing
+        if (isEditing()) {
+            removeEditor();
+        }
+        resizeAndRepaint();
+!!!9130779.java!!!	columnMoved(inout e : TableColumnModelEvent) : void
+        // If I'm currently editing, then I should stop editing
+        if (isEditing()) {
+            removeEditor();
+        }
+        repaint();
+!!!9130907.java!!!	columnMarginChanged(inout e : ChangeEvent) : void
+	if (isEditing()) {
+            removeEditor();
+        }
+	TableColumn resizingColumn = getResizingColumn();
+	// Need to do this here, before the parent's
+	// layout manager calls getPreferredSize().
+	if (resizingColumn != null && autoResizeMode == AUTO_RESIZE_OFF) {
+	    resizingColumn.setPreferredWidth(resizingColumn.getWidth());
+	}
+	resizeAndRepaint();
+!!!9131035.java!!!	limit(in i : int, in a : int, in b : int) : int
+	return Math.min(b, Math.max(i, a));
+!!!9131163.java!!!	columnSelectionChanged(inout e : ListSelectionEvent) : void
+        boolean isAdjusting = e.getValueIsAdjusting();
+        if (columnSelectionAdjusting && !isAdjusting) {
+            // The assumption is that when the model is no longer adjusting
+            // we will have already gotten all the changes, and therefore
+            // don't need to do an additional paint.
+            columnSelectionAdjusting = false;
+            return;
+        }
+        columnSelectionAdjusting = isAdjusting;
+	// The getCellRect() call will fail unless there is at least one row.
+	if (getRowCount() <= 0 || getColumnCount() <= 0) {
+	    return;
+	}
+        int firstIndex = limit(e.getFirstIndex(), 0, getColumnCount()-1);
+        int lastIndex = limit(e.getLastIndex(), 0, getColumnCount()-1);
+        int minRow = 0;
+        int maxRow = getRowCount() - 1;
+        if (getRowSelectionAllowed()) {
+            minRow = selectionModel.getMinSelectionIndex();
+            maxRow = selectionModel.getMaxSelectionIndex();
+            int leadRow = getAdjustedIndex(selectionModel.getLeadSelectionIndex(), true);
+
+            if (minRow == -1 || maxRow == -1) {
+                if (leadRow == -1) {
+                    // nothing to repaint, return
+                    return;
+                }
+
+                // only thing to repaint is the lead
+                minRow = maxRow = leadRow;
+            } else {
+                // We need to consider more than just the range between
+                // the min and max selected index. The lead row, which could
+                // be outside this range, should be considered also.
+                if (leadRow != -1) {
+                    minRow = Math.min(minRow, leadRow);
+                    maxRow = Math.max(maxRow, leadRow);
+                }
+            }
+        }
+        Rectangle firstColumnRect = getCellRect(minRow, firstIndex, false);
+        Rectangle lastColumnRect = getCellRect(maxRow, lastIndex, false);
+        Rectangle dirtyRegion = firstColumnRect.union(lastColumnRect);
+        repaint(dirtyRegion);
+!!!9131291.java!!!	valueChanged(inout e : ListSelectionEvent) : void
+        boolean isAdjusting = e.getValueIsAdjusting();
+        if (rowSelectionAdjusting && !isAdjusting) {
+            // The assumption is that when the model is no longer adjusting
+            // we will have already gotten all the changes, and therefore
+            // don't need to do an additional paint.
+            rowSelectionAdjusting = false;
+            return;
+        }
+        rowSelectionAdjusting = isAdjusting;
+	// The getCellRect() calls will fail unless there is at least one column.
+	if (getRowCount() <= 0 || getColumnCount() <= 0) {
+	    return;
+	}
+        int firstIndex = limit(e.getFirstIndex(), 0, getRowCount()-1);
+        int lastIndex = limit(e.getLastIndex(), 0, getRowCount()-1);
+        Rectangle firstRowRect = getCellRect(firstIndex, 0, false);
+        Rectangle lastRowRect = getCellRect(lastIndex, getColumnCount()-1, false);
+        Rectangle dirtyRegion = firstRowRect.union(lastRowRect);
+        repaint(dirtyRegion);
+!!!9131419.java!!!	editingStopped(inout e : ChangeEvent) : void
+        // Take in the new value
+        TableCellEditor editor = getCellEditor();
+        if (editor != null) {
+            Object value = editor.getCellEditorValue();
+            setValueAt(value, editingRow, editingColumn);
+            removeEditor();
+        }
+!!!9131547.java!!!	editingCanceled(inout e : ChangeEvent) : void
+        removeEditor();
+!!!9131675.java!!!	setPreferredScrollableViewportSize(inout size : Dimension) : void
+        preferredViewportSize = size;
+!!!9131803.java!!!	getPreferredScrollableViewportSize() : Dimension
+        return preferredViewportSize;
+!!!9131931.java!!!	getScrollableUnitIncrement(inout visibleRect : Rectangle, in orientation : int, in direction : int) : int
+        // PENDING(alan): do something smarter
+        if (orientation == SwingConstants.HORIZONTAL) {
+            return 100;
+        }
+        return getRowHeight();
+!!!9132059.java!!!	getScrollableBlockIncrement(inout visibleRect : Rectangle, in orientation : int, in direction : int) : int
+	if (orientation == SwingConstants.VERTICAL) {
+	    int rh = getRowHeight();
+	    return (rh > 0) ? Math.max(rh, (visibleRect.height / rh) * rh) : visibleRect.height;
+	}
+	else {
+	    return visibleRect.width;
+	}
+!!!9132187.java!!!	getScrollableTracksViewportWidth() : boolean
+        return !(autoResizeMode == AUTO_RESIZE_OFF);
+!!!9132315.java!!!	getScrollableTracksViewportHeight() : boolean
+        return false;
+!!!9132443.java!!!	processKeyBinding(inout ks : KeyStroke, inout e : KeyEvent, in condition : int, inout pressed : boolean) : boolean
+	boolean retValue = super.processKeyBinding(ks, e, condition, pressed);
+
+	// Start editing when a key is typed. UI classes can disable this behavior
+	// by setting the client property JTable.autoStartsEdit to Boolean.FALSE.
+	if (!retValue && condition == WHEN_ANCESTOR_OF_FOCUSED_COMPONENT &&
+	    isFocusOwner() &&
+	    !Boolean.FALSE.equals((Boolean)getClientProperty("JTable.autoStartsEdit"))) {
+	    // We do not have a binding for the event.
+	    Component editorComponent = getEditorComponent();
+	    if (editorComponent == null) {
+		// Only attempt to install the editor on a KEY_PRESSED,
+		if (e == null || e.getID() != KeyEvent.KEY_PRESSED) {
+		    return false;
+		}
+		// Don't start when just a modifier is pressed
+		int code = e.getKeyCode();
+		if (code == KeyEvent.VK_SHIFT || code == KeyEvent.VK_CONTROL ||
+		    code == KeyEvent.VK_ALT) {
+		    return false;
+		}
+		// Try to install the editor
+		int leadRow = getSelectionModel().getLeadSelectionIndex();
+		int leadColumn = getColumnModel().getSelectionModel().
+		                   getLeadSelectionIndex();
+		if (leadRow != -1 && leadColumn != -1 && !isEditing()) {
+		    if (!editCellAt(leadRow, leadColumn)) {
+			return false;
+		    }
+		}
+		editorComponent = getEditorComponent();
+		if (editorComponent == null) {
+		    return false;
+		}
+	    }
+	    // If the editorComponent is a JComponent, pass the event to it.
+	    if (editorComponent instanceof JComponent) {
+		retValue = ((JComponent)editorComponent).processKeyBinding
+		                        (ks, e, WHEN_FOCUSED, pressed);
+	        // If we have started an editor as a result of the user
+	        // pressing a key and the surrendersFocusOnKeystroke property
+	        // is true, give the focus to the new editor.
+                if (getSurrendersFocusOnKeystroke()) {
+                    editorComponent.requestFocus();
+                }
+	    }
+	}
+        return retValue;
+!!!9132571.java!!!	setLazyValue(inout h : Hashtable, inout c : Class, in s : String) : void
+	h.put(c, new UIDefaults.ProxyLazyValue(s));
+!!!9132699.java!!!	setLazyRenderer(inout c : Class, in s : String) : void
+	setLazyValue(defaultRenderersByColumnClass, c, s);
+!!!9132827.java!!!	createDefaultRenderers() : void
+        defaultRenderersByColumnClass = new UIDefaults();
+
+        // Objects
+        setLazyRenderer(Object.class, "javax.swing.table.DefaultTableCellRenderer$UIResource");
+
+	// Numbers
+        setLazyRenderer(Number.class, "javax.swing.JTable$NumberRenderer");
+
+	// Doubles and Floats
+        setLazyRenderer(Float.class, "javax.swing.JTable$DoubleRenderer");
+        setLazyRenderer(Double.class, "javax.swing.JTable$DoubleRenderer");
+
+	// Dates
+	setLazyRenderer(Date.class, "javax.swing.JTable$DateRenderer");
+
+        // Icons and ImageIcons
+        setLazyRenderer(Icon.class, "javax.swing.JTable$IconRenderer");
+        setLazyRenderer(ImageIcon.class, "javax.swing.JTable$IconRenderer");
+
+        // Booleans
+        setLazyRenderer(Boolean.class, "javax.swing.JTable$BooleanRenderer");
+!!!9134107.java!!!	setLazyEditor(inout c : Class, in s : String) : void
+	setLazyValue(defaultEditorsByColumnClass, c, s);
+!!!9134235.java!!!	createDefaultEditors() : void
+        defaultEditorsByColumnClass = new UIDefaults();
+
+        // Objects
+    	setLazyEditor(Object.class, "javax.swing.JTable$GenericEditor");
+
+        // Numbers
+        setLazyEditor(Number.class, "javax.swing.JTable$NumberEditor");
+
+        // Booleans
+        setLazyEditor(Boolean.class, "javax.swing.JTable$BooleanEditor");
+!!!9135131.java!!!	initializeLocalVars() : void
+        setOpaque(true);
+        createDefaultRenderers();
+        createDefaultEditors();
+
+        setTableHeader(createDefaultTableHeader());
+
+        setShowGrid(true);
+        setAutoResizeMode(AUTO_RESIZE_SUBSEQUENT_COLUMNS);
+        setRowHeight(16);
+        isRowHeightSet = false;
+        setRowMargin(1);
+        setRowSelectionAllowed(true);
+        setCellEditor(null);
+        setEditingColumn(-1);
+	setEditingRow(-1);
+        setSurrendersFocusOnKeystroke(false);
+        setPreferredScrollableViewportSize(new Dimension(450, 400));
+
+        // I'm registered to do tool tips so we can draw tips for the renderers
+        ToolTipManager toolTipManager = ToolTipManager.sharedInstance();
+        toolTipManager.registerComponent(this);
+
+        setAutoscrolls(true);
+!!!9135259.java!!!	createDefaultDataModel() : TableModel
+        return new DefaultTableModel();
+!!!9135387.java!!!	createDefaultColumnModel() : TableColumnModel
+        return new DefaultTableColumnModel();
+!!!9135515.java!!!	createDefaultSelectionModel() : ListSelectionModel
+        return new DefaultListSelectionModel();
+!!!9135643.java!!!	createDefaultTableHeader() : JTableHeader
+        return new JTableHeader(columnModel);
+!!!9135771.java!!!	resizeAndRepaint() : void
+        revalidate();
+        repaint();
+!!!9135899.java!!!	getCellEditor() : TableCellEditor
+        return cellEditor;
+!!!9136027.java!!!	setCellEditor(inout anEditor : TableCellEditor) : void
+	TableCellEditor oldEditor = cellEditor;
+        cellEditor = anEditor;
+	firePropertyChange("tableCellEditor", oldEditor, anEditor);
+!!!9136155.java!!!	setEditingColumn(in aColumn : int) : void
+        editingColumn = aColumn;
+!!!9136283.java!!!	setEditingRow(in aRow : int) : void
+        editingRow = aRow;
+!!!9136411.java!!!	getCellRenderer(in row : int, in column : int) : TableCellRenderer
+        TableColumn tableColumn = getColumnModel().getColumn(column);
+        TableCellRenderer renderer = tableColumn.getCellRenderer();
+        if (renderer == null) {
+            renderer = getDefaultRenderer(getColumnClass(column));
+        }
+        return renderer;
+!!!9136539.java!!!	prepareRenderer(inout renderer : TableCellRenderer, in row : int, in column : int) : Component
+        Object value = getValueAt(row, column);
+
+        boolean isSelected = false;
+        boolean hasFocus = false;
+
+        // Only indicate the selection and focused cell if not printing
+        if (!isPrinting) {
+            isSelected = isCellSelected(row, column);
+
+            boolean rowIsLead =
+                (selectionModel.getLeadSelectionIndex() == row);
+            boolean colIsLead =
+                (columnModel.getSelectionModel().getLeadSelectionIndex() == column);
+
+            hasFocus = (rowIsLead && colIsLead) && isFocusOwner();
+        }
+
+	return renderer.getTableCellRendererComponent(this, value,
+	                                              isSelected, hasFocus,
+	                                              row, column);
+!!!9136667.java!!!	getCellEditor(in row : int, in column : int) : TableCellEditor
+        TableColumn tableColumn = getColumnModel().getColumn(column);
+        TableCellEditor editor = tableColumn.getCellEditor();
+        if (editor == null) {
+            editor = getDefaultEditor(getColumnClass(column));
+        }
+        return editor;
+!!!9136795.java!!!	prepareEditor(inout editor : TableCellEditor, in row : int, in column : int) : Component
+        Object value = getValueAt(row, column);
+        boolean isSelected = isCellSelected(row, column);
+        Component comp = editor.getTableCellEditorComponent(this, value, isSelected,
+                                                  row, column);
+        if (comp instanceof JComponent) {
+	    JComponent jComp = (JComponent)comp;
+	    if (jComp.getNextFocusableComponent() == null) {
+		jComp.setNextFocusableComponent(this);
+	    }
+	}
+	return comp;
+!!!9136923.java!!!	removeEditor() : void
+        KeyboardFocusManager.getCurrentKeyboardFocusManager().
+            removePropertyChangeListener("permanentFocusOwner", editorRemover);
+	editorRemover = null;
+
+        TableCellEditor editor = getCellEditor();
+        if(editor != null) {
+            editor.removeCellEditorListener(this);
+
+            if (editorComp != null) {
+		remove(editorComp);
+	    }
+
+            Rectangle cellRect = getCellRect(editingRow, editingColumn, false);
+
+            setCellEditor(null);
+            setEditingColumn(-1);
+            setEditingRow(-1);
+            editorComp = null;
+
+            repaint(cellRect);
+        }
+!!!9137051.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!9137179.java!!!	readObject(inout s : ObjectInputStream) : void
+        s.defaultReadObject();
+	if ((ui != null) && (getUIClassID().equals(uiClassID))) {
+	    ui.installUI(this);
+	}
+        createDefaultRenderers();
+        createDefaultEditors();
+
+        // If ToolTipText != null, then the tooltip has already been
+        // registered by JComponent.readObject() and we don't want
+        // to re-register here
+        if (getToolTipText() == null) {
+            ToolTipManager.sharedInstance().registerComponent(this);
+         }
+!!!9137307.java!!!	compWriteObjectNotify() : void
+        super.compWriteObjectNotify();
+        // If ToolTipText != null, then the tooltip has already been
+        // unregistered by JComponent.compWriteObjectNotify()
+        if (getToolTipText() == null) {
+            ToolTipManager.sharedInstance().unregisterComponent(this);
+        }
+!!!9137435.java!!!	paramString() : String
+	String gridColorString = (gridColor != null ?
+				  gridColor.toString() : "");
+	String showHorizontalLinesString = (showHorizontalLines ?
+					    "true" : "false");
+	String showVerticalLinesString = (showVerticalLines ?
+					  "true" : "false");
+	String autoResizeModeString;
+        if (autoResizeMode == AUTO_RESIZE_OFF) {
+	    autoResizeModeString = "AUTO_RESIZE_OFF";
+	} else if (autoResizeMode == AUTO_RESIZE_NEXT_COLUMN) {
+	    autoResizeModeString = "AUTO_RESIZE_NEXT_COLUMN";
+	} else if (autoResizeMode == AUTO_RESIZE_SUBSEQUENT_COLUMNS) {
+	    autoResizeModeString = "AUTO_RESIZE_SUBSEQUENT_COLUMNS";
+	} else if (autoResizeMode == AUTO_RESIZE_LAST_COLUMN) {
+	    autoResizeModeString = "AUTO_RESIZE_LAST_COLUMN";
+	} else if (autoResizeMode == AUTO_RESIZE_ALL_COLUMNS)  {
+	    autoResizeModeString = "AUTO_RESIZE_ALL_COLUMNS";
+	} else autoResizeModeString = "";
+	String autoCreateColumnsFromModelString = (autoCreateColumnsFromModel ?
+						   "true" : "false");
+	String preferredViewportSizeString = (preferredViewportSize != null ?
+					      preferredViewportSize.toString()
+					      : "");
+	String rowSelectionAllowedString = (rowSelectionAllowed ?
+					    "true" : "false");
+	String cellSelectionEnabledString = (cellSelectionEnabled ?
+					    "true" : "false");
+	String selectionForegroundString = (selectionForeground != null ?
+					    selectionForeground.toString() :
+					    "");
+	String selectionBackgroundString = (selectionBackground != null ?
+					    selectionBackground.toString() :
+					    "");
+
+	return super.paramString() +
+	",autoCreateColumnsFromModel=" + autoCreateColumnsFromModelString +
+	",autoResizeMode=" + autoResizeModeString +
+	",cellSelectionEnabled=" + cellSelectionEnabledString +
+	",editingColumn=" + editingColumn +
+	",editingRow=" + editingRow +
+	",gridColor=" + gridColorString +
+	",preferredViewportSize=" + preferredViewportSizeString +
+	",rowHeight=" + rowHeight +
+	",rowMargin=" + rowMargin +
+	",rowSelectionAllowed=" + rowSelectionAllowedString +
+	",selectionBackground=" + selectionBackgroundString +
+	",selectionForeground=" + selectionForegroundString +
+	",showHorizontalLines=" + showHorizontalLinesString +
+	",showVerticalLines=" + showVerticalLinesString;
+!!!9137819.java!!!	print() : boolean
+
+        return print(PrintMode.FIT_WIDTH);
+!!!9137947.java!!!	print(inout printMode : PrintMode) : boolean
+
+        return print(printMode, null, null);
+!!!9138075.java!!!	print(inout printMode : PrintMode, inout headerFormat : MessageFormat, inout footerFormat : MessageFormat) : boolean
+
+        boolean showDialogs = !GraphicsEnvironment.isHeadless();
+        return print(printMode, headerFormat, footerFormat,
+                     showDialogs, null, showDialogs);
+!!!9138203.java!!!	print(inout printMode : PrintMode, inout headerFormat : MessageFormat, inout footerFormat : MessageFormat, inout showPrintDialog : boolean, inout attr : PrintRequestAttributeSet, inout interactive : boolean) : boolean
+
+        // complain early if an invalid parameter is specified for headless mode
+        boolean isHeadless = GraphicsEnvironment.isHeadless();
+        if (isHeadless) {
+            if (showPrintDialog) {
+                throw new HeadlessException("Can't show print dialog.");
+            }
+            
+            if (interactive) {
+                throw new HeadlessException("Can't run interactively.");
+            }
+        }
+
+        if (isEditing()) {
+            // try to stop cell editing, and failing that, cancel it
+            if (!getCellEditor().stopCellEditing()) {
+                getCellEditor().cancelCellEditing();
+            }
+        }
+
+        if (attr == null) {
+            attr = new HashPrintRequestAttributeSet();
+        }
+
+        // get a PrinterJob
+        final PrinterJob job = PrinterJob.getPrinterJob();
+
+        // fetch the Printable
+        Printable printable =
+            getPrintable(printMode, headerFormat, footerFormat);
+
+        if (interactive) {
+            // wrap the Printable so that we can print on another thread
+            printable = new ThreadSafePrintable(printable);
+        }
+
+        // set the printable on the PrinterJob
+        job.setPrintable(printable);
+
+        // if requested, show the print dialog
+        if (showPrintDialog && !job.printDialog(attr)) {
+            // the user cancelled the print dialog
+            return false;
+        }
+
+        // if not interactive, just print on this thread (no dialog)
+        if (!interactive) {
+            // set a flag to hide the selection and focused cell
+            isPrinting = true;
+
+            try {
+                // do the printing
+                job.print(attr);
+            } finally {
+                // restore the flag
+                isPrinting = false;
+            }
+
+            // we're done
+            return true;
+        }
+
+        // interactive, drive printing from another thread
+        // and show a modal status dialog for the duration
+
+        // prepare the status JOptionPane
+        String progressTitle =
+            UIManager.getString("PrintingDialog.titleProgressText");
+
+        String dialogInitialContent =
+            UIManager.getString("PrintingDialog.contentInitialText");
+
+        // this one's a MessageFormat since it must include the page
+        // number in its text
+        MessageFormat statusFormat =
+            new MessageFormat(
+                UIManager.getString("PrintingDialog.contentProgressText"));
+
+        String abortText =
+            UIManager.getString("PrintingDialog.abortButtonText");
+        String abortTooltip =
+            UIManager.getString("PrintingDialog.abortButtonToolTipText");
+        int abortMnemonic =
+            UIManager.getInt("PrintingDialog.abortButtonMnemonic", -1);
+        int abortMnemonicIndex =
+            UIManager.getInt("PrintingDialog.abortButtonDisplayedMnemonicIndex", -1);
+
+        final JButton abortButton = new JButton(abortText);
+        abortButton.setToolTipText(abortTooltip);
+        if (abortMnemonic != -1) {
+            abortButton.setMnemonic(abortMnemonic);
+        }
+        if (abortMnemonicIndex != -1) {
+            abortButton.setDisplayedMnemonicIndex(abortMnemonicIndex);
+        }
+
+        final JLabel statusLabel = new JLabel(dialogInitialContent);
+
+        JOptionPane abortPane = new JOptionPane(statusLabel,
+                                                JOptionPane.INFORMATION_MESSAGE,
+                                                JOptionPane.DEFAULT_OPTION,
+                                                null, new Object[] {abortButton},
+                                                abortButton);
+
+        // need a final reference to the printable for later
+        final ThreadSafePrintable wrappedPrintable =
+            (ThreadSafePrintable)printable;
+
+        // set the label which the wrapped printable will update
+        wrappedPrintable.startUpdatingStatus(statusFormat, statusLabel);
+
+        // The dialog should be centered over the viewport if the table is in one
+        Container parentComp = getParent() instanceof JViewport ? getParent() : this;
+
+        // create the dialog to display the JOptionPane
+        final JDialog abortDialog = abortPane.createDialog(parentComp, progressTitle);
+        // clicking the X button should not hide the dialog
+        abortDialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+
+        // the action that will abort printing
+        final Action abortAction = new AbstractAction() {
+            boolean isAborted = false;
+            public void actionPerformed(ActionEvent ae) {
+                if (!isAborted) {
+                    isAborted = true;
+
+                    // update the status dialog to indicate aborting
+                    abortButton.setEnabled(false);
+                    abortDialog.setTitle(
+                        UIManager.getString("PrintingDialog.titleAbortingText"));
+                    statusLabel.setText(
+                        UIManager.getString("PrintingDialog.contentAbortingText"));
+
+                    // we don't want the aborting status message to be clobbered
+                    wrappedPrintable.stopUpdatingStatus();
+
+                    // cancel the PrinterJob
+                    job.cancel();
+                }
+            }
+        };
+
+        // clicking the abort button should abort printing
+        abortButton.addActionListener(abortAction);
+
+        // the look and feels set up a close action (typically bound
+        // to ESCAPE) that also needs to be modified to simply abort
+        // printing
+        abortPane.getActionMap().put("close", abortAction);
+
+        // clicking the X button should also abort printing
+        final WindowAdapter closeListener = new WindowAdapter() {
+            public void windowClosing(WindowEvent we) {
+                abortAction.actionPerformed(null);
+            }
+        };
+        abortDialog.addWindowListener(closeListener);
+
+        // make sure this is clear since we'll check it after
+        printError = null;
+
+        // to synchronize on
+        final Object lock = new Object();
+
+        // copied so we can access from the inner class
+        final PrintRequestAttributeSet copyAttr = attr;
+
+        // this runnable will be used to do the printing
+        // (and save any throwables) on another thread
+        Runnable runnable = new Runnable() {
+            public void run() {
+                try {
+                    // do the printing
+                    job.print(copyAttr);
+                } catch (Throwable t) {
+                    // save any Throwable to be rethrown
+                    synchronized(lock) {
+                        printError = t;
+                    }
+                } finally {
+                    // we're finished - hide the dialog, allowing
+                    // processing in the original EDT to continue
+                    SwingUtilities.invokeLater(new Runnable() {
+                        public void run() {
+                            // don't want to notify the abort action
+                            abortDialog.removeWindowListener(closeListener);
+                            abortDialog.dispose();
+                        }
+                    });
+                }
+            }
+        };
+
+        // start printing on another thread
+        Thread th = new Thread(runnable);
+        th.start();
+
+        // show the modal status dialog (and wait for it to be hidden)
+        abortDialog.setVisible(true);
+
+        // dialog has been hidden
+
+        // look for any error that the printing may have generated
+        Throwable pe;
+        synchronized(lock) {
+            pe = printError;
+            printError = null;
+        }
+
+        // check the type of error and handle it
+        if (pe != null) {
+            // a subclass of PrinterException meaning the job was aborted,
+            // in this case, by the user
+            if (pe instanceof PrinterAbortException) {
+                return false;
+            } else if (pe instanceof PrinterException) {
+                throw (PrinterException)pe;
+            } else if (pe instanceof RuntimeException) {
+                throw (RuntimeException)pe;
+            } else if (pe instanceof Error) {
+                throw (Error)pe;
+            }
+
+            // can not happen
+            throw new AssertionError(pe);
+        }
+
+        return true;
+!!!9138331.java!!!	getPrintable(inout printMode : PrintMode, inout headerFormat : MessageFormat, inout footerFormat : MessageFormat) : Printable
+
+        return new TablePrintable(this, printMode, headerFormat, footerFormat);
+!!!9138971.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJTable();
+        }
+        return accessibleContext;

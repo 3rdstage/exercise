@@ -1,0 +1,499 @@
+class Collections
+!!!196251.java!!!	sort(inout list : List) : void
+	Object[] a = list.toArray();
+	Arrays.sort(a);
+	ListIterator<T> i = list.listIterator();
+	for (int j=0; j<a.length; j++) {
+	    i.next();
+	    i.set((T)a[j]);
+	}
+!!!196379.java!!!	sort(inout list : List, inout c : Comparator) : void
+	Object[] a = list.toArray();
+	Arrays.sort(a, (Comparator)c);
+	ListIterator i = list.listIterator();
+	for (int j=0; j<a.length; j++) {
+	    i.next();
+	    i.set(a[j]);
+	}
+!!!196507.java!!!	binarySearch(inout list : List, inout key : T) : int
+        if (list instanceof RandomAccess || list.size()<BINARYSEARCH_THRESHOLD)
+            return Collections.indexedBinarySearch(list, key);
+        else
+            return Collections.iteratorBinarySearch(list, key);
+!!!196635.java!!!	indexedBinarySearch(inout list : List, inout key : T) : int
+	int low = 0;
+	int high = list.size()-1;
+
+	while (low <= high) {
+	    int mid = (low + high) >> 1;
+	    Comparable<? super T> midVal = list.get(mid);
+	    int cmp = midVal.compareTo(key);
+
+	    if (cmp < 0)
+		low = mid + 1;
+	    else if (cmp > 0)
+		high = mid - 1;
+	    else
+		return mid; // key found
+	}
+	return -(low + 1);  // key not found
+!!!196763.java!!!	iteratorBinarySearch(inout list : List, inout key : T) : int
+	int low = 0;
+	int high = list.size()-1;
+        ListIterator<? extends Comparable<? super T>> i = list.listIterator();
+
+        while (low <= high) {
+            int mid = (low + high) >> 1;
+            Comparable<? super T> midVal = get(i, mid);
+            int cmp = midVal.compareTo(key);
+
+            if (cmp < 0)
+                low = mid + 1;
+            else if (cmp > 0)
+                high = mid - 1;
+            else
+                return mid; // key found
+        }
+        return -(low + 1);  // key not found
+!!!196891.java!!!	get(inout i : ListIterator, in index : int) : T
+	T obj = null;
+        int pos = i.nextIndex();
+        if (pos <= index) {
+            do {
+                obj = i.next();
+            } while (pos++ < index);
+        } else {
+            do {
+                obj = i.previous();
+            } while (--pos > index);
+        }
+        return obj;
+!!!197019.java!!!	binarySearch(inout list : List, inout key : T, inout c : Comparator) : int
+        if (c==null)
+            return binarySearch((List) list, key);
+
+        if (list instanceof RandomAccess || list.size()<BINARYSEARCH_THRESHOLD)
+            return Collections.indexedBinarySearch(list, key, c);
+        else
+            return Collections.iteratorBinarySearch(list, key, c);
+!!!197147.java!!!	indexedBinarySearch(inout l : List, inout key : T, inout c : Comparator) : int
+	int low = 0;
+	int high = l.size()-1;
+
+	while (low <= high) {
+	    int mid = (low + high) >> 1;
+	    T midVal = l.get(mid);
+	    int cmp = c.compare(midVal, key);
+
+	    if (cmp < 0)
+		low = mid + 1;
+	    else if (cmp > 0)
+		high = mid - 1;
+	    else
+		return mid; // key found
+	}
+	return -(low + 1);  // key not found
+!!!197275.java!!!	iteratorBinarySearch(inout l : List, inout key : T, inout c : Comparator) : int
+	int low = 0;
+	int high = l.size()-1;
+        ListIterator<? extends T> i = l.listIterator();
+
+        while (low <= high) {
+            int mid = (low + high) >> 1;
+            T midVal = get(i, mid);
+            int cmp = c.compare(midVal, key);
+
+            if (cmp < 0)
+                low = mid + 1;
+            else if (cmp > 0)
+                high = mid - 1;
+            else
+                return mid; // key found
+        }
+        return -(low + 1);  // key not found
+!!!197403.java!!!	reverse(inout list : List) : void
+        int size = list.size();
+        if (size < REVERSE_THRESHOLD || list instanceof RandomAccess) {
+            for (int i=0, mid=size>>1, j=size-1; i<mid; i++, j--)
+                swap(list, i, j);
+        } else {
+            ListIterator fwd = list.listIterator();
+            ListIterator rev = list.listIterator(size);
+            for (int i=0, mid=list.size()>>1; i<mid; i++) {
+		Object tmp = fwd.next();
+                fwd.set(rev.previous());
+                rev.set(tmp);
+            }
+        }
+!!!197531.java!!!	shuffle(inout list : List) : void
+        shuffle(list, r);
+!!!197659.java!!!	shuffle(inout list : List, inout rnd : Random) : void
+        int size = list.size();
+        if (size < SHUFFLE_THRESHOLD || list instanceof RandomAccess) {
+            for (int i=size; i>1; i--)
+                swap(list, i-1, rnd.nextInt(i));
+        } else {
+            Object arr[] = list.toArray();
+
+            // Shuffle array
+            for (int i=size; i>1; i--)
+                swap(arr, i-1, rnd.nextInt(i));
+
+            // Dump array back into list
+            ListIterator it = list.listIterator();
+            for (int i=0; i<arr.length; i++) {
+                it.next();
+                it.set(arr[i]);
+            }
+        }
+!!!197787.java!!!	swap(inout list : List, in i : int, in j : int) : void
+	final List l = list;
+	l.set(i, l.set(j, l.get(i)));
+!!!197915.java!!!	swap(inout arr : Object, in i : int, in j : int) : void
+        Object tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+!!!198043.java!!!	fill(inout list : List, inout obj : T) : void
+        int size = list.size();
+
+        if (size < FILL_THRESHOLD || list instanceof RandomAccess) {
+            for (int i=0; i<size; i++)
+                list.set(i, obj);
+        } else {
+            ListIterator<? super T> itr = list.listIterator();
+            for (int i=0; i<size; i++) {
+                itr.next();
+                itr.set(obj);
+            }
+        }
+!!!198171.java!!!	copy(inout dest : List, inout src : List) : void
+        int srcSize = src.size();
+        if (srcSize > dest.size())
+            throw new IndexOutOfBoundsException("Source does not fit in dest");
+
+        if (srcSize < COPY_THRESHOLD ||
+            (src instanceof RandomAccess && dest instanceof RandomAccess)) {
+            for (int i=0; i<srcSize; i++)
+                dest.set(i, src.get(i));
+        } else {
+            ListIterator<? super T> di=dest.listIterator();
+	    ListIterator<? extends T> si=src.listIterator();
+            for (int i=0; i<srcSize; i++) {
+                di.next();
+                di.set(si.next());
+            }
+        }
+!!!198299.java!!!	min(inout coll : Collection) : T
+	Iterator<? extends T> i = coll.iterator();
+	T candidate = i.next();
+
+        while(i.hasNext()) {
+	    T next = i.next();
+	    if (next.compareTo(candidate) < 0)
+		candidate = next;
+	}
+	return candidate;
+!!!198427.java!!!	min(inout coll : Collection, inout comp : Comparator) : T
+        if (comp==null)
+            return (T)min((Collection<SelfComparable>) (Collection) coll);
+
+	Iterator<? extends T> i = coll.iterator();
+	T candidate = i.next();
+
+        while(i.hasNext()) {
+	    T next = i.next();
+	    if (comp.compare(next, candidate) < 0)
+		candidate = next;
+	}
+	return candidate;
+!!!198555.java!!!	max(inout coll : Collection) : T
+	Iterator<? extends T> i = coll.iterator();
+	T candidate = i.next();
+
+        while(i.hasNext()) {
+	    T next = i.next();
+	    if (next.compareTo(candidate) > 0)
+		candidate = next;
+	}
+	return candidate;
+!!!198683.java!!!	max(inout coll : Collection, inout comp : Comparator) : T
+        if (comp==null)
+            return (T)max((Collection<SelfComparable>) (Collection) coll);
+
+	Iterator<? extends T> i = coll.iterator();
+	T candidate = i.next();
+
+        while(i.hasNext()) {
+	    T next = i.next();
+	    if (comp.compare(next, candidate) > 0)
+		candidate = next;
+	}
+	return candidate;
+!!!198811.java!!!	rotate(inout list : List, in distance : int) : void
+        if (list instanceof RandomAccess || list.size() < ROTATE_THRESHOLD)
+            rotate1((List)list, distance);
+        else
+            rotate2((List)list, distance);
+!!!198939.java!!!	rotate1(inout list : List, in distance : int) : void
+        int size = list.size();
+        if (size == 0)
+            return;
+        distance = distance % size;
+        if (distance < 0)
+            distance += size;
+        if (distance == 0)
+            return;
+
+        for (int cycleStart = 0, nMoved = 0; nMoved != size; cycleStart++) {
+            T displaced = list.get(cycleStart);
+            int i = cycleStart;
+            do {
+                i += distance;
+                if (i >= size)
+                    i -= size;
+                displaced = list.set(i, displaced);
+                nMoved ++;
+            } while(i != cycleStart);
+        }
+!!!199067.java!!!	rotate2(inout list : List, in distance : int) : void
+        int size = list.size();
+        if (size == 0)
+            return; 
+        int mid =  -distance % size;
+        if (mid < 0)
+            mid += size;
+        if (mid == 0)
+            return;
+
+        reverse(list.subList(0, mid));
+        reverse(list.subList(mid, size));
+        reverse(list);
+!!!199195.java!!!	replaceAll(inout list : List, inout oldVal : T, inout newVal : T) : boolean
+        boolean result = false;
+        int size = list.size();
+        if (size < REPLACEALL_THRESHOLD || list instanceof RandomAccess) {
+            if (oldVal==null) {
+                for (int i=0; i<size; i++) {
+                    if (list.get(i)==null) {
+                        list.set(i, newVal);
+                        result = true;
+                    }
+                }
+            } else {
+                for (int i=0; i<size; i++) {
+                    if (oldVal.equals(list.get(i))) {
+                        list.set(i, newVal);
+                        result = true;
+                    }
+                }
+            }
+        } else {
+            ListIterator<T> itr=list.listIterator();
+            if (oldVal==null) {
+                for (int i=0; i<size; i++) {
+                    if (itr.next()==null) {
+                        itr.set(newVal);
+                        result = true;
+                    }
+                }
+            } else {
+                for (int i=0; i<size; i++) {
+                    if (oldVal.equals(itr.next())) {
+                        itr.set(newVal);
+                        result = true;
+                    }
+                }
+            }
+        }
+        return result;
+!!!199323.java!!!	indexOfSubList(inout source : List, inout target : List) : int
+        int sourceSize = source.size();
+        int targetSize = target.size();
+        int maxCandidate = sourceSize - targetSize;
+
+        if (sourceSize < INDEXOFSUBLIST_THRESHOLD ||
+            (source instanceof RandomAccess&&target instanceof RandomAccess)) {
+        nextCand:
+            for (int candidate = 0; candidate <= maxCandidate; candidate++) {
+                for (int i=0, j=candidate; i<targetSize; i++, j++)
+                    if (!eq(target.get(i), source.get(j)))
+                        continue nextCand;  // Element mismatch, try next cand
+                return candidate;  // All elements of candidate matched target
+            }
+        } else {  // Iterator version of above algorithm
+            ListIterator<?> si = source.listIterator();
+        nextCand:
+            for (int candidate = 0; candidate <= maxCandidate; candidate++) {
+                ListIterator<?> ti = target.listIterator();
+                for (int i=0; i<targetSize; i++) {
+                    if (!eq(ti.next(), si.next())) {
+                        // Back up source iterator to next candidate
+                        for (int j=0; j<i; j++)
+                            si.previous();
+                        continue nextCand;
+                    }
+                }
+                return candidate;
+            }
+        }
+        return -1;  // No candidate matched the target
+!!!199451.java!!!	lastIndexOfSubList(inout source : List, inout target : List) : int
+        int sourceSize = source.size();
+        int targetSize = target.size();
+        int maxCandidate = sourceSize - targetSize;
+
+        if (sourceSize < INDEXOFSUBLIST_THRESHOLD ||
+            source instanceof RandomAccess) {   // Index access version
+        nextCand:
+            for (int candidate = maxCandidate; candidate >= 0; candidate--) {
+                for (int i=0, j=candidate; i<targetSize; i++, j++)
+                    if (!eq(target.get(i), source.get(j)))
+                        continue nextCand;  // Element mismatch, try next cand
+                return candidate;  // All elements of candidate matched target
+            }
+        } else {  // Iterator version of above algorithm
+            if (maxCandidate < 0)
+                return -1;
+            ListIterator<?> si = source.listIterator(maxCandidate);
+        nextCand:
+            for (int candidate = maxCandidate; candidate >= 0; candidate--) {
+                ListIterator<?> ti = target.listIterator();
+                for (int i=0; i<targetSize; i++) {
+                    if (!eq(ti.next(), si.next())) {
+                        if (candidate != 0) {
+                            // Back up source iterator to next candidate
+                            for (int j=0; j<=i+1; j++)
+                                si.previous();
+                        }
+                        continue nextCand;
+                    }
+                }
+                return candidate;
+            }
+        }
+        return -1;  // No candidate matched the target
+!!!199579.java!!!	unmodifiableCollection(inout c : Collection) : Collection
+	return new UnmodifiableCollection<T>(c);
+!!!201627.java!!!	unmodifiableSet(inout s : Set) : Set
+	return new UnmodifiableSet<T>(s);
+!!!202139.java!!!	unmodifiableSortedSet(inout s : SortedSet) : SortedSet
+	return new UnmodifiableSortedSet<T>(s);
+!!!203931.java!!!	unmodifiableList(inout list : List) : List
+	return (list instanceof RandomAccess ?
+                new UnmodifiableRandomAccessList<T>(list) :
+                new UnmodifiableList<T>(list));
+!!!206235.java!!!	unmodifiableMap(inout m : Map) : Map
+	return new UnmodifiableMap<K,V>(m);
+!!!210203.java!!!	unmodifiableSortedMap(inout m : SortedMap) : SortedMap
+	return new UnmodifiableSortedMap<K,V>(m);
+!!!211995.java!!!	synchronizedCollection(inout c : Collection) : Collection
+	return new SynchronizedCollection<T>(c);
+!!!212123.java!!!	synchronizedCollection(inout c : Collection, inout mutex : Object) : Collection
+	return new SynchronizedCollection<T>(c, mutex);
+!!!214427.java!!!	synchronizedSet(inout s : Set) : Set
+	return new SynchronizedSet<T>(s);
+!!!214555.java!!!	synchronizedSet(inout s : Set, inout mutex : Object) : Set
+	return new SynchronizedSet<T>(s, mutex);
+!!!215195.java!!!	synchronizedSortedSet(inout s : SortedSet) : SortedSet
+	return new SynchronizedSortedSet<T>(s);
+!!!216347.java!!!	synchronizedList(inout list : List) : List
+	return (list instanceof RandomAccess ?
+                new SynchronizedRandomAccessList<T>(list) :
+                new SynchronizedList<T>(list));
+!!!216475.java!!!	synchronizedList(inout list : List, inout mutex : Object) : List
+	return (list instanceof RandomAccess ?
+                new SynchronizedRandomAccessList<T>(list, mutex) :
+                new SynchronizedList<T>(list, mutex));
+!!!219035.java!!!	synchronizedMap(inout m : Map) : Map
+	return new SynchronizedMap<K,V>(m);
+!!!221467.java!!!	synchronizedSortedMap(inout m : SortedMap) : SortedMap
+	return new SynchronizedSortedMap<K,V>(m);
+!!!222619.java!!!	checkedCollection(inout c : Collection, inout type : Class<E>) : Collection
+        return new CheckedCollection<E>(c, type);
+!!!224923.java!!!	checkedSet(inout s : Set, inout type : Class<E>) : Set
+        return new CheckedSet<E>(s, type);
+!!!225435.java!!!	checkedSortedSet(inout s : SortedSet, inout type : Class<E>) : SortedSet
+        return new CheckedSortedSet<E>(s, type);
+!!!226459.java!!!	checkedList(inout list : List, inout type : Class<E>) : List
+        return (list instanceof RandomAccess ?
+                new CheckedRandomAccessList<E>(list, type) :
+                new CheckedList<E>(list, type));
+!!!228507.java!!!	checkedMap(inout m : Map, inout keyType : Class<K>, inout valueType : Class<V>) : Map
+        return new CheckedMap<K,V>(m, keyType, valueType);
+!!!234139.java!!!	checkedSortedMap(inout m : SortedMap, inout keyType : Class<K>, inout valueType : Class<V>) : SortedMap
+        return new CheckedSortedMap<K,V>(m, keyType, valueType);
+!!!235163.java!!!	emptySet() : Set
+	return (Set<T>) EMPTY_SET;
+!!!235803.java!!!	emptyList() : List
+	return (List<T>) EMPTY_LIST;
+!!!236443.java!!!	emptyMap() : Map
+	return (Map<K,V>) EMPTY_MAP;
+!!!237979.java!!!	singleton(inout o : T) : Set
+	return new SingletonSet<T>(o);
+!!!238619.java!!!	singletonList(inout o : T) : List
+	return new SingletonList<T>(o);
+!!!239259.java!!!	singletonMap(inout key : K, inout value : V) : Map
+	return new SingletonMap<K,V>(key, value);
+!!!241435.java!!!	nCopies(in n : int, inout o : T) : List
+        return new CopiesList<T>(n, o);
+!!!242075.java!!!	reverseOrder() : Comparator
+        return (Comparator<T>) REVERSE_ORDER;
+!!!242587.java!!!	reverseOrder(inout cmp : Comparator) : Comparator
+        if (cmp == null)
+            return new ReverseComparator();  // Unchecked warning!!
+ 
+        return new ReverseComparator2<T>(cmp);
+!!!242971.java!!!	enumeration(in c : Collection) : Enumeration
+	return new Enumeration<T>() {
+	    Iterator<T> i = c.iterator();
+
+	    public boolean hasMoreElements() {
+		return i.hasNext();
+	    }
+
+	    public T nextElement() {
+		return i.next();
+	    }
+        };
+!!!243099.java!!!	list(inout e : Enumeration) : ArrayList
+        ArrayList<T> l = new ArrayList<T>();
+        while (e.hasMoreElements())
+            l.add(e.nextElement());
+        return l;
+!!!243227.java!!!	eq(inout o1 : Object, inout o2 : Object) : boolean
+        return (o1==null ? o2==null : o1.equals(o2));
+!!!243355.java!!!	frequency(inout c : Collection, inout o : Object) : int
+        int result = 0;
+        if (o == null) {
+            for (Object e : c)
+                if (e == null)
+                    result++;
+        } else {
+            for (Object e : c)
+                if (o.equals(e))
+                    result++;
+        }
+        return result;
+!!!243483.java!!!	disjoint(inout c1 : Collection, inout c2 : Collection) : boolean
+        /*
+         * We're going to iterate through c1 and test for inclusion in c2.
+         * If c1 is a Set and c2 isn't, swap the collections.  Otherwise,
+         * place the shorter collection in c1.  Hopefully this heuristic
+         * will minimize the cost of the operation.
+         */
+        if ((c1 instanceof Set) && !(c2 instanceof Set) ||
+            (c1.size() > c2.size())) {
+            Collection<?> tmp = c1;
+            c1 = c2;
+            c2 = tmp;
+        }
+ 
+        for (Object e : c1)
+            if (c2.contains(e))
+                return false;
+        return true;
+!!!243611.java!!!	addAll(inout c : Collection, inout  : T...a) : boolean
+        boolean result = false;
+        for (T e : a)
+            result |= c.add(e);
+        return result;

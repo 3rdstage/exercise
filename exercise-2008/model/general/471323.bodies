@@ -1,0 +1,61 @@
+class BasicDragGestureRecognizer
+!!!2909467.java!!!	getMotionThreshold() : int
+        return DragSource.getDragThreshold();
+!!!2909595.java!!!	mapDragOperationFromModifiers(inout e : MouseEvent) : int
+        int mods = e.getModifiersEx();
+        
+        if ((mods & InputEvent.BUTTON1_DOWN_MASK) != InputEvent.BUTTON1_DOWN_MASK) {
+            return TransferHandler.NONE;
+        }
+
+        JComponent c = getComponent(e);
+        TransferHandler th = c.getTransferHandler();
+        return SunDragSourceContextPeer.convertModifiersToDropAction(mods, th.getSourceActions(c)); 
+!!!2909851.java!!!	mousePressed(inout e : MouseEvent) : void
+        dndArmedEvent = null;
+
+	if (isDragPossible(e) && mapDragOperationFromModifiers(e) != TransferHandler.NONE) {
+            dndArmedEvent = e;
+	    e.consume();
+	}
+!!!2909979.java!!!	mouseReleased(inout e : MouseEvent) : void
+        dndArmedEvent = null;
+!!!2910107.java!!!	mouseEntered(inout e : MouseEvent) : void
+        //dndArmedEvent = null;
+!!!2910235.java!!!	mouseExited(inout e : MouseEvent) : void
+        //if (dndArmedEvent != null && mapDragOperationFromModifiers(e) == TransferHandler.NONE) {
+        //    dndArmedEvent = null;
+        //}
+!!!2910363.java!!!	mouseDragged(inout e : MouseEvent) : void
+	if (dndArmedEvent != null) {
+            e.consume();
+            
+            int action = mapDragOperationFromModifiers(e);
+            
+            if (action == TransferHandler.NONE) {
+                return;
+            }
+            
+	    int dx = Math.abs(e.getX() - dndArmedEvent.getX());
+	    int dy = Math.abs(e.getY() - dndArmedEvent.getY());
+            if ((dx > getMotionThreshold()) || (dy > getMotionThreshold())) {
+		// start transfer... shouldn't be a click at this point
+                JComponent c = getComponent(e);
+		TransferHandler th = c.getTransferHandler();
+		th.exportAsDrag(c, dndArmedEvent, action);
+		dndArmedEvent = null;
+	    }
+	}
+!!!2910619.java!!!	getTransferHandler(inout e : MouseEvent) : TransferHandler
+        JComponent c = getComponent(e);
+        return c == null ? null : c.getTransferHandler();
+!!!2910747.java!!!	isDragPossible(inout e : MouseEvent) : boolean
+        JComponent c = getComponent(e);
+        return (c == null) ? true : (c.getTransferHandler() != null);
+!!!2910875.java!!!	getComponent(inout e : MouseEvent) : JComponent
+	Object src = e.getSource();
+	if (src instanceof JComponent) {
+	    JComponent c = (JComponent) src;
+	    return c;
+	}
+	return null;

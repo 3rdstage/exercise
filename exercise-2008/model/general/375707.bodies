@@ -1,0 +1,872 @@
+class Window
+!!!2990235.java!!!	Window(inout gc : GraphicsConfiguration)
+        init(gc);
+!!!2990363.java!!!	init(inout gc : GraphicsConfiguration) : void
+        if (GraphicsEnvironment.isHeadless()) {
+            throw new IllegalArgumentException("headless environment");
+        }
+
+        syncLWRequests = systemSyncLWRequests;
+
+	setWarningString();
+	this.cursor = Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR);
+	this.visible = false;
+        if (gc == null) {
+            this.graphicsConfig =
+                GraphicsEnvironment.getLocalGraphicsEnvironment().
+             getDefaultScreenDevice().getDefaultConfiguration();
+        } else {
+            this.graphicsConfig = gc;
+        }
+        if (graphicsConfig.getDevice().getType() !=
+            GraphicsDevice.TYPE_RASTER_SCREEN) {
+            throw new IllegalArgumentException("not a screen device");
+        }
+	setLayout(new BorderLayout());
+
+        /* offset the initial location with the original of the screen */
+        /* and any insets                                              */
+        Rectangle screenBounds = graphicsConfig.getBounds();
+        Insets screenInsets = getToolkit().getScreenInsets(graphicsConfig);          
+        int x = getX() + screenBounds.x + screenInsets.left;
+        int y = getY() + screenBounds.y + screenInsets.top;
+        if (x != this.x || y != this.y) {
+            setLocation(x, y);
+            /* reset after setLocation */
+            setLocationByPlatform(locationByPlatformProp);
+        }
+!!!2990491.java!!!	Window()
+        GraphicsEnvironment.checkHeadless();
+        init((GraphicsConfiguration)null);
+!!!2990619.java!!!	Window(inout owner : Frame)
+        this(owner == null ? (GraphicsConfiguration)null :
+            owner.getGraphicsConfiguration());
+	ownedInit(owner);
+!!!2990747.java!!!	Window(inout owner : Window)
+        this(owner == null ? (GraphicsConfiguration)null :
+            owner.getGraphicsConfiguration());
+	ownedInit(owner);
+!!!2990875.java!!!	Window(inout owner : Window, inout gc : GraphicsConfiguration)
+        this(gc);
+	ownedInit(owner);
+!!!2991003.java!!!	ownedInit(inout owner : Window) : void
+	if (owner == null) {
+	    throw new IllegalArgumentException("null owner window");
+	}	
+	this.parent = owner;
+	this.weakThis = new WeakReference<Window>(this);
+	owner.addOwnedWindow(weakThis);
+        modalExcluded = owner.modalExcluded;
+!!!2991131.java!!!	finalize() : void
+        // We have to remove the (hard) reference to weakThis in the
+        // parent's ownedWindowList, otherwise the WeakReference
+        // instance that points to this Window will never get garbage
+        // collected.
+	if (parent != null) {
+	    ((Window)parent).removeOwnedWindow(weakThis);
+	}
+	super.finalize();
+!!!2991259.java!!!	constructComponentName() : String
+        synchronized (getClass()) {
+	    return base + nameCounter++;
+	}
+!!!2991387.java!!!	addNotify() : void
+	synchronized (getTreeLock()) {
+	    Container parent = this.parent;
+	    if (parent != null && parent.getPeer() == null) {
+	        parent.addNotify();
+	    }
+
+	    if (peer == null)
+		peer = getToolkit().createWindow(this);
+	    super.addNotify();
+	}
+!!!2991515.java!!!	pack() : void
+	Container parent = this.parent;
+	if (parent != null && parent.getPeer() == null) {
+	    parent.addNotify();
+	}
+	if (peer == null) {
+	    addNotify();
+	}
+        Dimension newSize = getPreferredSize();
+        if (peer != null) {
+            setClientSize(newSize.width, newSize.height);
+        }
+
+        if(beforeFirstShow) {
+            isPacked = true;
+        }
+
+	validate();
+!!!2991643.java!!!	setClientSize(in w : int, in h : int) : void
+    	synchronized (getTreeLock()) {
+    	    setBoundsOp(ComponentPeer.SET_CLIENT_SIZE);
+    	    setBounds(x, y, w, h);
+    	}
+!!!2991771.java!!!	show() : void
+	if (peer == null) {
+	    addNotify();
+	}
+	validate();
+
+	if (visible) {
+	    toFront();
+	} else {	    
+            beforeFirstShow = false;
+	    super.show();
+            locationByPlatform = false;
+	    for (int i = 0; i < ownedWindowList.size(); i++) {
+                Window child = ownedWindowList.elementAt(i).get();
+                if ((child != null) && child.showWithParent) {
+                    child.show();
+                    child.showWithParent = false;
+                }       // endif
+            }   // endfor
+            if (this instanceof Frame || this instanceof Dialog) {
+                updateChildFocusableWindowState(this);
+            }
+	}
+        
+        // If first time shown, generate WindowOpened event
+        if ((state & OPENED) == 0) {
+            postWindowEvent(WindowEvent.WINDOW_OPENED);
+            state |= OPENED;
+        }
+!!!2991899.java!!!	updateChildFocusableWindowState(inout w : Window) : void
+        if (w.getPeer() != null && w.isShowing()) {
+            ((WindowPeer)w.getPeer()).updateFocusableWindowState();
+        }
+        for (int i = 0; i < w.ownedWindowList.size(); i++) {
+            Window child = w.ownedWindowList.elementAt(i).get();
+            if (child != null) {
+                updateChildFocusableWindowState(child); 
+            }
+        }
+!!!2992027.java!!!	postWindowEvent(in id : int) : void
+        if (windowListener != null
+            || (eventMask & AWTEvent.WINDOW_EVENT_MASK) != 0
+            ||  Toolkit.enabledOnToolkit(AWTEvent.WINDOW_EVENT_MASK)) {
+            WindowEvent e = new WindowEvent(this, id);
+            Toolkit.getEventQueue().postEvent(e);
+        }
+!!!2992155.java!!!	hide() : void
+        synchronized(ownedWindowList) {
+	    for (int i = 0; i < ownedWindowList.size(); i++) {
+	        Window child = ownedWindowList.elementAt(i).get();
+		if ((child != null) && child.visible) {
+                    child.hide();
+                    child.showWithParent = true;
+                }
+	    }
+	}
+	super.hide();
+!!!2992283.java!!!	clearMostRecentFocusOwnerOnHide() : void
+        /* do nothing */
+!!!2992411.java!!!	dispose() : void
+        doDispose();
+!!!2992539.java!!!	disposeImpl() : void
+        dispose();
+        if (getPeer() != null) {
+            doDispose();
+        }
+!!!2992667.java!!!	doDispose() : void
+    class DisposeAction implements Runnable {
+        public void run() {
+	    Object[] ownedWindowArray;
+            synchronized(ownedWindowList) {
+		ownedWindowArray = new Object[ownedWindowList.size()];
+		ownedWindowList.copyInto(ownedWindowArray);
+	    }
+	    for (int i = 0; i < ownedWindowArray.length; i++) {
+		Window child = (Window) (((WeakReference)
+			       (ownedWindowArray[i])).get());
+		if (child != null) {
+		    child.disposeImpl();
+		}
+	    }
+            hide();
+            beforeFirstShow = true;
+            removeNotify();
+            synchronized (inputContextLock) {
+                if (inputContext != null) {
+                    inputContext.dispose();
+                    inputContext = null;
+                }
+            }
+            clearCurrentFocusCycleRootOnHide();
+        }
+    }
+        DisposeAction action = new DisposeAction();
+	if (EventQueue.isDispatchThread()) {
+	    action.run();
+	}
+	else {
+	    try {
+	        EventQueue.invokeAndWait(action);
+	    }
+	    catch (InterruptedException e) {
+	        System.err.println("Disposal was interrupted:");
+		e.printStackTrace();
+	    }
+	    catch (InvocationTargetException e) {
+	        System.err.println("Exception during disposal:");
+		e.printStackTrace();
+	    }
+	}
+	// Execute outside the Runnable because postWindowEvent is
+	// synchronized on (this). We don't need to synchronize the call
+	// on the EventQueue anyways.
+        postWindowEvent(WindowEvent.WINDOW_CLOSED);
+!!!2992923.java!!!	adjustDecendantsOnParent(in num : int) : void
+        // do nothing since parent == owner and we shouldn't 
+        // ajust counter on owner
+!!!2993051.java!!!	toFront() : void
+        if (visible) {
+	    WindowPeer peer = (WindowPeer)this.peer;
+	    if (peer != null) {
+	        peer.toFront();
+	    }
+	}
+!!!2993179.java!!!	toBack() : void
+        if (visible) {
+	    WindowPeer peer = (WindowPeer)this.peer;
+	    if (peer != null) {
+	        peer.toBack();
+	    }
+	}
+!!!2993307.java!!!	getToolkit() : Toolkit
+	return Toolkit.getDefaultToolkit();
+!!!2993435.java!!!	getWarningString() : String
+	return warningString;
+!!!2993563.java!!!	setWarningString() : void
+	warningString = null;
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {
+	    if (!sm.checkTopLevelWindow(this)) {
+		// make sure the privileged action is only
+		// for getting the property! We don't want the
+		// above checkTopLevelWindow call to always succeed!
+		warningString = (String) AccessController.doPrivileged(
+		      new GetPropertyAction("awt.appletWarning",
+					    "Java Applet Window"));
+	    }
+	}
+!!!2993691.java!!!	getLocale() : Locale
+      if (this.locale == null) {
+	return Locale.getDefault();
+      }
+      return this.locale;
+!!!2993819.java!!!	getInputContext() : InputContext
+        if (inputContext == null) {
+            synchronized (inputContextLock) {
+                if (inputContext == null) {
+                    inputContext = InputContext.getInstance();
+                }
+            }
+        }
+        return inputContext;
+!!!2993947.java!!!	setCursor(inout cursor : Cursor) : void
+        if (cursor == null) {
+            cursor = Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR);
+        }
+        super.setCursor(cursor);
+!!!2994075.java!!!	getOwner() : Window
+        return (Window)parent;
+!!!2994203.java!!!	getOwnedWindows() : Window
+        Window realCopy[];
+
+	synchronized(ownedWindowList) {
+	    // Recall that ownedWindowList is actually a Vector of
+	    // WeakReferences and calling get() on one of these references
+	    // may return null. Make two arrays-- one the size of the
+	    // Vector (fullCopy with size fullSize), and one the size of 
+	    // all non-null get()s (realCopy with size realSize).
+	    int fullSize = ownedWindowList.size();
+	    int realSize = 0;
+	    Window fullCopy[] = new Window[fullSize];
+
+	    for (int i = 0; i < fullSize; i++) {
+	        fullCopy[realSize] = ownedWindowList.elementAt(i).get();
+
+		if (fullCopy[realSize] != null) {
+		    realSize++;
+		}
+	    }
+
+	    if (fullSize != realSize) {
+	        realCopy = new Window[realSize];
+		System.arraycopy(fullCopy, 0, realCopy, 0, realSize);
+	    } else {
+	        realCopy = fullCopy;
+	    }
+	}
+
+        return realCopy;
+!!!2994331.java!!!	addWindowListener(inout l : WindowListener) : void
+	if (l == null) {
+	    return;
+	}
+        newEventsOnly = true;
+        windowListener = AWTEventMulticaster.add(windowListener, l);
+!!!2994459.java!!!	addWindowStateListener(inout l : WindowStateListener) : void
+        if (l == null) {
+            return;
+        }
+        windowStateListener = AWTEventMulticaster.add(windowStateListener, l);
+        newEventsOnly = true;
+!!!2994587.java!!!	addWindowFocusListener(inout l : WindowFocusListener) : void
+        if (l == null) {
+            return;
+        }
+        windowFocusListener = AWTEventMulticaster.add(windowFocusListener, l);
+        newEventsOnly = true;
+!!!2994715.java!!!	removeWindowListener(inout l : WindowListener) : void
+	if (l == null) {
+	    return;
+	}
+        windowListener = AWTEventMulticaster.remove(windowListener, l);
+!!!2994843.java!!!	removeWindowStateListener(inout l : WindowStateListener) : void
+        if (l == null) {
+            return;
+        }
+        windowStateListener = AWTEventMulticaster.remove(windowStateListener, l);
+!!!2994971.java!!!	removeWindowFocusListener(inout l : WindowFocusListener) : void
+        if (l == null) {
+            return;
+        }
+        windowFocusListener = AWTEventMulticaster.remove(windowFocusListener, l);
+!!!2995099.java!!!	getWindowListeners() : WindowListener
+        return (WindowListener[])(getListeners(WindowListener.class));
+!!!2995227.java!!!	getWindowFocusListeners() : WindowFocusListener
+        return (WindowFocusListener[])(getListeners(WindowFocusListener.class));
+!!!2995355.java!!!	getWindowStateListeners() : WindowStateListener
+        return (WindowStateListener[])(getListeners(WindowStateListener.class));
+!!!2995483.java!!!	getListeners(inout listenerType : Class) : T
+	EventListener l = null; 
+        if (listenerType == WindowFocusListener.class) {
+            l = windowFocusListener;
+	} else if (listenerType == WindowStateListener.class) {
+            l = windowStateListener;
+        } else if (listenerType == WindowListener.class) {
+            l = windowListener;
+        } else {
+            return super.getListeners(listenerType);
+        }
+        return AWTEventMulticaster.getListeners(l, listenerType);
+!!!2995611.java!!!	eventEnabled(inout e : AWTEvent) : boolean
+        switch(e.id) {
+          case WindowEvent.WINDOW_OPENED:
+          case WindowEvent.WINDOW_CLOSING:
+          case WindowEvent.WINDOW_CLOSED:
+          case WindowEvent.WINDOW_ICONIFIED:
+          case WindowEvent.WINDOW_DEICONIFIED:
+          case WindowEvent.WINDOW_ACTIVATED:
+          case WindowEvent.WINDOW_DEACTIVATED:
+            if ((eventMask & AWTEvent.WINDOW_EVENT_MASK) != 0 ||
+                windowListener != null) {
+                return true;
+            }
+            return false;
+          case WindowEvent.WINDOW_GAINED_FOCUS:
+          case WindowEvent.WINDOW_LOST_FOCUS:
+            if ((eventMask & AWTEvent.WINDOW_FOCUS_EVENT_MASK) != 0 ||
+                windowFocusListener != null) {
+                return true;
+            }
+            return false;
+          case WindowEvent.WINDOW_STATE_CHANGED:
+            if ((eventMask & AWTEvent.WINDOW_STATE_EVENT_MASK) != 0 ||
+                windowStateListener != null) {
+                return true;
+            }
+            return false;
+          default:
+            break;
+        }
+        return super.eventEnabled(e);
+!!!2995739.java!!!	processEvent(inout e : AWTEvent) : void
+        if (e instanceof WindowEvent) {
+            switch (e.getID()) {
+                case WindowEvent.WINDOW_OPENED:
+                case WindowEvent.WINDOW_CLOSING:
+                case WindowEvent.WINDOW_CLOSED:
+                case WindowEvent.WINDOW_ICONIFIED:
+                case WindowEvent.WINDOW_DEICONIFIED:
+                case WindowEvent.WINDOW_ACTIVATED:
+                case WindowEvent.WINDOW_DEACTIVATED:
+                    processWindowEvent((WindowEvent)e);
+                    break;
+                case WindowEvent.WINDOW_GAINED_FOCUS:
+                case WindowEvent.WINDOW_LOST_FOCUS:
+                    processWindowFocusEvent((WindowEvent)e);
+                    break;
+                case WindowEvent.WINDOW_STATE_CHANGED:
+		    processWindowStateEvent((WindowEvent)e);
+                default:
+                    break;
+            }
+            return;
+        }
+	super.processEvent(e);
+!!!2995867.java!!!	processWindowEvent(inout e : WindowEvent) : void
+        WindowListener listener = windowListener;
+        if (listener != null) {
+            switch(e.getID()) {
+                case WindowEvent.WINDOW_OPENED:
+                    listener.windowOpened(e);
+                    break;
+                case WindowEvent.WINDOW_CLOSING:
+                    listener.windowClosing(e);
+                    break;
+                case WindowEvent.WINDOW_CLOSED:
+                    listener.windowClosed(e);
+                    break;
+                case WindowEvent.WINDOW_ICONIFIED:
+                    listener.windowIconified(e);
+                    break;
+                case WindowEvent.WINDOW_DEICONIFIED:
+                    listener.windowDeiconified(e);
+                    break;
+                case WindowEvent.WINDOW_ACTIVATED:
+                    listener.windowActivated(e);
+                    break;
+                case WindowEvent.WINDOW_DEACTIVATED:
+                    listener.windowDeactivated(e);
+                    break;
+                default:
+                    break;
+            }
+        }
+!!!2995995.java!!!	processWindowFocusEvent(inout e : WindowEvent) : void
+        WindowFocusListener listener = windowFocusListener;
+        if (listener != null) {
+            switch (e.getID()) {
+                case WindowEvent.WINDOW_GAINED_FOCUS:
+                    listener.windowGainedFocus(e);
+                    break;
+                case WindowEvent.WINDOW_LOST_FOCUS:
+                    listener.windowLostFocus(e);
+                    break;
+                default:
+                    break;
+            }
+        }
+!!!2996123.java!!!	processWindowStateEvent(inout e : WindowEvent) : void
+        WindowStateListener listener = windowStateListener;
+	if (listener != null) {
+	    switch (e.getID()) {
+		case WindowEvent.WINDOW_STATE_CHANGED:
+		    listener.windowStateChanged(e);
+		    break;
+		default:
+		    break;
+	    }
+	}
+!!!2996251.java!!!	preProcessKeyEvent(inout e : KeyEvent) : void
+        // Dump the list of child windows to System.out.
+        if (e.isActionKey() && e.getKeyCode() == KeyEvent.VK_F1 &&
+            e.isControlDown() && e.isShiftDown() && 
+            e.getID() == KeyEvent.KEY_PRESSED) {
+            list(System.out, 0);
+        }
+!!!2996379.java!!!	postProcessKeyEvent(inout e : KeyEvent) : void
+	// Do nothing
+!!!2996507.java!!!	setAlwaysOnTop(inout alwaysOnTop : boolean) : void
+        SecurityManager security = System.getSecurityManager();
+        if (security != null) {
+            security.checkPermission(SecurityConstants.SET_WINDOW_ALWAYS_ON_TOP_PERMISSION);
+        }
+
+        boolean oldAlwaysOnTop;
+        synchronized(this) {
+            oldAlwaysOnTop = this.alwaysOnTop;
+            this.alwaysOnTop = alwaysOnTop;
+        }
+        if (oldAlwaysOnTop != alwaysOnTop ) {
+            WindowPeer peer = (WindowPeer)this.peer;
+            synchronized(getTreeLock()) {
+                if (peer != null) {
+                    peer.updateAlwaysOnTop();
+                }
+            }
+            firePropertyChange("alwaysOnTop", oldAlwaysOnTop, alwaysOnTop);
+        }        
+!!!2996635.java!!!	isAlwaysOnTop() : boolean
+        return alwaysOnTop;
+!!!2996763.java!!!	getFocusOwner() : Component
+	return (isFocused())
+	    ? KeyboardFocusManager.getCurrentKeyboardFocusManager().
+	          getFocusOwner()
+	    : null;
+!!!2996891.java!!!	getMostRecentFocusOwner() : Component
+	if (isFocused()) {
+	    return getFocusOwner();
+	} else {
+	    Component mostRecent =
+		KeyboardFocusManager.getMostRecentFocusOwner(this);
+	    if (mostRecent != null) {
+		return mostRecent;
+	    } else {
+		return (isFocusableWindow())
+		    ? getFocusTraversalPolicy().getInitialComponent(this)
+		    : null;
+	    }
+        }
+!!!2997019.java!!!	isActive() : boolean
+	return (KeyboardFocusManager.getCurrentKeyboardFocusManager().
+		getActiveWindow() == this);
+!!!2997147.java!!!	isFocused() : boolean
+	return (KeyboardFocusManager.getCurrentKeyboardFocusManager().
+		getGlobalFocusedWindow() == this);
+!!!2997275.java!!!	getFocusTraversalKeys(in id : int) : Set
+	if (id < 0 || id >= KeyboardFocusManager.TRAVERSAL_KEY_LENGTH) {
+	    throw new IllegalArgumentException("invalid focus traversal key identifier");
+	}
+  
+        // Okay to return Set directly because it is an unmodifiable view
+        Set keystrokes = (focusTraversalKeys != null)
+            ? focusTraversalKeys[id]
+            : null;
+
+	if (keystrokes != null) {
+	    return keystrokes;
+	} else {
+	    return KeyboardFocusManager.getCurrentKeyboardFocusManager().
+		getDefaultFocusTraversalKeys(id);
+	}
+!!!2997531.java!!!	isFocusCycleRoot() : boolean
+	return true;
+!!!2997659.java!!!	getFocusCycleRootAncestor() : Container
+	return null;
+!!!2997787.java!!!	isFocusableWindow() : boolean
+        // If a Window/Frame/Dialog was made non-focusable, then it is always
+        // non-focusable.
+        if (!getFocusableWindowState()) {
+            return false;
+        }
+
+        // All other tests apply only to Windows.
+        if (this instanceof Frame || this instanceof Dialog) {
+            return true;
+        }
+
+        // A Window must have at least one Component in its root focus
+        // traversal cycle to be focusable.
+        if (getFocusTraversalPolicy().getDefaultComponent(this) == null) {
+            return false;
+        }
+
+        // A Window's nearest owning Frame or Dialog must be showing on the
+        // screen.
+        for (Window owner = getOwner(); owner != null;
+             owner = owner.getOwner())
+        {
+            if (owner instanceof Frame || owner instanceof Dialog) {
+                return owner.isShowing();
+            }
+        }
+
+        return false;
+!!!2997915.java!!!	getFocusableWindowState() : boolean
+        return focusableWindowState;
+!!!2998043.java!!!	setFocusableWindowState(inout focusableWindowState : boolean) : void
+	boolean oldFocusableWindowState;
+	synchronized (this) {
+	    oldFocusableWindowState = this.focusableWindowState;
+	    this.focusableWindowState = focusableWindowState;
+	}
+        WindowPeer peer = (WindowPeer)this.peer;       
+        if (peer != null) {
+            peer.updateFocusableWindowState();
+        }
+	firePropertyChange("focusableWindowState", oldFocusableWindowState,
+			   focusableWindowState);
+	if (oldFocusableWindowState && !focusableWindowState && isFocused()) {
+	    for (Window owner = (Window)getParent();
+		 owner != null;
+		 owner = (Window)owner.getParent())
+		{
+		    Component toFocus =
+			KeyboardFocusManager.getMostRecentFocusOwner(owner);
+		    if (toFocus != null && toFocus.requestFocus(false)) {
+			return;
+		    }
+		}
+	    KeyboardFocusManager.getCurrentKeyboardFocusManager().
+		clearGlobalFocusOwner();
+	}
+!!!2998171.java!!!	addPropertyChangeListener(inout listener : PropertyChangeListener) : void
+	super.addPropertyChangeListener(listener);
+!!!2998299.java!!!	addPropertyChangeListener(in propertyName : String, inout listener : PropertyChangeListener) : void
+	super.addPropertyChangeListener(propertyName, listener);
+!!!2998427.java!!!	dispatchEventImpl(inout e : AWTEvent) : void
+	if (e.getID() == ComponentEvent.COMPONENT_RESIZED) {
+	    invalidate();
+	    validate();
+	}
+	super.dispatchEventImpl(e);
+!!!2998555.java!!!	postEvent(inout e : Event) : boolean
+        if (handleEvent(e)) {
+            e.consume();
+            return true;
+        }
+        return false;
+!!!2998683.java!!!	isShowing() : boolean
+	return visible;
+!!!2998811.java!!!	applyResourceBundle(inout rb : ResourceBundle) : void
+        applyComponentOrientation(ComponentOrientation.getOrientation(rb));
+!!!2998939.java!!!	applyResourceBundle(in rbName : String) : void
+        applyResourceBundle(ResourceBundle.getBundle(rbName));
+!!!2999067.java!!!	addOwnedWindow(inout weakWindow : WeakReference) : void
+        if (weakWindow != null) {
+	    synchronized(ownedWindowList) {
+	        // this if statement should really be an assert, but we don't
+	        // have asserts...
+	        if (!ownedWindowList.contains(weakWindow)) {
+		    ownedWindowList.addElement(weakWindow);
+		}
+	    }
+	}
+!!!2999195.java!!!	removeOwnedWindow(inout weakWindow : WeakReference) : void
+        if (weakWindow != null) {
+	    // synchronized block not required since removeElement is
+	    // already synchronized
+	    ownedWindowList.removeElement(weakWindow);
+	}
+!!!2999323.java!!!	connectOwnedWindow(inout child : Window) : void
+        WeakReference weakChild = new WeakReference(child);
+	child.weakThis = weakChild;
+	child.parent = this;
+	addOwnedWindow(weakChild);
+!!!2999451.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        synchronized (this) {
+	    // Update old focusMgr fields so that our object stream can be read
+	    // by previous releases
+	    focusMgr = new FocusManager();
+	    focusMgr.focusRoot = this;
+	    focusMgr.focusOwner = getMostRecentFocusOwner();
+
+	    s.defaultWriteObject();
+
+	    // Clear fields so that we don't keep extra references around
+	    focusMgr = null;
+
+	    AWTEventMulticaster.save(s, windowListenerK, windowListener);
+            AWTEventMulticaster.save(s, windowFocusListenerK, windowFocusListener);
+            AWTEventMulticaster.save(s, windowStateListenerK, windowStateListener);
+	}
+
+	s.writeObject(null);
+
+	synchronized (ownedWindowList) {
+	    for (int i = 0; i < ownedWindowList.size(); i++) {
+	        Window child = ownedWindowList.elementAt(i).get();
+		if (child != null) {
+		    s.writeObject(ownedWindowK);
+		    s.writeObject(child);
+		}
+	    }
+	}
+	s.writeObject(null);
+!!!2999579.java!!!	readObject(inout s : ObjectInputStream) : void
+        GraphicsEnvironment.checkHeadless();
+        setWarningString();
+        inputContextLock = new Object();
+        
+        // Deserialized Windows are not yet visible.
+        visible = false;
+        weakThis = new WeakReference(this); 
+        ObjectInputStream.GetField f = s.readFields();
+        
+        syncLWRequests = f.get("syncLWRequests", systemSyncLWRequests);
+        state = f.get("state", 0);
+        focusableWindowState = f.get("focusableWindowState", true);  
+        windowSerializedDataVersion = f.get("windowSerializedDataVersion", 1);
+        locationByPlatform = f.get("locationByPlatform", locationByPlatformProp);
+        // Note: 1.4 (or later) doesn't use focusMgr
+        focusMgr = (FocusManager)f.get("focusMgr", null);
+        boolean aot = f.get("alwaysOnTop", false);
+        if(aot) {
+            setAlwaysOnTop(aot); // since 1.5; subject to permission check
+        }
+
+        ownedWindowList = new Vector();
+      if (windowSerializedDataVersion < 2) {
+          // Translate old-style focus tracking to new model. For 1.4 and
+          // later releases, we'll rely on the Window's initial focusable
+          // Component.
+          if (focusMgr != null) {
+              if (focusMgr.focusOwner != null) {
+                  KeyboardFocusManager.
+                      setMostRecentFocusOwner(this, focusMgr.focusOwner);
+              }
+          }
+  
+          // This field is non-transient and relies on default serialization.
+          // However, the default value is insufficient, so we need to set
+          // it explicitly for object data streams prior to 1.4.
+          focusableWindowState = true;
+      }
+  
+      Object keyOrNull;
+      while(null != (keyOrNull = s.readObject())) {
+          String key = ((String)keyOrNull).intern();
+
+          if (windowListenerK == key) {
+              addWindowListener((WindowListener)(s.readObject()));
+          } else if (windowFocusListenerK == key) {
+              addWindowFocusListener((WindowFocusListener)(s.readObject()));
+          } else if (windowStateListenerK == key) {
+              addWindowStateListener((WindowStateListener)(s.readObject()));
+          } else // skip value for unrecognized key
+              s.readObject();
+      }
+
+      try {
+          while (null != (keyOrNull = s.readObject())) {
+              String key = ((String)keyOrNull).intern();
+
+              if (ownedWindowK == key)
+                  connectOwnedWindow((Window) s.readObject());
+
+              else // skip value for unrecognized key
+                  s.readObject();
+          }
+      }
+      catch (OptionalDataException e) {
+          // 1.1 serialized form
+          // ownedWindowList will be updated by Frame.readObject
+      }
+
+!!!2999707.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleAWTWindow();
+        }
+        return accessibleContext;
+!!!3000091.java!!!	getGraphicsConfiguration() : GraphicsConfiguration
+		//NOTE: for multiscreen, this will need to take into account
+		//which screen the window is on/mostly on instead of returning the
+		//default or constructor argument config.
+        synchronized(getTreeLock()) {
+            if (graphicsConfig == null  && !GraphicsEnvironment.isHeadless()) {
+                graphicsConfig =
+                    GraphicsEnvironment. getLocalGraphicsEnvironment().
+                    getDefaultScreenDevice().
+                    getDefaultConfiguration();
+            }
+            return graphicsConfig;
+	    }
+!!!3000219.java!!!	resetGC() : void
+        if (!GraphicsEnvironment.isHeadless()) {
+            // use the peer's GC 
+            setGCFromPeer();
+            // if it's still null, use the default
+            if (graphicsConfig == null) {
+                graphicsConfig = GraphicsEnvironment.
+                    getLocalGraphicsEnvironment().
+                    getDefaultScreenDevice().
+                    getDefaultConfiguration();
+            }
+            if (dbg.on) {
+                dbg.println("+ Window.resetGC(): new GC is \n+ " + graphicsConfig + "\n+ this is " + this);
+            }
+        }
+!!!3000347.java!!!	setLocationRelativeTo(inout c : Component) : void
+        Container root=null;
+
+        if (c != null) {
+            if (c instanceof Window || c instanceof Applet) {
+               root = (Container)c;
+            } else {
+                Container parent;
+                for(parent = c.getParent() ; parent != null ; parent = parent.getParent()) {
+                    if (parent instanceof Window || parent instanceof Applet) {
+                        root = parent;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if((c != null && !c.isShowing()) || root == null ||
+           !root.isShowing()) {
+            Dimension         paneSize = getSize();
+            Dimension         screenSize = getToolkit().getScreenSize();
+
+            setLocation((screenSize.width - paneSize.width) / 2,
+                        (screenSize.height - paneSize.height) / 2);
+        } else {
+            Dimension invokerSize = c.getSize();
+            Point invokerScreenLocation = c.getLocationOnScreen();
+
+            Rectangle  windowBounds = getBounds();
+            int        dx = invokerScreenLocation.x+((invokerSize.width-windowBounds.width)>>1);
+            int        dy = invokerScreenLocation.y+((invokerSize.height - windowBounds.height)>>1);
+            Rectangle ss = root.getGraphicsConfiguration().getBounds();
+
+            // Adjust for bottom edge being offscreen
+            if (dy+windowBounds.height>ss.height) {
+                dy = ss.height-windowBounds.height;
+                if (invokerScreenLocation.x - ss.x + invokerSize.width / 2 <
+                    ss.width / 2) {
+                    dx = invokerScreenLocation.x+invokerSize.width;
+                }
+                else {
+                    dx = invokerScreenLocation.x-windowBounds.width;
+                }
+            }
+
+            // Avoid being placed off the edge of the screen
+            if (dx+windowBounds.width > ss.x + ss.width) {
+                dx = ss.x + ss.width - windowBounds.width;
+            }
+            if (dx < ss.x) dx = 0;
+            if (dy < ss.y) dy = 0;
+
+            setLocation(dx, dy);
+        }
+!!!3000603.java!!!	dispatchMouseWheelToAncestor(inout e : MouseWheelEvent) : boolean
+return false;
+!!!3000731.java!!!	createBufferStrategy(in numBuffers : int) : void
+        super.createBufferStrategy(numBuffers);
+!!!3000859.java!!!	createBufferStrategy(in numBuffers : int, inout caps : BufferCapabilities) : void
+        super.createBufferStrategy(numBuffers, caps);
+!!!3000987.java!!!	getBufferStrategy() : BufferStrategy
+        return super.getBufferStrategy();
+!!!3001115.java!!!	getTemporaryLostComponent() : Component
+        return temporaryLostComponent;
+!!!3001243.java!!!	setTemporaryLostComponent(inout component : Component) : Component
+        Component previousComp = temporaryLostComponent;
+        // Check that "component" is an acceptable focus owner and don't store it otherwise 
+        // - or later we will have problems with opposite while handling  WINDOW_GAINED_FOCUS
+        if (component == null 
+            || (component.isDisplayable() && component.isVisible() && component.isEnabled() && component.isFocusable()))
+        {
+            temporaryLostComponent = component;
+        } else {
+            temporaryLostComponent = null;
+        }
+        return previousComp;
+!!!3001371.java!!!	canContainFocusOwner(inout focusOwnerCandidate : Component) : boolean
+        return super.canContainFocusOwner(focusOwnerCandidate) && isFocusableWindow();
+!!!3001499.java!!!	setLocationByPlatform(inout locationByPlatform : boolean) : void
+        synchronized (getTreeLock()) {
+            if (locationByPlatform && isShowing()) {
+                throw new IllegalComponentStateException("The window is showing on screen.");
+            }
+            this.locationByPlatform = locationByPlatform;
+        }
+!!!3001627.java!!!	isLocationByPlatform() : boolean
+        synchronized (getTreeLock()) {
+            return locationByPlatform;
+        }
+!!!3001755.java!!!	setBounds(in x : int, in y : int, in width : int, in height : int) : void
+        synchronized (getTreeLock()) {
+            if (getBoundsOp() == ComponentPeer.SET_LOCATION ||
+                getBoundsOp() == ComponentPeer.SET_BOUNDS) 
+            {
+                locationByPlatform = false;
+            }
+            super.setBounds(x, y, width, height);
+        }

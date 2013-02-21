@@ -1,0 +1,27 @@
+class Itr
+!!!7949467.java!!!	Itr(inout i : Iterator)
+            iter = i;
+!!!7949595.java!!!	hasNext() : boolean
+            /*
+             * No sync -- we rely on underlying hasNext to be
+             * stateless, in which case we can return true by mistake
+             * only when next() will subsequently throw
+             * ConcurrentModificationException.
+             */
+            return iter.hasNext();
+!!!7949723.java!!!	next() : E
+            ReentrantLock lock = PriorityBlockingQueue.this.lock;
+            lock.lock();
+            try {
+                return iter.next();
+            } finally {
+                lock.unlock();
+            }
+!!!7949851.java!!!	remove() : void
+            ReentrantLock lock = PriorityBlockingQueue.this.lock;
+            lock.lock();
+            try {
+                iter.remove();
+            } finally {
+                lock.unlock();
+            }

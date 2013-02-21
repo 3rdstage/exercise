@@ -1,0 +1,36 @@
+class SharedOwnerFrame
+!!!9291547.java!!!	addNotify() : void
+            super.addNotify();
+            installListeners();
+!!!9291675.java!!!	installListeners() : void
+            Window[] windows = getOwnedWindows();
+            for (int ind = 0; ind < windows.length; ind++){ 
+                Window window = windows[ind];
+                if (window != null) {
+                    window.removeWindowListener(this);
+                    window.addWindowListener(this);
+                }
+            }
+!!!9291803.java!!!	windowClosed(inout e : WindowEvent) : void
+	    synchronized(getTreeLock()) {
+		Window[] windows = getOwnedWindows();
+		for (int ind = 0; ind < windows.length; ind++) {
+		    Window window = windows[ind];
+		    if (window != null) {
+			if (window.isDisplayable()) {
+			    return;
+			}
+			window.removeWindowListener(this);
+		    }
+		}
+		dispose();
+	    }
+!!!9292699.java!!!	show() : void
+            // This frame can never be shown
+!!!9292827.java!!!	dispose() : void
+            try {
+                getToolkit().getSystemEventQueue();
+                super.dispose();
+            } catch (Exception e) {
+                // untrusted code not allowed to dispose
+            }

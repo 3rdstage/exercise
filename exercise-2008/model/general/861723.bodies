@@ -1,0 +1,70 @@
+class Label
+!!!6297755.java!!!	Label()
+	this("", LEFT);
+!!!6297883.java!!!	Label(in text : String)
+        this(text, LEFT);
+!!!6298011.java!!!	Label(in text : String, in alignment : int)
+        GraphicsEnvironment.checkHeadless();
+	this.text = text;
+	setAlignment(alignment);
+!!!6298139.java!!!	readObject(inout s : ObjectInputStream) : void
+        GraphicsEnvironment.checkHeadless();
+        s.defaultReadObject();
+!!!6298267.java!!!	constructComponentName() : String
+        synchronized (getClass()) {
+	    return base + nameCounter++;
+	}
+!!!6298395.java!!!	addNotify() : void
+        synchronized (getTreeLock()) {
+	    if (peer == null)
+	        peer = getToolkit().createLabel(this);
+	    super.addNotify();
+	}
+!!!6298523.java!!!	getAlignment() : int
+	return alignment;
+!!!6298651.java!!!	setAlignment(in alignment : int) : void
+	switch (alignment) {
+	  case LEFT:
+	  case CENTER:
+	  case RIGHT:
+	    this.alignment = alignment;
+    	    LabelPeer peer = (LabelPeer)this.peer;
+	    if (peer != null) {
+		peer.setAlignment(alignment);
+	    }
+	    return;
+	}
+	throw new IllegalArgumentException("improper alignment: " + alignment);
+!!!6298779.java!!!	getText() : String
+	return text;
+!!!6298907.java!!!	setText(in text : String) : void
+        boolean testvalid = false;
+	synchronized (this) {
+	    if (text != this.text && (this.text == null ||
+				      !this.text.equals(text))) {
+	        this.text = text;
+		LabelPeer peer = (LabelPeer)this.peer;
+		if (peer != null) {
+		    peer.setText(text);
+		}
+		testvalid = true;
+	    }
+	}
+
+	// This could change the preferred size of the Component.
+	if (testvalid && valid) {
+	    invalidate();
+	}
+!!!6299035.java!!!	paramString() : String
+	String str = ",align=";
+	switch (alignment) {
+	  case LEFT:   str += "left"; break;
+	  case CENTER: str += "center"; break;
+	  case RIGHT:  str += "right"; break;
+	}
+	return super.paramString() + str + ",text=" + text;
+!!!6299291.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleAWTLabel();
+        }
+        return accessibleContext;

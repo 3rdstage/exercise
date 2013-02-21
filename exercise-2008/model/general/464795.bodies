@@ -1,0 +1,56 @@
+class BasicTextAreaUI
+!!!2866331.java!!!	createUI(inout ta : JComponent) : ComponentUI
+        return new BasicTextAreaUI();
+!!!2866459.java!!!	BasicTextAreaUI()
+	super();
+!!!2866587.java!!!	getPropertyPrefix() : String
+	return "TextArea";
+!!!2866715.java!!!	installDefaults() : void
+        super.installDefaults();
+        //the fix for 4785160 is undone
+!!!2866843.java!!!	propertyChange(inout evt : PropertyChangeEvent) : void
+	if (evt.getPropertyName().equals("lineWrap") ||
+	    evt.getPropertyName().equals("wrapStyleWord") ||
+		evt.getPropertyName().equals("tabSize")) {
+	    // rebuild the view
+	    modelChanged();
+	} else if ("editable".equals(evt.getPropertyName())) {
+	    updateFocusTraversalKeys();
+	}
+!!!2866971.java!!!	getPreferredSize(inout c : JComponent) : Dimension
+                    
+        return super.getPreferredSize(c);                         
+        //the fix for 4785160 is undone
+!!!2867099.java!!!	getMinimumSize(inout c : JComponent) : Dimension
+        return super.getMinimumSize(c);
+        //the fix for 4785160 is undone
+!!!2867227.java!!!	create(inout elem : Element) : View
+	Document doc = elem.getDocument();
+	Object i18nFlag = doc.getProperty("i18n"/*AbstractDocument.I18NProperty*/);
+	if ((i18nFlag != null) && i18nFlag.equals(Boolean.TRUE)) {
+	    // build a view that support bidi
+	    return createI18N(elem);
+	} else {
+	    JTextComponent c = getComponent();
+	    if (c instanceof JTextArea) {
+		JTextArea area = (JTextArea) c;
+		View v;
+		if (area.getLineWrap()) {
+		    v = new WrappedPlainView(elem, area.getWrapStyleWord());
+		} else {
+		    v = new PlainView(elem);
+		}
+		return v;
+	    }
+	}
+	return null;
+!!!2867355.java!!!	createI18N(inout elem : Element) : View
+	String kind = elem.getName();
+	if (kind != null) {
+	    if (kind.equals(AbstractDocument.ContentElementName)) {
+		return new PlainParagraph(elem);
+	    } else if (kind.equals(AbstractDocument.ParagraphElementName)) {
+		return new BoxView(elem, View.Y_AXIS);
+	    }
+	}
+	return null;

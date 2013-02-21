@@ -1,0 +1,62 @@
+class ContentDispatcher
+!!!4951835.java!!!	scanForDoctypeHook() : boolean
+
+            if (fEntityScanner.skipString("DOCTYPE")) {
+                setScannerState(SCANNER_STATE_DOCTYPE);
+                return true;
+            }
+            return false;
+
+!!!4951963.java!!!	elementDepthIsZeroHook() : boolean
+
+            setScannerState(SCANNER_STATE_TRAILING_MISC);
+            setDispatcher(fTrailingMiscDispatcher);
+            return true;
+
+!!!4952091.java!!!	scanRootElementHook() : boolean
+
+            if (fExternalSubsetResolver != null && !fSeenDoctypeDecl 
+                && !fDisallowDoctype && (fValidation || fLoadExternalDTD)) {
+                scanStartElementName();
+                resolveExternalSubsetAndRead();
+                if (scanStartElementAfterName()) {
+                    setScannerState(SCANNER_STATE_TRAILING_MISC);
+                    setDispatcher(fTrailingMiscDispatcher);
+                    return true;
+                }
+            }
+            else if (scanStartElement()) {
+                setScannerState(SCANNER_STATE_TRAILING_MISC);
+                setDispatcher(fTrailingMiscDispatcher);
+                return true;
+            }
+            return false;
+
+!!!4952219.java!!!	endOfFileHook(inout e : EOFException) : void
+
+            reportFatalError("PrematureEOF", null);
+            // in case continue-after-fatal-error set, should not do this...
+            //throw e;
+
+!!!4952347.java!!!	resolveExternalSubsetAndRead() : void
+            XMLDTDDescription desc = new XMLDTDDescription(null, 
+                null, fEntityManager.getCurrentResourceIdentifier().getExpandedSystemId(), null, fElementQName.rawname);
+            XMLInputSource src = fExternalSubsetResolver.getExternalSubset(desc);
+            if (src != null) {
+                fDoctypeName = fElementQName.rawname;
+                fDoctypePublicId = src.getPublicId();
+                fDoctypeSystemId = src.getSystemId();
+                // call document handler
+                if (fDocumentHandler != null) {
+                    // This inserts a doctypeDecl event into the stream though no 
+                    // DOCTYPE existed in the instance document.
+                    fDocumentHandler.doctypeDecl(fDoctypeName, fDoctypePublicId, fDoctypeSystemId, null);
+                }
+                try {
+                    fDTDScanner.setInputSource(src);
+                    while (fDTDScanner.scanDTDExternalSubset(true));
+                }
+                finally {
+                    fEntityManager.setEntityHandler(XMLDocumentScannerImpl.this);
+                }
+            }

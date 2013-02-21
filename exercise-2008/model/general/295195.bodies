@@ -1,0 +1,47 @@
+class LocateReplyMessage_1_0
+!!!1632667.java!!!	LocateReplyMessage_1_0(inout orb : ORB)
+        this.orb = orb;
+!!!1632795.java!!!	LocateReplyMessage_1_0(inout orb : ORB, in _request_id : int, in _locate_status : int, inout _ior : IOR)
+        super(Message.GIOPBigMagic, false, Message.GIOPLocateReply, 0);
+        this.orb = orb;
+        request_id = _request_id;
+        locate_status = _locate_status;
+        ior = _ior;
+!!!1632923.java!!!	getRequestId() : int
+        return this.request_id;
+!!!1633051.java!!!	getReplyStatus() : int
+        return this.locate_status;
+!!!1633179.java!!!	getAddrDisposition() : short
+        return KeyAddr.value;
+!!!1633307.java!!!	getSystemException(in message : String) : SystemException
+        return null;  // 1.0 LocateReply body does not contain SystemException
+!!!1633435.java!!!	getIOR() : IOR
+        return this.ior;
+!!!1633563.java!!!	read(inout istream : InputStream) : void
+        super.read(istream);
+        this.request_id = istream.read_ulong();
+        this.locate_status = istream.read_long();
+        isValidReplyStatus(this.locate_status); // raises exception on error
+
+        // The code below reads the reply body if status is OBJECT_FORWARD
+        if (this.locate_status == OBJECT_FORWARD) {
+            CDRInputStream cdr = (CDRInputStream) istream;
+	    this.ior = IORFactories.makeIOR( cdr ) ;
+        }
+!!!1633691.java!!!	write(inout ostream : OutputStream) : void
+        super.write(ostream);
+        ostream.write_ulong(this.request_id);
+        ostream.write_long(this.locate_status);
+!!!1633819.java!!!	isValidReplyStatus(in replyStatus : int) : void
+        switch (replyStatus) {
+        case UNKNOWN_OBJECT :
+        case OBJECT_HERE :
+        case OBJECT_FORWARD :
+            break;
+        default :
+	    ORBUtilSystemException localWrapper = ORBUtilSystemException.get( 
+		CORBALogDomains.RPC_PROTOCOL ) ;
+	    throw localWrapper.illegalReplyStatus( CompletionStatus.COMPLETED_MAYBE);
+        }
+!!!1633947.java!!!	callback(inout handler : MessageHandler) : void
+        handler.handleInput(this);

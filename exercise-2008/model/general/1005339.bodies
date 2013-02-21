@@ -1,0 +1,59 @@
+class DeflaterOutputStream
+!!!8027291.java!!!	DeflaterOutputStream(inout out : OutputStream, inout def : Deflater, in size : int)
+        super(out);
+        if (out == null || def == null) {
+            throw new NullPointerException();
+        } else if (size <= 0) {
+            throw new IllegalArgumentException("buffer size <= 0");
+        }
+        this.def = def;
+        buf = new byte[size];
+!!!8027419.java!!!	DeflaterOutputStream(inout out : OutputStream, inout def : Deflater)
+	this(out, def, 512);
+!!!8027547.java!!!	DeflaterOutputStream(inout out : OutputStream)
+	this(out, new Deflater());
+        usesDefaultDeflater = true;
+!!!8027675.java!!!	write(in b : int) : void
+        byte[] buf = new byte[1];
+	buf[0] = (byte)(b & 0xff);
+	write(buf, 0, 1);
+!!!8027803.java!!!	write(in b : byte, in off : int, in len : int) : void
+	if (def.finished()) {
+	    throw new IOException("write beyond end of stream");
+	}
+        if ((off | len | (off + len) | (b.length - (off + len))) < 0) {
+	    throw new IndexOutOfBoundsException();
+	} else if (len == 0) {
+	    return;
+	}
+	if (!def.finished()) {
+            // Deflate no more than stride bytes at a time.  This avoids  
+            // excess copying in deflateBytes (see Deflater.c)  
+            int stride = buf.length;  
+            for (int i = 0; i < len; i+= stride) {  
+                def.setInput(b, off + i, Math.min(stride, len - i)); 
+                while (!def.needsInput()) {
+		    deflate();
+                }
+            }
+	}
+!!!8027931.java!!!	finish() : void
+	if (!def.finished()) {
+	    def.finish();
+	    while (!def.finished()) {
+		deflate();
+	    }
+	}
+!!!8028059.java!!!	close() : void
+        if (!closed) {
+            finish();
+            if (usesDefaultDeflater)
+                def.end();
+            out.close();
+            closed = true;
+        }
+!!!8028187.java!!!	deflate() : void
+	int len = def.deflate(buf, 0, buf.length);
+	if (len > 0) {
+	    out.write(buf, 0, len);
+	}

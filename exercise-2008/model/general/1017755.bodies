@@ -1,0 +1,30 @@
+class CINotRange
+!!!8126107.java!!!	CINotRange(in n : int)
+            lower = n >>> 16;
+            upper = n & 0xFFFF;
+!!!8126235.java!!!	CINotRange(in lower : int, in upper : int)
+            this.lower = lower;
+            this.upper = upper;
+!!!8126363.java!!!	dup(inout not : boolean) : Node
+            if (not) {
+                return new CIRange(lower, upper);
+            } else {
+                return new CINotRange(lower, upper);
+            }
+!!!8126491.java!!!	match(inout matcher : Matcher, in i : int, inout seq : CharSequence) : boolean
+            if (i < matcher.to) {
+                int ch = Character.codePointAt(seq, i);
+                boolean m = (((ch-lower)|(upper-ch)) < 0);
+                if (m) {
+                    int cc = Character.toUpperCase(ch);
+                    m = (((cc-lower)|(upper-cc)) < 0);
+                    if (m) {
+                        cc = Character.toLowerCase(cc);
+                        m = (((cc-lower)|(upper-cc)) < 0);
+                    }
+                }
+
+                return (m && next.match(matcher, i+Character.charCount(ch), seq));
+            }
+            matcher.hitEnd = true;
+            return false;

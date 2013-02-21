@@ -1,0 +1,33 @@
+class KeyRefValueStore
+!!!5204251.java!!!	KeyRefValueStore(inout keyRef : KeyRef, inout keyValueStore : KeyValueStore)
+                super(keyRef);
+                fKeyValueStore = keyValueStore;
+!!!5204379.java!!!	endDocumentFragment() : void
+                
+                // do all the necessary management...
+                super.endDocumentFragment();
+                
+                // verify references
+                // get the key store corresponding (if it exists):
+                fKeyValueStore =
+                (ValueStoreBase) fValueStoreCache.fGlobalIDConstraintMap.get(
+                ((KeyRef) fIdentityConstraint).getKey());
+                
+                if (fKeyValueStore == null) {
+                    // report error
+                    String code = "KeyRefOutOfScope";
+                    String value = fIdentityConstraint.toString();
+                    reportSchemaError(code, new Object[]{value});
+                    return;
+                }
+                Object value = fKeyValueStore.contains(fValues,fValueTypes);
+                if (value != null) {
+                    String code = "KeyNotFound";
+                    String element = fIdentityConstraint.getElementName();
+                    String name = fIdentityConstraint.getName();
+                    reportSchemaError(code, new Object[] { name, value.toString(), element });
+                }
+                
+!!!5204507.java!!!	endDocument() : void
+                super.endDocument();
+                

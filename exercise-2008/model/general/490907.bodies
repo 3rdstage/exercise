@@ -1,0 +1,186 @@
+class BasicTableHeaderUI
+!!!3025563.java!!!	createMouseInputListener() : MouseInputListener
+        return new MouseInputHandler();
+!!!3025691.java!!!	createUI(inout h : JComponent) : ComponentUI
+        return new BasicTableHeaderUI();
+!!!3025819.java!!!	installUI(inout c : JComponent) : void
+        header = (JTableHeader)c;
+
+        rendererPane = new CellRendererPane();
+        header.add(rendererPane);
+
+        installDefaults();
+        installListeners();
+        installKeyboardActions();
+!!!3025947.java!!!	installDefaults() : void
+        LookAndFeel.installColorsAndFont(header, "TableHeader.background",
+                                         "TableHeader.foreground", "TableHeader.font");
+        LookAndFeel.installProperty(header, "opaque", Boolean.TRUE);
+!!!3026075.java!!!	installListeners() : void
+        mouseInputListener = createMouseInputListener();
+
+        header.addMouseListener(mouseInputListener);
+        header.addMouseMotionListener(mouseInputListener);
+!!!3026331.java!!!	uninstallUI(inout c : JComponent) : void
+        uninstallDefaults();
+        uninstallListeners();
+        uninstallKeyboardActions();
+
+        header.remove(rendererPane);
+        rendererPane = null;
+        header = null;
+!!!3026587.java!!!	uninstallListeners() : void
+        header.removeMouseListener(mouseInputListener);
+        header.removeMouseMotionListener(mouseInputListener);
+
+        mouseInputListener = null;
+!!!3026843.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+	if (header.getColumnModel().getColumnCount() <= 0) { 
+	    return; 
+	}
+        boolean ltr = header.getComponentOrientation().isLeftToRight();
+
+	Rectangle clip = g.getClipBounds(); 
+        Point left = clip.getLocation();
+        Point right = new Point( clip.x + clip.width - 1, clip.y );
+	TableColumnModel cm = header.getColumnModel(); 
+        int cMin = header.columnAtPoint( ltr ? left : right );
+        int cMax = header.columnAtPoint( ltr ? right : left );
+        // This should never happen. 
+        if (cMin == -1) {
+	    cMin =  0;
+        }
+        // If the table does not have enough columns to fill the view we'll get -1.
+        // Replace this with the index of the last column.
+        if (cMax == -1) {
+	    cMax = cm.getColumnCount()-1;  
+        }
+
+	TableColumn draggedColumn = header.getDraggedColumn(); 
+	int columnWidth;
+        Rectangle cellRect = header.getHeaderRect(ltr ? cMin : cMax); 
+	TableColumn aColumn;
+	if (ltr) {
+	    for(int column = cMin; column <= cMax ; column++) { 
+		aColumn = cm.getColumn(column); 
+		columnWidth = aColumn.getWidth();
+		cellRect.width = columnWidth;
+		if (aColumn != draggedColumn) {
+		    paintCell(g, cellRect, column);
+		} 
+		cellRect.x += columnWidth;
+	    }
+	} else {
+	    for(int column = cMax; column >= cMin; column--) {
+		aColumn = cm.getColumn(column);
+		columnWidth = aColumn.getWidth();
+		cellRect.width = columnWidth;
+		if (aColumn != draggedColumn) {
+		    paintCell(g, cellRect, column);
+		}
+                cellRect.x += columnWidth;
+	    }
+	} 
+
+        // Paint the dragged column if we are dragging. 
+        if (draggedColumn != null) { 
+            int draggedColumnIndex = viewIndexForColumn(draggedColumn); 
+	    Rectangle draggedCellRect = header.getHeaderRect(draggedColumnIndex); 
+            
+            // Draw a gray well in place of the moving column. 
+            g.setColor(header.getParent().getBackground());
+            g.fillRect(draggedCellRect.x, draggedCellRect.y,
+                               draggedCellRect.width, draggedCellRect.height);
+
+            draggedCellRect.x += header.getDraggedDistance();
+
+	    // Fill the background. 
+	    g.setColor(header.getBackground());
+	    g.fillRect(draggedCellRect.x, draggedCellRect.y,
+		       draggedCellRect.width, draggedCellRect.height);
+ 
+            paintCell(g, draggedCellRect, draggedColumnIndex);
+        }
+
+	// Remove all components in the rendererPane. 
+	rendererPane.removeAll(); 
+!!!3026971.java!!!	getHeaderRenderer(in columnIndex : int) : Component
+ 
+        TableColumn aColumn = header.getColumnModel().getColumn(columnIndex); 
+	TableCellRenderer renderer = aColumn.getHeaderRenderer(); 
+        if (renderer == null) { 
+	    renderer = header.getDefaultRenderer(); 
+	}
+	return renderer.getTableCellRendererComponent(header.getTable(), 
+						aColumn.getHeaderValue(), false, false, 
+                                                -1, columnIndex);
+!!!3027099.java!!!	paintCell(inout g : Graphics, inout cellRect : Rectangle, in columnIndex : int) : void
+        Component component = getHeaderRenderer(columnIndex); 
+        rendererPane.paintComponent(g, component, header, cellRect.x, cellRect.y,
+                            cellRect.width, cellRect.height, true);
+!!!3027227.java!!!	viewIndexForColumn(inout aColumn : TableColumn) : int
+        TableColumnModel cm = header.getColumnModel();
+        for (int column = 0; column < cm.getColumnCount(); column++) {
+            if (cm.getColumn(column) == aColumn) {
+                return column;
+            }
+        }
+        return -1;
+!!!3027355.java!!!	getHeaderHeight() : int
+        int height = 0; 
+	boolean accomodatedDefault = false; 
+        TableColumnModel columnModel = header.getColumnModel();
+        for(int column = 0; column < columnModel.getColumnCount(); column++) { 
+	    TableColumn aColumn = columnModel.getColumn(column); 
+	    // Configuring the header renderer to calculate its preferred size is expensive. 
+	    // Optimise this by assuming the default renderer always has the same height. 
+	    if (aColumn.getHeaderRenderer() != null || !accomodatedDefault) { 
+		Component comp = getHeaderRenderer(column); 
+		int rendererHeight = comp.getPreferredSize().height; 
+		height = Math.max(height, rendererHeight); 
+		// If the header value is empty (== "") in the 
+		// first column (and this column is set up 
+		// to use the default renderer) we will 
+		// return zero from this routine and the header 
+		// will disappear altogether. Avoiding the calculation 
+		// of the preferred size is such a performance win for 
+		// most applications that we will continue to 
+		// use this cheaper calculation, handling these 
+		// issues as `edge cases'. 
+		if (rendererHeight > 0) { 
+		    accomodatedDefault = true; 
+		}
+	    }
+        }
+        return height;
+!!!3027483.java!!!	createHeaderSize(in width : long) : Dimension
+        TableColumnModel columnModel = header.getColumnModel();
+        // None of the callers include the intercell spacing, do it here.
+        if (width > Integer.MAX_VALUE) {
+            width = Integer.MAX_VALUE;
+        }
+        return new Dimension((int)width, getHeaderHeight());
+!!!3027611.java!!!	getMinimumSize(inout c : JComponent) : Dimension
+        long width = 0;
+        Enumeration enumeration = header.getColumnModel().getColumns();
+        while (enumeration.hasMoreElements()) {
+            TableColumn aColumn = (TableColumn)enumeration.nextElement();
+            width = width + aColumn.getMinWidth();
+        }
+        return createHeaderSize(width);
+!!!3027739.java!!!	getPreferredSize(inout c : JComponent) : Dimension
+        long width = 0;
+        Enumeration enumeration = header.getColumnModel().getColumns();
+        while (enumeration.hasMoreElements()) {
+            TableColumn aColumn = (TableColumn)enumeration.nextElement();
+            width = width + aColumn.getPreferredWidth();
+        }
+        return createHeaderSize(width);
+!!!3027867.java!!!	getMaximumSize(inout c : JComponent) : Dimension
+        long width = 0;
+        Enumeration enumeration = header.getColumnModel().getColumns();
+        while (enumeration.hasMoreElements()) {
+            TableColumn aColumn = (TableColumn)enumeration.nextElement();
+            width = width + aColumn.getMaxWidth();
+        }
+        return createHeaderSize(width);

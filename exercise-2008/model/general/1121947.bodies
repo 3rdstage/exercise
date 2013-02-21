@@ -1,0 +1,166 @@
+class Page
+!!!9107611.java!!!	Page(inout parent : JTabbedPane, in title : String, inout icon : Icon, inout disabledIcon : Icon, inout component : Component, in tip : String)
+            this.title = title;
+            this.icon = icon;
+            this.disabledIcon = disabledIcon;
+            this.parent = parent;
+            this.setAccessibleParent(parent);
+            this.component = component;
+            this.tip = tip;
+            if (component instanceof Accessible) {
+                AccessibleContext ac;
+                ac = ((Accessible) component).getAccessibleContext();
+                if (ac != null) {
+                    ac.setAccessibleParent(this);
+                }
+            }
+!!!9107739.java!!!	setMnemonic(in mnemonic : int) : void
+            this.mnemonic = mnemonic;
+            updateDisplayedMnemonicIndex();
+!!!9107867.java!!!	getMnemonic() : int
+            return mnemonic;
+!!!9107995.java!!!	setDisplayedMnemonicIndex(in mnemonicIndex : int) : void
+            if (this.mnemonicIndex != mnemonicIndex) {
+                if (mnemonicIndex != -1 && (title == null ||
+                        mnemonicIndex < 0 ||
+                        mnemonicIndex >= title.length())) {
+                    throw new IllegalArgumentException(
+                                "Invalid mnemonic index: " + mnemonicIndex);
+                }
+                this.mnemonicIndex = mnemonicIndex;
+                JTabbedPane.this.firePropertyChange("displayedMnemonicIndexAt",
+                                                    null, null);
+            }
+!!!9108123.java!!!	getDisplayedMnemonicIndex() : int
+	    return this.mnemonicIndex;
+!!!9108251.java!!!	updateDisplayedMnemonicIndex() : void
+            setDisplayedMnemonicIndex(
+                SwingUtilities.findDisplayedMnemonicIndex(title, mnemonic));
+!!!9108379.java!!!	getAccessibleContext() : AccessibleContext
+            return this;
+!!!9108507.java!!!	getAccessibleName() : String
+            if (accessibleName != null) {
+                return accessibleName;
+            } else if (title != null) {
+                return title;
+            }
+            return null;
+!!!9108635.java!!!	getAccessibleDescription() : String
+            if (accessibleDescription != null) {
+                return accessibleDescription;
+            } else if (tip != null) {
+                return tip;
+            }
+            return null;
+!!!9108763.java!!!	getAccessibleRole() : AccessibleRole
+            return AccessibleRole.PAGE_TAB;
+!!!9108891.java!!!	getAccessibleStateSet() : AccessibleStateSet
+            AccessibleStateSet states;
+            states = parent.getAccessibleContext().getAccessibleStateSet();
+            states.add(AccessibleState.SELECTABLE);
+            int i = parent.indexOfTab(title);
+            if (i == parent.getSelectedIndex()) {
+                states.add(AccessibleState.SELECTED);
+            }       
+            return states;
+!!!9109019.java!!!	getAccessibleIndexInParent() : int
+            return parent.indexOfTab(title);
+!!!9109147.java!!!	getAccessibleChildrenCount() : int
+            if (component instanceof Accessible) {
+                return 1;
+            } else {
+                return 0;
+            }
+!!!9109275.java!!!	getAccessibleChild(in i : int) : Accessible
+            if (component instanceof Accessible) {
+                return (Accessible) component;
+            } else {
+                return null;
+            }
+!!!9109403.java!!!	getLocale() : Locale
+            return parent.getLocale();
+!!!9109531.java!!!	getAccessibleComponent() : AccessibleComponent
+            return this;
+!!!9109659.java!!!	getBackground() : Color
+            return background != null? background : parent.getBackground();
+!!!9109787.java!!!	setBackground(inout c : Color) : void
+            background = c;
+!!!9109915.java!!!	getForeground() : Color
+            return foreground != null? foreground : parent.getForeground();
+!!!9110043.java!!!	setForeground(inout c : Color) : void
+            foreground = c;
+!!!9110171.java!!!	getCursor() : Cursor
+            return parent.getCursor();
+!!!9110299.java!!!	setCursor(inout c : Cursor) : void
+            parent.setCursor(c);
+!!!9110427.java!!!	getFont() : Font
+            return parent.getFont();
+!!!9110555.java!!!	setFont(inout f : Font) : void
+            parent.setFont(f);
+!!!9110683.java!!!	getFontMetrics(inout f : Font) : FontMetrics
+            return parent.getFontMetrics(f);
+!!!9110811.java!!!	isEnabled() : boolean
+            return enabled;
+!!!9110939.java!!!	setEnabled(inout b : boolean) : void
+            enabled = b;
+!!!9111067.java!!!	isVisible() : boolean
+            return parent.isVisible();
+!!!9111195.java!!!	setVisible(inout b : boolean) : void
+            parent.setVisible(b);
+!!!9111323.java!!!	isShowing() : boolean
+            return parent.isShowing();
+!!!9111451.java!!!	contains(inout p : Point) : boolean
+            Rectangle r = getBounds();
+            return r.contains(p);
+!!!9111579.java!!!	getLocationOnScreen() : Point
+             Point parentLocation = parent.getLocationOnScreen();
+             Point componentLocation = getLocation();
+             componentLocation.translate(parentLocation.x, parentLocation.y);
+             return componentLocation;
+!!!9111707.java!!!	getLocation() : Point
+             Rectangle r = getBounds();
+             return new Point(r.x, r.y);
+!!!9111835.java!!!	setLocation(inout p : Point) : void
+            // do nothing
+!!!9111963.java!!!	getBounds() : Rectangle
+            return parent.getUI().getTabBounds(parent, 
+                                               parent.indexOfTab(title));
+!!!9112091.java!!!	setBounds(inout r : Rectangle) : void
+            // do nothing
+!!!9112219.java!!!	getSize() : Dimension
+            Rectangle r = getBounds();
+            return new Dimension(r.width, r.height);
+!!!9112347.java!!!	setSize(inout d : Dimension) : void
+            // do nothing
+!!!9112475.java!!!	getAccessibleAt(inout p : Point) : Accessible
+            if (component instanceof Accessible) {
+                return (Accessible) component;
+            } else {
+                return null;
+            }
+!!!9112603.java!!!	isFocusTraversable() : boolean
+            return false;
+!!!9112731.java!!!	requestFocus() : void
+            // do nothing
+!!!9112859.java!!!	addFocusListener(inout l : FocusListener) : void
+            // do nothing
+!!!9112987.java!!!	removeFocusListener(inout l : FocusListener) : void
+            // do nothing
+!!!9113115.java!!!	getAccessibleIcon() : AccessibleIcon
+	    AccessibleIcon accessibleIcon = null;
+	    if (enabled && icon instanceof ImageIcon) {
+		AccessibleContext ac = 
+		    ((ImageIcon)icon).getAccessibleContext();
+		accessibleIcon = (AccessibleIcon)ac;
+	    } else if (!enabled && disabledIcon instanceof ImageIcon) {
+		AccessibleContext ac = 
+		    ((ImageIcon)disabledIcon).getAccessibleContext();
+		accessibleIcon = (AccessibleIcon)ac;
+	    } 
+	    if (accessibleIcon != null) {
+		AccessibleIcon [] returnIcons = new AccessibleIcon[1];
+		returnIcons[0] = accessibleIcon;
+		return returnIcons;
+	    } else {
+		return null;
+	    }

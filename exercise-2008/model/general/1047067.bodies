@@ -1,0 +1,46 @@
+class RMIJRMPServerImpl
+!!!8440347.java!!!	RMIJRMPServerImpl(in port : int, inout csf : RMIClientSocketFactory, inout ssf : RMIServerSocketFactory, inout env : Map)
+
+        super(env);
+
+	if (port < 0)
+	    throw new IllegalArgumentException("Negative port: " + port);
+
+        this.port = port;
+        this.csf = csf;
+        this.ssf = ssf;
+	this.env = (env == null) ? Collections.EMPTY_MAP : env;
+!!!8440475.java!!!	export() : void
+	export(this);
+!!!8440603.java!!!	export(inout obj : Remote) : void
+	RMIExporter exporter =
+	    (RMIExporter) env.get(RMIExporter.EXPORTER_ATTRIBUTE);
+	if (exporter == null)
+	    UnicastRemoteObject.exportObject(obj, port, csf, ssf);
+	else
+	    exporter.exportObject(obj, port, csf, ssf);
+!!!8440731.java!!!	unexport(inout obj : Remote, inout force : boolean) : void
+	RMIExporter exporter =
+	    (RMIExporter) env.get(RMIExporter.EXPORTER_ATTRIBUTE);
+	if (exporter == null)
+	    UnicastRemoteObject.unexportObject(obj, force);
+	else
+	    exporter.unexportObject(obj, force);
+!!!8440859.java!!!	getProtocol() : String
+	return "rmi";
+!!!8440987.java!!!	toStub() : Remote
+        return RemoteObject.toStub(this);
+!!!8441115.java!!!	makeClient(in connectionId : String, inout subject : Subject) : RMIConnection
+
+	if (connectionId == null)
+	    throw new NullPointerException("Null connectionId");
+
+        RMIConnection client =
+            new RMIConnectionImpl(this, connectionId, getDefaultClassLoader(),
+				  subject, env);
+	export(client);
+        return client;
+!!!8441243.java!!!	closeClient(inout client : RMIConnection) : void
+        unexport(client, true);
+!!!8441371.java!!!	closeServer() : void
+        unexport(this, true);

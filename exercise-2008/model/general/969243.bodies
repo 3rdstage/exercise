@@ -1,0 +1,42 @@
+class SignedObject
+!!!7623835.java!!!	SignedObject(inout object : Serializable, inout signingKey : PrivateKey, inout signingEngine : Signature)
+	    // creating a stream pipe-line, from a to b
+	    ByteArrayOutputStream b = new ByteArrayOutputStream();
+	    ObjectOutput a = new ObjectOutputStream(b);
+	    
+	    // write and flush the object content to byte array
+	    a.writeObject(object);
+	    a.flush();
+	    a.close();
+	    this.content = b.toByteArray();
+	    b.close();
+	    
+	    // now sign the encapsulated object
+	    this.sign(signingKey, signingEngine);
+!!!7623963.java!!!	getObject() : Object
+	// creating a stream pipe-line, from b to a
+	ByteArrayInputStream b = new ByteArrayInputStream(this.content);
+	ObjectInput a = new ObjectInputStream(b);
+	Object obj = a.readObject();
+	b.close();
+	a.close();
+	return obj;
+!!!7624091.java!!!	getSignature() : byte
+	byte[] sig = (byte[])this.signature.clone();
+	return sig;
+!!!7624219.java!!!	getAlgorithm() : String
+	return this.thealgorithm;
+!!!7624347.java!!!	verify(inout verificationKey : PublicKey, inout verificationEngine : Signature) : boolean
+	     verificationEngine.initVerify(verificationKey);
+	     verificationEngine.update((byte[])this.content.clone());
+	     return verificationEngine.verify((byte[])this.signature.clone());
+!!!7624475.java!!!	sign(inout signingKey : PrivateKey, inout signingEngine : Signature) : void
+	    // initialize the signing engine
+	    signingEngine.initSign(signingKey);
+	    signingEngine.update((byte[])this.content.clone());
+	    this.signature = (byte[])signingEngine.sign().clone();
+	    this.thealgorithm = signingEngine.getAlgorithm();
+!!!7624603.java!!!	readObject(inout s : ObjectInputStream) : void
+	s.defaultReadObject();
+	content = (byte[])content.clone();
+	signature = (byte[])signature.clone();

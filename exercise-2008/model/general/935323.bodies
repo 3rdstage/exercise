@@ -1,0 +1,127 @@
+class DoubleBuffer
+!!!7323931.java!!!	DoubleBuffer(in mark : int, in pos : int, in lim : int, in cap : int, in hb : double, in offset : int)
+
+	super(mark, pos, lim, cap);
+	this.hb = hb;
+	this.offset = offset;
+!!!7324059.java!!!	DoubleBuffer(in mark : int, in pos : int, in lim : int, in cap : int)
+	// package-private
+	this(mark, pos, lim, cap, null, 0);
+!!!7324187.java!!!	allocate(in capacity : int) : DoubleBuffer
+
+	if (capacity < 0)
+	    throw new IllegalArgumentException();
+	return new HeapDoubleBuffer(capacity, capacity);
+!!!7324315.java!!!	wrap(in array : double, in offset : int, in length : int) : DoubleBuffer
+
+	try {
+	    return new HeapDoubleBuffer(array, offset, length);
+	} catch (IllegalArgumentException x) {
+	    throw new IndexOutOfBoundsException();
+	}
+!!!7324443.java!!!	wrap(in array : double) : DoubleBuffer
+
+	return wrap(array, 0, array.length);
+!!!7325467.java!!!	get(in dst : double, in offset : int, in length : int) : DoubleBuffer
+
+	checkBounds(offset, length, dst.length);
+	if (length > remaining())
+	    throw new BufferUnderflowException();
+	int end = offset + length;
+	for (int i = offset; i < end; i++)
+	    dst[i] = get();
+	return this;
+!!!7325595.java!!!	get(in dst : double) : DoubleBuffer
+
+	return get(dst, 0, dst.length);
+!!!7325723.java!!!	put(inout src : DoubleBuffer) : DoubleBuffer
+
+	if (src == this)
+	    throw new IllegalArgumentException();
+	int n = src.remaining();
+	if (n > remaining())
+	    throw new BufferOverflowException();
+	for (int i = 0; i < n; i++)
+	    put(src.get());
+	return this;
+!!!7325851.java!!!	put(in src : double, in offset : int, in length : int) : DoubleBuffer
+
+	checkBounds(offset, length, src.length);
+	if (length > remaining())
+	    throw new BufferOverflowException();
+	int end = offset + length;
+	for (int i = offset; i < end; i++)
+	    this.put(src[i]);
+	return this;
+!!!7325979.java!!!	put(in src : double) : DoubleBuffer
+
+	return put(src, 0, src.length);
+!!!7326107.java!!!	hasArray() : boolean
+
+	return (hb != null) && !isReadOnly;
+!!!7326235.java!!!	array() : double
+
+	if (hb == null)
+	    throw new UnsupportedOperationException();
+	if (isReadOnly)
+	    throw new ReadOnlyBufferException();
+	return hb;
+!!!7326363.java!!!	arrayOffset() : int
+
+	if (hb == null)
+	    throw new UnsupportedOperationException();
+	if (isReadOnly)
+	    throw new ReadOnlyBufferException();
+	return offset;
+!!!7326747.java!!!	toString() : String
+
+	StringBuffer sb = new StringBuffer();
+	sb.append(getClass().getName());
+	sb.append("[pos=");
+	sb.append(position());
+	sb.append(" lim=");
+	sb.append(limit());
+	sb.append(" cap=");
+	sb.append(capacity());
+	sb.append("]");
+	return sb.toString();
+!!!7326875.java!!!	hashCode() : int
+
+	int h = 1;
+	int p = position();
+	for (int i = limit() - 1; i >= p; i--)
+	    h = 31 * h + (int)get(i);
+	return h;
+!!!7327003.java!!!	equals(inout ob : Object) : boolean
+
+	if (!(ob instanceof DoubleBuffer))
+	    return false;
+	DoubleBuffer that = (DoubleBuffer)ob;
+	if (this.remaining() != that.remaining())
+	    return false;
+	int p = this.position();
+	for (int i = this.limit() - 1, j = that.limit() - 1; i >= p; i--, j--) {
+	    double v1 = this.get(i);
+	    double v2 = that.get(j);
+	    if (v1 != v2) {
+		if ((v1 != v1) && (v2 != v2))	// For float and double
+		    continue;
+		return false;
+	    }
+	}
+	return true;
+!!!7327131.java!!!	compareTo(inout that : DoubleBuffer) : int
+
+	int n = this.position() + Math.min(this.remaining(), that.remaining());
+	for (int i = this.position(), j = that.position(); i < n; i++, j++) {
+	    double v1 = this.get(i);
+	    double v2 = that.get(j);
+	    if (v1 == v2)
+		continue;
+	    if ((v1 != v1) && (v2 != v2)) 	// For float and double
+		continue;
+	    if (v1 < v2)
+		return -1;
+	    return +1;
+	}
+	return this.remaining() - that.remaining();

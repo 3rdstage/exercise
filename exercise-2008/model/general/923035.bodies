@@ -1,0 +1,89 @@
+class ThreadInfo
+!!!7105947.java!!!	ThreadInfo(inout t : Thread, in state : int, inout lockObj : Object, inout lockOwner : Thread, in blockedCount : long, in blockedTime : long, in waitedCount : long, in waitedTime : long, inout stackTrace : StackTraceElement)
+        this.threadId = t.getId();
+        this.threadName = t.getName();
+        this.threadState = 
+            sun.management.ManagementFactory.toThreadState(state);
+        this.suspended =
+            sun.management.ManagementFactory.isThreadSuspended(state);
+        this.inNative =
+            sun.management.ManagementFactory.isThreadRunningNative(state);
+        this.blockedCount = blockedCount;
+        this.blockedTime = blockedTime;
+        this.waitedCount = waitedCount;
+        this.waitedTime = waitedTime;
+
+        if (lockObj == null) {
+            this.lockName = null;
+        } else {
+            this.lockName = 
+                lockObj.getClass().getName() + '@' +
+                    Integer.toHexString(System.identityHashCode(lockObj));
+        }
+        if (lockOwner == null) {
+            this.lockOwnerId = -1; 
+            this.lockOwnerName = null;
+        } else {;
+            this.lockOwnerId = lockOwner.getId();
+            this.lockOwnerName = lockOwner.getName();
+        }
+        this.stackTrace = stackTrace;
+!!!7106075.java!!!	ThreadInfo(inout cd : CompositeData)
+        ThreadInfoCompositeData.validateCompositeData(cd);
+
+        threadId = ThreadInfoCompositeData.getThreadId(cd); 
+        threadName = ThreadInfoCompositeData.getThreadName(cd); 
+        blockedTime = ThreadInfoCompositeData.getBlockedTime(cd);
+        blockedCount = ThreadInfoCompositeData.getBlockedCount(cd);
+        waitedTime = ThreadInfoCompositeData.getWaitedTime(cd);
+        waitedCount = ThreadInfoCompositeData.getWaitedCount(cd);
+        lockName = ThreadInfoCompositeData.getLockName(cd);
+        lockOwnerId = ThreadInfoCompositeData.getLockOwnerId(cd);
+        lockOwnerName = ThreadInfoCompositeData.getLockOwnerName(cd);
+        threadState = ThreadInfoCompositeData.getThreadState(cd);
+        suspended = ThreadInfoCompositeData.isSuspended(cd);
+        inNative = ThreadInfoCompositeData.isInNative(cd);
+        stackTrace = ThreadInfoCompositeData.getStackTrace(cd);
+!!!7106203.java!!!	getThreadId() : long
+        return threadId;
+!!!7106331.java!!!	getThreadName() : String
+        return threadName;
+!!!7106459.java!!!	getThreadState() : State
+         return threadState;
+!!!7106587.java!!!	getBlockedTime() : long
+        return blockedTime;
+!!!7106715.java!!!	getBlockedCount() : long
+        return blockedCount;
+!!!7106843.java!!!	getWaitedTime() : long
+        return waitedTime;
+!!!7106971.java!!!	getWaitedCount() : long
+        return waitedCount;
+!!!7107099.java!!!	getLockName() : String
+        return lockName;
+!!!7107227.java!!!	getLockOwnerId() : long
+        return lockOwnerId;
+!!!7107355.java!!!	getLockOwnerName() : String
+        return lockOwnerName;
+!!!7107483.java!!!	getStackTrace() : StackTraceElement
+        if (stackTrace == null) {
+            return NO_STACK_TRACE;
+        } else {
+            return stackTrace;
+        }
+!!!7107611.java!!!	isSuspended() : boolean
+         return suspended;
+!!!7107739.java!!!	isInNative() : boolean
+         return inNative;
+!!!7107867.java!!!	toString() : String
+        return "Thread " + getThreadName() + " (Id = " + getThreadId() + ") " + 
+               getThreadState() + " " + getLockName(); 
+!!!7107995.java!!!	from(inout cd : CompositeData) : ThreadInfo
+        if (cd == null) {
+            return null;
+        }
+
+        if (cd instanceof ThreadInfoCompositeData) {
+            return ((ThreadInfoCompositeData) cd).getThreadInfo();
+        } else {
+            return new ThreadInfo(cd);
+        }

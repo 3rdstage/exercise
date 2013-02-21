@@ -1,0 +1,109 @@
+class MultiUIDefaults
+!!!9236123.java!!!	MultiUIDefaults(inout defaults : UIDefaults)
+	super();
+	tables = defaults;
+!!!9236251.java!!!	MultiUIDefaults()
+	super();
+	tables = new UIDefaults[0];
+!!!9236379.java!!!	get(inout key : Object) : Object
+	Object value = super.get(key);
+	if (value != null) {
+	    return value;
+	}
+
+	for(int i = 0; i < tables.length; i++) {
+	    UIDefaults table = tables[i];
+	    value = (table != null) ? table.get(key) : null;
+	    if (value != null) {
+		return value;
+	    }
+	}
+
+	return null;
+!!!9236507.java!!!	get(inout key : Object, inout l : Locale) : Object
+	Object value = super.get(key,l);
+	if (value != null) {
+	    return value;
+	}
+
+	for(int i = 0; i < tables.length; i++) {
+	    UIDefaults table = tables[i];
+	    value = (table != null) ? table.get(key,l) : null;
+	    if (value != null) {
+		return value;
+	    }
+	}
+
+	return null;
+!!!9236635.java!!!	size() : int
+	int n = super.size();
+	for(int i = 0; i < tables.length; i++) {
+	    UIDefaults table = tables[i];
+	    n += (table != null) ? table.size() : 0;
+	}
+	return n;
+!!!9236763.java!!!	isEmpty() : boolean
+	return size() == 0;
+!!!9236891.java!!!	keys() : Enumeration
+	Enumeration[] enums = new Enumeration[1 + tables.length];
+	enums[0] = super.keys();
+	for(int i = 0; i < tables.length; i++) {
+	    UIDefaults table = tables[i];
+	    if (table != null) {
+		enums[i + 1] = table.keys();
+	    }
+	}
+	return new MultiUIDefaultsEnumerator(enums);
+!!!9237019.java!!!	elements() : Enumeration
+	Enumeration[] enums = new Enumeration[1 + tables.length];
+	enums[0] = super.elements();
+	for(int i = 0; i < tables.length; i++) {
+	    UIDefaults table = tables[i];
+	    if (table != null) {
+		enums[i + 1] = table.elements();
+	    }
+	}
+	return new MultiUIDefaultsEnumerator(enums);
+!!!9237147.java!!!	getUIError(in msg : String) : void
+        if (tables.length > 0) {
+            tables[0].getUIError(msg);
+        } else {
+            super.getUIError(msg);
+        }
+!!!9237659.java!!!	remove(inout key : Object) : Object
+	Object value = super.remove(key);
+	if (value != null) {
+	    return value;
+	}
+
+	for(int i = 0; i < tables.length; i++) {
+	    UIDefaults table = tables[i];
+	    value = (table != null) ? table.remove(key) : null;
+	    if (value != null) {
+		return value;
+	    }
+	}
+
+	return null;
+!!!9237787.java!!!	clear() : void
+	super.clear();
+	for(int i = 0; i < tables.length; i++) {
+	    UIDefaults table = tables[i];
+	    if (table != null) {
+		table.clear();
+	    }
+	}
+!!!9237915.java!!!	toString() : String
+	StringBuffer buf = new StringBuffer();
+	buf.append("{");
+	Enumeration keys = keys();
+	while (keys.hasMoreElements()) {
+	    Object key = keys.nextElement();
+	    buf.append(key + "=" + get(key) + ", ");
+	}
+	int length = buf.length();
+	if (length > 1) {
+	    buf.delete(length-2, length);
+	}
+	buf.append("}");
+	return buf.toString();

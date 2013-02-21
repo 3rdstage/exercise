@@ -1,0 +1,71 @@
+class SynthContext
+!!!9672475.java!!!	getContext(inout type : Class, inout component : JComponent, inout region : Region, inout style : SynthStyle, in state : int) : SynthContext
+        SynthContext context = null;
+
+        synchronized(contextMap) {
+            java.util.List instances = (java.util.List)contextMap.get(type);
+
+            if (instances != null) {
+                int size = instances.size();
+
+                if (size > 0) {
+                    context = (SynthContext)instances.remove(size - 1);
+                }
+            }
+        }
+        if (context == null) {
+            try {
+                context = (SynthContext)type.newInstance();
+            } catch (IllegalAccessException iae) {
+            } catch (InstantiationException ie) {
+            }
+        }
+        context.reset(component, region, style, state);
+        return context;
+!!!9672603.java!!!	releaseContext(inout context : SynthContext) : void
+        synchronized(contextMap) {
+            java.util.List instances = (java.util.List)contextMap.get(
+                                       context.getClass());
+
+            if (instances == null) {
+                instances = new ArrayList(5);
+                contextMap.put(context.getClass(), instances);
+            }
+            instances.add(context);
+        }
+!!!9672859.java!!!	SynthContext(inout component : JComponent, inout region : Region, inout style : SynthStyle, in state : int)
+        if (component == null || region == null || style == null) {
+            throw new NullPointerException(
+                "You must supply a non-null component, region and style");
+        }
+        reset(component, region, style, state);
+!!!9672987.java!!!	getComponent() : JComponent
+        return component;
+!!!9673115.java!!!	getRegion() : Region
+        return region;
+!!!9673243.java!!!	isSubregion() : boolean
+        return getRegion().isSubregion();
+!!!9673371.java!!!	setStyle(inout style : SynthStyle) : void
+        this.style = style;
+!!!9673499.java!!!	getStyle() : SynthStyle
+        return style;
+!!!9673627.java!!!	setComponentState(in state : int) : void
+        this.state = state;
+!!!9673755.java!!!	getComponentState() : int
+        return state;
+!!!9673883.java!!!	reset(inout component : JComponent, inout region : Region, inout style : SynthStyle, in state : int) : void
+        this.component = component;
+        this.region = region;
+        this.style = style;
+        this.state = state;
+!!!9674011.java!!!	dispose() : void
+        this.component = null;
+        this.style = null;
+        releaseContext(this);
+!!!9674139.java!!!	getPainter() : SynthPainter
+        SynthPainter painter = getStyle().getPainter(this);
+
+        if (painter != null) {
+            return painter;
+        }
+        return SynthPainter.NULL_PAINTER;

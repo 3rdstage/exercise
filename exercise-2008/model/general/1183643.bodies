@@ -1,0 +1,60 @@
+class SynthMenuBarUI
+!!!9694747.java!!!	createUI(inout x : JComponent) : ComponentUI
+	return new SynthMenuBarUI();
+!!!9694875.java!!!	installDefaults() : void
+	if (menuBar.getLayout() == null ||
+	    menuBar.getLayout() instanceof UIResource) {
+            menuBar.setLayout(new DefaultMenuLayout(menuBar,BoxLayout.LINE_AXIS));
+        }
+        updateStyle(menuBar);
+!!!9695003.java!!!	installListeners() : void
+        super.installListeners();
+        menuBar.addPropertyChangeListener(this);
+!!!9695131.java!!!	updateStyle(inout c : JMenuBar) : void
+        SynthContext context = getContext(c, ENABLED);
+        SynthStyle oldStyle = style;
+        style = SynthLookAndFeel.updateStyle(context, this);
+        if (style != oldStyle) {
+            if (oldStyle != null) {
+                uninstallKeyboardActions();
+                installKeyboardActions();
+            }
+        }
+        context.dispose();
+!!!9695259.java!!!	uninstallDefaults() : void
+        SynthContext context = getContext(menuBar, ENABLED);
+
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+!!!9695387.java!!!	uninstallListeners() : void
+        super.uninstallListeners();
+        menuBar.removePropertyChangeListener(this);
+!!!9695515.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9695643.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c,
+                    SynthLookAndFeel.getRegion(c), style, state);
+!!!9695771.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9695899.java!!!	getComponentState(inout c : JComponent) : int
+        return SynthLookAndFeel.getComponentState(c);
+!!!9696027.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintMenuBarBackground(context,
+                          g, 0, 0, c.getWidth(), c.getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9696155.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9696411.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        context.getPainter().paintMenuBarBorder(context, g, x, y, w, h);
+!!!9696539.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+        if (SynthLookAndFeel.shouldUpdateStyle(e)) {
+            updateStyle((JMenuBar)e.getSource());
+        }

@@ -1,0 +1,129 @@
+class DepartmentDAOImpl
+!!!10525851.java!!!	main(in args : String) : void
+
+		
+		DepartmentDAO dao = new DepartmentDAOImpl();
+		DepartmentValue dept1 = dao.getDepartment(20);
+		
+		System.out.println(dept1.toString());
+		
+		List<DepartmentValue> depts1 = dao.getDepartmentsByCountry("US");
+		
+		System.out.print("\n\n");
+		System.out.println("The departments in country with ID of US are : ");
+		for(DepartmentValue dept : depts1){
+			System.out.println(dept.toString());
+		}
+!!!10525979.java!!!	DepartmentDAOImpl()
+
+		
+!!!10526107.java!!!	getDepartment(in id : int) : DepartmentValue
+
+
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		String sql = null;
+		ResultSet rs = null;
+		
+		try{
+			Class.forName("oracle.jdbc.OracleDriver");
+			conn = DriverManager.getConnection(dbConnUrl, dbUser, dbUserPasswd);
+
+			sql = "select d.department_id, d.department_name, d.manager_id, "
+				 + "       e.last_name, d.location_id, l.city "
+				 + "from departments d, employees e, locations l "
+				 + "where l.location_id = d.location_id "
+				 + "and d.manager_id = e.employee_id "
+				 + "and d.department_id = ?";
+			pstmt = conn.prepareStatement(sql);
+			pstmt.setInt(1, id);
+
+			rs = pstmt.executeQuery();
+			
+			DepartmentValue dept = null;
+			if(rs.next()){
+				dept = new DepartmentValue();
+				dept.setId(rs.getInt("department_id"));
+				dept.setName(rs.getString("department_name"));
+				dept.setManagerId(rs.getInt("manager_id"));
+				dept.setManagerLastName(rs.getString("last_name"));
+				dept.setLocationId(rs.getInt("location_id"));
+				dept.setCity(rs.getString("city"));
+			}
+
+			return dept;
+		}catch(Exception ex){
+			throw new RuntimeException(ex);
+		}finally{
+			if(rs != null){
+				try{ rs.close(); }catch(Exception ex){}
+			}
+			if(pstmt != null){
+				try{ pstmt.close(); }catch(Exception ex){}
+			}
+			if(conn != null){
+				try{ conn.close(); }catch(Exception ex){}
+			}
+		}
+		
+		
+!!!10526235.java!!!	getDepartmentsByCountry(in countryId : String) : List
+
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		String sql = null;
+		ResultSet rs = null;
+		
+		try{
+			Class.forName("oracle.jdbc.OracleDriver");
+			conn = DriverManager.getConnection(dbConnUrl, dbUser, dbUserPasswd);
+
+			sql = "select d.department_id, d.department_name, d.manager_id, "
+				 + "       e.last_name, d.location_id, l.city "
+				 + "from departments d, employees e, locations l, countries c "
+				 + "where l.country_id = c.country_id "
+				 + "and d.location_id = l.location_id "
+				 + "and e.employee_id = d.manager_id "
+				 + "and c.country_id = ?";
+			pstmt = conn.prepareStatement(sql);
+			pstmt.setString(1, countryId);
+
+			rs = pstmt.executeQuery();
+			
+			List<DepartmentValue> depts = new ArrayList<DepartmentValue>();
+			DepartmentValue dept = null;
+			while(rs.next()){
+				dept = new DepartmentValue();
+				dept.setId(rs.getInt("department_id"));
+				dept.setName(rs.getString("department_name"));
+				dept.setManagerId(rs.getInt("manager_id"));
+				dept.setManagerLastName(rs.getString("last_name"));
+				dept.setLocationId(rs.getInt("location_id"));
+				dept.setCity(rs.getString("city"));
+				
+				depts.add(dept);
+			}
+
+			return depts;
+		}catch(Exception ex){
+			throw new RuntimeException(ex);
+		}finally{
+			if(rs != null){
+				try{ rs.close(); }catch(Exception ex){}
+			}
+			if(pstmt != null){
+				try{ pstmt.close(); }catch(Exception ex){}
+			}
+			if(conn != null){
+				try{ conn.close(); }catch(Exception ex){}
+			}
+		}
+	
+!!!10526363.java!!!	getDepartmentsByLocation(in locationId : int) : List
+
+		// TODO class work
+		return null;
+!!!10526491.java!!!	removeDepartment(in id : int) : void
+
+		// TODO class work
+		

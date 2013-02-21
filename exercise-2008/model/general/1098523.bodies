@@ -1,0 +1,66 @@
+class SerialStruct
+!!!8815259.java!!!	SerialStruct(inout in : Struct, inout map : Map)
+
+	try {
+
+        // get the type name
+        SQLTypeName = new String(in.getSQLTypeName());
+        System.out.println("SQLTypeName: " + SQLTypeName);
+        
+        // get the attributes of the struct
+        attribs = in.getAttributes(map);
+
+        /*
+         * the array may contain further Structs
+         * and/or classes that have been mapped,
+         * other types that we have to serialize
+         */
+        mapToSerial(map);
+
+	} catch (SQLException e) {
+	    throw new SerialException(e.getMessage());
+	}
+!!!8815387.java!!!	SerialStruct(inout in : SQLData, inout map : Map)
+
+	try {
+
+        //set the type name
+        SQLTypeName = new String(in.getSQLTypeName());
+
+        Vector tmp = new Vector();
+        in.writeSQL(new SQLOutputImpl(tmp, map));
+        attribs = tmp.toArray();
+
+	} catch (SQLException e) {
+	    throw new SerialException(e.getMessage());
+	}
+!!!8815515.java!!!	getSQLTypeName() : String
+        return SQLTypeName;
+!!!8815643.java!!!	getAttributes() : Object
+        return attribs;
+!!!8815771.java!!!	getAttributes(inout map : Map) : Object
+       return attribs;
+!!!8815899.java!!!	mapToSerial(inout map : Map) : void
+
+	try {
+
+        for (int i = 0; i < attribs.length; i++) {
+            if (attribs[i] instanceof Struct) {
+                attribs[i] = new SerialStruct((Struct)attribs[i], map);
+            } else if (attribs[i] instanceof SQLData) {
+                attribs[i] = new SerialStruct((SQLData)attribs[i], map);
+            } else if (attribs[i] instanceof Blob) {
+                attribs[i] = new SerialBlob((Blob)attribs[i]);
+            } else if (attribs[i] instanceof Clob) {
+                attribs[i] = new SerialClob((Clob)attribs[i]);
+            } else if (attribs[i] instanceof Ref) {
+                attribs[i] = new SerialRef((Ref)attribs[i]);
+            } else if (attribs[i] instanceof java.sql.Array) {
+                attribs[i] = new SerialArray((java.sql.Array)attribs[i], map);
+            }
+        }
+
+	} catch (SQLException e) {
+	    throw new SerialException(e.getMessage());
+	}
+        return;

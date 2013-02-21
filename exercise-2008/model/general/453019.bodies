@@ -1,0 +1,225 @@
+class JProgressBar
+!!!9024667.java!!!	JProgressBar()
+	this(defaultOrientation);
+!!!9024795.java!!!	JProgressBar(in orient : int)
+	this(orient, defaultMinimum, defaultMaximum);
+!!!9024923.java!!!	JProgressBar(in min : int, in max : int)
+	this(defaultOrientation, min, max);
+!!!9025051.java!!!	JProgressBar(in orient : int, in min : int, in max : int)
+	// Creating the model this way is a bit simplistic, but
+	//  I believe that it is the the most common usage of this
+	//  component - it's what people will expect.
+        setModel(new DefaultBoundedRangeModel(min, 0, min, max));
+        updateUI();
+
+        setOrientation(orient);      // documented with set/getOrientation()
+        setBorderPainted(true);      // documented with is/setBorderPainted()
+	setStringPainted(false);     // see setStringPainted
+	setString(null);             // see getString
+	setIndeterminate(false);     // see setIndeterminate
+!!!9025179.java!!!	JProgressBar(inout newModel : BoundedRangeModel)
+        setModel(newModel);
+        updateUI();
+
+        setOrientation(defaultOrientation);  // see setOrientation()
+        setBorderPainted(true);              // see setBorderPainted()
+	setStringPainted(false);             // see setStringPainted
+	setString(null);                     // see getString
+	setIndeterminate(false);             // see setIndeterminate
+!!!9025307.java!!!	getOrientation() : int
+        return orientation;
+!!!9025435.java!!!	setOrientation(in newOrientation : int) : void
+        if (orientation != newOrientation) {
+            switch (newOrientation) {
+            case VERTICAL:
+            case HORIZONTAL:
+                int oldOrientation = orientation;
+                orientation = newOrientation;
+                firePropertyChange("orientation", oldOrientation, newOrientation);
+                if (accessibleContext != null) {
+                    accessibleContext.firePropertyChange(
+			    AccessibleContext.ACCESSIBLE_STATE_PROPERTY,
+                            ((oldOrientation == VERTICAL) 
+			     ? AccessibleState.VERTICAL 
+			     : AccessibleState.HORIZONTAL),
+                            ((orientation == VERTICAL) 
+			     ? AccessibleState.VERTICAL 
+			     : AccessibleState.HORIZONTAL));
+	        }
+                break;
+            default:
+                throw new IllegalArgumentException(newOrientation +
+                                             " is not a legal orientation");
+            }
+            revalidate();
+        }
+!!!9025563.java!!!	isStringPainted() : boolean
+        return paintString;
+!!!9025691.java!!!	setStringPainted(inout b : boolean) : void
+        //PENDING: specify that string not painted when in indeterminate mode?
+	//         or just leave that to the L&F?
+        boolean oldValue = paintString;
+        paintString = b;
+        firePropertyChange("stringPainted", oldValue, paintString);
+        if (paintString != oldValue) {
+	    revalidate();
+            repaint();
+        }
+!!!9025819.java!!!	getString() : String
+	if (progressString != null) {
+	    return progressString;
+	} else {
+            if (format == null) {
+                format = NumberFormat.getPercentInstance();
+            }
+            return format.format(new Double(getPercentComplete()));
+        }
+!!!9025947.java!!!	setString(in s : String) : void
+        String oldValue = progressString;
+	progressString = s;
+        firePropertyChange("string", oldValue, progressString);
+        if (progressString == null || oldValue == null || !progressString.equals(oldValue)) {
+	    repaint();
+        }
+!!!9026075.java!!!	getPercentComplete() : double
+	long span = model.getMaximum() - model.getMinimum();
+	double currentValue = model.getValue();
+	double pc = (currentValue - model.getMinimum()) / span;
+	return pc;
+!!!9026203.java!!!	isBorderPainted() : boolean
+        return paintBorder;
+!!!9026331.java!!!	setBorderPainted(inout b : boolean) : void
+        boolean oldValue = paintBorder;
+        paintBorder = b;
+        firePropertyChange("borderPainted", oldValue, paintBorder);
+        if (paintBorder != oldValue) {
+            repaint();
+        }
+!!!9026459.java!!!	paintBorder(inout g : Graphics) : void
+    
+        if (isBorderPainted()) {
+            super.paintBorder(g);
+        }
+!!!9026587.java!!!	getUI() : ProgressBarUI
+        return (ProgressBarUI)ui;
+!!!9026715.java!!!	setUI(inout ui : ProgressBarUI) : void
+        super.setUI(ui);
+!!!9026843.java!!!	updateUI() : void
+        setUI((ProgressBarUI)UIManager.getUI(this));
+!!!9026971.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!9027227.java!!!	createChangeListener() : ChangeListener
+        return new ModelListener();
+!!!9027355.java!!!	addChangeListener(inout l : ChangeListener) : void
+        listenerList.add(ChangeListener.class, l);
+!!!9027483.java!!!	removeChangeListener(inout l : ChangeListener) : void
+        listenerList.remove(ChangeListener.class, l);
+!!!9027611.java!!!	getChangeListeners() : ChangeListener
+        return (ChangeListener[])listenerList.getListeners(
+                ChangeListener.class);
+!!!9027739.java!!!	fireStateChanged() : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==ChangeListener.class) {
+                // Lazily create the event:
+                if (changeEvent == null)
+                    changeEvent = new ChangeEvent(this);
+                ((ChangeListener)listeners[i+1]).stateChanged(changeEvent);
+            }          
+        }
+!!!9027867.java!!!	getModel() : BoundedRangeModel
+        return model;
+!!!9027995.java!!!	setModel(inout newModel : BoundedRangeModel) : void
+        // PENDING(???) setting the same model to multiple bars is broken; listeners
+        BoundedRangeModel oldModel = getModel();
+
+        if (newModel != oldModel) {
+            if (oldModel != null) {
+                oldModel.removeChangeListener(changeListener);
+                changeListener = null;
+            }
+
+            model = newModel;
+
+            if (newModel != null) {
+                changeListener = createChangeListener();
+                newModel.addChangeListener(changeListener);
+            }
+
+	    if (accessibleContext != null) {
+                accessibleContext.firePropertyChange(
+		        AccessibleContext.ACCESSIBLE_VALUE_PROPERTY,
+                        (oldModel== null 
+			 ? null : new Integer(oldModel.getValue())),
+                        (newModel== null 
+			 ? null : new Integer(newModel.getValue())));
+	    }
+
+	    if (model != null) {
+		model.setExtent(0);
+	    }
+            repaint();
+        }
+!!!9028123.java!!!	getValue() : int
+ return getModel().getValue();
+!!!9028251.java!!!	getMinimum() : int
+ return getModel().getMinimum();
+!!!9028379.java!!!	getMaximum() : int
+ return getModel().getMaximum();
+!!!9028507.java!!!	setValue(in n : int) : void
+ 
+        BoundedRangeModel brm = getModel();
+	int oldValue = brm.getValue();
+	brm.setValue(n);
+ 
+	if (accessibleContext != null) {
+            accessibleContext.firePropertyChange(
+		    AccessibleContext.ACCESSIBLE_VALUE_PROPERTY,
+                    new Integer(oldValue),
+                    new Integer(brm.getValue()));
+	}
+!!!9028635.java!!!	setMinimum(in n : int) : void
+ getModel().setMinimum(n);
+!!!9028763.java!!!	setMaximum(in n : int) : void
+ getModel().setMaximum(n);
+!!!9028891.java!!!	setIndeterminate(inout newValue : boolean) : void
+	boolean oldValue = indeterminate;
+	indeterminate = newValue;
+	firePropertyChange("indeterminate", oldValue, indeterminate);
+!!!9029019.java!!!	isIndeterminate() : boolean
+        return indeterminate;
+!!!9029147.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!9029275.java!!!	paramString() : String
+	String orientationString = (orientation == HORIZONTAL ?
+				    "HORIZONTAL" : "VERTICAL");
+	String paintBorderString = (paintBorder ?
+				    "true" : "false");
+	String progressStringString = (progressString != null ?
+				       progressString : "");
+	String paintStringString = (paintString ?
+				    "true" : "false");
+	String indeterminateString = (indeterminate ?
+				    "true" : "false");
+
+	return super.paramString() +
+	",orientation=" + orientationString +
+	",paintBorder=" + paintBorderString +
+	",paintString=" + paintStringString +
+	",progressString=" + progressStringString +
+	",indeterminateString=" + indeterminateString;
+!!!9029403.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJProgressBar();
+        }
+        return accessibleContext;

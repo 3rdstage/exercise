@@ -1,0 +1,69 @@
+class BltBufferStrategy
+!!!2134555.java!!!	BltBufferStrategy(in numBuffers : int, inout caps : BufferCapabilities)
+            this.caps = caps;
+            createBackBuffers(numBuffers - 1);
+!!!2134683.java!!!	createBackBuffers(in numBuffers : int) : void
+            if (numBuffers == 0) {
+                backBuffers = null;
+            } else {
+                width = getWidth();
+                height = getHeight();
+                backBuffers = new VolatileImage[numBuffers];
+                for (int i = 0; i < numBuffers; i++) {
+                    backBuffers[i] = createVolatileImage(width, height);
+                }
+            }
+!!!2134811.java!!!	getCapabilities() : BufferCapabilities
+            return caps;
+!!!2134939.java!!!	getDrawGraphics() : Graphics
+            revalidate();
+            Image backBuffer = getBackBuffer();
+            if (backBuffer == null) {
+                return getGraphics();
+            }
+            return backBuffer.getGraphics();
+!!!2135067.java!!!	getBackBuffer() : Image
+            if (backBuffers != null) {
+                return backBuffers[backBuffers.length - 1];
+            } else {
+                return null;
+            }
+!!!2135195.java!!!	show() : void
+            if (backBuffers == null) {
+                return;
+            }
+
+            Graphics g = getGraphics();
+            try {
+                for (int i = 0; i < backBuffers.length; i++) {
+                    g.drawImage(backBuffers[i], 0, 0, Component.this);
+                    g.dispose();
+                    g = null;
+                    g = backBuffers[i].getGraphics();
+                }
+            } finally {
+                if (g != null) { 
+                    g.dispose();
+                }
+            } 
+!!!2135323.java!!!	revalidate() : void
+            if (backBuffers == null) {
+                validatedContents = false;
+            } else if (getWidth() != width || getHeight() != height) {
+                createBackBuffers(backBuffers.length);
+                validatedContents = true;
+            } else {
+                validatedContents =
+                    (backBuffers[backBuffers.length - 1].validate(
+                                                                  getGraphicsConfiguration())
+                     == VolatileImage.IMAGE_RESTORED);
+                // REMIND : handle IMAGE_INCOMPATIBLE
+            }
+!!!2135451.java!!!	contentsLost() : boolean
+            if (width < getWidth() || height < getHeight()) {
+                return true;
+            } else {
+                return backBuffers[backBuffers.length - 1].contentsLost();
+            }
+!!!2135579.java!!!	contentsRestored() : boolean
+            return validatedContents;

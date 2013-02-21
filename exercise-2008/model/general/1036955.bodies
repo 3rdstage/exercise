@@ -1,0 +1,584 @@
+class GaugeMonitor
+!!!8326683.java!!!	makeDebugTag() : String
+        return "GaugeMonitor";
+!!!8326811.java!!!	GaugeMonitor()
+      dbgTag = makeDebugTag();
+!!!8326939.java!!!	start() : void
+
+        if (isTraceOn()) {
+            trace("start", "start the gauge monitor");
+        }
+
+	synchronized(this) {
+	    if (isActive) {
+		if (isTraceOn()) {
+		    trace("start", "the gauge monitor is already activated");
+		}
+
+		return;
+	    }
+
+            isActive = true;
+
+            // Reset values.
+            //
+            for (int i = 0; i < elementCount; i++) {
+                status[i] = RISING_OR_FALLING;
+                previousScanGauge[i] = null;
+            }
+
+            // Start the AlarmClock.
+            //
+            timer = new Timer();
+            timer.schedule(new GaugeAlarmClock(this), getGranularityPeriod(),
+			   getGranularityPeriod());
+	}
+!!!8327067.java!!!	stop() : void
+	trace("stop", "stop the gauge monitor");
+
+	synchronized(this) {
+	    if (!isActive) {
+		if (isTraceOn()) {
+		    trace("stop", "the counter monitor is already started");
+		}
+
+		return;
+	    }
+
+            isActive = false;
+
+            // Stop the AlarmClock.
+            //
+            if (timer != null) {
+                timer.cancel();
+                timer = null;
+            }
+	}
+!!!8327195.java!!!	setGranularityPeriod(in period : long) : void
+        super.setGranularityPeriod(period);
+
+        // Reschedule timer task if timer is already running
+        //
+	if (isActive()) {
+	    timer.cancel();
+	    timer = new Timer();
+	    timer.schedule(new GaugeAlarmClock(this), getGranularityPeriod(),
+			   getGranularityPeriod());
+        }
+!!!8327323.java!!!	getDerivedGauge(inout object : ObjectName) : Number
+        int index = indexOf(object);
+        if (index != -1)
+            return derivedGauge[index];
+        else
+            return null;
+!!!8327451.java!!!	getDerivedGaugeTimeStamp(inout object : ObjectName) : long
+        int index = indexOf(object);
+        if (index != -1)
+            return derivedGaugeTimestamp[index];
+        else
+            return 0;
+!!!8327579.java!!!	getDerivedGauge() : Number
+        return derivedGauge[0];
+!!!8327707.java!!!	getDerivedGaugeTimeStamp() : long
+        return derivedGaugeTimestamp[0];
+!!!8327835.java!!!	getHighThreshold() : Number
+        return highThreshold;
+!!!8327963.java!!!	getLowThreshold() : Number
+        return lowThreshold;
+!!!8328091.java!!!	setThresholds(inout highValue : Number, inout lowValue : Number) : void
+
+        if ((highValue == null) || (lowValue == null)) {
+            throw new IllegalArgumentException("Null threshold value");
+        }
+        if (highValue.getClass() != lowValue.getClass()) {
+            throw new IllegalArgumentException("Different type " +
+					       "threshold values");
+        }
+
+        if (isFirstStrictlyGreaterThanLast(lowValue, highValue,
+					   highValue.getClass().getName())) {
+            throw new IllegalArgumentException("High threshold less than " +
+					       "low threshold");
+        }
+
+        highThreshold = highValue;
+        lowThreshold = lowValue;
+        for (int i = 0; i < elementCount; i++) {
+            resetAlreadyNotified(i, THRESHOLD_ERROR_NOTIFIED);
+
+            // Reset values.
+            //
+            status[i] = RISING_OR_FALLING;
+        }
+!!!8328219.java!!!	getNotifyHigh() : boolean
+        return notifyHigh;
+!!!8328347.java!!!	setNotifyHigh(inout value : boolean) : void
+        notifyHigh = value;
+!!!8328475.java!!!	getNotifyLow() : boolean
+        return notifyLow;
+!!!8328603.java!!!	setNotifyLow(inout value : boolean) : void
+        notifyLow = value;
+!!!8328731.java!!!	getDifferenceMode() : boolean
+        return differenceMode;
+!!!8328859.java!!!	setDifferenceMode(inout value : boolean) : void
+        differenceMode = value;
+
+        // Reset values.
+        //
+        for (int i = 0; i < elementCount; i++) {
+            status[i] = RISING_OR_FALLING;
+            previousScanGauge[i] = null;
+        }
+!!!8328987.java!!!	getNotificationInfo() : MBeanNotificationInfo
+        String[] types  = { MonitorNotification.RUNTIME_ERROR,
+                            MonitorNotification.OBSERVED_OBJECT_ERROR,
+                            MonitorNotification.OBSERVED_ATTRIBUTE_ERROR,
+                            MonitorNotification.OBSERVED_ATTRIBUTE_TYPE_ERROR,
+                            MonitorNotification.THRESHOLD_ERROR,
+                            MonitorNotification.THRESHOLD_HIGH_VALUE_EXCEEDED,
+                            MonitorNotification.THRESHOLD_LOW_VALUE_EXCEEDED};
+        MBeanNotificationInfo[] notifsInfo = {
+	    new MBeanNotificationInfo(types,
+				      "javax.management.monitor.MonitorNotification",
+				      "Notifications sent by the GaugeMonitor MBean")
+	};
+        return notifsInfo;
+!!!8329115.java!!!	updateDerivedGauge(inout scanGauge : Object, in index : int) : boolean
+
+        boolean is_derived_gauge_valid;
+
+        derivedGaugeTimestamp[index] = System.currentTimeMillis();
+
+        // The gauge difference mode is used.
+        //
+        if (differenceMode) {
+
+            // The previous scan gauge has been initialized.
+            //
+            if (previousScanGauge[index] != null) {
+                setDerivedGaugeWithDifference((Number)scanGauge, index);
+                is_derived_gauge_valid = true;
+            }
+            // The previous scan gauge has not been initialized.
+            // We cannot update the derived gauge...
+            //
+            else {
+                is_derived_gauge_valid = false;
+            }
+            previousScanGauge[index] = (Number)scanGauge;
+        }
+        // The gauge difference mode is not used.
+        //
+        else {
+            derivedGauge[index] = (Number)scanGauge;
+            is_derived_gauge_valid = true;
+        }
+
+        return is_derived_gauge_valid;
+!!!8329243.java!!!	updateNotifications(in index : int) : void
+	boolean sendNotify = false;
+	String notifType = null;
+	long timeStamp = 0;
+	String msg = null;
+	Object derGauge = null;
+	Object trigger = null;
+
+        // Send high notification if notifyHigh is true.
+        // Send low notification if notifyLow is true.
+        //
+	synchronized(this) {
+	    if (status[index] == RISING_OR_FALLING) {
+		if (isFirstGreaterThanLast(derivedGauge[index], highThreshold,
+					   type[index])) {
+		    if (notifyHigh) {
+			sendNotify = true;
+			notifType =
+			    MonitorNotification.THRESHOLD_HIGH_VALUE_EXCEEDED;
+			timeStamp = derivedGaugeTimestamp[index];
+			msg = "";
+			derGauge = derivedGauge[index];
+			trigger = highThreshold;
+		    }
+		    status[index] = FALLING;
+		} else if (isFirstGreaterThanLast(lowThreshold,
+						  derivedGauge[index],
+						  type[index])) {
+		    if (notifyLow) {
+			sendNotify = true;
+			notifType =
+			    MonitorNotification.THRESHOLD_LOW_VALUE_EXCEEDED;
+			timeStamp = derivedGaugeTimestamp[index];
+			msg ="";
+			derGauge = derivedGauge[index];
+			trigger = lowThreshold;
+		    }
+		    status[index] = RISING;
+		}
+	    } else {
+		if (status[index] == RISING) {
+		    if (isFirstGreaterThanLast(derivedGauge[index],
+					       highThreshold,
+					       type[index])) {
+			if (notifyHigh) {
+			    sendNotify = true;
+			    notifType =
+				MonitorNotification.THRESHOLD_HIGH_VALUE_EXCEEDED;
+			    timeStamp = derivedGaugeTimestamp[index];
+			    msg = "";
+			    derGauge = derivedGauge[index];
+			    trigger = highThreshold;
+			}
+			status[index] = FALLING;
+		    }
+		} else if (status[index] == FALLING) {
+		    if (isFirstGreaterThanLast(lowThreshold,
+					       derivedGauge[index],
+					       type[index])) {
+			if (notifyLow) {
+			    sendNotify = true;
+			    notifType =
+				MonitorNotification.THRESHOLD_LOW_VALUE_EXCEEDED;
+			    timeStamp = derivedGaugeTimestamp[index];
+			    msg = "";
+			    derGauge = derivedGauge[index];
+			    trigger = lowThreshold;
+			}
+			status[index] = RISING;
+		    }
+		}
+	    }
+	}
+
+	if (sendNotify) {
+	    sendNotification(notifType, timeStamp, msg, derGauge, trigger, index);
+	}
+!!!8329371.java!!!	isThresholdTypeValid(in index : int) : boolean
+
+        switch(type[index]) {
+        case INTEGER:
+            return (((highThreshold == INTEGER_ZERO) ||
+		     (highThreshold instanceof Integer)) &&
+		    ((lowThreshold == INTEGER_ZERO) ||
+		     (lowThreshold instanceof Integer)));
+        case BYTE:
+            return (((highThreshold == INTEGER_ZERO) ||
+		     (highThreshold instanceof Byte)) &&
+		    ((lowThreshold == INTEGER_ZERO) ||
+		     (lowThreshold instanceof Byte)));
+        case SHORT:
+            return (((highThreshold == INTEGER_ZERO) ||
+		     (highThreshold instanceof Short)) &&
+		    ((lowThreshold == INTEGER_ZERO) ||
+		     (lowThreshold instanceof Short)));
+        case LONG:
+            return (((highThreshold == INTEGER_ZERO) ||
+		     (highThreshold instanceof Long)) &&
+		    ((lowThreshold == INTEGER_ZERO) ||
+		     (lowThreshold instanceof Long)));
+        case FLOAT:
+            return (((highThreshold == INTEGER_ZERO) ||
+		     (highThreshold instanceof Float)) &&
+		    ((lowThreshold == INTEGER_ZERO) ||
+		     (lowThreshold instanceof Float)));
+        case DOUBLE:
+            return (((highThreshold == INTEGER_ZERO) ||
+		     (highThreshold instanceof Double)) &&
+		    ((lowThreshold == INTEGER_ZERO) ||
+		     (lowThreshold instanceof Double)));
+        default:
+            // Should never occur...
+            if (isDebugOn()) {
+                debug("isThresholdTypeValid", "The threshold type is invalid");
+            }
+	    return false;
+        }
+!!!8329499.java!!!	setDerivedGaugeWithDifference(inout scanGauge : Number, in index : int) : void
+	Number prev = previousScanGauge[index];
+	Number der;
+        switch (type[index]) {
+        case INTEGER:
+            der = new Integer(((Integer)scanGauge).intValue() -
+			      ((Integer)prev).intValue());
+            break;
+        case BYTE:
+            der = new Byte((byte)(((Byte)scanGauge).byteValue() -
+				  ((Byte)prev).byteValue()));
+            break;
+        case SHORT:
+            der = new Short((short)(((Short)scanGauge).shortValue() -
+				    ((Short)prev).shortValue()));
+            break;
+        case LONG:
+            der = new Long(((Long)scanGauge).longValue() -
+			   ((Long)prev).longValue());
+            break;
+        case FLOAT:
+            der = new Float(((Float)scanGauge).floatValue() -
+			    ((Float)prev).floatValue());
+            break;
+        case DOUBLE:
+            der = new Double(((Double)scanGauge).doubleValue() -
+			     ((Double)prev).doubleValue());
+        default:
+            // Should never occur...
+            if (isDebugOn()) {
+                debug("setDerivedGaugeWithDifference",
+		      "the threshold type is invalid");
+            }
+	    return;
+        }
+	derivedGauge[index] = der;
+!!!8329627.java!!!	isFirstGreaterThanLast(inout greater : Number, inout less : Number, in type : int) : boolean
+
+        switch(type) {
+        case INTEGER:
+        case BYTE:
+        case SHORT:
+        case LONG:
+            return (greater.longValue() >= less.longValue());
+        case FLOAT:
+        case DOUBLE:
+            return (greater.doubleValue() >= less.doubleValue());
+        default:
+            // Should never occur...
+            if (isDebugOn()) {
+                debug("isFirstGreaterThanLast",
+		      "the threshold type is invalid");
+            }
+	    return false;
+        }
+!!!8329755.java!!!	isFirstStrictlyGreaterThanLast(inout greater : Number, inout less : Number, in className : String) : boolean
+
+        if (className.equals("java.lang.Integer") ||
+            className.equals("java.lang.Byte") ||
+            className.equals("java.lang.Short") ||
+            className.equals("java.lang.Long")) {
+
+            return (greater.longValue() > less.longValue());
+        }
+        else if (className.equals("java.lang.Float") ||
+                 className.equals("java.lang.Double")) {
+
+            return (greater.doubleValue() > less.doubleValue());
+        }
+        else {
+            // Should never occur...
+            if (isDebugOn()) {
+                debug("isFirstStrictlyGreaterThanLast",
+		      "the threshold type is invalid");
+            }
+	    return false;
+        }
+!!!8329883.java!!!	notifyAlarmClock(in index : int) : void
+	long timeStamp = 0;
+	String msg = null;
+	Object derGauge = null;
+
+        Object  scan_gauge = null;
+        String  notif_type = null;
+
+	synchronized(this) {
+            if (!isActive())
+		return;
+
+	    // Check if the observed object and observed attribute are valid.
+	    //
+
+	    // Check that neither the observed object nor the observed
+	    // attribute are null.  If the observed object or observed
+	    // attribute is null, this means that the monitor started
+	    // before a complete initialization and nothing is done.
+	    //
+	    if ((getObservedObject(index) == null) ||
+		(getObservedAttribute() == null))
+		return;
+
+	    // Check that the observed object is registered in the
+	    // MBean server and that the observed attribute belongs to
+	    // the observed object.
+	    //
+	    try {
+		scan_gauge = server.getAttribute(getObservedObject(index),
+						 getObservedAttribute());
+		if (scan_gauge == null)
+		    return;
+	    } catch (NullPointerException np_ex) {
+		if (alreadyNotified(index, RUNTIME_ERROR_NOTIFIED))
+		    return;
+		else {
+		    notif_type = MonitorNotification.RUNTIME_ERROR;
+		    setAlreadyNotified(index, RUNTIME_ERROR_NOTIFIED);
+		    msg =
+			"The gauge monitor must be registered in " +
+			"the MBean server.";
+		}
+	    } catch (InstanceNotFoundException inf_ex) {
+		if (alreadyNotified(index, OBSERVED_OBJECT_ERROR_NOTIFIED))
+		    return;
+		else {
+		    notif_type = MonitorNotification.OBSERVED_OBJECT_ERROR;
+		    setAlreadyNotified(index,
+				       OBSERVED_OBJECT_ERROR_NOTIFIED);
+		    msg =
+			"The observed object must be registered in " +
+			"the MBean server.";
+		}
+	    } catch (AttributeNotFoundException anf_ex) {
+		if (alreadyNotified(index,
+				    OBSERVED_ATTRIBUTE_ERROR_NOTIFIED))
+		    return;
+		else {
+		    notif_type =
+			MonitorNotification.OBSERVED_ATTRIBUTE_ERROR;
+		    setAlreadyNotified(index,
+				       OBSERVED_ATTRIBUTE_ERROR_NOTIFIED);
+		    msg =
+			"The observed attribute must be accessible in " +
+			"the observed object.";
+		}
+	    } catch (MBeanException mb_ex) {
+		if (alreadyNotified(index, RUNTIME_ERROR_NOTIFIED))
+		    return;
+		else {
+		    notif_type = MonitorNotification.RUNTIME_ERROR;
+		    setAlreadyNotified(index, RUNTIME_ERROR_NOTIFIED);
+		    msg = mb_ex.getMessage();
+		}
+	    } catch (ReflectionException ref_ex) {
+		if (alreadyNotified(index,
+				    OBSERVED_ATTRIBUTE_ERROR_NOTIFIED))
+		    return;
+		else {
+		    notif_type =
+			MonitorNotification.OBSERVED_ATTRIBUTE_ERROR;
+		    setAlreadyNotified(index,
+				       OBSERVED_ATTRIBUTE_ERROR_NOTIFIED);
+		    msg = ref_ex.getMessage();
+		}
+	    }
+
+	    if (msg == null) {
+                // Check that the observed attribute is either of type
+                // "Integer" or "Float".
+                //
+                if (scan_gauge instanceof Integer) {
+                    type[index] = INTEGER;
+                } else if (scan_gauge instanceof Byte) {
+                    type[index] = BYTE;
+                } else if (scan_gauge instanceof Short) {
+                    type[index] = SHORT;
+                } else if (scan_gauge instanceof Long) {
+                    type[index] = LONG;
+                } else if (scan_gauge instanceof Float) {
+                    type[index] = FLOAT;
+                } else if (scan_gauge instanceof Double) {
+                    type[index] = DOUBLE;
+                } else {
+                    if (alreadyNotified(index,
+					OBSERVED_ATTRIBUTE_TYPE_ERROR_NOTIFIED))
+                        return;
+                    else {
+                        notif_type =
+			    MonitorNotification.OBSERVED_ATTRIBUTE_TYPE_ERROR;
+                        setAlreadyNotified(index,
+					   OBSERVED_ATTRIBUTE_TYPE_ERROR_NOTIFIED);
+                        msg =
+			    "The observed attribute type must be an " +
+			    "integer type or a floating-point type.";
+                    }
+                }
+	    }
+
+	    if (msg == null) {
+                // Check that threshold high and threshold low are of
+                // the same type as the gauge.
+                //
+                if (!isThresholdTypeValid(index)) {
+                    if (alreadyNotified(index, THRESHOLD_ERROR_NOTIFIED))
+                        return;
+                    else {
+                        notif_type = MonitorNotification.THRESHOLD_ERROR;
+                        setAlreadyNotified(index, THRESHOLD_ERROR_NOTIFIED);
+                        msg =
+			    "The threshold high and threshold low must be " +
+			    "of the same type as the gauge.";
+                    }
+                }
+	    }
+
+	    if (msg == null) {
+
+		// Clear all already notified flags.
+		//
+		resetAllAlreadyNotified(index);
+
+		// Update the derived gauge attributes and check
+		// the validity of the new value.  The derived
+		// gauge value is invalid when the differenceMode
+		// flag is set to true and it is the first
+		// notification (so we haven't 2 consecutive
+		// values to update the derived gauge).
+		//
+		boolean is_derived_gauge_valid =
+		    updateDerivedGauge(scan_gauge, index);
+
+		// Notify the listeners if the updated derived
+		// gauge value is valid.
+		//
+		if (is_derived_gauge_valid)
+		    updateNotifications(index);
+
+	    } else {
+
+		// msg != null, will send an error notification
+
+		timeStamp = derivedGaugeTimestamp[index];
+		derGauge = derivedGauge[index];
+
+		// Reset values.
+		//
+		status[index] = RISING_OR_FALLING;
+		previousScanGauge[index] = null;
+	    }
+	}
+
+	if (msg != null) {
+	    sendNotification(notif_type,
+			     timeStamp,
+			     msg,
+			     derGauge,
+			     null,
+			     index);
+	}
+!!!8330011.java!!!	insertSpecificElementAt(in index : int) : void
+        // Update derivedGauge, derivedGaugeTimestamp,  previousScanGauge,
+        // status and type values.
+
+	if (index != elementCount)
+	    throw new Error("Internal error: index != elementCount");
+
+	if (elementCount >= derivedGauge.length) {
+	    derivedGauge = expandArray(derivedGauge);
+	    previousScanGauge = expandArray(previousScanGauge);
+	    derivedGaugeTimestamp = expandArray(derivedGaugeTimestamp);
+	    status = expandArray(status);
+	    type = expandArray(type);
+	}
+
+	derivedGauge[index] = INTEGER_ZERO;
+	previousScanGauge[index] = null;
+	derivedGaugeTimestamp[index] = System.currentTimeMillis();
+	status[index] = RISING_OR_FALLING;
+	type[index] = INTEGER;
+!!!8330139.java!!!	removeSpecificElementAt(in index : int) : void
+	if (index < 0 || index >= elementCount)
+	    return;
+
+        // Update derivedGauge, derivedGaugeTimestamp,  previousScanGauge,
+        // status and type arrays.
+        //
+        removeElementAt(derivedGauge, index);
+        removeElementAt(previousScanGauge, index);
+        removeElementAt(derivedGaugeTimestamp, index);
+        removeElementAt(status, index);
+        removeElementAt(type, index);

@@ -1,0 +1,59 @@
+class TaskQueue
+!!!373147.java!!!	size() : int
+        return size;
+!!!373275.java!!!	add(inout task : TimerTask) : void
+        // Grow backing store if necessary
+        if (++size == queue.length) {
+            TimerTask[] newQueue = new TimerTask[2*queue.length];
+            System.arraycopy(queue, 0, newQueue, 0, size);
+            queue = newQueue;
+        }
+
+        queue[size] = task;
+        fixUp(size);
+!!!373403.java!!!	getMin() : TimerTask
+        return queue[1];
+!!!373531.java!!!	get(in i : int) : TimerTask
+        return queue[i];
+!!!373659.java!!!	removeMin() : void
+        queue[1] = queue[size];
+        queue[size--] = null;  // Drop extra reference to prevent memory leak
+        fixDown(1);
+!!!373787.java!!!	quickRemove(in i : int) : void
+        assert i <= size;
+
+        queue[i] = queue[size];
+        queue[size--] = null;  // Drop extra ref to prevent memory leak
+!!!373915.java!!!	rescheduleMin(in newTime : long) : void
+        queue[1].nextExecutionTime = newTime;
+        fixDown(1);
+!!!374043.java!!!	isEmpty() : boolean
+        return size==0;
+!!!374171.java!!!	clear() : void
+        // Null out task references to prevent memory leak
+        for (int i=1; i<=size; i++)
+            queue[i] = null;
+
+        size = 0;
+!!!374299.java!!!	fixUp(in k : int) : void
+        while (k > 1) {
+            int j = k >> 1;
+            if (queue[j].nextExecutionTime <= queue[k].nextExecutionTime)
+                break;
+            TimerTask tmp = queue[j];  queue[j] = queue[k]; queue[k] = tmp;
+            k = j;
+        }
+!!!374427.java!!!	fixDown(in k : int) : void
+        int j;
+        while ((j = k << 1) <= size && j > 0) {
+            if (j < size &&
+                queue[j].nextExecutionTime > queue[j+1].nextExecutionTime)
+                j++; // j indexes smallest kid
+            if (queue[k].nextExecutionTime <= queue[j].nextExecutionTime)
+                break;
+            TimerTask tmp = queue[j];  queue[j] = queue[k]; queue[k] = tmp;
+            k = j;
+        }
+!!!374555.java!!!	heapify() : void
+        for (int i = size/2; i >= 1; i--)
+            fixDown(i);

@@ -1,0 +1,29 @@
+class ChunkStream
+!!!2032923.java!!!	ChunkStream(in type : int, inout stream : ImageOutputStream)
+        this.stream = stream;
+        this.startPos = stream.getStreamPosition();
+        
+        stream.writeInt(-1); // length, will backpatch
+        writeInt(type);
+!!!2033051.java!!!	read() : int
+        throw new RuntimeException("Method not available");
+!!!2033179.java!!!	read(in b : byte, in off : int, in len : int) : int
+        throw new RuntimeException("Method not available");
+!!!2033307.java!!!	write(in b : byte, in off : int, in len : int) : void
+        crc.update(b, off, len);
+        stream.write(b, off, len);
+!!!2033435.java!!!	write(in b : int) : void
+        crc.update(b);
+        stream.write(b);
+!!!2033563.java!!!	finish() : void
+        // Write CRC
+        stream.writeInt(crc.getValue());
+
+        // Write length
+        long pos = stream.getStreamPosition();
+        stream.seek(startPos);
+        stream.writeInt((int)(pos - startPos) - 12);
+
+        // Return to end of chunk and flush to minimize buffering
+        stream.seek(pos);
+        stream.flushBefore(pos);

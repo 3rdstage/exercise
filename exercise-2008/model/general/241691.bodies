@@ -1,0 +1,95 @@
+class Level
+!!!8045979.java!!!	Level(in name : String, in value : int)
+	this(name, value, null);
+!!!8046107.java!!!	Level(in name : String, in value : int, in resourceBundleName : String)
+	if (name == null) {
+	    throw new NullPointerException(); 
+        }
+        this.name = name;
+        this.value = value;
+	this.resourceBundleName = resourceBundleName;
+	synchronized (Level.class) {
+	    known.add(this);
+	}
+!!!8046235.java!!!	getResourceBundleName() : String
+	return resourceBundleName;
+!!!8046363.java!!!	getName() : String
+	return name;
+!!!8046491.java!!!	getLocalizedName() : String
+	try {
+	    ResourceBundle rb = ResourceBundle.getBundle(resourceBundleName);
+	    return rb.getString(name);
+	} catch (Exception ex) {
+	    return name;
+	}
+!!!8046619.java!!!	toString() : String
+	return name;
+!!!8046747.java!!!	intValue() : int
+	return value;
+!!!8046875.java!!!	readResolve() : Object
+	synchronized (Level.class) {
+	    for (int i = 0; i < known.size(); i++) {
+		Level other = (Level) known.get(i);
+		if (this.name.equals(other.name) && this.value == other.value
+			&& (this.resourceBundleName == other.resourceBundleName ||
+			    (this.resourceBundleName != null &&
+			    this.resourceBundleName.equals(other.resourceBundleName)))) {
+		    return other;
+		}
+	    }
+	    // Woops.  Whoever sent us this object knows 
+	    // about a new log level.  Add it to our list.
+	    known.add(this);
+	    return this;
+	}
+!!!8047003.java!!!	parse(in name : String) : Level
+	// Check that name is not null.
+	name.length();
+
+	// Look for a known Level with the given non-localized name.
+	for (int i = 0; i < known.size(); i++) {
+	    Level l = (Level) known.get(i);
+	    if (name.equals(l.name)) {
+		return l;
+	    }
+	}
+
+	// Now, check if the given name is an integer.  If so,
+	// first look for a Level with the given value and then
+	// if necessary create one.
+	try {
+	    int x = Integer.parseInt(name);
+	    for (int i = 0; i < known.size(); i++) {
+	        Level l = (Level) known.get(i);
+		if (l.value == x) {
+		    return l;
+		}
+	    }	
+	    // Create a new Level.
+	    return new Level(name, x);
+	} catch (NumberFormatException ex) {
+	    // Not an integer.
+	    // Drop through.
+	}
+
+	// Finally, look for a known level with the given localized name,
+	// in the current default locale.
+	// This is relatively expensive, but not excessively so.
+	for (int i = 0; i < known.size(); i++) {
+	    Level l = (Level) known.get(i);
+	    if (name.equals(l.getLocalizedName())) {
+		return l;
+	    }
+	}
+
+        // OK, we've tried everything and failed
+        throw new IllegalArgumentException("Bad level \"" + name + "\"");
+!!!8047131.java!!!	equals(inout ox : Object) : boolean
+	try {
+	    Level lx = (Level)ox;
+	    return (lx.value == this.value);
+	} catch (Exception ex) {
+	    return false;
+	}
+!!!8047259.java!!!	hashCode() : int
+	return this.value;

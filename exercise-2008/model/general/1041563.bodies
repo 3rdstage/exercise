@@ -1,0 +1,225 @@
+class MBeanServerNotificationFilter
+!!!8365339.java!!!	MBeanServerNotificationFilter()
+
+	super();
+
+        if (isTraceOn())
+            trace("Constructor: entering", null);
+
+	enableType(MBeanServerNotification.REGISTRATION_NOTIFICATION);
+	enableType(MBeanServerNotification.UNREGISTRATION_NOTIFICATION);
+
+        if (isTraceOn())
+            trace("Constructor: exiting", null);
+	return;
+!!!8365467.java!!!	disableAllObjectNames() : void
+
+        if (isTraceOn())
+            trace("disableAllObjectNames: entering", null);
+
+	selectedNames = new Vector();
+	deselectedNames = null;
+
+        if (isTraceOn())
+            trace("disableAllObjectNames: exiting", null);
+	return;
+!!!8365595.java!!!	disableObjectName(inout theObjName : ObjectName) : void
+
+	if (theObjName == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isTraceOn())
+            trace("disableObjectName: entering", theObjName.toString());
+
+	// Removes from selected ObjectNames, if present
+	if (selectedNames != null) {
+	    if (selectedNames.size() != 0) {
+		selectedNames.remove(theObjName);
+	    }
+	}
+
+	// Adds it in deselected ObjectNames
+	if (deselectedNames != null) {
+	    // If all are deselected, no need to do anything :)
+	    if (!(deselectedNames.contains(theObjName))) {
+		// ObjectName was not already deselected
+		deselectedNames.add(theObjName);
+	    }
+	}
+
+        if (isTraceOn())
+            trace("disableObjectName: exiting", null);
+	return;
+!!!8365723.java!!!	enableAllObjectNames() : void
+
+	if (isTraceOn())
+            trace("enableAllObjectNames: entering", null);
+
+    	selectedNames = null;
+	deselectedNames = new Vector();
+
+        if (isTraceOn())
+            trace("enableAllObjectNames: exiting", null);
+	return;
+!!!8365851.java!!!	enableObjectName(inout theObjName : ObjectName) : void
+
+	if (theObjName == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isTraceOn())
+            trace("enableObjectName: entering", theObjName.toString());
+
+	// Removes from deselected ObjectNames, if present
+	if (deselectedNames != null) {
+	    if (deselectedNames.size() != 0) {
+		deselectedNames.remove(theObjName);
+	    }
+	}
+
+	// Adds it in selected ObjectNames
+	if (selectedNames != null) {
+	    // If all are selected, no need to do anything :)
+	    if (!(selectedNames.contains(theObjName))) {
+		// ObjectName was not already selected
+		selectedNames.add(theObjName);
+	    }
+	}
+
+        if (isTraceOn())
+            trace("enableObjectName: exiting", null);
+	return;
+!!!8365979.java!!!	getEnabledObjectNames() : Vector
+	if (selectedNames != null) {
+	    return (Vector)((Vector)selectedNames).clone();
+	} else {
+	    return null;
+	}
+!!!8366107.java!!!	getDisabledObjectNames() : Vector
+	if (deselectedNames != null) {
+	    return (Vector)((Vector)deselectedNames).clone();
+	} else {
+	    return null;
+	}
+!!!8366235.java!!!	isNotificationEnabled(inout theNtf : Notification) : boolean
+
+	if (theNtf == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isTraceOn())
+            trace("isNotificationEnabled: entering", theNtf.toString());
+
+	// Checks the type first
+	String ntfType = theNtf.getType();
+	Vector enabledTypes = getEnabledTypes();
+	if (!(enabledTypes.contains(ntfType))) {
+
+	    if (isTraceOn())
+		trace("isNotificationEnabled: type not selected, exiting", null);
+	    return false;
+	}
+
+	// We have a MBeanServerNotification: downcasts it
+	MBeanServerNotification mbsNtf = (MBeanServerNotification)theNtf;
+
+	// Checks the ObjectName
+	ObjectName objName = mbsNtf.getMBeanName();
+	// Is it selected?
+	boolean isSelectedFlg = false;
+	if (selectedNames != null) {
+	    // Not all are implicitly selected:
+	    // checks for explicit selection
+	    if (selectedNames.size() == 0) {
+		// All are explicitly not selected
+		if (isTraceOn())
+		    trace("isNotificationEnabled: no ObjectNames selected, exiting", null);
+		return false;
+	    }
+
+	    isSelectedFlg = selectedNames.contains(objName);
+	    if (!isSelectedFlg) {
+		// Not in the explicit selected list
+		if (isTraceOn())
+		    trace("isNotificationEnabled: ObjectName not in selected list, exiting", null);
+		return false;
+	    }
+	}
+
+	if (!isSelectedFlg) {
+	    // Not explicitly selected: is it deselected?
+
+	    if (deselectedNames == null) {
+		// All are implicitly deselected and it is not explicitly
+		// selected
+		if (isTraceOn())
+		    trace("isNotificationEnabled: ObjectName not selected and all deselectedm, exiting", null);
+		return false;
+
+	    } else if (deselectedNames.contains(objName)) {
+		// Explicitly deselected
+		if (isTraceOn())
+		    trace("isNotificationEnabled: ObjectName explicitly not selected, exiting", null);
+		return false;
+	    }
+	}
+
+	if (isTraceOn())
+	    trace("isNotificationEnabled: ObjectName selected, exiting", null);
+	return true;
+!!!8366363.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_RELATION);
+!!!8366491.java!!!	trace(in methodName : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_RELATION, localClassName, methodName, info);
+	Trace.send(Trace.LEVEL_TRACE, Trace.INFO_RELATION, "", "", "\n");
+!!!8366619.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_RELATION);
+!!!8366747.java!!!	debug(in methodName : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_RELATION, localClassName, methodName, info);
+	Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_RELATION, "", "", "\n");
+!!!8366875.java!!!	readObject(inout in : ObjectInputStream) : void
+      if (compat)
+      {
+        // Read an object serialized in the old serial form
+        //
+        ObjectInputStream.GetField fields = in.readFields();
+	selectedNames = (List) fields.get("mySelectObjNameList", null);
+	if (fields.defaulted("mySelectObjNameList"))
+        {
+          throw new NullPointerException("mySelectObjNameList");
+        }
+	deselectedNames = (List) fields.get("myDeselectObjNameList", null);
+	if (fields.defaulted("myDeselectObjNameList"))
+        {
+          throw new NullPointerException("myDeselectObjNameList");
+        }
+      }
+      else
+      {
+        // Read an object serialized in the new serial form
+        //
+        in.defaultReadObject();
+      }
+!!!8367003.java!!!	writeObject(inout out : ObjectOutputStream) : void
+      if (compat)
+      {
+        // Serializes this instance in the old serial form
+        //
+        ObjectOutputStream.PutField fields = out.putFields();
+	fields.put("mySelectObjNameList", (Vector)selectedNames);
+	fields.put("myDeselectObjNameList", (Vector)deselectedNames);
+	out.writeFields();
+      }
+      else
+      {
+        // Serializes this instance in the new serial form
+        //
+        out.defaultWriteObject();
+      }

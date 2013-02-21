@@ -1,0 +1,73 @@
+class LocalVariableGen
+!!!3831195.java!!!	LocalVariableGen(in index : int, in name : String, inout type : Type, inout start : InstructionHandle, inout end : InstructionHandle)
+    if((index < 0) || (index > Constants.MAX_SHORT))
+      throw new ClassGenException("Invalid index index: " + index);
+    
+    this.name  = name;
+    this.type  = type;
+    this.index  = index;
+    setStart(start);
+    setEnd(end);
+!!!3831323.java!!!	getLocalVariable(inout cp : ConstantPoolGen) : LocalVariable
+    int start_pc        = start.getPosition();
+    int length          = end.getPosition() - start_pc;
+    int name_index      = cp.addUtf8(name);
+    int signature_index = cp.addUtf8(type.getSignature());
+
+    return new LocalVariable(start_pc, length, name_index,
+			     signature_index, index, cp.getConstantPool());
+!!!3831451.java!!!	setIndex(in index : int) : void
+ this.index = index;
+!!!3831579.java!!!	getIndex() : int
+ return index;
+!!!3831707.java!!!	setName(in name : String) : void
+ this.name = name;
+!!!3831835.java!!!	getName() : String
+ return name;
+!!!3831963.java!!!	setType(inout type : Type) : void
+ this.type = type;
+!!!3832091.java!!!	getType() : Type
+ return type;
+!!!3832219.java!!!	getStart() : InstructionHandle
+ return start;
+!!!3832347.java!!!	getEnd() : InstructionHandle
+ return end;
+!!!3832475.java!!!	setStart(inout start : InstructionHandle) : void
+    BranchInstruction.notifyTarget(this.start, start, this);
+    this.start = start;
+!!!3832603.java!!!	setEnd(inout end : InstructionHandle) : void
+    BranchInstruction.notifyTarget(this.end, end, this);
+    this.end = end;
+!!!3832731.java!!!	updateTarget(inout old_ih : InstructionHandle, inout new_ih : InstructionHandle) : void
+    boolean targeted = false;
+
+    if(start == old_ih) {
+      targeted = true;
+      setStart(new_ih);
+    }
+
+    if(end == old_ih) {
+      targeted = true;
+      setEnd(new_ih);
+    }
+
+    if(!targeted)
+      throw new ClassGenException("Not targeting " + old_ih + ", but {" + start + ", " +
+				  end + "}");
+!!!3832859.java!!!	containsTarget(inout ih : InstructionHandle) : boolean
+    return (start == ih) || (end == ih);
+!!!3832987.java!!!	equals(inout o : Object) : boolean
+    if(!(o instanceof LocalVariableGen))
+      return false;
+
+    LocalVariableGen l = (LocalVariableGen)o;
+    return (l.index == index) && (l.start == start) && (l.end == end);
+!!!3833115.java!!!	toString() : String
+    return "LocalVariableGen(" + name +  ", " + type +  ", " + start + ", " + end + ")";
+!!!3833243.java!!!	clone() : Object
+    try {
+      return super.clone();
+    } catch(CloneNotSupportedException e) {
+      System.err.println(e);
+      return null;
+    }

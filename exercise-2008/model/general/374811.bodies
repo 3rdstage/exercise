@@ -1,0 +1,100 @@
+class InputMethodEvent
+!!!6454427.java!!!	InputMethodEvent(inout source : Component, in id : int, in when : long, inout text : AttributedCharacterIterator, in committedCharacterCount : int, inout caret : TextHitInfo, inout visiblePosition : TextHitInfo)
+        super(source, id);
+        if (id < INPUT_METHOD_FIRST || id > INPUT_METHOD_LAST) {
+            throw new IllegalArgumentException("id outside of valid range");
+        }
+
+        if (id == CARET_POSITION_CHANGED && text != null) {
+            throw new IllegalArgumentException("text must be null for CARET_POSITION_CHANGED");
+        }
+
+	this.when = when;
+        this.text = text;
+        int textLength = 0;
+        if (text != null) {
+            textLength = text.getEndIndex() - text.getBeginIndex();
+        }
+
+        if (committedCharacterCount < 0 || committedCharacterCount > textLength) {
+            throw new IllegalArgumentException("committedCharacterCount outside of valid range");
+        }
+        this.committedCharacterCount = committedCharacterCount;
+
+        this.caret = caret;
+        this.visiblePosition = visiblePosition;
+!!!6454555.java!!!	InputMethodEvent(inout source : Component, in id : int, inout text : AttributedCharacterIterator, in committedCharacterCount : int, inout caret : TextHitInfo, inout visiblePosition : TextHitInfo)
+        this(source, id, EventQueue.getMostRecentEventTime(), text,
+	     committedCharacterCount, caret, visiblePosition);
+!!!6454683.java!!!	InputMethodEvent(inout source : Component, in id : int, inout caret : TextHitInfo, inout visiblePosition : TextHitInfo)
+        this(source, id, EventQueue.getMostRecentEventTime(), null,
+	     0, caret, visiblePosition);
+!!!6454811.java!!!	getText() : AttributedCharacterIterator
+        return text;
+!!!6454939.java!!!	getCommittedCharacterCount() : int
+        return committedCharacterCount;
+!!!6455067.java!!!	getCaret() : TextHitInfo
+        return caret;
+!!!6455195.java!!!	getVisiblePosition() : TextHitInfo
+        return visiblePosition;
+!!!6455323.java!!!	consume() : void
+        consumed = true;
+!!!6455451.java!!!	isConsumed() : boolean
+        return consumed;
+!!!6455579.java!!!	getWhen() : long
+      return when;
+!!!6455707.java!!!	paramString() : String
+        String typeStr;
+        switch(id) {
+          case INPUT_METHOD_TEXT_CHANGED:
+              typeStr = "INPUT_METHOD_TEXT_CHANGED";
+              break;
+          case CARET_POSITION_CHANGED:
+              typeStr = "CARET_POSITION_CHANGED";
+              break;
+          default:
+              typeStr = "unknown type";
+        }
+
+        String textString;
+        if (text == null) {
+            textString = "no text";
+        } else {
+            StringBuffer textBuffer = new StringBuffer("\"");
+            int committedCharacterCount = this.committedCharacterCount;
+            char c = text.first();
+            while (committedCharacterCount-- > 0) {
+                textBuffer.append(c);
+                c = text.next();
+            }
+            textBuffer.append("\" + \"");
+            while (c != CharacterIterator.DONE) {
+                textBuffer.append(c);
+                c = text.next();
+            }
+            textBuffer.append("\"");
+            textString = textBuffer.toString();
+        }
+        
+        String countString = committedCharacterCount + " characters committed";
+        
+        String caretString;
+        if (caret == null) {
+            caretString = "no caret";
+        } else {
+            caretString = "caret: " + caret.toString();
+        }
+        
+        String visiblePositionString;
+        if (visiblePosition == null) {
+            visiblePositionString = "no visible position";
+        } else {
+            visiblePositionString = "visible position: " + visiblePosition.toString();
+        }
+        
+        return typeStr + ", " + textString + ", " + countString + ", " + caretString + ", " + visiblePositionString;
+!!!6455835.java!!!	readObject(inout s : ObjectInputStream) : void
+	s.defaultReadObject();
+	if (when == 0) {
+	    when = EventQueue.getMostRecentEventTime();
+	}

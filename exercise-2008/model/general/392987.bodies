@@ -1,0 +1,62 @@
+class ListTableFocusBorder
+!!!2297371.java!!!	getSelectedCellBorder() : ListTableFocusBorder
+            return new ListTableFocusBorder(true); 
+!!!2297499.java!!!	getUnselectedCellBorder() : ListTableFocusBorder
+            return new ListTableFocusBorder(false); 
+!!!2297627.java!!!	ListTableFocusBorder(inout selectedCell : boolean)
+            this.selectedCell = selectedCell;
+!!!2297755.java!!!	getContext(inout c : Component) : SynthContext
+            SynthContext context = null;
+            
+            Component parent = c;
+            while(parent != null && 
+                    !(parent instanceof JTable) && 
+                    !(parent instanceof JList)) {
+                parent = parent.getParent();
+            }
+             
+            ComponentUI ui = null;
+            if (parent instanceof JTable) {
+                ui = ((JTable)parent).getUI();
+            } else if (parent instanceof JList) {
+                ui = ((JList)parent).getUI();
+            }
+            
+            if (ui instanceof SynthUI) {
+                context = ((SynthUI)ui).getContext((JComponent)parent);
+            }
+            
+            return context;
+!!!2297883.java!!!	paintBorder(inout c : Component, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+            SynthContext context = getContext(c);
+            int state = (selectedCell? SynthConstants.SELECTED:
+                         SynthConstants.FOCUSED | SynthConstants.ENABLED);
+
+            if (context != null) {
+                ((GTKStyle)context.getStyle()).getEngine(context).
+                    paintFocus(context, g, state, "", x, y, w, h);
+            } else {
+                g.setColor(Color.BLACK);
+                GTKEngine.INSTANCE._paintFocus(
+                        g, x, y, w, h, GTKEngine.DEFAULT_FOCUS_PATTERN, 1);
+            }
+!!!2298011.java!!!	getBorderInsets(inout c : Component) : Insets
+            int size = 1;
+            SynthContext context = getContext(c);
+            if (context != null) {
+                size = ((GTKStyle)context.getStyle()).getClassSpecificIntValue(
+                    context, "focus-line-width", 1);   
+            }
+            return new Insets(size, size, size, size);
+!!!2298139.java!!!	getBorderInsets(inout c : Component, inout i : Insets) : Insets
+            Insets ins = getBorderInsets(c);
+            if (i == null) {
+                return ins; 
+            }
+            i.left = ins.left;
+            i.right = ins.right;
+            i.top = ins.top;
+            i.bottom = ins.bottom;
+            return i;
+!!!2298267.java!!!	isBorderOpaque() : boolean
+            return true;

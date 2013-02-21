@@ -1,0 +1,101 @@
+class TreeSet
+!!!383643.java!!!	TreeSet(inout m : SortedMap)
+        this.m = m;
+        keySet = m.keySet();
+!!!383771.java!!!	TreeSet()
+	this(new TreeMap<E,Object>());
+!!!383899.java!!!	TreeSet(inout c : Comparator)
+	this(new TreeMap<E,Object>(c));
+!!!384027.java!!!	TreeSet(inout c : Collection)
+        this();
+        addAll(c);
+!!!384155.java!!!	TreeSet(inout s : SortedSet)
+        this(s.comparator());
+	addAll(s);
+!!!384283.java!!!	iterator() : Iterator
+	return keySet.iterator();
+!!!384411.java!!!	size() : int
+	return m.size();
+!!!384539.java!!!	isEmpty() : boolean
+	return m.isEmpty();
+!!!384667.java!!!	contains(inout o : Object) : boolean
+	return m.containsKey(o);
+!!!384795.java!!!	add(inout o : E) : boolean
+	return m.put(o, PRESENT)==null;
+!!!384923.java!!!	remove(inout o : Object) : boolean
+	return m.remove(o)==PRESENT;
+!!!385051.java!!!	clear() : void
+	m.clear();
+!!!385179.java!!!	addAll(inout c : Collection) : boolean
+        // Use linear-time version if applicable
+        if (m.size()==0 && c.size() > 0 &&
+	    // FIXME(VFORCE) Work-around for bug in compiler
+	    c instanceof SortedSet &&
+            m instanceof TreeMap) {
+            SortedSet<Map.Entry<E, Object>> set = (SortedSet<Map.Entry<E, Object>>) (SortedSet) c;
+            TreeMap<E,Object> map = (TreeMap<E, Object>) m;
+            Comparator<? super E> cc = (Comparator<E>) set.comparator();
+            Comparator<? super E> mc = map.comparator();
+            if (cc==mc || (cc != null && cc.equals(mc))) {
+                map.addAllForTreeSet(set, PRESENT);
+                return true;
+            }
+        }
+        return super.addAll(c);
+!!!385307.java!!!	subSet(inout fromElement : E, inout toElement : E) : SortedSet
+	return new TreeSet<E>(m.subMap(fromElement, toElement));
+!!!385435.java!!!	headSet(inout toElement : E) : SortedSet
+	return new TreeSet<E>(m.headMap(toElement));
+!!!385563.java!!!	tailSet(inout fromElement : E) : SortedSet
+	return new TreeSet<E>(m.tailMap(fromElement));
+!!!385691.java!!!	comparator() : Comparator
+        return m.comparator();
+!!!385819.java!!!	first() : E
+        return m.firstKey();
+!!!385947.java!!!	last() : E
+        return m.lastKey();
+!!!386075.java!!!	clone() : Object
+        TreeSet<E> clone = null;
+	try {
+	    clone = (TreeSet<E>) super.clone();
+	} catch (CloneNotSupportedException e) {
+	    throw new InternalError();
+	}
+
+        clone.m = new TreeMap<E,Object>(m);
+        clone.keySet = clone.m.keySet();
+
+        return clone;
+!!!386203.java!!!	writeObject(inout s : java.io.ObjectOutputStream) : void
+	// Write out any hidden stuff
+	s.defaultWriteObject();
+
+        // Write out Comparator
+        s.writeObject(m.comparator());
+
+        // Write out size
+        s.writeInt(m.size());
+
+	// Write out all elements in the proper order.
+	for (Iterator i=m.keySet().iterator(); i.hasNext(); )
+            s.writeObject(i.next());
+!!!386331.java!!!	readObject(inout s : java.io.ObjectInputStream) : void
+	// Read in any hidden stuff
+	s.defaultReadObject();
+
+        // Read in Comparator
+        Comparator<E> c = (Comparator<E>) s.readObject();
+
+        // Create backing TreeMap and keySet view
+	TreeMap<E,Object> tm;
+	if (c==null)
+	    tm = new TreeMap<E,Object>();
+	else
+	    tm = new TreeMap<E,Object>(c);
+	m = tm;
+        keySet = m.keySet();
+
+        // Read in size
+        int size = s.readInt();
+
+        tm.readTreeSet(size, s, PRESENT);

@@ -1,0 +1,200 @@
+class DirectFloatBufferU
+!!!7409179.java!!!	viewedBuffer() : Object
+
+        return viewedBuffer;
+!!!7409307.java!!!	cleaner() : Cleaner
+ return null;
+!!!7409435.java!!!	DirectFloatBufferU(inout db : DirectBuffer, in mark : int, in pos : int, in lim : int, in cap : int, in off : int)
+
+
+	super(mark, pos, lim, cap);
+	address = db.address() + off;
+	viewedBuffer = db;
+
+
+
+
+
+
+!!!7409563.java!!!	slice() : FloatBuffer
+
+	int pos = this.position();
+	int lim = this.limit();
+	assert (pos <= lim);
+	int rem = (pos <= lim ? lim - pos : 0);
+	int off = (pos << 2);
+        assert (off >= 0);
+	return new DirectFloatBufferU(this, -1, 0, rem, rem, off);
+!!!7409691.java!!!	duplicate() : FloatBuffer
+
+	return new DirectFloatBufferU(this,
+					      this.markValue(),
+					      this.position(),
+					      this.limit(),
+					      this.capacity(),
+					      0);
+!!!7409819.java!!!	asReadOnlyBuffer() : FloatBuffer
+
+
+	return new DirectFloatBufferRU(this,
+					   this.markValue(),
+					   this.position(),
+					   this.limit(),
+					   this.capacity(),
+					   0);
+
+
+
+!!!7409947.java!!!	address() : long
+
+	return address;
+!!!7410075.java!!!	ix(in i : int) : long
+
+        return address + (i << 2);
+!!!7410203.java!!!	get() : float
+
+	return ((unsafe.getFloat(ix(nextGetIndex()))));
+!!!7410331.java!!!	get(in i : int) : float
+
+	return ((unsafe.getFloat(ix(checkIndex(i)))));
+!!!7410459.java!!!	get(in dst : float, in offset : int, in length : int) : FloatBuffer
+
+
+	if ((length << 2) > Bits.JNI_COPY_TO_ARRAY_THRESHOLD) {
+	    checkBounds(offset, length, dst.length);
+	    int pos = position();
+	    int lim = limit();
+	    assert (pos <= lim);
+	    int rem = (pos <= lim ? lim - pos : 0);
+	    if (length > rem)
+		throw new BufferUnderflowException();
+
+	    if (order() != ByteOrder.nativeOrder())
+		Bits.copyToIntArray(ix(pos), dst,
+					  offset << 2,
+					  length << 2);
+	    else
+		Bits.copyToByteArray(ix(pos), dst,
+				     offset << 2,
+				     length << 2);
+	    position(pos + length);
+	} else {
+	    super.get(dst, offset, length);
+	}
+	return this;
+
+
+
+!!!7410587.java!!!	put(in x : float) : FloatBuffer
+
+
+	unsafe.putFloat(ix(nextPutIndex()), ((x)));
+	return this;
+
+
+
+!!!7410715.java!!!	put(in i : int, in x : float) : FloatBuffer
+
+
+	unsafe.putFloat(ix(checkIndex(i)), ((x)));
+	return this;
+
+
+
+!!!7410843.java!!!	put(inout src : FloatBuffer) : FloatBuffer
+
+
+	if (src instanceof DirectFloatBufferU) {
+	    if (src == this)
+		throw new IllegalArgumentException();
+	    DirectFloatBufferU sb = (DirectFloatBufferU)src;
+
+	    int spos = sb.position();
+	    int slim = sb.limit();
+	    assert (spos <= slim);
+	    int srem = (spos <= slim ? slim - spos : 0);
+
+	    int pos = position();
+	    int lim = limit();
+	    assert (pos <= lim);
+	    int rem = (pos <= lim ? lim - pos : 0);
+
+	    if (srem > rem)
+		throw new BufferOverflowException();
+ 	    unsafe.copyMemory(sb.ix(spos), ix(pos), srem << 2);
+ 	    sb.position(spos + srem);
+ 	    position(pos + srem);
+	} else if (!src.isDirect()) {
+
+	    int spos = src.position();
+	    int slim = src.limit();
+	    assert (spos <= slim);
+	    int srem = (spos <= slim ? slim - spos : 0);
+
+	    put(src.hb, src.offset + spos, srem);
+	    src.position(spos + srem);
+
+	} else {
+	    super.put(src);
+	}
+	return this;
+
+
+
+!!!7410971.java!!!	put(in src : float, in offset : int, in length : int) : FloatBuffer
+
+
+	if ((length << 2) > Bits.JNI_COPY_FROM_ARRAY_THRESHOLD) {
+	    checkBounds(offset, length, src.length);
+	    int pos = position();
+	    int lim = limit();
+	    assert (pos <= lim);
+	    int rem = (pos <= lim ? lim - pos : 0);
+	    if (length > rem)
+		throw new BufferOverflowException();
+
+	    if (order() != ByteOrder.nativeOrder()) 
+		Bits.copyFromIntArray(src, offset << 2,
+					    ix(pos), length << 2);
+	    else
+		Bits.copyFromByteArray(src, offset << 2,
+				       ix(pos), length << 2);
+	    position(pos + length);
+	} else {
+	    super.put(src, offset, length);
+	}
+	return this;
+
+
+
+!!!7411099.java!!!	compact() : FloatBuffer
+
+
+	int pos = position();
+	int lim = limit();
+	assert (pos <= lim);
+	int rem = (pos <= lim ? lim - pos : 0);
+
+ 	unsafe.copyMemory(ix(pos), ix(0), rem << 2);
+ 	position(rem);
+	limit(capacity());
+	return this;
+
+
+
+!!!7411227.java!!!	isDirect() : boolean
+
+	return true;
+!!!7411355.java!!!	isReadOnly() : boolean
+
+	return false;
+!!!7411483.java!!!	order() : ByteOrder
+
+
+
+
+
+
+	return ((ByteOrder.nativeOrder() != ByteOrder.BIG_ENDIAN)
+		? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN);
+

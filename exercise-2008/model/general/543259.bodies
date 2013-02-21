@@ -1,0 +1,72 @@
+class ClientHandler
+!!!3402267.java!!!	ClientHandler(inout server : CommunicatorServer, in id : int, inout f : MBeanServer, inout n : ObjectName)
+        adaptorServer = server ;
+        requestId = id ;
+        mbs = f ;
+        objectName = n ;
+        interruptCalled = false ;
+        dbgTag = makeDebugTag() ;
+	//if (mbs == null ){
+	//thread = new Thread (this) ;
+	thread =  createThread(this);
+
+	//} else {
+	//thread = mbs.getThreadAllocatorSrvIf().obtainThread(objectName,this) ;
+	//}
+        // Note: the thread will be started by the subclass.
+!!!3402395.java!!!	createThread(inout r : Runnable) : Thread
+	return new Thread(this);
+!!!3402523.java!!!	interrupt() : void
+        if (isTraceOn()) {
+            trace("interrupt","start") ;
+        }
+        interruptCalled = true ;
+	if (thread != null) {
+            thread.interrupt() ;
+	}
+        if (isTraceOn()) {
+            trace("interrupt","end") ;
+        }
+!!!3402651.java!!!	join() : void
+	if (thread != null) {
+        try {
+            thread.join() ;
+        }
+        catch(InterruptedException x) {
+        }
+	}
+!!!3402779.java!!!	run() : void
+
+        try {
+            //
+            // Notify the server we are now active
+            //
+            adaptorServer.notifyClientHandlerCreated(this) ;
+
+            //
+            // Call protocol specific sequence
+            //
+            doRun() ;
+        }
+        finally {
+            //
+            // Now notify the adaptor server that the handler is terminating.
+            // This is important because the server may be blocked waiting for
+            // a handler to terminate.
+            //
+            adaptorServer.notifyClientHandlerDeleted(this) ;
+        }
+!!!3403035.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_ADAPTOR_SNMP);
+!!!3403163.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_ADAPTOR_SNMP, clz, func, info);
+!!!3403291.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_ADAPTOR_SNMP);
+!!!3403419.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_ADAPTOR_SNMP, clz, func, info);
+!!!3403547.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!3403675.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);
+!!!3403803.java!!!	makeDebugTag() : String
+        return "ClientHandler[" + adaptorServer.getProtocol() + ":" + adaptorServer.getPort() + "][" + requestId + "]";

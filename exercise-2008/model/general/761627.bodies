@@ -1,0 +1,31 @@
+class Matcher
+!!!5264027.java!!!	Matcher(inout xpath : XPath, inout activator : FieldActivator, inout store : ValueStore)
+            super(xpath);
+            fFieldActivator = activator;
+            fStore = store;
+!!!5264155.java!!!	matched(inout actualValue : Object, inout isNil : boolean) : void
+            super.matched(actualValue, isNil);
+            if(isNil && (fIdentityConstraint.getCategory() == IdentityConstraint.IC_KEY)) {
+                String code = "KeyMatchesNillable";
+                fStore.reportError(code, new Object[]{fIdentityConstraint.getElementName()});
+            }
+            fStore.addValue(Field.this, actualValue,fCurrMatchedType);
+            // once we've stored the value for this field, we set the mayMatch
+            // member to false so that, in the same scope, we don't match any more
+            // values (and throw an error instead).
+            fFieldActivator.setMayMatch(Field.this, Boolean.FALSE);
+!!!5264283.java!!!	handleContent(inout type : XSTypeDefinition, inout nillable : boolean, inout actualValue : Object) : void
+            if (type == null || 
+               type.getTypeCategory() == XSTypeDefinition.COMPLEX_TYPE &&
+               ((XSComplexTypeDefinition) type).getContentType()
+                != XSComplexTypeDefinition.CONTENTTYPE_SIMPLE) {
+
+                    // the content must be simpleType content
+                    fStore.reportError( "cvc-id.3", new Object[] {
+                            fIdentityConstraint.getName(),
+                            fIdentityConstraint.getElementName()});
+                
+            }
+			fCurrMatchedType = type;
+            fMatchedString = actualValue;
+            matched(fMatchedString, nillable);

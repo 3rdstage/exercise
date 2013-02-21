@@ -1,0 +1,102 @@
+class PushbackReader
+!!!6898715.java!!!	PushbackReader(inout in : Reader, in size : int)
+	super(in);
+        if (size <= 0) {
+            throw new IllegalArgumentException("size <= 0");
+        }
+	this.buf = new char[size];
+	this.pos = size;
+!!!6898843.java!!!	PushbackReader(inout in : Reader)
+	this(in, 1);
+!!!6898971.java!!!	ensureOpen() : void
+	if (buf == null)
+	    throw new IOException("Stream closed");
+!!!6899099.java!!!	read() : int
+	synchronized (lock) {
+	    ensureOpen();
+	    if (pos < buf.length)
+		return buf[pos++];
+	    else
+		return super.read();
+	}
+!!!6899227.java!!!	read(in cbuf : char, in off : int, in len : int) : int
+	synchronized (lock) {
+	    ensureOpen();
+            try {
+                if (len <= 0) {
+                    if (len < 0) {
+                        throw new IndexOutOfBoundsException();
+                    } else if ((off < 0) || (off > cbuf.length)) {
+                        throw new IndexOutOfBoundsException();
+                    }
+                    return 0;
+                }
+                int avail = buf.length - pos;
+                if (avail > 0) {
+                    if (len < avail)
+                        avail = len;
+                    System.arraycopy(buf, pos, cbuf, off, avail);
+                    pos += avail;
+                    off += avail;
+                    len -= avail;
+                }
+                if (len > 0) {
+                    len = super.read(cbuf, off, len);
+                    if (len == -1) {
+                        return (avail == 0) ? -1 : avail;
+                    }
+                    return avail + len;
+                }
+                return avail;
+            } catch (ArrayIndexOutOfBoundsException e) {
+                throw new IndexOutOfBoundsException();
+            }
+        }
+!!!6899355.java!!!	unread(in c : int) : void
+	synchronized (lock) {
+	    ensureOpen();
+	    if (pos == 0)
+		throw new IOException("Pushback buffer overflow");
+	    buf[--pos] = (char) c;
+	}
+!!!6899483.java!!!	unread(in cbuf : char, in off : int, in len : int) : void
+	synchronized (lock) {
+	    ensureOpen();
+	    if (len > pos)
+		throw new IOException("Pushback buffer overflow");
+	    pos -= len;
+	    System.arraycopy(cbuf, off, buf, pos, len);
+	}
+!!!6899611.java!!!	unread(in cbuf : char) : void
+	unread(cbuf, 0, cbuf.length);
+!!!6899739.java!!!	ready() : boolean
+	synchronized (lock) {
+	    ensureOpen();
+	    return (pos < buf.length) || super.ready();
+	}
+!!!6899867.java!!!	mark(in readAheadLimit : int) : void
+	throw new IOException("mark/reset not supported");
+!!!6899995.java!!!	reset() : void
+	throw new IOException("mark/reset not supported");
+!!!6900123.java!!!	markSupported() : boolean
+	return false;
+!!!6900251.java!!!	close() : void
+	super.close();
+	buf = null;
+!!!6900379.java!!!	skip(in n : long) : long
+        if (n < 0L)
+            throw new IllegalArgumentException("skip value is negative");
+	synchronized (lock) {
+            ensureOpen();
+            int avail = buf.length - pos;
+            if (avail > 0) {
+                if (n <= avail) {
+                    pos += n;
+                    return n;
+                } else {
+                    pos = buf.length;
+                    n -= avail;
+                }
+            }
+            return avail + super.skip(n);
+        }

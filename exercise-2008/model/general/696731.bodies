@@ -1,0 +1,394 @@
+class NodeVector
+!!!5809435.java!!!	NodeVector()
+    m_blocksize = 32;
+    m_mapSize = 0;
+!!!5809563.java!!!	NodeVector(in blocksize : int)
+    m_blocksize = blocksize;
+    m_mapSize = 0;
+!!!5809691.java!!!	clone() : Object
+
+    NodeVector clone = (NodeVector) super.clone();
+
+    if ((null != this.m_map) && (this.m_map == clone.m_map))
+    {
+      clone.m_map = new int[this.m_map.length];
+
+      System.arraycopy(this.m_map, 0, clone.m_map, 0, this.m_map.length);
+    }
+
+    return clone;
+!!!5809819.java!!!	size() : int
+    return m_firstFree;
+!!!5809947.java!!!	addElement(in value : int) : void
+
+    if ((m_firstFree + 1) >= m_mapSize)
+    {
+      if (null == m_map)
+      {
+        m_map = new int[m_blocksize];
+        m_mapSize = m_blocksize;
+      }
+      else
+      {
+        m_mapSize += m_blocksize;
+
+        int newMap[] = new int[m_mapSize];
+
+        System.arraycopy(m_map, 0, newMap, 0, m_firstFree + 1);
+
+        m_map = newMap;
+      }
+    }
+
+    m_map[m_firstFree] = value;
+
+    m_firstFree++;
+!!!5810075.java!!!	push(in value : int) : void
+
+    int ff = m_firstFree;
+
+    if ((ff + 1) >= m_mapSize)
+    {
+      if (null == m_map)
+      {
+        m_map = new int[m_blocksize];
+        m_mapSize = m_blocksize;
+      }
+      else
+      {
+        m_mapSize += m_blocksize;
+
+        int newMap[] = new int[m_mapSize];
+
+        System.arraycopy(m_map, 0, newMap, 0, ff + 1);
+
+        m_map = newMap;
+      }
+    }
+
+    m_map[ff] = value;
+
+    ff++;
+
+    m_firstFree = ff;
+!!!5810203.java!!!	pop() : int
+
+    m_firstFree--;
+
+    int n = m_map[m_firstFree];
+
+    m_map[m_firstFree] = DTM.NULL;
+
+    return n;
+!!!5810331.java!!!	popAndTop() : int
+
+    m_firstFree--;
+
+    m_map[m_firstFree] = DTM.NULL;
+
+    return (m_firstFree == 0) ? DTM.NULL : m_map[m_firstFree - 1];
+!!!5810459.java!!!	popQuick() : void
+
+    m_firstFree--;
+
+    m_map[m_firstFree] = DTM.NULL;
+!!!5810587.java!!!	peepOrNull() : int
+    return ((null != m_map) && (m_firstFree > 0))
+           ? m_map[m_firstFree - 1] : DTM.NULL;
+!!!5810715.java!!!	pushPair(in v1 : int, in v2 : int) : void
+
+    if (null == m_map)
+    {
+      m_map = new int[m_blocksize];
+      m_mapSize = m_blocksize;
+    }
+    else
+    {
+      if ((m_firstFree + 2) >= m_mapSize)
+      {
+        m_mapSize += m_blocksize;
+
+        int newMap[] = new int[m_mapSize];
+
+        System.arraycopy(m_map, 0, newMap, 0, m_firstFree);
+
+        m_map = newMap;
+      }
+    }
+
+    m_map[m_firstFree] = v1;
+    m_map[m_firstFree + 1] = v2;
+    m_firstFree += 2;
+!!!5810843.java!!!	popPair() : void
+
+    m_firstFree -= 2;
+    m_map[m_firstFree] = DTM.NULL;
+    m_map[m_firstFree + 1] = DTM.NULL;
+!!!5810971.java!!!	setTail(in n : int) : void
+    m_map[m_firstFree - 1] = n;
+!!!5811099.java!!!	setTailSub1(in n : int) : void
+    m_map[m_firstFree - 2] = n;
+!!!5811227.java!!!	peepTail() : int
+    return m_map[m_firstFree - 1];
+!!!5811355.java!!!	peepTailSub1() : int
+    return m_map[m_firstFree - 2];
+!!!5811483.java!!!	insertInOrder(in value : int) : void
+
+    for (int i = 0; i < m_firstFree; i++)
+    {
+      if (value < m_map[i])
+      {
+        insertElementAt(value, i);
+
+        return;
+      }
+    }
+
+    addElement(value);
+!!!5811611.java!!!	insertElementAt(in value : int, in at : int) : void
+
+    if (null == m_map)
+    {
+      m_map = new int[m_blocksize];
+      m_mapSize = m_blocksize;
+    }
+    else if ((m_firstFree + 1) >= m_mapSize)
+    {
+      m_mapSize += m_blocksize;
+
+      int newMap[] = new int[m_mapSize];
+
+      System.arraycopy(m_map, 0, newMap, 0, m_firstFree + 1);
+
+      m_map = newMap;
+    }
+
+    if (at <= (m_firstFree - 1))
+    {
+      System.arraycopy(m_map, at, m_map, at + 1, m_firstFree - at);
+    }
+
+    m_map[at] = value;
+
+    m_firstFree++;
+!!!5811739.java!!!	appendNodes(inout nodes : NodeVector) : void
+
+    int nNodes = nodes.size();
+
+    if (null == m_map)
+    {
+      m_mapSize = nNodes + m_blocksize;
+      m_map = new int[m_mapSize];
+    }
+    else if ((m_firstFree + nNodes) >= m_mapSize)
+    {
+      m_mapSize += (nNodes + m_blocksize);
+
+      int newMap[] = new int[m_mapSize];
+
+      System.arraycopy(m_map, 0, newMap, 0, m_firstFree + nNodes);
+
+      m_map = newMap;
+    }
+
+    System.arraycopy(nodes.m_map, 0, m_map, m_firstFree, nNodes);
+
+    m_firstFree += nNodes;
+!!!5811867.java!!!	removeAllElements() : void
+
+    if (null == m_map)
+      return;
+
+    for (int i = 0; i < m_firstFree; i++)
+    {
+      m_map[i] = DTM.NULL;
+    }
+
+    m_firstFree = 0;
+!!!5811995.java!!!	RemoveAllNoClear() : void
+
+    if (null == m_map)
+      return;
+
+    m_firstFree = 0;
+!!!5812123.java!!!	removeElement(in s : int) : boolean
+
+    if (null == m_map)
+      return false;
+
+    for (int i = 0; i < m_firstFree; i++)
+    {
+      int node = m_map[i];
+
+      if (node == s)
+      {
+        if (i > m_firstFree)
+          System.arraycopy(m_map, i + 1, m_map, i - 1, m_firstFree - i);
+        else
+          m_map[i] = DTM.NULL;
+
+        m_firstFree--;
+
+        return true;
+      }
+    }
+
+    return false;
+!!!5812251.java!!!	removeElementAt(in i : int) : void
+
+    if (null == m_map)
+      return;
+
+    if (i > m_firstFree)
+      System.arraycopy(m_map, i + 1, m_map, i - 1, m_firstFree - i);
+    else
+      m_map[i] = DTM.NULL;
+!!!5812379.java!!!	setElementAt(in node : int, in index : int) : void
+
+    if (null == m_map)
+    {
+      m_map = new int[m_blocksize];
+      m_mapSize = m_blocksize;
+    }
+    
+    if(index == -1)
+    	addElement(node);
+
+    m_map[index] = node;
+!!!5812507.java!!!	elementAt(in i : int) : int
+
+    if (null == m_map)
+      return DTM.NULL;
+
+    return m_map[i];
+!!!5812635.java!!!	contains(in s : int) : boolean
+
+    if (null == m_map)
+      return false;
+
+    for (int i = 0; i < m_firstFree; i++)
+    {
+      int node = m_map[i];
+
+      if (node == s)
+        return true;
+    }
+
+    return false;
+!!!5812763.java!!!	indexOf(in elem : int, in index : int) : int
+
+    if (null == m_map)
+      return -1;
+
+    for (int i = index; i < m_firstFree; i++)
+    {
+      int node = m_map[i];
+
+      if (node == elem)
+        return i;
+    }
+
+    return -1;
+!!!5812891.java!!!	indexOf(in elem : int) : int
+
+    if (null == m_map)
+      return -1;
+
+    for (int i = 0; i < m_firstFree; i++)
+    {
+      int node = m_map[i];
+
+      if (node == elem)
+        return i;
+    }
+
+    return -1;
+!!!5813019.java!!!	sort(in a : int, in lo0 : int, in hi0 : int) : void
+
+    int lo = lo0;
+    int hi = hi0;
+
+    // pause(lo, hi);
+    if (lo >= hi)
+    {
+      return;
+    }
+    else if (lo == hi - 1)
+    {
+
+      /*
+       *  sort a two element list by swapping if necessary
+       */
+      if (a[lo] > a[hi])
+      {
+        int T = a[lo];
+
+        a[lo] = a[hi];
+        a[hi] = T;
+      }
+
+      return;
+    }
+
+    /*
+     *  Pick a pivot and move it out of the way
+     */
+    int pivot = a[(lo + hi) / 2];
+
+    a[(lo + hi) / 2] = a[hi];
+    a[hi] = pivot;
+
+    while (lo < hi)
+    {
+
+      /*
+       *  Search forward from a[lo] until an element is found that
+       *  is greater than the pivot or lo >= hi
+       */
+      while (a[lo] <= pivot && lo < hi)
+      {
+        lo++;
+      }
+
+      /*
+       *  Search backward from a[hi] until element is found that
+       *  is less than the pivot, or lo >= hi
+       */
+      while (pivot <= a[hi] && lo < hi)
+      {
+        hi--;
+      }
+
+      /*
+       *  Swap elements a[lo] and a[hi]
+       */
+      if (lo < hi)
+      {
+        int T = a[lo];
+
+        a[lo] = a[hi];
+        a[hi] = T;
+
+        // pause();
+      }
+
+      // if (stopRequested) {
+      //    return;
+      // }
+    }
+
+    /*
+     *  Put the median in the "center" of the list
+     */
+    a[hi0] = a[hi];
+    a[hi] = pivot;
+
+    /*
+     *  Recursive calls, elements a[lo0] to a[lo-1] are less than or
+     *  equal to pivot, elements a[hi+1] to a[hi0] are greater than
+     *  pivot.
+     */
+    sort(a, lo0, lo - 1);
+    sort(a, hi + 1, hi0);
+!!!5813147.java!!!	sort() : void
+    sort(m_map, 0, m_firstFree - 1);

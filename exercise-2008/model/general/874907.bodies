@@ -1,0 +1,49 @@
+class InvocationEvent
+!!!6455963.java!!!	InvocationEvent(inout source : Object, inout runnable : Runnable)
+        this(source, runnable, null, false);
+!!!6456091.java!!!	InvocationEvent(inout source : Object, inout runnable : Runnable, inout notifier : Object, inout catchThrowables : boolean)
+	this(source, INVOCATION_DEFAULT, runnable, notifier, catchThrowables);
+!!!6456219.java!!!	InvocationEvent(inout source : Object, in id : int, inout runnable : Runnable, inout notifier : Object, inout catchThrowables : boolean)
+        super(source, id);
+	this.runnable = runnable;
+	this.notifier = notifier;
+	this.catchExceptions = catchThrowables;
+        this.when = System.currentTimeMillis();
+!!!6456347.java!!!	dispatch() : void
+	if (catchExceptions) {
+	    try {
+		runnable.run();
+	    } 
+	    catch (Throwable t) {
+                if (t instanceof Exception) {
+                    exception = (Exception) t;
+                }
+                throwable = t;
+	    }
+	}
+	else {
+	    runnable.run();
+	}
+
+	if (notifier != null) {
+	    synchronized (notifier) {
+		notifier.notifyAll();
+	    }
+	}
+!!!6456475.java!!!	getException() : Exception
+	return (catchExceptions) ? exception : null;
+!!!6456603.java!!!	getThrowable() : Throwable
+	return (catchExceptions) ? throwable : null;
+!!!6456731.java!!!	getWhen() : long
+        return when;
+!!!6456859.java!!!	paramString() : String
+        String typeStr;
+	switch(id) {
+            case INVOCATION_DEFAULT:
+	        typeStr = "INVOCATION_DEFAULT";
+		break;
+            default:
+	        typeStr = "unknown type";
+	}
+	return typeStr + ",runnable=" + runnable + ",notifier=" + notifier +
+	    ",catchExceptions=" + catchExceptions + ",when=" + when;

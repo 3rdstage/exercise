@@ -1,0 +1,50 @@
+class UnicastRemoteObject
+!!!7526299.java!!!	UnicastRemoteObject()
+	this(0);
+!!!7526427.java!!!	UnicastRemoteObject(in port : int)
+	this.port = port;
+	exportObject((Remote) this, port);
+!!!7526555.java!!!	UnicastRemoteObject(in port : int, inout csf : RMIClientSocketFactory, inout ssf : RMIServerSocketFactory)
+	this.port = port;
+	this.csf = csf;
+	this.ssf = ssf;
+	exportObject((Remote) this, port, csf, ssf);
+!!!7526683.java!!!	readObject(inout in : ObjectInputStream) : void
+	in.defaultReadObject();
+	reexport();
+!!!7526811.java!!!	clone() : Object
+	try {
+	    UnicastRemoteObject cloned = (UnicastRemoteObject) super.clone();
+	    cloned.reexport();
+	    return cloned;
+	} catch (RemoteException e) {
+	    throw new ServerCloneException("Clone failed", e);
+	}
+!!!7526939.java!!!	reexport() : void
+	if (csf == null && ssf == null) {
+	    exportObject((Remote) this, port);
+	} else {
+	    exportObject((Remote) this, port, csf, ssf);
+	}
+!!!7527067.java!!!	exportObject(inout obj : Remote) : RemoteStub
+	/*
+	 * Use UnicastServerRef constructor passing the boolean value true
+	 * to indicate that only a generated stub class should be used.  A
+	 * generated stub class must be used instead of a dynamic proxy
+	 * because the return value of this method is RemoteStub which a
+	 * dynamic proxy class cannot extend.
+	 */
+	return (RemoteStub) exportObject(obj, new UnicastServerRef(true));
+!!!7527195.java!!!	exportObject(inout obj : Remote, in port : int) : Remote
+	return exportObject(obj, new UnicastServerRef(port));
+!!!7527323.java!!!	exportObject(inout obj : Remote, in port : int, inout csf : RMIClientSocketFactory, inout ssf : RMIServerSocketFactory) : Remote
+	
+	return exportObject(obj, new UnicastServerRef2(port, csf, ssf));
+!!!7527451.java!!!	unexportObject(inout obj : Remote, inout force : boolean) : boolean
+	return sun.rmi.transport.ObjectTable.unexportObject(obj, force);
+!!!7527579.java!!!	exportObject(inout obj : Remote, inout sref : UnicastServerRef) : Remote
+	// if obj extends UnicastRemoteObject, set its ref.
+	if (obj instanceof UnicastRemoteObject) {
+	    ((UnicastRemoteObject) obj).ref = sref;
+	}
+	return sref.exportObject(obj, null, false);

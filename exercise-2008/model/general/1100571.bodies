@@ -1,0 +1,62 @@
+class Autoscroller
+!!!8837147.java!!!	stop(inout c : JComponent) : void
+        sharedInstance._stop(c);
+!!!8837275.java!!!	isRunning(inout c : JComponent) : boolean
+        return sharedInstance._isRunning(c);
+!!!8837403.java!!!	processMouseDragged(inout e : MouseEvent) : void
+        sharedInstance._processMouseDragged(e);
+!!!8837659.java!!!	start(inout c : JComponent, inout e : MouseEvent) : void
+        Point screenLocation = c.getLocationOnScreen();
+
+        if (component != c) {
+            _stop(component);
+        }
+        component = c;
+        event = new MouseEvent(component, e.getID(), e.getWhen(),
+                               e.getModifiers(), e.getX() + screenLocation.x,
+                               e.getY() + screenLocation.y,
+                               e.getClickCount(), e.isPopupTrigger());
+
+        if (timer == null) {
+            timer = new Timer(100, this);
+        }
+
+        if (!timer.isRunning()) {
+            timer.start();
+        }
+!!!8837787.java!!!	_stop(inout c : JComponent) : void
+        if (component == c) {
+            if (timer != null) {
+                timer.stop();
+            }
+            timer = null;
+            event = null;
+            component = null;
+        }
+!!!8837915.java!!!	_isRunning(inout c : JComponent) : boolean
+        return (c == component && timer != null && timer.isRunning());
+!!!8838043.java!!!	_processMouseDragged(inout e : MouseEvent) : void
+        JComponent component = (JComponent)e.getComponent();
+	Rectangle visibleRect = component.getVisibleRect();
+	boolean contains = visibleRect.contains(e.getX(), e.getY());
+
+	if (contains) {
+            _stop(component);
+	} else {
+            start(component, e);
+	}
+!!!8838171.java!!!	actionPerformed(inout x : ActionEvent) : void
+        JComponent component = Autoscroller.component;
+
+        if (component == null || !component.isShowing() || (event == null)) {
+            _stop(component);
+            return;
+        }
+        Point screenLocation = component.getLocationOnScreen();
+        MouseEvent e = new MouseEvent(component, event.getID(),
+                                      event.getWhen(), event.getModifiers(),
+                                      event.getX() - screenLocation.x,
+                                      event.getY() - screenLocation.y,
+                                      event.getClickCount(),
+                                      event.isPopupTrigger());
+        component.superProcessMouseMotionEvent(e);

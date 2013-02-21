@@ -1,0 +1,59 @@
+class XPointerParserConfiguration
+!!!5478683.java!!!	XPointerParserConfiguration()
+        this(null, null, null);
+        //this(null, new XMLGrammarPoolImpl(), null);
+!!!5478811.java!!!	XPointerParserConfiguration(inout symbolTable : SymbolTable)
+        this(symbolTable, null, null);
+        //this(symbolTable, new XMLGrammarPoolImpl(), null);
+!!!5478939.java!!!	XPointerParserConfiguration(inout symbolTable : SymbolTable, inout grammarPool : XMLGrammarPool)
+        this(symbolTable, grammarPool, null);
+!!!5479067.java!!!	XPointerParserConfiguration(inout symbolTable : SymbolTable, inout grammarPool : XMLGrammarPool, inout parentSettings : XMLComponentManager)
+        super(symbolTable, grammarPool, parentSettings);
+        
+        // add default recognized properties
+        final String[] recognizedProperties =
+        { XINCLUDE_HANDLER, NAMESPACE_CONTEXT };
+        
+        addRecognizedProperties(recognizedProperties);
+        setProperty(NAMESPACE_CONTEXT, new XIncludeNamespaceSupport());
+        
+!!!5479195.java!!!	configurePipeline() : void
+        
+        super.configurePipeline();
+        // setup document pipeline
+        // add the XPointerSchema component to the list of recognized components
+        if (fXPointerSchemaComponent == null) {
+            if( (fXPointerSchemaComponent = (XPointerSchema)getProperty(XINCLUDE_HANDLER)) !=null){
+                addComponent(fXPointerSchemaComponent);
+            }
+        }
+        // insert before fSchemaValidator, if one exists.
+        XMLDocumentHandler next = null;
+        if (fFeatures.get(XMLSCHEMA_VALIDATION) == Boolean.TRUE) {
+            // we don't have to worry about fSchemaValidator being null, since
+            // super.configurePipeline() instantiated it if the feature was set
+            next = fSchemaValidator.getDocumentHandler();
+        }
+        // Otherwise, insert after the last component in the pipeline
+        
+        if (next != null) {
+            XMLDocumentSource prev = next.getDocumentSource();
+            if (prev != null) {
+                fXPointerSchemaComponent.setDocumentSource(prev);
+                prev.setDocumentHandler(fXPointerSchemaComponent);
+            }
+            next.setDocumentSource(fXPointerSchemaComponent);
+            fXPointerSchemaComponent.setDocumentHandler(next);
+        }
+        else {
+            next = fLastComponent.getDocumentHandler();
+            if (next != null) {
+                fXPointerSchemaComponent.setDocumentHandler(next);
+                next.setDocumentSource(fXPointerSchemaComponent);
+            }
+            fLastComponent.setDocumentHandler(fXPointerSchemaComponent);
+            fXPointerSchemaComponent.setDocumentSource(fLastComponent);
+            
+            setDocumentHandler(fXPointerSchemaComponent);
+        }
+        

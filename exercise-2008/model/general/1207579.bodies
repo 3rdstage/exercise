@@ -1,0 +1,77 @@
+class ColumnIterator
+!!!9989659.java!!!	disablePercentages() : void
+	    percentages = null;
+!!!9989787.java!!!	updatePercentagesAndAdjustmentWeights(in span : int) : void
+	    adjustmentWeights = new int[columnRequirements.length];
+	    for (int i = 0; i < columnRequirements.length; i++) {
+		adjustmentWeights[i] = 0;
+	    }
+	    if (relativeCells) {
+		percentages = new int[columnRequirements.length];
+	    } else {
+		percentages = null;
+	    }
+	    int nrows = getRowCount();
+	    for (int rowIndex = 0; rowIndex < nrows; rowIndex++) {
+		RowView row = getRow(rowIndex);
+		int col = 0;
+		int ncells = row.getViewCount();
+		for (int cell = 0; cell < ncells; cell++, col++) {
+		    View cv = row.getView(cell);
+		    for (; row.isFilled(col); col++); // advance to a free column
+		    int rowSpan = getRowsOccupied(cv);
+		    int colSpan = getColumnsOccupied(cv);
+		    AttributeSet a = cv.getAttributes();
+		    CSS.LengthValue lv = (CSS.LengthValue) 
+			a.getAttribute(CSS.Attribute.WIDTH);
+		    if ( lv != null ) {
+			int len = (int) (lv.getValue(span) / colSpan + 0.5f);
+			for (int i = 0; i < colSpan; i++) {
+			    if (lv.isPercentage()) {
+				// add a percentage requirement
+				percentages[col+i] = Math.max(percentages[col+i], len);
+				adjustmentWeights[col + i] = Math.max(adjustmentWeights[col + i], WorstAdjustmentWeight);
+			    } else {
+				adjustmentWeights[col + i] = Math.max(adjustmentWeights[col + i], WorstAdjustmentWeight - 1);	
+			    }
+			}
+		    }
+		    col += colSpan - 1;
+		}
+	    }
+!!!9989915.java!!!	setLayoutArrays(in offsets : int, in spans : int, in targetSpan : int) : void
+	    this.offsets = offsets;
+	    this.spans = spans;
+	    updatePercentagesAndAdjustmentWeights(targetSpan);
+!!!9990043.java!!!	getCount() : int
+	    return columnRequirements.length;
+!!!9990171.java!!!	setIndex(in i : int) : void
+	    col = i;
+!!!9990299.java!!!	setOffset(in offs : int) : void
+	    offsets[col] = offs;
+!!!9990427.java!!!	getOffset() : int
+	    return offsets[col];
+!!!9990555.java!!!	setSpan(in span : int) : void
+	    spans[col] = span;
+!!!9990683.java!!!	getSpan() : int
+	    return spans[col];
+!!!9990811.java!!!	getMinimumSpan(in parentSpan : float) : float
+	    // do not care for percentages, since min span can't 
+            // be less than columnRequirements[col].minimum,
+	    // but can be less than percentage value.
+	    return columnRequirements[col].minimum;
+!!!9990939.java!!!	getPreferredSpan(in parentSpan : float) : float
+	    if ((percentages != null) && (percentages[col] != 0)) {
+		return Math.max(percentages[col], columnRequirements[col].minimum);
+	    }
+	    return columnRequirements[col].preferred;
+!!!9991067.java!!!	getMaximumSpan(in parentSpan : float) : float
+	    return columnRequirements[col].maximum;
+!!!9991195.java!!!	getBorderWidth() : float
+	    return borderWidth;        
+!!!9991323.java!!!	getLeadingCollapseSpan() : float
+	    return cellSpacing;
+!!!9991451.java!!!	getTrailingCollapseSpan() : float
+	    return cellSpacing;
+!!!9991579.java!!!	getAdjustmentWeight() : int
+	    return adjustmentWeights[col];

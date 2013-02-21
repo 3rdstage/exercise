@@ -1,0 +1,89 @@
+class DOMParser
+!!!5260443.java!!!	DOMParser()
+        // REVISIT: should we use a new configuration with scannerNS->dom API with 
+        //          no dtd scanners/valitors..?
+        //
+        super(new NonValidatingConfiguration());
+        try {
+            // use our own document implementation
+            setProperty(DOCUMENT_CLASS, "com.sun.org.apache.xerces.internal.impl.xs.dom.DocumentImpl");
+            // don't defer DOM expansion
+            setFeature(DEFER_EXPANSION, false);
+
+        }
+        catch (Exception e) {
+        }
+        fNodePool = new DOMNodePool();
+!!!5260571.java!!!	resetNodePool() : void
+        fNodePool.reset();
+!!!5260699.java!!!	startDocument(inout locator : XMLLocator, in encoding : String, inout namespaceContext : NamespaceContext, inout augs : Augmentations) : void
+
+        super.startDocument(locator, encoding, namespaceContext, augs);
+        // get a handle to the document created
+        fDocumentImpl = (DocumentImpl)super.fDocumentImpl;
+        fDocumentImpl.fNodePool=fNodePool;
+        fLocator = locator;
+
+!!!5260827.java!!!	startElement(inout element : QName, inout attributes : XMLAttributes, inout augs : Augmentations) : void
+        super.startElement(element, attributes, augs);
+        fDepth++;
+        // if it's not within either element, check whether it's one of them
+        // if so, record the current depth, so that any element with larger
+        // depth is allowed to have character data.
+        if (fAnnotationDepth == -1) {
+            if (element.uri == SchemaSymbols.URI_SCHEMAFORSCHEMA &&
+                (element.localpart == SchemaSymbols.ELT_APPINFO ||
+                 element.localpart == SchemaSymbols.ELT_DOCUMENTATION)) {
+                fAnnotationDepth = fDepth;
+            }
+        }
+!!!5260955.java!!!	characters(inout text : XMLString, inout augs : Augmentations) : void
+        // when it's not within xs:appinfo or xs:documentation
+        if (fAnnotationDepth == -1) {
+            for (int i=text.offset; i<text.offset+text.length; i++) {
+                // and there is a non-whitespace character
+                if (!XMLChar.isSpace(text.ch[i])) {
+                    // only get the error reporter when reporting an error
+                    if (fErrorReporter == null) {
+                        try {
+                            fErrorReporter = (XMLErrorReporter)getProperty(ERROR_REPORTER);
+                        } catch (Exception e) {
+                            //ignore the excpetion
+                        }
+                        if (fErrorReporter.getMessageFormatter(XSMessageFormatter.SCHEMA_DOMAIN) == null) {
+                            XSMessageFormatter xmft = new XSMessageFormatter();
+                            fErrorReporter.putMessageFormatter(XSMessageFormatter.SCHEMA_DOMAIN, xmft);
+                        }
+                    }
+                    // the string we saw: starting from the first non-whitespace character.
+                    String txt = new String(text.ch, i, text.length+text.offset-i);
+                    // report an error
+                    fErrorReporter.reportError(XSMessageFormatter.SCHEMA_DOMAIN,
+                                               "s4s-elt-character",
+                                               new Object[]{txt},
+                                               XMLErrorReporter.SEVERITY_ERROR);
+                    break;
+                }
+            }
+            // don't call super.characters() when it's not within one of the 2
+            // annotation elements: the traversers ignore them anyway. We can
+            // save time/memory creating the text nodes.
+        }
+        // when it's not within either of the 2 elements, characters are allowed
+        // and we need to call super.characters().
+        else {
+            super.characters(text, augs);
+        }
+!!!5261083.java!!!	endElement(inout element : QName, inout augs : Augmentations) : void
+        super.endElement(element, augs);
+        // when we reach the endElement of xs:appinfo or xs:documentation,
+        // change fAnnotationDepth to -1
+        if (fAnnotationDepth == fDepth)
+            fAnnotationDepth = -1;
+        fDepth--;
+!!!5261211.java!!!	createElementNode(inout element : QName) : Element
+        // create an element containing line/column information
+        return fDocumentImpl.createElementNS(element.uri, element.rawname,
+                                             element.localpart,
+                                             fLocator.getLineNumber(),
+                                             fLocator.getColumnNumber());

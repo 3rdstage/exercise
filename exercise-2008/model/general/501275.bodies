@@ -1,0 +1,304 @@
+class lexer
+!!!3082651.java!!!	init() : void
+      /* set up the keyword table */
+      keywords.put("package",    new Integer(sym.PACKAGE));
+      keywords.put("import",     new Integer(sym.IMPORT));
+      keywords.put("code",       new Integer(sym.CODE));
+      keywords.put("action",     new Integer(sym.ACTION));
+      keywords.put("parser",     new Integer(sym.PARSER));
+      keywords.put("terminal",   new Integer(sym.TERMINAL));
+      keywords.put("non",        new Integer(sym.NON));
+      keywords.put("nonterminal",new Integer(sym.NONTERMINAL));// [CSA]
+      keywords.put("init",       new Integer(sym.INIT));
+      keywords.put("scan",       new Integer(sym.SCAN));
+      keywords.put("with",       new Integer(sym.WITH));
+      keywords.put("start",      new Integer(sym.START));
+      keywords.put("precedence", new Integer(sym.PRECEDENCE));
+      keywords.put("left",       new Integer(sym.LEFT));
+      keywords.put("right",      new Integer(sym.RIGHT));
+      keywords.put("nonassoc",   new Integer(sym.NONASSOC));
+
+      /* set up the table of single character symbols */
+      char_symbols.put(new Integer(';'), new Integer(sym.SEMI));
+      char_symbols.put(new Integer(','), new Integer(sym.COMMA));
+      char_symbols.put(new Integer('*'), new Integer(sym.STAR));
+      char_symbols.put(new Integer('.'), new Integer(sym.DOT));
+      char_symbols.put(new Integer('|'), new Integer(sym.BAR));
+      char_symbols.put(new Integer('['), new Integer(sym.LBRACK));
+      char_symbols.put(new Integer(']'), new Integer(sym.RBRACK));
+
+      /* read two characters of lookahead */
+      next_char = System.in.read();
+      if (next_char == EOF_CHAR) {
+	next_char2 = EOF_CHAR;
+        next_char3 = EOF_CHAR;
+        next_char4 = EOF_CHAR;
+      } else {
+	next_char2 = System.in.read();
+	if (next_char2 == EOF_CHAR) {
+	  next_char3 = EOF_CHAR;
+	  next_char4 = EOF_CHAR;
+	} else {
+	  next_char3 = System.in.read();
+	  if (next_char3 == EOF_CHAR) {
+	    next_char4 = EOF_CHAR;
+	  } else {
+	    next_char4 = System.in.read();
+	  }
+	}
+      }
+!!!3082779.java!!!	advance() : void
+      int old_char;
+
+      old_char = next_char;
+      next_char = next_char2;
+      if (next_char == EOF_CHAR) {
+	next_char2 = EOF_CHAR;
+        next_char3 = EOF_CHAR;
+	next_char4 = EOF_CHAR;
+      } else {
+	next_char2 = next_char3;
+	if (next_char2 == EOF_CHAR) {
+	  next_char3 = EOF_CHAR;
+	  next_char4 = EOF_CHAR;
+	} else {
+	  next_char3 = next_char4;
+	  if (next_char3 == EOF_CHAR) {
+	    next_char4 = EOF_CHAR;
+	  } else {
+	    next_char4 = System.in.read();
+	  }
+	}
+      }
+
+      /* count this */
+      absolute_position++;
+      current_position++;
+      if (old_char == '\n')
+	{
+	  current_line++;
+	  current_position = 1;
+	}
+!!!3082907.java!!!	emit_error(in message : String) : void
+      System.err.println("Error at " + current_line + "(" + current_position +
+			 "): " + message);
+      error_count++;
+!!!3083035.java!!!	emit_warn(in message : String) : void
+      System.err.println("Warning at " + current_line + "(" + current_position +
+			 "): " + message);
+      warning_count++;
+!!!3083163.java!!!	id_start_char(in ch : int) : boolean
+      /* allow for % in identifiers.  a hack to allow my
+	 %prec in.  Should eventually make lex spec for this 
+	 frankf */
+      return (ch >= 'a' &&  ch <= 'z') || (ch >= 'A' && ch <= 'Z') || 
+	     (ch == '_');
+
+      // later need to deal with non-8-bit chars here
+!!!3083291.java!!!	id_char(in ch : int) : boolean
+      return id_start_char(ch) || (ch >= '0' && ch <= '9');
+!!!3083419.java!!!	find_single_char(in ch : int) : int
+      Integer result;
+
+      result = (Integer)char_symbols.get(new Integer((char)ch));
+      if (result == null) 
+	return -1;
+      else
+	return result.intValue();
+!!!3083547.java!!!	swallow_comment() : void
+      /* next_char == '/' at this point */
+
+      /* is it a traditional comment */
+      if (next_char2 == '*')
+	{
+	  /* swallow the opener */
+	  advance(); advance();
+
+	  /* swallow the comment until end of comment or EOF */
+	  for (;;)
+	    {
+	      /* if its EOF we have an error */
+	      if (next_char == EOF_CHAR)
+		{
+		  emit_error("Specification file ends inside a comment");
+		  return;
+		}
+
+	      /* if we can see the closer we are done */
+	      if (next_char == '*' && next_char2 == '/')
+		{
+		  advance();
+		  advance();
+		  return;
+		}
+
+	      /* otherwise swallow char and move on */
+	      advance();
+	    }
+	}
+
+      /* is its a new style comment */
+      if (next_char2 == '/')
+	{
+	  /* swallow the opener */
+	  advance(); advance();
+
+	  /* swallow to '\n', '\f', or EOF */ 
+	  while (next_char != '\n' && next_char != '\f' && next_char!=EOF_CHAR)
+	    advance();
+
+	  return;
+
+	}
+
+      /* shouldn't get here, but... if we get here we have an error */
+      emit_error("Malformed comment in specification -- ignored");
+      advance();
+!!!3083675.java!!!	do_code_string() : Symbol
+      StringBuffer result = new StringBuffer();
+
+      /* at this point we have lookahead of "{:" -- swallow that */
+      advance(); advance();
+
+      /* save chars until we see ":}" */
+      while (!(next_char == ':' && next_char2 == '}'))
+	{
+	  /* if we have run off the end issue a message and break out of loop */
+	  if (next_char == EOF_CHAR)
+	    {
+	      emit_error("Specification file ends inside a code string");
+	      break;
+	    }
+
+	  /* otherwise record the char and move on */
+	  result.append(new Character((char)next_char));
+	  advance();
+	}
+
+      /* advance past the closer and build a return Symbol */
+      advance(); advance();
+      return new Symbol(sym.CODE_STRING, result.toString());
+!!!3083803.java!!!	do_id() : Symbol
+      StringBuffer result = new StringBuffer();
+      String       result_str;
+      Integer      keyword_num;
+      char         buffer[] = new char[1];
+
+      /* next_char holds first character of id */
+      buffer[0] = (char)next_char;
+      result.append(buffer,0,1);
+      advance();
+
+      /* collect up characters while they fit in id */ 
+      while(id_char(next_char))
+	{
+          buffer[0] = (char)next_char;
+	  result.append(buffer,0,1);
+	  advance();
+	}
+
+      /* extract a string and try to look it up as a keyword */
+      result_str = result.toString();
+      keyword_num = (Integer)keywords.get(result_str);
+
+      /* if we found something, return that keyword */
+      if (keyword_num != null)
+	return new Symbol(keyword_num.intValue());
+
+      /* otherwise build and return an id Symbol with an attached string */
+      return new Symbol(sym.ID, result_str);
+!!!3083931.java!!!	next_token() : Symbol
+      return real_next_token();
+!!!3084059.java!!!	debug_next_token() : Symbol
+      Symbol result = real_next_token();
+      System.out.println("# next_Symbol() => " + result.sym);
+      return result;
+!!!3084187.java!!!	real_next_token() : Symbol
+      int sym_num;
+
+      for (;;)
+	{
+	  /* look for white space */
+	  if (next_char == ' ' || next_char == '\t' || next_char == '\n' ||
+	      next_char == '\f' ||  next_char == '\r')
+	    {
+	      /* advance past it and try the next character */
+	      advance();
+	      continue;
+	    }
+
+	  /* look for a single character symbol */
+	  sym_num = find_single_char(next_char);
+	  if (sym_num != -1)
+	    {
+	      /* found one -- advance past it and return a Symbol for it */
+	      advance();
+	      return new Symbol(sym_num);
+	    }
+
+	  /* look for : or ::= */
+	  if (next_char == ':')
+	    {
+	      /* if we don't have a second ':' return COLON */
+	      if (next_char2 != ':') 
+		{
+		  advance();
+		  return new Symbol(sym.COLON);
+		}
+
+	      /* move forward and look for the '=' */
+	      advance();
+	      if (next_char2 == '=') 
+		{
+		  advance(); advance();
+		  return new Symbol(sym.COLON_COLON_EQUALS);
+		}
+	      else
+		{
+		  /* return just the colon (already consumed) */
+		  return new Symbol(sym.COLON);
+		}
+	    }
+
+	  /* find a "%prec" string and return it.  otherwise, a '%' was found,
+	     which has no right being in the specification otherwise */
+	  if (next_char == '%') {
+	    advance();
+	    if ((next_char == 'p') && (next_char2 == 'r') && (next_char3 == 'e') && 
+		(next_char4 == 'c')) {
+	      advance();
+	      advance();
+	      advance();
+	      advance();
+	      return new Symbol(sym.PERCENT_PREC);
+	    } else {
+	      emit_error("Found extraneous percent sign");
+	    }
+	  }
+
+	  /* look for a comment */
+	  if (next_char == '/' && (next_char2 == '*' || next_char2 == '/'))
+	    {
+	      /* swallow then continue the scan */
+	      swallow_comment();
+	      continue;
+	    }
+
+	  /* look for start of code string */
+	  if (next_char == '{' && next_char2 == ':')
+	    return do_code_string();
+
+	  /* look for an id or keyword */
+	  if (id_start_char(next_char)) return do_id();
+
+	  /* look for EOF */
+	  if (next_char == EOF_CHAR) return new Symbol(sym.EOF);
+
+	  /* if we get here, we have an unrecognized character */
+	  emit_warn("Unrecognized character '" + 
+	    new Character((char)next_char) + "'(" + next_char + 
+	    ") -- ignored");
+
+	  /* advance past it */
+	  advance();
+	}

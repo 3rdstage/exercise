@@ -1,0 +1,200 @@
+class DelayQueue
+!!!7923611.java!!!	DelayQueue(inout c : Collection)
+        this.addAll(c);
+!!!7923739.java!!!	offer(inout o : E) : boolean
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            E first = q.peek();
+            q.offer(o);
+            if (first == null || o.compareTo(first) < 0)
+                available.signalAll();
+            return true;
+        } finally {
+            lock.unlock();
+        }
+!!!7923867.java!!!	put(inout o : E) : void
+        offer(o);
+!!!7923995.java!!!	offer(inout o : E, in timeout : long, inout unit : TimeUnit) : boolean
+        return offer(o);
+!!!7924123.java!!!	add(inout o : E) : boolean
+        return offer(o);
+!!!7924251.java!!!	take() : E
+        final ReentrantLock lock = this.lock;
+        lock.lockInterruptibly();
+        try {
+            for (;;) {
+                E first = q.peek();
+                if (first == null) {
+                    available.await();
+                } else {
+                    long delay =  first.getDelay(TimeUnit.NANOSECONDS);
+                    if (delay > 0) {
+                        long tl = available.awaitNanos(delay);
+                    } else {
+                        E x = q.poll();
+                        assert x != null;
+                        if (q.size() != 0)
+                            available.signalAll(); // wake up other takers
+                        return x;
+
+                    }
+                }
+            }
+        } finally {
+            lock.unlock();
+        }
+!!!7924379.java!!!	poll(in timeout : long, inout unit : TimeUnit) : E
+        final ReentrantLock lock = this.lock;
+        lock.lockInterruptibly();
+        long nanos = unit.toNanos(timeout);
+        try {
+            for (;;) {
+                E first = q.peek();
+                if (first == null) {
+                    if (nanos <= 0)
+                        return null;
+                    else
+                        nanos = available.awaitNanos(nanos);
+                } else {
+                    long delay =  first.getDelay(TimeUnit.NANOSECONDS);
+                    if (delay > 0) {
+                        if (nanos <= 0)
+                            return null;
+                        if (delay > nanos)
+                            delay = nanos;
+                        long timeLeft = available.awaitNanos(delay);
+                        nanos -= delay - timeLeft;
+                    } else {
+                        E x = q.poll();
+                        assert x != null;
+                        if (q.size() != 0)
+                            available.signalAll();
+                        return x;
+                    }
+                }
+            }
+        } finally {
+            lock.unlock();
+        }
+!!!7924507.java!!!	poll() : E
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            E first = q.peek();
+            if (first == null || first.getDelay(TimeUnit.NANOSECONDS) > 0)
+                return null;
+            else {
+                E x = q.poll();
+                assert x != null;
+                if (q.size() != 0)
+                    available.signalAll();
+                return x;
+            }
+        } finally {
+            lock.unlock();
+        }
+!!!7924635.java!!!	peek() : E
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return q.peek();
+        } finally {
+            lock.unlock();
+        }
+!!!7924763.java!!!	size() : int
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return q.size();
+        } finally {
+            lock.unlock();
+        }
+!!!7924891.java!!!	drainTo(inout c : Collection) : int
+        if (c == null)
+            throw new NullPointerException();
+        if (c == this)
+            throw new IllegalArgumentException();
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            int n = 0;
+            for (;;) {
+                E first = q.peek();
+                if (first == null || first.getDelay(TimeUnit.NANOSECONDS) > 0)
+                    break;
+                c.add(q.poll());
+                ++n;
+            }
+            if (n > 0)
+                available.signalAll();
+            return n;
+        } finally {
+            lock.unlock();
+        }
+!!!7925019.java!!!	drainTo(inout c : Collection, in maxElements : int) : int
+        if (c == null)
+            throw new NullPointerException();
+        if (c == this)
+            throw new IllegalArgumentException();
+        if (maxElements <= 0)
+            return 0;
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            int n = 0;
+            while (n < maxElements) {
+                E first = q.peek();
+                if (first == null || first.getDelay(TimeUnit.NANOSECONDS) > 0)
+                    break;
+                c.add(q.poll());
+                ++n;
+            }
+            if (n > 0)
+                available.signalAll();
+            return n;
+        } finally {
+            lock.unlock();
+        }
+!!!7925147.java!!!	clear() : void
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            q.clear();
+        } finally {
+            lock.unlock();
+        }
+!!!7925275.java!!!	remainingCapacity() : int
+        return Integer.MAX_VALUE;
+!!!7925403.java!!!	toArray() : Object
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return q.toArray();
+        } finally {
+            lock.unlock();
+        }
+!!!7925531.java!!!	toArray(inout array : T) : T
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return q.toArray(array);
+        } finally {
+            lock.unlock();
+        }
+!!!7925659.java!!!	remove(inout o : Object) : boolean
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return q.remove(o);
+        } finally {
+            lock.unlock();
+        }
+!!!7925787.java!!!	iterator() : Iterator
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return new Itr(q.iterator());
+        } finally {
+            lock.unlock();
+        }

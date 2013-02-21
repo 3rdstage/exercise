@@ -1,0 +1,624 @@
+class XMLHeadTokenizer
+!!!10471707.java!!!	XMLHeadTokenizer()
+		super();
+!!!10471835.java!!!	reset(inout in : Reader) : void
+	  	/* the input device */
+	  	yy_reader = in;
+
+  		/* the current state of the DFA */
+  		yy_state = 0;
+
+  		/* the current lexical state */
+  		yy_lexical_state = YYINITIAL;
+
+  		/* this buffer contains the current text to be matched and is
+  		 the source of the yytext() string */
+  		java.util.Arrays.fill(yy_buffer, (char)0);
+
+  		/* the textposition at the last accepting state */
+  		yy_markedPos = 0;
+
+  		/* the textposition at the last state to be included in yytext */
+  		yy_pushbackPos = 0;
+
+  		/* the current text position in the buffer */
+  		yy_currentPos = 0;
+
+  		/* startRead marks the beginning of the yytext() string in the buffer */
+  		yy_startRead = 0;
+
+  		/** 
+  		 * endRead marks the last character in the buffer, that has been read
+  		 * from input 
+  		 */
+  		yy_endRead = 0;
+
+  		/* number of newlines encountered up to the start of the matched text */
+  		yyline = 0;
+
+  		/* the number of characters up to the start of the matched text */
+  		yychar = 0;
+
+  		/**
+  		 * the number of characters from the last newline up to the start
+  		 * of the matched text
+  		 */
+  		yycolumn = 0; 
+
+  		/** 
+  		 * yy_atBOL == true <=> the scanner is currently at the beginning 
+  		 * of a line
+  		 */
+  		yy_atBOL = false;
+
+  		/* yy_atEOF == true <=> the scanner has returned a value for EOF */
+  		yy_atEOF = false;
+
+  		/* denotes if the user-EOF-code has already been executed */
+  		yy_eof_done = false;
+
+
+  		fStateStack.clear();
+  		
+  		hasMore = true;
+  		
+  		// its a little wasteful to "throw away" first char array generated
+  		// by class init (via auto generated code), but we really do want 
+  		// a small buffer for our head parsers. 
+  		if (yy_buffer.length != MAX_TO_SCAN) {
+  			yy_buffer = new char[MAX_TO_SCAN];
+  		}
+
+
+!!!10471963.java!!!	getNextToken() : HeadParserToken
+		String context = null;
+		context = primGetNextToken();
+		HeadParserToken result = null;
+		if (valueText != null) {
+			result = createToken(context, yychar, valueText);
+			valueText = null;
+		} else {
+			result = createToken(context, yychar, yytext());
+		}
+		return result;
+!!!10472091.java!!!	hasMoreTokens() : boolean
+		return hasMore && yychar < MAX_TO_SCAN;
+!!!10472219.java!!!	pushCurrentState() : void
+		fStateStack.push(yystate());
+
+!!!10472347.java!!!	popState() : void
+		yybegin(fStateStack.pop());
+!!!10472475.java!!!	createToken(in context : String, in start : int, in text : String) : HeadParserToken
+		return new HeadParserToken(context, start, text);
+!!!10472603.java!!!	XMLHeadTokenizer(inout in : Reader)
+    this.yy_reader = in;
+!!!10472731.java!!!	XMLHeadTokenizer(inout in : InputStream)
+    this(new java.io.InputStreamReader(in));
+!!!10472859.java!!!	yy_unpack_cmap(in packed : String) : char
+    char [] map = new char[0x10000];
+    int i = 0;  /* index in packed string  */
+    int j = 0;  /* index in unpacked array */
+    while (i < 128) {
+      int  count = packed.charAt(i++);
+      char value = packed.charAt(i++);
+      do map[j++] = value; while (--count > 0);
+    }
+    return map;
+!!!10472987.java!!!	yy_advance() : int
+
+    /* standard case */
+    if (yy_currentPos < yy_endRead) return yy_buffer[yy_currentPos++];
+
+    /* if the eof is reached, we don't need to work hard */ 
+    if (yy_atEOF) return YYEOF;
+
+    /* otherwise: need to refill the buffer */
+
+    /* first: make room (if you can) */
+    if (yy_startRead > 0) {
+      System.arraycopy(yy_buffer, yy_startRead, 
+                       yy_buffer, 0, 
+                       yy_endRead-yy_startRead);
+
+      /* translate stored positions */
+      yy_endRead-= yy_startRead;
+      yy_currentPos-= yy_startRead;
+      yy_markedPos-= yy_startRead;
+      yy_pushbackPos-= yy_startRead;
+      yy_startRead = 0;
+    }
+
+    /* is the buffer big enough? */
+    if (yy_currentPos >= yy_buffer.length) {
+      /* if not: blow it up */
+      char newBuffer[] = new char[yy_currentPos*2];
+      System.arraycopy(yy_buffer, 0, newBuffer, 0, yy_buffer.length);
+      yy_buffer = newBuffer;
+    }
+
+    /* finally: fill the buffer with new input */
+    int numRead = yy_reader.read(yy_buffer, yy_endRead, 
+                                            yy_buffer.length-yy_endRead);
+
+    if ( numRead == -1 ) return YYEOF;
+
+    yy_endRead+= numRead;
+
+    return yy_buffer[yy_currentPos++];
+!!!10473115.java!!!	yyclose() : void
+    yy_atEOF = true;            /* indicate end of file */
+    yy_endRead = yy_startRead;  /* invalidate buffer    */
+    yy_reader.close();
+!!!10473243.java!!!	yystate() : int
+    return yy_lexical_state;
+!!!10473371.java!!!	yybegin(in newState : int) : void
+    yy_lexical_state = newState;
+!!!10473499.java!!!	yytext() : String
+    return new String( yy_buffer, yy_startRead, yy_markedPos-yy_startRead );
+!!!10473627.java!!!	yylength() : int
+    return yy_markedPos-yy_startRead;
+!!!10473755.java!!!	yy_ScanError(in errorCode : int) : void
+    try {
+      System.out.println(YY_ERROR_MSG[errorCode]);
+    }
+    catch (ArrayIndexOutOfBoundsException e) {
+      System.out.println(YY_ERROR_MSG[YY_UNKNOWN_ERROR]);
+    }
+
+    System.exit(1);
+!!!10473883.java!!!	yypushback(in number : int) : void
+    if ( number > yylength() )
+      yy_ScanError(YY_PUSHBACK_2BIG);
+
+    yy_markedPos -= number;
+!!!10474011.java!!!	yy_do_eof() : void
+    if (!yy_eof_done) {
+      yy_eof_done = true;
+    	hasMore=false;
+
+    }
+!!!10474139.java!!!	primGetNextToken() : String
+    int yy_input;
+    int yy_action;
+
+
+    while (true) {
+
+      yychar+= yylength();
+
+      yy_atBOL = yy_markedPos <= 0 || yy_buffer[yy_markedPos-1] == '\n';
+      if (!yy_atBOL && yy_buffer[yy_markedPos-1] == '\r') {
+        yy_atBOL = yy_advance() != '\n';
+        if (!yy_atEOF) yy_currentPos--;
+      }
+
+      yy_action = -1;
+
+      yy_currentPos = yy_startRead = yy_markedPos;
+
+      if (yy_atBOL)
+        yy_state = YY_LEXSTATE[yy_lexical_state+1];
+      else
+        yy_state = YY_LEXSTATE[yy_lexical_state];
+
+
+      yy_forAction: {
+        while (true) {
+
+          yy_input = yy_advance();
+
+          if ( yy_input == YYEOF ) break yy_forAction;
+
+          yy_input = yycmap[yy_input];
+
+          boolean yy_isFinal = false;
+          boolean yy_noLookAhead = false;
+
+          yy_forNext: { switch (yy_state) {
+            case 0:
+              switch (yy_input) {
+                default: yy_isFinal = true; yy_noLookAhead = true; yy_state = 7; break yy_forNext;
+              }
+
+            case 1:
+              switch (yy_input) {
+                case 1: yy_isFinal = true; yy_state = 8; break yy_forNext;
+                case 2: yy_isFinal = true; yy_state = 9; break yy_forNext;
+                case 3: yy_isFinal = true; yy_state = 10; break yy_forNext;
+                case 6: 
+                case 7: 
+                case 9: yy_isFinal = true; yy_state = 11; break yy_forNext;
+                case 10: yy_isFinal = true; yy_state = 12; break yy_forNext;
+                default: yy_isFinal = true; yy_noLookAhead = true; yy_state = 7; break yy_forNext;
+              }
+
+            case 2:
+              switch (yy_input) {
+                case 11: yy_isFinal = true; yy_state = 13; break yy_forNext;
+                case 15: yy_isFinal = true; yy_state = 14; break yy_forNext;
+                default: yy_isFinal = true; yy_noLookAhead = true; yy_state = 7; break yy_forNext;
+              }
+
+            case 3:
+              switch (yy_input) {
+                case 6: 
+                case 9: yy_isFinal = true; yy_state = 16; break yy_forNext;
+                case 7: yy_isFinal = true; yy_state = 17; break yy_forNext;
+                case 23: yy_isFinal = true; yy_noLookAhead = true; yy_state = 18; break yy_forNext;
+                case 24: yy_isFinal = true; yy_noLookAhead = true; yy_state = 19; break yy_forNext;
+                default: yy_isFinal = true; yy_noLookAhead = true; yy_state = 15; break yy_forNext;
+              }
+
+            case 4:
+              switch (yy_input) {
+                case 7: 
+                case 9: yy_isFinal = true; yy_noLookAhead = true; yy_state = 21; break yy_forNext;
+                case 11: yy_isFinal = true; yy_state = 22; break yy_forNext;
+                case 23: yy_isFinal = true; yy_noLookAhead = true; yy_state = 23; break yy_forNext;
+                case 24: yy_isFinal = true; yy_state = 24; break yy_forNext;
+                default: yy_isFinal = true; yy_noLookAhead = true; yy_state = 20; break yy_forNext;
+              }
+
+            case 5:
+              switch (yy_input) {
+                case 7: 
+                case 9: yy_isFinal = true; yy_noLookAhead = true; yy_state = 21; break yy_forNext;
+                case 24: yy_isFinal = true; yy_state = 25; break yy_forNext;
+                case 25: yy_isFinal = true; yy_state = 26; break yy_forNext;
+                default: yy_isFinal = true; yy_noLookAhead = true; yy_state = 20; break yy_forNext;
+              }
+
+            case 6:
+              switch (yy_input) {
+                case 11: yy_isFinal = true; yy_state = 26; break yy_forNext;
+                case 6: 
+                case 7: 
+                case 9: yy_isFinal = true; yy_noLookAhead = true; yy_state = 27; break yy_forNext;
+                case 23: yy_isFinal = true; yy_noLookAhead = true; yy_state = 28; break yy_forNext;
+                case 24: yy_isFinal = true; yy_state = 29; break yy_forNext;
+                default: yy_isFinal = true; yy_noLookAhead = true; yy_state = 20; break yy_forNext;
+              }
+
+            case 8:
+              switch (yy_input) {
+                case 2: yy_isFinal = true; yy_noLookAhead = true; yy_state = 30; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 9:
+              switch (yy_input) {
+                case 1: yy_isFinal = true; yy_noLookAhead = true; yy_state = 31; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 10:
+              switch (yy_input) {
+                case 4: yy_state = 32; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 11:
+              switch (yy_input) {
+                case 6: 
+                case 7: 
+                case 9: yy_state = 33; break yy_forNext;
+                case 10: yy_state = 34; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 12:
+              switch (yy_input) {
+                case 11: yy_state = 35; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 13:
+              switch (yy_input) {
+                case 22: yy_isFinal = true; yy_noLookAhead = true; yy_state = 36; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 14:
+              switch (yy_input) {
+                case 16: yy_state = 37; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 16:
+              switch (yy_input) {
+                case 6: 
+                case 9: yy_isFinal = true; yy_state = 16; break yy_forNext;
+                case 7: yy_state = 38; break yy_forNext;
+                default: yy_isFinal = true; yy_noLookAhead = true; yy_state = 15; break yy_forNext;
+              }
+
+            case 17:
+              switch (yy_input) {
+                case 6: 
+                case 9: yy_isFinal = true; yy_state = 16; break yy_forNext;
+                case 7: yy_state = 38; break yy_forNext;
+                default: yy_isFinal = true; yy_noLookAhead = true; yy_state = 15; break yy_forNext;
+              }
+
+            case 22:
+              switch (yy_input) {
+                case 22: yy_isFinal = true; yy_noLookAhead = true; yy_state = 39; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 24:
+              switch (yy_input) {
+                case 10: yy_state = 40; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 25:
+              switch (yy_input) {
+                case 10: yy_state = 40; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 26:
+              switch (yy_input) {
+                case 22: yy_isFinal = true; yy_noLookAhead = true; yy_state = 41; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 29:
+              switch (yy_input) {
+                case 10: yy_state = 40; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 32:
+              switch (yy_input) {
+                case 5: yy_isFinal = true; yy_noLookAhead = true; yy_state = 42; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 33:
+              switch (yy_input) {
+                case 6: 
+                case 7: 
+                case 9: yy_state = 33; break yy_forNext;
+                case 10: yy_state = 34; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 34:
+              switch (yy_input) {
+                case 11: yy_state = 35; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 35:
+              switch (yy_input) {
+                case 12: yy_state = 43; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 37:
+              switch (yy_input) {
+                case 17: yy_state = 44; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 38:
+              switch (yy_input) {
+                case 6: 
+                case 9: yy_isFinal = true; yy_state = 16; break yy_forNext;
+                case 7: yy_state = 38; break yy_forNext;
+                default: yy_isFinal = true; yy_noLookAhead = true; yy_state = 15; break yy_forNext;
+              }
+
+            case 40:
+              switch (yy_input) {
+                case 24: yy_isFinal = true; yy_noLookAhead = true; yy_state = 21; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 43:
+              switch (yy_input) {
+                case 13: yy_state = 45; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 44:
+              switch (yy_input) {
+                case 18: yy_state = 46; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 45:
+              switch (yy_input) {
+                case 14: yy_state = 47; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 46:
+              switch (yy_input) {
+                case 19: yy_state = 48; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 47:
+              switch (yy_input) {
+                case 6: 
+                case 7: 
+                case 9: yy_isFinal = true; yy_state = 49; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 48:
+              switch (yy_input) {
+                case 20: yy_state = 50; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 49:
+              switch (yy_input) {
+                case 6: 
+                case 7: 
+                case 9: yy_isFinal = true; yy_state = 49; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 50:
+              switch (yy_input) {
+                case 16: yy_state = 51; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 51:
+              switch (yy_input) {
+                case 21: yy_state = 52; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 52:
+              switch (yy_input) {
+                case 6: 
+                case 7: 
+                case 9: yy_state = 52; break yy_forNext;
+                case 8: yy_isFinal = true; yy_state = 53; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            case 53:
+              switch (yy_input) {
+                case 6: 
+                case 7: 
+                case 9: yy_isFinal = true; yy_state = 53; break yy_forNext;
+                default: break yy_forAction;
+              }
+
+            default:
+              yy_ScanError(YY_ILLEGAL_STATE);
+              break;
+          } }
+
+          if ( yy_isFinal ) {
+            yy_action = yy_state; 
+            yy_markedPos = yy_currentPos; 
+            if ( yy_noLookAhead ) break yy_forAction;
+          }
+
+        }
+      }
+
+
+      switch (yy_action) {    
+
+        case 25: 
+          {  popState(); valueText = string.toString(); return EncodingParserConstants.StringValue; }
+        case 55: break;
+        case 21: 
+          {  yypushback(1);popState(); valueText = string.toString(); return EncodingParserConstants.InvalidTerminatedStringValue; }
+        case 56: break;
+        case 15: 
+        case 16: 
+          {  yypushback(1); yybegin(UnDelimitedString); string.setLength(0); }
+        case 57: break;
+        case 28: 
+        case 29: 
+          {  yypushback(1);popState(); valueText = string.toString(); return EncodingParserConstants.InvalidTermintatedUnDelimitedStringValue; }
+        case 58: break;
+        case 39: 
+          {  yypushback(2); popState(); valueText = string.toString(); return EncodingParserConstants.InvalidTerminatedStringValue; }
+        case 59: break;
+        case 41: 
+          {  yypushback(2);popState(); valueText = string.toString(); return EncodingParserConstants.InvalidTerminatedStringValue; }
+        case 60: break;
+        case 7: 
+        case 8: 
+        case 9: 
+        case 10: 
+        case 11: 
+        case 12: 
+        case 13: 
+        case 14: 
+        case 17: 
+          { if (yychar > MAX_TO_SCAN) {hasMore=false; return EncodingParserConstants.MAX_CHARS_REACHED;} }
+        case 61: break;
+        case 30: 
+          { if (yychar == 0 ) {hasMore = false; return EncodingParserConstants.UTF16BE;} }
+        case 62: break;
+        case 31: 
+          { if (yychar == 0 ) {hasMore = false; return EncodingParserConstants.UTF16LE;} }
+        case 63: break;
+        case 42: 
+          { if (yychar == 0 ) {hasMore = false; return EncodingParserConstants.UTF83ByteBOM;} }
+        case 64: break;
+        case 49: 
+          { if (yychar == 0 ) {yybegin(ST_XMLDecl); return XMLHeadTokenizerConstants.XMLDeclStart;} }
+        case 65: break;
+        case 36: 
+          { yybegin(YYINITIAL); hasMore = false; return XMLHeadTokenizerConstants.XMLDeclEnd; }
+        case 66: break;
+        case 53: 
+          { pushCurrentState(); yybegin(QuotedAttributeValue); return XMLHeadTokenizerConstants.XMLDelEncoding; }
+        case 67: break;
+        case 23: 
+          {  popState(); valueText = string.toString(); return EncodingParserConstants.StringValue;  }
+        case 68: break;
+        case 20: 
+        case 22: 
+        case 24: 
+        case 26: 
+          {  string.append( yytext() );  }
+        case 69: break;
+        case 19: 
+          {  yybegin(SQ_STRING); string.setLength(0);  }
+        case 70: break;
+        case 18: 
+          {  yybegin(DQ_STRING); string.setLength(0);  }
+        case 71: break;
+        case 27: 
+          {  yypushback(1);popState(); valueText = string.toString(); return EncodingParserConstants.UnDelimitedStringValue;  }
+        case 72: break;
+        default: 
+          if (yy_input == YYEOF && yy_startRead == yy_currentPos) {
+            yy_atEOF = true;
+            yy_do_eof();
+              { hasMore = false; return EncodingParserConstants.EOF; }
+          } 
+          else {
+            yy_ScanError(YY_NO_MATCH);
+          }
+      }
+    }
+!!!10474267.java!!!	main(in argv : String) : void
+    for (int i = 0; i < argv.length; i++) {
+      XMLHeadTokenizer scanner = null;
+      try {
+        scanner = new XMLHeadTokenizer( new java.io.FileReader(argv[i]) );
+      }
+      catch (java.io.FileNotFoundException e) {
+        System.out.println("File not found : \""+argv[i]+"\"");
+        System.exit(1);
+      }
+      catch (java.io.IOException e) {
+        System.out.println("Error opening file \""+argv[i]+"\"");
+        System.exit(1);
+      }
+      catch (ArrayIndexOutOfBoundsException e) {
+        System.out.println("Usage : java XMLHeadTokenizer <inputfile>");
+        System.exit(1);
+      }
+
+      try {
+        do {
+          System.out.println(scanner.primGetNextToken());
+        } while (!scanner.yy_atEOF);
+
+      }
+      catch (java.io.IOException e) {
+        System.out.println("An I/O error occured while scanning :");
+        System.out.println(e);
+        System.exit(1);
+      }
+      catch (Exception e) {
+        e.printStackTrace();
+        System.exit(1);
+      }
+    }

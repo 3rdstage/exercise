@@ -1,0 +1,135 @@
+class HTMLTableRowElementImpl
+!!!4188315.java!!!	getRowIndex() : int
+        Node    parent;
+        
+        parent = getParentNode();
+        if ( parent instanceof HTMLTableSectionElement )
+            parent = parent.getParentNode();
+        if ( parent instanceof HTMLTableElement )
+            return getRowIndex( parent );;
+        return -1;
+!!!4188443.java!!!	setRowIndex(in rowIndex : int) : void
+        Node    parent;
+        
+        parent = getParentNode();
+        if ( parent instanceof HTMLTableSectionElement )
+            parent = parent.getParentNode();
+        if ( parent instanceof HTMLTableElement )
+            ( (HTMLTableElementImpl) parent ).insertRowX( rowIndex, this );
+!!!4188571.java!!!	getSectionRowIndex() : int
+        Node    parent;
+        
+        parent = getParentNode();
+        if ( parent instanceof HTMLTableSectionElement )
+            return getRowIndex( parent );
+        else
+            return -1;
+!!!4188699.java!!!	setSectionRowIndex(in sectionRowIndex : int) : void
+        Node    parent;
+        
+        parent = getParentNode();
+        if ( parent instanceof HTMLTableSectionElement )
+            ( (HTMLTableSectionElementImpl) parent ).insertRowX( sectionRowIndex, this );
+!!!4188827.java!!!	getRowIndex(inout parent : Node) : int
+        NodeList    rows;
+        int            i;
+        
+        // Use getElementsByTagName() which creates a snapshot of all the
+        // TR elements under the TABLE/section. Access to the returned NodeList
+        // is very fast and the snapshot solves many synchronization problems.
+        rows = ( (HTMLElement) parent ).getElementsByTagName( "TR" );
+        for ( i = 0 ; i < rows.getLength() ; ++i )
+            if ( rows.item( i ) == this )
+                return i;
+        return -1;
+!!!4188955.java!!!	getCells() : HTMLCollection
+        if ( _cells == null )
+            _cells = new HTMLCollectionImpl( this, HTMLCollectionImpl.CELL );
+        return _cells;
+!!!4189083.java!!!	setCells(inout cells : HTMLCollection) : void
+        Node    child;
+        int        i;
+        
+        child = getFirstChild();
+        while ( child != null )
+        {
+            removeChild( child );
+            child = child.getNextSibling();
+        }
+        i = 0;
+        child = cells.item( i );
+        while ( child != null )
+        {
+            appendChild ( child );
+            ++i;
+            child = cells.item( i );
+        }
+!!!4189211.java!!!	insertCell(in index : int) : HTMLElement
+        Node        child;
+        HTMLElement    newCell;
+        
+        newCell = new HTMLTableCellElementImpl( (HTMLDocumentImpl) getOwnerDocument(), "TD" );
+        child = getFirstChild();
+        while ( child != null )
+        {
+            if ( child instanceof HTMLTableCellElement )
+            {
+                if ( index == 0 )
+                {
+                    insertBefore( newCell, child );
+                    return newCell;
+                }
+                --index;
+            }
+            child = child.getNextSibling();
+        }
+        appendChild( newCell );
+        return newCell;
+!!!4189339.java!!!	deleteCell(in index : int) : void
+        Node    child;
+        
+        child = getFirstChild();
+        while ( child != null )
+        {
+            if ( child instanceof HTMLTableCellElement )
+            {
+                if ( index == 0 )
+                {
+                    removeChild ( child );
+                    return;
+                }
+                --index;
+            }
+            child = child.getNextSibling();
+        }
+!!!4189467.java!!!	getAlign() : String
+        return capitalize( getAttribute( "align" ) );
+!!!4189595.java!!!	setAlign(in align : String) : void
+        setAttribute( "align", align );
+!!!4189723.java!!!	getBgColor() : String
+        return getAttribute( "bgcolor" );
+!!!4189851.java!!!	setBgColor(in bgColor : String) : void
+        setAttribute( "bgcolor", bgColor );
+!!!4189979.java!!!	getCh() : String
+        String    ch;
+        
+        // Make sure that the access key is a single character.
+        ch = getAttribute( "char" );
+        if ( ch != null && ch.length() > 1 )
+            ch = ch.substring( 0, 1 );
+        return ch;
+!!!4190107.java!!!	setCh(in ch : String) : void
+        // Make sure that the access key is a single character.
+        if ( ch != null && ch.length() > 1 )
+            ch = ch.substring( 0, 1 );
+        setAttribute( "char", ch );
+!!!4190235.java!!!	getChOff() : String
+        return getAttribute( "charoff" );
+!!!4190363.java!!!	setChOff(in chOff : String) : void
+        setAttribute( "charoff", chOff );
+!!!4190491.java!!!	getVAlign() : String
+        return capitalize( getAttribute( "valign" ) );
+!!!4190619.java!!!	setVAlign(in vAlign : String) : void
+        setAttribute( "valign", vAlign );
+!!!4190747.java!!!	HTMLTableRowElementImpl(inout owner : HTMLDocumentImpl, in name : String)
+        super( owner, name );

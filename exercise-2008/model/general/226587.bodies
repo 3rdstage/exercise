@@ -1,0 +1,75 @@
+class ObjectKeyTemplateBase
+!!!857371.java!!!	getAdapterId() : byte
+	return (byte[])(adapterId.clone()) ;
+!!!857499.java!!!	computeAdapterId() : byte
+	// write out serverid, orbid, oaid
+	ByteBuffer buff = new ByteBuffer() ;
+
+	buff.append( getServerId() ) ;
+	buff.append( orbid ) ;
+
+	buff.append( oaid.getNumLevels() ) ;
+	Iterator iter = oaid.iterator() ;
+	while (iter.hasNext()) {
+	    String comp = (String)(iter.next()) ;
+	    buff.append( comp ) ;
+	}
+
+	buff.trimToSize() ;
+
+	return buff.toArray() ;
+!!!857627.java!!!	ObjectKeyTemplateBase(inout orb : ORB, in magic : int, in scid : int, in serverid : int, in orbid : String, inout oaid : ObjectAdapterId)
+	this.orb = orb ;
+	this.wrapper = IORSystemException.get( orb, 
+	    CORBALogDomains.OA_IOR ) ;
+	this.magic = magic ;
+	this.scid = scid ;
+	this.serverid = serverid ;
+	this.orbid = orbid ;
+	this.oaid = oaid ;
+
+	adapterId = computeAdapterId() ;
+!!!857755.java!!!	equals(inout obj : Object) : boolean
+	if (!(obj instanceof ObjectKeyTemplateBase))
+	    return false ;
+
+	ObjectKeyTemplateBase other = (ObjectKeyTemplateBase)obj ;
+
+	return (magic == other.magic) && (scid == other.scid) && 
+	    (serverid == other.serverid) && (version.equals( other.version ) &&
+	    orbid.equals( other.orbid ) && oaid.equals( other.oaid )) ;
+!!!857883.java!!!	hashCode() : int
+	int result = 17 ;
+	result = 37*result + magic ;
+	result = 37*result + scid ;
+	result = 37*result + serverid ;
+	result = 37*result + version.hashCode() ;
+	result = 37*result + orbid.hashCode() ;
+	result = 37*result + oaid.hashCode() ;
+	return result ;
+!!!858011.java!!!	getSubcontractId() : int
+	return scid ;
+!!!858139.java!!!	getServerId() : int
+	return serverid ;
+!!!858267.java!!!	getORBId() : String
+	return orbid ;
+!!!858395.java!!!	getObjectAdapterId() : ObjectAdapterId
+	return oaid ;
+!!!858523.java!!!	write(inout objectId : ObjectId, inout os : OutputStream) : void
+	writeTemplate( os ) ;
+	objectId.write( os ) ;
+!!!858651.java!!!	write(inout os : OutputStream) : void
+	writeTemplate( os ) ;
+!!!858907.java!!!	getMagic() : int
+	return magic ;
+!!!859035.java!!!	setORBVersion(inout version : ORBVersion) : void
+	this.version = version ;
+!!!859163.java!!!	getORBVersion() : ORBVersion
+	return version ;
+!!!859291.java!!!	readObjectKey(inout is : InputStream) : byte
+	int len = is.read_long() ;
+	byte[] result = new byte[len] ;
+	is.read_octet_array( result, 0, len ) ;
+	return result ;
+!!!859419.java!!!	getServerRequestDispatcher(inout orb : ORB, inout id : ObjectId) : CorbaServerRequestDispatcher
+	return orb.getRequestDispatcherRegistry().getServerRequestDispatcher( scid ) ;

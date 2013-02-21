@@ -1,0 +1,284 @@
+class RowSetMetaDataImpl
+!!!8785307.java!!!	checkColRange(in col : int) : void
+        if (col <= 0 || col > colCount) {
+            throw new SQLException("Invalid column index :"+col);
+        }
+!!!8785435.java!!!	checkColType(in SQLType : int) : void
+        try {
+            Class c = java.sql.Types.class;
+            Field[] publicFields = c.getFields();        
+            int fieldValue = 0;
+            for (int i = 0; i < publicFields.length; i++) {              
+                fieldValue = publicFields[i].getInt(c);                
+                if (fieldValue == SQLType) {                    
+                    return;                    
+                 }
+            }
+        } catch (Exception e) {
+            throw new SQLException(e.getMessage());
+        }
+        throw new SQLException("Invalid SQL type for column");
+!!!8785563.java!!!	setColumnCount(in columnCount : int) : void
+
+        if (columnCount <= 0) {
+            throw new SQLException("Invalid column count. Cannot be less " +
+                "or equal to zero");
+	    }
+        
+       colCount = columnCount;
+       
+       // If the colCount is Integer.MAX_VALUE,
+       // we do not initialize the colInfo object.
+       // even if we try to initialize the colCount with 
+       // colCount = Integer.MAx_VALUE-1, the colInfo
+       // initialization fails throwing an ERROR
+       // OutOfMemory Exception. So we do not initialize
+       // colInfo at Integer.MAX_VALUE. This is to pass TCK.
+          
+       if(!(colCount == Integer.MAX_VALUE)) {
+	    colInfo = new ColInfo[colCount + 1];
+           
+           for (int i=1; i <= colCount; i++) {
+                 colInfo[i] = new ColInfo();
+           }
+       }
+       
+        
+!!!8785691.java!!!	setAutoIncrement(in columnIndex : int, inout property : boolean) : void
+        checkColRange(columnIndex);
+        colInfo[columnIndex].autoIncrement = property;
+!!!8785819.java!!!	setCaseSensitive(in columnIndex : int, inout property : boolean) : void
+        checkColRange(columnIndex);
+        colInfo[columnIndex].caseSensitive = property;
+!!!8785947.java!!!	setSearchable(in columnIndex : int, inout property : boolean) : void
+        checkColRange(columnIndex);
+        colInfo[columnIndex].searchable = property;
+!!!8786075.java!!!	setCurrency(in columnIndex : int, inout property : boolean) : void
+        checkColRange(columnIndex);
+        colInfo[columnIndex].currency = property;
+!!!8786203.java!!!	setNullable(in columnIndex : int, in property : int) : void
+        if ((property < ResultSetMetaData.columnNoNulls) ||
+            property > ResultSetMetaData.columnNullableUnknown) {
+                throw new SQLException("Invalid nullable constant set. Must be " +
+                    "either columnNoNulls, columnNullable or columnNullableUnknown");
+        }
+        checkColRange(columnIndex);
+        colInfo[columnIndex].nullable = property;
+!!!8786331.java!!!	setSigned(in columnIndex : int, inout property : boolean) : void
+        checkColRange(columnIndex);
+        colInfo[columnIndex].signed = property;
+!!!8786459.java!!!	setColumnDisplaySize(in columnIndex : int, in size : int) : void
+        
+        if (size < 0) {
+            throw new SQLException("Invalid column display size. Cannot be less " +
+                "than zero");
+	}        
+        checkColRange(columnIndex); 
+        colInfo[columnIndex].columnDisplaySize = size;
+!!!8786587.java!!!	setColumnLabel(in columnIndex : int, in label : String) : void
+        checkColRange(columnIndex);
+	if (label != null) {
+	    colInfo[columnIndex].columnLabel = new String(label);
+        } else {
+	    colInfo[columnIndex].columnLabel = new String("");
+        }
+!!!8786715.java!!!	setColumnName(in columnIndex : int, in columnName : String) : void
+        checkColRange(columnIndex);        
+        if (columnName != null) {
+            colInfo[columnIndex].columnName = new String(columnName);
+        } else {
+            colInfo[columnIndex].columnName = new String("");
+        }
+!!!8786843.java!!!	setSchemaName(in columnIndex : int, in schemaName : String) : void
+        checkColRange(columnIndex);
+	if (schemaName != null ) {
+	    colInfo[columnIndex].schemaName = new String(schemaName);
+	} else {
+	    colInfo[columnIndex].schemaName = new String("");
+	}
+!!!8786971.java!!!	setPrecision(in columnIndex : int, in precision : int) : void
+                
+        
+        if (precision < 0) {
+            throw new SQLException("Invalid precision value. Cannot be less " +
+                "than zero");
+	}            
+        checkColRange(columnIndex);
+        colInfo[columnIndex].colPrecision = precision;
+!!!8787099.java!!!	setScale(in columnIndex : int, in scale : int) : void
+        if (scale < 0) {
+            throw new SQLException("Invalid scale size. Cannot be less " +
+                "than zero");
+	}            
+        checkColRange(columnIndex);
+        colInfo[columnIndex].colScale = scale;
+!!!8787227.java!!!	setTableName(in columnIndex : int, in tableName : String) : void
+        checkColRange(columnIndex);
+        if (tableName != null) {
+            colInfo[columnIndex].tableName = new String(tableName);
+        } else {
+            colInfo[columnIndex].tableName = new String("");
+        }
+!!!8787355.java!!!	setCatalogName(in columnIndex : int, in catalogName : String) : void
+        checkColRange(columnIndex);
+	if (catalogName != null)
+	    colInfo[columnIndex].catName = new String(catalogName);
+	else
+	    colInfo[columnIndex].catName = new String("");
+!!!8787483.java!!!	setColumnType(in columnIndex : int, in SQLType : int) : void
+                
+        // examine java.sql.Type reflectively, loop on the fields and check
+        // this. Separate out into a private method        
+        checkColType(SQLType);
+        checkColRange(columnIndex);
+        colInfo[columnIndex].colType = SQLType;
+!!!8787611.java!!!	setColumnTypeName(in columnIndex : int, in typeName : String) : void
+        
+        checkColRange(columnIndex);
+        if (typeName != null) {
+            colInfo[columnIndex].colTypeName = new String(typeName);
+        } else {
+            colInfo[columnIndex].colTypeName = new String("");
+        }
+!!!8787739.java!!!	getColumnCount() : int
+ 
+        return colCount;
+!!!8787867.java!!!	isAutoIncrement(in columnIndex : int) : boolean
+        checkColRange(columnIndex);
+        return colInfo[columnIndex].autoIncrement;
+!!!8787995.java!!!	isCaseSensitive(in columnIndex : int) : boolean
+        checkColRange(columnIndex);
+        return colInfo[columnIndex].caseSensitive;
+!!!8788123.java!!!	isSearchable(in columnIndex : int) : boolean
+        checkColRange(columnIndex);
+        return colInfo[columnIndex].searchable;
+!!!8788251.java!!!	isCurrency(in columnIndex : int) : boolean
+        checkColRange(columnIndex);
+        return colInfo[columnIndex].currency;
+!!!8788379.java!!!	isNullable(in columnIndex : int) : int
+        checkColRange(columnIndex); 
+        return colInfo[columnIndex].nullable;
+!!!8788507.java!!!	isSigned(in columnIndex : int) : boolean
+        checkColRange(columnIndex);
+        return colInfo[columnIndex].signed;
+!!!8788635.java!!!	getColumnDisplaySize(in columnIndex : int) : int
+        checkColRange(columnIndex);
+        return colInfo[columnIndex].columnDisplaySize;
+!!!8788763.java!!!	getColumnLabel(in columnIndex : int) : String
+        checkColRange(columnIndex); 
+        return colInfo[columnIndex].columnLabel;
+!!!8788891.java!!!	getColumnName(in columnIndex : int) : String
+        checkColRange(columnIndex);
+        return colInfo[columnIndex].columnName;
+!!!8789019.java!!!	getSchemaName(in columnIndex : int) : String
+        checkColRange(columnIndex);
+        String str ="";
+        if(colInfo[columnIndex].schemaName == null){
+        } else {
+              str = colInfo[columnIndex].schemaName;
+        }
+        return str;
+!!!8789147.java!!!	getPrecision(in columnIndex : int) : int
+        checkColRange(columnIndex);
+        return colInfo[columnIndex].colPrecision;
+!!!8789275.java!!!	getScale(in columnIndex : int) : int
+        checkColRange(columnIndex);
+        return colInfo[columnIndex].colScale;
+!!!8789403.java!!!	getTableName(in columnIndex : int) : String
+        checkColRange(columnIndex);
+        return colInfo[columnIndex].tableName;
+!!!8789531.java!!!	getCatalogName(in columnIndex : int) : String
+        checkColRange(columnIndex);
+        String str ="";
+        if(colInfo[columnIndex].catName == null){
+        } else {
+           str = colInfo[columnIndex].catName;
+        }
+        return str;
+!!!8789659.java!!!	getColumnType(in columnIndex : int) : int
+        checkColRange(columnIndex);
+        return colInfo[columnIndex].colType;
+!!!8789787.java!!!	getColumnTypeName(in columnIndex : int) : String
+        
+        checkColRange(columnIndex);
+        return colInfo[columnIndex].colTypeName;
+!!!8789915.java!!!	isReadOnly(in columnIndex : int) : boolean
+        checkColRange(columnIndex);
+        return colInfo[columnIndex].readOnly;         
+!!!8790043.java!!!	isWritable(in columnIndex : int) : boolean
+        checkColRange(columnIndex);
+        return colInfo[columnIndex].writable;        
+!!!8790171.java!!!	isDefinitelyWritable(in columnIndex : int) : boolean
+ return true;
+!!!8790299.java!!!	getColumnClassName(in columnIndex : int) : String
+        String className = (new String()).getClass().getName();
+        
+        int sqlType = getColumnType(columnIndex);
+
+        switch (sqlType) {
+
+        case Types.NUMERIC:
+        case Types.DECIMAL:
+            className = (new java.math.BigDecimal(0)).getClass().getName ();
+            break;
+
+        case Types.BIT:			
+            className = (new Boolean(false)).getClass().getName ();
+            break;
+
+        case Types.TINYINT:
+            className = (new Byte("0")).getClass().getName ();
+            break;
+
+        case Types.SMALLINT:
+            className = (new Short("0")).getClass().getName ();
+            break;
+
+        case Types.INTEGER:
+            className = (new Integer(0)).getClass().getName ();
+            break;
+
+        case Types.BIGINT:
+            className = (new Long(0)).getClass().getName ();
+            break;
+
+        case Types.REAL:
+            className = (new Float(0)).getClass().getName ();
+            break;
+
+        case Types.FLOAT:
+        case Types.DOUBLE:
+            className = (new Double(0)).getClass().getName();
+            break;
+			
+        case Types.BINARY:
+        case Types.VARBINARY:
+        case Types.LONGVARBINARY:
+            byte[] b = {};
+            className = (b.getClass()).getName();
+            break;
+
+        case Types.DATE:
+            className = (new java.sql.Date(123456)).getClass().getName ();
+            break;
+
+        case Types.TIME:
+            className = (new java.sql.Time(123456)).getClass().getName ();
+            break;
+            
+        case Types.TIMESTAMP:
+            className = (new java.sql.Timestamp(123456)).getClass().getName ();
+            break;
+            
+        case Types.BLOB:
+            byte[] blob = {};
+            className = (blob.getClass()).getName();
+            break;
+
+        case Types.CLOB:
+            char[] c = {};
+            className = (c.getClass()).getName();
+            break;
+        }
+        
+        return className;

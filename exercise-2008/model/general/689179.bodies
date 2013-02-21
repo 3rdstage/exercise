@@ -1,0 +1,113 @@
+class Double
+!!!6981787.java!!!	toString(in d : double) : String
+	return new FloatingDecimal(d).toJavaFormatString();
+!!!6981915.java!!!	toHexString(in d : double) : String
+	/*
+	 * Modeled after the "a" conversion specifier in C99, section
+	 * 7.19.6.1; however, the output of this method is more
+	 * tightly specified.
+	 */
+	if (!FpUtils.isFinite(d) )
+	    // For infinity and NaN, use the decimal output.
+	    return Double.toString(d);
+	else {
+	    // Initialized to maximum size of output.
+	    StringBuffer answer = new StringBuffer(24); 
+ 	    
+	    if (FpUtils.rawCopySign(1.0, d) == -1.0) // value is negative,
+		answer.append("-");		     // so append sign info
+
+	    answer.append("0x"); 
+
+	    d = Math.abs(d);
+
+	    if(d == 0.0) {
+		answer.append("0.0p0");
+	    }
+	    else {
+		boolean subnormal = (d < DoubleConsts.MIN_NORMAL);
+
+		// Isolate significand bits and OR in a high-order bit
+		// so that the string representation has a known
+		// length.
+		long signifBits = (Double.doubleToLongBits(d) 
+				   & DoubleConsts.SIGNIF_BIT_MASK) |
+		    0x1000000000000000L;
+
+		// Subnormal values have a 0 implicit bit; normal
+		// values have a a 1 implicit bit.
+		answer.append(subnormal ? "0." : "1.");
+
+		// Isolate the low-order 13 digits of the hex
+		// representation.  If all the digits are zero,
+		// replace with a single 0; otherwise, remove all
+		// trailing zeros.
+		String signif = Long.toHexString(signifBits).substring(3,16);
+		answer.append(signif.equals("0000000000000") ? // 13 zeros
+			      "0":
+			      signif.replaceFirst("0{1,12}$", ""));
+
+		// If the value is subnormal, use the E_min exponent
+		// value for double; otherwise, extract and report d's
+		// exponent (the representation of a subnormal uses
+		// E_min -1).
+		answer.append("p" + (subnormal ?
+			       DoubleConsts.MIN_EXPONENT:
+			       FpUtils.getExponent(d) ));
+	    }
+	    return answer.toString();
+	}
+!!!6982043.java!!!	valueOf(in s : String) : Double
+	return new Double(FloatingDecimal.readJavaFormatString(s).doubleValue());
+!!!6982171.java!!!	valueOf(in d : double) : Double
+        return new Double(d);
+!!!6982299.java!!!	parseDouble(in s : String) : double
+	return FloatingDecimal.readJavaFormatString(s).doubleValue();
+!!!6982427.java!!!	isNaN(in v : double) : boolean
+	return (v != v);
+!!!6982555.java!!!	isInfinite(in v : double) : boolean
+	return (v == POSITIVE_INFINITY) || (v == NEGATIVE_INFINITY);
+!!!6982683.java!!!	Double(in value : double)
+	this.value = value;
+!!!6982811.java!!!	Double(in s : String)
+	// REMIND: this is inefficient
+	this(valueOf(s).doubleValue());
+!!!6982939.java!!!	isNaN() : boolean
+	return isNaN(value);
+!!!6983067.java!!!	isInfinite() : boolean
+	return isInfinite(value);
+!!!6983195.java!!!	toString() : String
+	return String.valueOf(value);
+!!!6983323.java!!!	byteValue() : byte
+	return (byte)value;
+!!!6983451.java!!!	shortValue() : short
+	return (short)value;
+!!!6983579.java!!!	intValue() : int
+	return (int)value;
+!!!6983707.java!!!	longValue() : long
+	return (long)value;
+!!!6983835.java!!!	floatValue() : float
+	return (float)value;
+!!!6983963.java!!!	doubleValue() : double
+	return (double)value;
+!!!6984091.java!!!	hashCode() : int
+	long bits = doubleToLongBits(value);
+	return (int)(bits ^ (bits >>> 32));
+!!!6984219.java!!!	equals(inout obj : Object) : boolean
+	return (obj instanceof Double)
+	       && (doubleToLongBits(((Double)obj).value) ==
+		      doubleToLongBits(value));
+!!!6984731.java!!!	compareTo(inout anotherDouble : Double) : int
+        return Double.compare(value, anotherDouble.value);
+!!!6984859.java!!!	compare(in d1 : double, in d2 : double) : int
+        if (d1 < d2)
+            return -1;		 // Neither val is NaN, thisVal is smaller
+        if (d1 > d2)
+            return 1;		 // Neither val is NaN, thisVal is larger
+
+        long thisBits = Double.doubleToLongBits(d1);
+        long anotherBits = Double.doubleToLongBits(d2);
+
+        return (thisBits == anotherBits ?  0 : // Values are equal
+                (thisBits < anotherBits ? -1 : // (-0.0, 0.0) or (!NaN, NaN)
+                 1));                          // (0.0, -0.0) or (NaN, !NaN)

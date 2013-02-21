@@ -1,0 +1,419 @@
+class ObjectUtility
+!!!1465115.java!!!	ObjectUtility(inout useToString : boolean, inout isIndenting : boolean, in initialLevel : int, in increment : int)
+	this.useToString = useToString ;
+	this.isIndenting = isIndenting ;
+	this.initialLevel = initialLevel ;
+	this.increment = increment ;
+	classToPrinter.put( Properties.class, propertiesPrinter ) ;
+	classToPrinter.put( Collection.class, collectionPrinter ) ;
+	classToPrinter.put( Map.class, mapPrinter ) ;
+!!!1465243.java!!!	make(inout useToString : boolean, inout isIndenting : boolean, in initialLevel : int, in increment : int) : ObjectUtility
+	return new ObjectUtility( useToString, isIndenting, initialLevel, 
+	    increment ) ;
+!!!1465371.java!!!	make(inout useToString : boolean, inout isIndenting : boolean) : ObjectUtility
+	return new ObjectUtility( useToString, isIndenting, 0, 4 ) ;
+!!!1465499.java!!!	make() : ObjectUtility
+	return standard ;
+!!!1465627.java!!!	defaultObjectToString(inout object : Object) : String
+	return standard.objectToString( object ) ;
+!!!1465755.java!!!	compactObjectToString(inout object : Object) : String
+	return compact.objectToString( object ) ;
+!!!1465883.java!!!	objectToString(inout obj : Object) : String
+	IdentityHashMap printed = new IdentityHashMap() ;
+	ObjectWriter result = ObjectWriter.make( isIndenting, initialLevel, 
+	    increment ) ;
+	objectToStringHelper( printed, result, obj ) ;
+	return result.toString() ;
+!!!1466011.java!!!	equals(inout obj1 : Object, inout obj2 : Object) : boolean
+	// Set of pairs of objects that have been (or are being) considered for
+	// equality.  Such pairs are presumed to be equals.  If they are not, 
+	// this will be detected eventually and the equals method will return 
+	// false.
+	Set considered = new HashSet() ;    
+
+	// Map that gives the corresponding component of obj2 for a component 
+	// of obj1.  This is used to check for the same aliasing and use of 
+	// equal objects in both objects.
+	Map counterpart = new IdentityHashMap() ;
+
+	return equalsHelper( counterpart, considered, obj1, obj2 ) ;
+!!!1466139.java!!!	concatenateArrays(inout arr1 : Object, inout arr2 : Object) : Object
+	Class comp1 = arr1.getClass().getComponentType() ;
+	Class comp2 = arr2.getClass().getComponentType() ;
+	int len1 = Array.getLength( arr1 ) ;
+	int len2 = Array.getLength( arr2 ) ;
+
+	if ((comp1 == null) || (comp2 == null))	
+	    throw new IllegalStateException( "Arguments must be arrays" ) ;
+	if (!comp1.equals( comp2 ))
+	    throw new IllegalStateException( 
+		"Arguments must be arrays with the same component type" ) ;
+
+	Object result = Array.newInstance( comp1, len1 + len2 ) ;
+
+	int index = 0 ;
+
+	for (int ctr=0; ctr<len1; ctr++)
+	    Array.set( result, index++, Array.get( arr1, ctr ) ) ;
+
+	for (int ctr=0; ctr<len2; ctr++)
+	    Array.set( result, index++, Array.get( arr2, ctr ) ) ;
+
+	return result ;
+!!!1466267.java!!!	objectToStringHelper(inout printed : IdentityHashMap, inout result : ObjectWriter, inout obj : Object) : void
+	if (obj==null) {
+	    result.append( "null" ) ;
+	    result.endElement() ;
+	} else {
+	    Class cls = obj.getClass() ;
+	    result.startObject( obj ) ;
+
+	    if (printed.keySet().contains( obj )) {
+		result.endObject( "*VISITED*" ) ;
+	    } else {
+		printed.put( obj, null ) ;
+
+		if (mustUseToString(cls)) {
+		    result.endObject( obj.toString() ) ;
+		} else {
+		    // First, handle any classes that have special printer 
+		    // methods defined.  This is useful when the class 
+		    // overrides toString with something that
+		    // is not sufficiently detailed.
+		    ObjectPrinter printer = (ObjectPrinter)(classToPrinter.get(
+			cls )) ;
+		    if (printer != null) {
+			printer.print( printed, result, obj ) ;
+			result.endObject() ;
+		    } else {
+			Class compClass = cls.getComponentType() ;
+
+			if (compClass == null)
+			    // handleObject always calls endObject
+			    handleObject( printed, result, obj ) ;
+			else {
+			    handleArray( printed, result, obj ) ;
+			    result.endObject() ;
+			}
+		    }
+		}
+	    }
+	}
+!!!1466907.java!!!	mustUseToString(inout cls : Class) : boolean
+	// These probably never occur
+	if (cls.isPrimitive())
+	    return true ;
+
+	// We must use toString for all primitive wrappers, since 
+	// otherwise the code recurses endlessly (access value field
+	// inside Integer, returns another Integer through reflection).
+	if ((cls == Integer.class) ||
+	    (cls == BigInteger.class) ||
+	    (cls == BigDecimal.class) ||
+	    (cls == String.class) ||
+	    (cls == StringBuffer.class) ||
+	    (cls == Long.class) ||
+	    (cls == Short.class) ||
+	    (cls == Byte.class) ||
+	    (cls == Character.class) ||
+	    (cls == Float.class) ||
+	    (cls == Double.class) ||
+	    (cls == Boolean.class))
+	    return true ;
+
+	if (useToString) {
+	    try {
+		cls.getDeclaredMethod( "toString", null ) ;
+		return true ;
+	    } catch (Exception exc) {
+		return false ;
+	    }
+	}
+
+	return false ;
+!!!1467035.java!!!	handleObject(inout printed : IdentityHashMap, inout result : ObjectWriter, inout obj : Object) : void
+	Class cls = obj.getClass() ;
+
+	try {
+	    Field[] fields;
+	    SecurityManager security = System.getSecurityManager();
+	    if (security != null && !Modifier.isPublic(cls.getModifiers())) {
+		fields = new Field[0];
+	    } else {
+	        fields = sun.reflect.misc.FieldUtil.getDeclaredFields(cls);
+	    }
+
+	    for (int ctr=0; ctr<fields.length; ctr++ ) {
+		final Field fld = fields[ctr] ;
+		int modifiers = fld.getModifiers() ;
+
+		// Do not display field if it is static, since these fields
+		// are always the same for every instances.  This could
+		// be made configurable, but I don't think it is 
+		// useful to do so.
+		if (!Modifier.isStatic( modifiers )) {
+		    if (security != null) {
+		        if (!Modifier.isPublic(modifiers))
+			    continue;
+		    }
+		    result.startElement() ;
+		    result.append( fld.getName() ) ;
+		    result.append( ":" ) ;
+
+		    try {
+			// Make sure that we can read the field if it is 
+			// not public
+			AccessController.doPrivileged( new PrivilegedAction() {
+			    public Object run() {
+				fld.setAccessible( true ) ;
+				return null ;
+			    } 
+			} ) ;
+
+			java.lang.Object value = fld.get( obj ) ;
+			objectToStringHelper( printed, result, value ) ;
+		    } catch (Exception exc2) {
+			result.append( "???" ) ;
+		    }
+
+		    result.endElement() ;
+		}
+	    }
+
+	    result.endObject() ;
+	} catch (Exception exc2) {
+	    result.endObject( obj.toString() ) ;
+	}
+!!!1467163.java!!!	handleArray(inout printed : IdentityHashMap, inout result : ObjectWriter, inout obj : Object) : void
+	Class compClass = obj.getClass().getComponentType() ;
+	if (compClass == boolean.class) {
+	    boolean[] arr = (boolean[])obj ;
+	    for (int ctr=0; ctr<arr.length; ctr++) {
+		result.startElement() ;
+		result.append( arr[ctr] ) ;
+		result.endElement() ;
+	    }
+	} else if (compClass == byte.class) {
+	    byte[] arr = (byte[])obj ;
+	    for (int ctr=0; ctr<arr.length; ctr++) {
+		result.startElement() ;
+		result.append( arr[ctr] ) ;
+		result.endElement() ;
+	    }
+	} else if (compClass == short.class) {
+	    short[] arr = (short[])obj ;
+	    for (int ctr=0; ctr<arr.length; ctr++) {
+		result.startElement() ;
+		result.append( arr[ctr] ) ;
+		result.endElement() ;
+	    }
+	} else if (compClass == int.class) {
+	    int[] arr = (int[])obj ;
+	    for (int ctr=0; ctr<arr.length; ctr++) {
+		result.startElement() ;
+		result.append( arr[ctr] ) ;
+		result.endElement() ;
+	    }
+	} else if (compClass == long.class) {
+	    long[] arr = (long[])obj ;
+	    for (int ctr=0; ctr<arr.length; ctr++) {
+		result.startElement() ;
+		result.append( arr[ctr] ) ;
+		result.endElement() ;
+	    }
+	} else if (compClass == char.class) {
+	    char[] arr = (char[])obj ;
+	    for (int ctr=0; ctr<arr.length; ctr++) {
+		result.startElement() ;
+		result.append( arr[ctr] ) ;
+		result.endElement() ;
+	    }
+	} else if (compClass == float.class) {
+	    float[] arr = (float[])obj ;
+	    for (int ctr=0; ctr<arr.length; ctr++) {
+		result.startElement() ;
+		result.append( arr[ctr] ) ;
+		result.endElement() ;
+	    }
+	} else if (compClass == double.class) {
+	    double[] arr = (double[])obj ;
+	    for (int ctr=0; ctr<arr.length; ctr++) {
+		result.startElement() ;
+		result.append( arr[ctr] ) ;
+		result.endElement() ;
+	    }
+	} else { // array of object
+	    java.lang.Object[] arr = (java.lang.Object[])obj ;
+	    for (int ctr=0; ctr<arr.length; ctr++) {
+		result.startElement() ;
+		objectToStringHelper( printed, result, arr[ctr] ) ;
+		result.endElement() ;
+	    }
+	}
+!!!1467675.java!!!	equalsHelper(inout counterpart : Map, inout considered : Set, inout obj1 : Object, inout obj2 : Object) : boolean
+	if ((obj1 == null) || (obj2 == null))
+	    return obj1 == obj2 ;
+
+	java.lang.Object other2 = counterpart.get( obj1 ) ;
+	if (other2 == null) {
+	    other2 = obj2 ;
+	    counterpart.put( obj1, other2 ) ;
+	}
+
+	if (obj1 == other2)
+	    return true ;
+
+	if (obj2 != other2)
+	    return false ;
+	
+	Pair pair = new Pair( obj1, obj2 ) ;
+	if (considered.contains( pair ))
+	    return true ;
+	else
+	    considered.add( pair ) ;
+
+	if (obj1 instanceof java.lang.Object[] && 
+	    obj2 instanceof java.lang.Object[])
+	    return equalArrays( counterpart, considered, 
+		(java.lang.Object[])obj1, (java.lang.Object[])obj2 ) ;
+	else if (obj1 instanceof Map && obj2 instanceof Map)
+	    return equalMaps( counterpart, considered, 
+		(Map)obj1, (Map)obj2 ) ;
+	else if (obj1 instanceof Set && obj2 instanceof Set)
+	    return equalSets( counterpart, considered, 
+		(Set)obj1, (Set)obj2 ) ;
+	else if (obj1 instanceof List && obj2 instanceof List)
+	    return equalLists( counterpart, considered, 
+		(List)obj1, (List)obj2 ) ;
+	else if (obj1 instanceof boolean[] && obj2 instanceof boolean[])
+	    return Arrays.equals( (boolean[])obj1, (boolean[])obj2 ) ;
+	else if (obj1 instanceof byte[] && obj2 instanceof byte[])
+	    return Arrays.equals( (byte[])obj1, (byte[])obj2 ) ;
+	else if (obj1 instanceof char[] && obj2 instanceof char[])
+	    return Arrays.equals( (char[])obj1, (char[])obj2 ) ;
+	else if (obj1 instanceof double[] && obj2 instanceof double[])
+	    return Arrays.equals( (double[])obj1, (double[])obj2 ) ;
+	else if (obj1 instanceof float[] && obj2 instanceof float[])
+	    return Arrays.equals( (float[])obj1, (float[])obj2 ) ;
+	else if (obj1 instanceof int[] && obj2 instanceof int[])
+	    return Arrays.equals( (int[])obj1, (int[])obj2 ) ;
+	else if (obj1 instanceof long[] && obj2 instanceof long[])
+	    return Arrays.equals( (long[])obj1, (long[])obj2 ) ;
+	else {
+	    Class cls = obj1.getClass() ;
+	    if (cls != obj2.getClass())
+		return obj1.equals( obj2 ) ;
+	    else
+		return equalsObject( counterpart, considered, cls, obj1, obj2 ) ;
+	}
+!!!1467803.java!!!	equalsObject(inout counterpart : Map, inout considered : Set, inout cls : Class, inout obj1 : Object, inout obj2 : Object) : boolean
+	Class objectClass = java.lang.Object.class ;
+	if (cls == objectClass)
+	    return true ;
+
+	Class[] equalsTypes = { objectClass } ;
+	try {
+	    Method equalsMethod = cls.getDeclaredMethod( "equals", 
+		equalsTypes ) ;
+	    return obj1.equals( obj2 ) ;
+	} catch (Exception exc) {
+	    if (equalsObjectFields( counterpart, considered, 
+		    cls, obj1, obj2 ))
+		return equalsObject( counterpart, considered, 
+		    cls.getSuperclass(), obj1, obj2 ) ;
+	    else
+		return false ;
+	}
+!!!1467931.java!!!	equalsObjectFields(inout counterpart : Map, inout considered : Set, inout cls : Class, inout obj1 : Object, inout obj2 : Object) : boolean
+	Field[] fields = cls.getDeclaredFields() ;
+	for (int ctr=0; ctr<fields.length; ctr++) {
+	    try {
+		final Field field = fields[ctr] ;
+		// Ignore static fields
+		if (!Modifier.isStatic( field.getModifiers())) {
+		    AccessController.doPrivileged(new PrivilegedAction() {
+			public Object run() {
+			    field.setAccessible( true ) ;
+			    return null ;
+			} 
+		    } ) ;
+
+		    java.lang.Object value1 = field.get( obj1 ) ;
+		    java.lang.Object value2 = field.get( obj2 ) ;
+		    if (!equalsHelper( counterpart, considered, value1, 
+			value2 ))
+			return false ;
+		}
+	    } catch (IllegalAccessException exc) {
+		return false ;
+	    }
+	}
+
+	return true ;
+!!!1468059.java!!!	equalArrays(inout counterpart : Map, inout considered : Set, inout arr1 : Object, inout arr2 : Object) : boolean
+	int len = arr1.length ;
+	if (len != arr2.length)
+	    return false ;
+
+	for (int ctr = 0; ctr<len; ctr++ )
+	    if (!equalsHelper( counterpart, considered, arr1[ctr], arr2[ctr] ))
+		return false ;
+
+	return true ;
+!!!1468187.java!!!	equalMaps(inout counterpart : Map, inout considered : Set, inout map1 : Map, inout map2 : Map) : boolean
+	if (map2.size() != map1.size())
+	    return false;
+
+        try {
+            Iterator i = map1.entrySet().iterator();
+            while (i.hasNext()) {
+                Entry e = (Entry) i.next();
+                java.lang.Object key = e.getKey();
+                java.lang.Object value = e.getValue();
+                if (value == null) {
+                    if (!(map2.get(key)==null && map2.containsKey(key)))
+                        return false;
+                } else {
+                    if (!equalsHelper( counterpart, considered, 
+			value, map2.get(key)))
+                        return false;
+                }
+            }
+        } catch(ClassCastException unused)   {
+            return false;
+        } catch(NullPointerException unused) {
+            return false;
+        }
+
+	return true;
+!!!1468315.java!!!	equalSets(inout counterpart : Map, inout considered : Set, inout set1 : Set, inout set2 : Set) : boolean
+	if (set1.size() != set2.size())
+	    return false ;
+
+	Iterator e1 = set1.iterator() ;
+	while (e1.hasNext()) {
+	    java.lang.Object obj1 = e1.next() ;
+
+	    boolean found = false ;
+	    Iterator e2 = set2.iterator() ;
+	    while (e2.hasNext() && !found) {
+		java.lang.Object obj2 = e2.next() ;
+		found = equals( obj1, obj2 ) ;
+	    }
+
+	    if (!found)
+		return false ;
+	}
+
+	return true ;
+!!!1468443.java!!!	equalLists(inout counterpart : Map, inout considered : Set, inout list1 : List, inout list2 : List) : boolean
+	ListIterator e1 = list1.listIterator();
+	ListIterator e2 = list2.listIterator();
+	while(e1.hasNext() && e2.hasNext()) {
+	    java.lang.Object o1 = e1.next();
+	    java.lang.Object o2 = e2.next();
+	    if (!(o1==null ? o2==null : equalsHelper( 
+		counterpart, considered, o1, o2)))
+		return false;
+	}
+	return !(e1.hasNext() || e2.hasNext());

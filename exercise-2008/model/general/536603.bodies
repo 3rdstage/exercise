@@ -1,0 +1,100 @@
+class SnmpPeer
+!!!3323547.java!!!	SnmpPeer(in host : String)
+        this(host, (int)161) ;
+!!!3323675.java!!!	SnmpPeer(inout netaddr : InetAddress, in port : int)
+        _devAddr = netaddr ;
+        portNum = port;
+!!!3323803.java!!!	SnmpPeer(inout netaddr : InetAddress)
+        _devAddr = netaddr ;
+!!!3323931.java!!!	SnmpPeer(in host : String, in port : int)
+        useIPAddress(host) ;
+        portNum = port;
+!!!3324059.java!!!	useIPAddress(in ipaddr : String) : void
+        _devAddr = InetAddress.getByName(ipaddr) ;
+!!!3324187.java!!!	ipAddressInUse() : String
+        byte [] adr = _devAddr.getAddress() ;
+        return
+	    (adr[0]&0xFF) + "." + (adr[1]&0xFF) + "." + 
+	    (adr[2]&0xFF) + "." + (adr[3]&0xFF);
+!!!3324315.java!!!	useAddressList(inout adrList : InetAddress) : void
+        _devAddrList = adrList ;
+        _addrIndex = 0 ;
+        useNextAddress() ;
+!!!3324443.java!!!	useNextAddress() : void
+        if (_devAddrList == null)
+            return ;
+/* NPCTE fix for bug 4486059, esc 0 MR 03-August-2001 */
+/*      if (_addrIndex > _devAddrList.length) */
+	if (_addrIndex > _devAddrList.length-1)
+/* end of NPCTE fix for bugid 4486059 */
+            _addrIndex = 0 ;
+        _devAddr = _devAddrList[_addrIndex++] ;
+!!!3324571.java!!!	allowSnmpSets() : boolean
+        return _snmpParameter.allowSnmpSets() ;
+!!!3324699.java!!!	equals(inout obj : Object) : boolean
+        if (this == obj)
+            return true ;
+        /*
+          if (obj instanceof SnmpPeer) {
+          SnmpPeer peer = (SnmpPeer) obj ;
+          if (_devAddr.equals(peer.getDestAddr()) && 
+          portNum == peer.getDestPort())
+          return true ;
+          }
+        */
+        return false ;
+!!!3324827.java!!!	getDestAddrList() : InetAddress
+        return _devAddrList;
+!!!3324955.java!!!	getDestAddr() : InetAddress
+        return _devAddr ;
+!!!3325083.java!!!	getDestPort() : int
+        return portNum ;
+!!!3325211.java!!!	setDestPort(in newPort : int) : void
+        portNum = newPort ;
+!!!3325339.java!!!	getTimeout() : int
+        return timeout;
+!!!3325467.java!!!	setTimeout(in newTimeout : int) : void
+        if (newTimeout < 0)
+            throw new IllegalArgumentException();
+        timeout= newTimeout;
+!!!3325595.java!!!	getMaxTries() : int
+        return maxTries;
+!!!3325723.java!!!	setMaxTries(in newMaxTries : int) : void
+        if (newMaxTries < 0)
+            throw new IllegalArgumentException();
+        maxTries= newMaxTries;
+!!!3325851.java!!!	getDevName() : String
+        return getDestAddr().getHostName() ;
+!!!3325979.java!!!	toString() : String
+        return "Peer/Port : " + getDevName() + "/" + getDestPort() ;
+!!!3326107.java!!!	getVarBindLimit() : int
+        return maxVarBindLimit ;
+!!!3326235.java!!!	setVarBindLimit(in limit : int) : void
+        maxVarBindLimit = limit ;
+!!!3326363.java!!!	setParams(inout params : SnmpParams) : void
+	_snmpParameter = params;
+!!!3326491.java!!!	getParams() : SnmpParams
+	return _snmpParameter;
+!!!3326619.java!!!	getMaxSnmpPktSize() : int
+        return maxSnmpPacketSize ;
+!!!3326747.java!!!	setMaxSnmpPktSize(in newsize : int) : void
+        maxSnmpPacketSize = newsize ;
+!!!3326875.java!!!	isCustomPduFactory() : boolean
+	return customPduFactory;
+!!!3327003.java!!!	finalize() : void
+        _devAddr = null ;
+        _devAddrList = null ;
+        _snmpParameter = null ;
+!!!3327131.java!!!	getMinRtt() : long
+        return _minrtt ;
+!!!3327259.java!!!	getMaxRtt() : long
+        return _maxrtt ;
+!!!3327387.java!!!	getAvgRtt() : long
+        return _avgrtt ;
+!!!3327515.java!!!	updateRttStats(in tm : long) : void
+        if (_minrtt > tm)
+            _minrtt = tm ;
+        else if (_maxrtt < tm)
+            _maxrtt = tm ;
+        else
+            _avgrtt = tm ;  // to do later.

@@ -1,0 +1,159 @@
+class BreakDictionary
+!!!7797019.java!!!	BreakDictionary(in dictionaryName : String)
+
+        readDictionaryFile(dictionaryName);
+!!!7797147.java!!!	readDictionaryFile(in dictionaryName : String) : void
+
+        BufferedInputStream in;
+        try {
+            in = (BufferedInputStream)AccessController.doPrivileged(
+                new PrivilegedExceptionAction() {
+                    public Object run() throws Exception {
+                        return new BufferedInputStream(getClass().getResourceAsStream("/sun/text/resources/" + dictionaryName));
+                    }
+                }
+            );
+        }
+        catch (PrivilegedActionException e) {
+            throw new InternalError(e.toString());
+        }
+ 
+        byte[] buf = new byte[8];
+        if (in.read(buf) != 8) {
+            throw new MissingResourceException("Wrong data length",
+                                               dictionaryName, "");
+        }
+
+        // check vesion
+        int version = BreakIterator.getInt(buf, 0);
+        if (version != supportedVersion) {
+            throw new MissingResourceException("Dictionary version(" + version + ") is unsupported", 
+                                                           dictionaryName, "");
+        }
+
+        // get data size
+        int len = BreakIterator.getInt(buf, 4);
+        buf = new byte[len];
+        if (in.read(buf) != len) {
+            throw new MissingResourceException("Wrong data length",
+                                               dictionaryName, "");
+        }
+
+        // close the stream
+        in.close();
+
+        int l;
+        int offset = 0;
+
+        // read in the column map for BMP characteres (this is serialized in
+        // its internal form: an index array followed by a data array)
+        l = BreakIterator.getInt(buf, offset);
+        offset += 4;
+        short[] temp = new short[l];
+        for (int i = 0; i < l; i++, offset+=2) {
+            temp[i] = BreakIterator.getShort(buf, offset);
+        }
+        l = BreakIterator.getInt(buf, offset);
+        offset += 4;
+        byte[] temp2 = new byte[l];
+        for (int i = 0; i < l; i++, offset++) {
+            temp2[i] = buf[offset];
+        }
+        columnMap = new CompactByteArray(temp, temp2);
+
+        // read in numCols and numColGroups
+        numCols = BreakIterator.getInt(buf, offset);
+        offset += 4;
+        numColGroups = BreakIterator.getInt(buf, offset);
+        offset += 4;
+
+        // read in the row-number index
+        l = BreakIterator.getInt(buf, offset);
+        offset += 4;
+        rowIndex = new short[l];
+        for (int i = 0; i < l; i++, offset+=2) {
+            rowIndex[i] = BreakIterator.getShort(buf, offset);
+        }
+
+        // load in the populated-cells bitmap: index first, then bitmap list
+        l = BreakIterator.getInt(buf, offset);
+        offset += 4;
+        rowIndexFlagsIndex = new short[l];
+        for (int i = 0; i < l; i++, offset+=2) {
+            rowIndexFlagsIndex[i] = BreakIterator.getShort(buf, offset);
+        }
+        l = BreakIterator.getInt(buf, offset);
+        offset += 4;
+        rowIndexFlags = new int[l];
+        for (int i = 0; i < l; i++, offset+=4) {
+            rowIndexFlags[i] = BreakIterator.getInt(buf, offset);
+        }
+
+        // load in the row-shift index
+        l = BreakIterator.getInt(buf, offset);
+        offset += 4;
+        rowIndexShifts = new byte[l];
+        for (int i = 0; i < l; i++, offset++) {
+            rowIndexShifts[i] = buf[offset];
+        }
+
+        // load in the actual state table
+        l = BreakIterator.getInt(buf, offset);
+        offset += 4;
+        table = new short[l];
+        for (int i = 0; i < l; i++, offset+=2) {
+            table[i] = BreakIterator.getShort(buf, offset);
+        }
+
+        // finally, prepare the column map for supplementary characters
+        l = BreakIterator.getInt(buf, offset);
+        offset += 4;
+        int[] temp3 = new int[l];
+        for (int i = 0; i < l; i++, offset+=4) {
+            temp3[i] = BreakIterator.getInt(buf, offset);
+        }
+        supplementaryCharColumnMap = new SupplementaryCharacterData(temp3);
+!!!7797275.java!!!	getNextStateFromCharacter(in row : int, in ch : int) : short
+        int col;
+        if (ch < Character.MIN_SUPPLEMENTARY_CODE_POINT) {
+            col = columnMap.elementAt((char)ch);
+        } else {
+            col = supplementaryCharColumnMap.getValue(ch);
+        }
+        return getNextState(row, col);
+!!!7797403.java!!!	getNextState(in row : int, in col : int) : short
+        if (cellIsPopulated(row, col)) {
+            // we map from logical to physical row number by looking up the
+            // mapping in rowIndex; we map from logical column number to
+            // physical column number by looking up a shift value for this
+            // logical row and offsetting the logical column number by
+            // the shift amount.  Then we can use internalAt() to actually
+            // get the value out of the table.
+            return internalAt(rowIndex[row], col + rowIndexShifts[row]);
+        }
+        else {
+            return 0;
+        }
+!!!7797531.java!!!	cellIsPopulated(in row : int, in col : int) : boolean
+        // look up the entry in the bitmap index for the specified row.
+        // If it's a negative number, it's the column number of the only
+        // populated cell in the row
+        if (rowIndexFlagsIndex[row] < 0) {
+            return col == -rowIndexFlagsIndex[row];
+        }
+
+        // if it's a positive number, it's the offset of an entry in the bitmap
+        // list.  If the table is more than 32 columns wide, the bitmap is stored
+        // successive entries in the bitmap list, so we have to divide the column
+        // number by 32 and offset the number we got out of the index by the result.
+        // Once we have the appropriate piece of the bitmap, test the appropriate
+        // bit and return the result.
+        else {
+            int flags = rowIndexFlags[rowIndexFlagsIndex[row] + (col >> 5)];
+            return (flags & (1 << (col & 0x1f))) != 0;
+        }
+!!!7797659.java!!!	internalAt(in row : int, in col : int) : short
+        // the table is a one-dimensional array, so this just does the math necessary
+        // to treat it as a two-dimensional array (we don't just use a two-dimensional
+        // array because two-dimensional arrays are inefficient in Java)
+        return table[row * numCols + col];

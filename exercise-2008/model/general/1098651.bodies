@@ -1,0 +1,260 @@
+class SQLInputImpl
+!!!8816027.java!!!	SQLInputImpl(inout attributes : Object, inout map : Map)
+        if ((attributes == null) || (map == null)) {
+            throw new SQLException("Cannot instantiate a SQLInputImpl " +
+            "object with null parameters");
+        }        
+        // assign our local reference to the attribute stream
+        attrib = attributes;
+        // init the index point before the head of the stream
+        idx = -1;
+        // set the map
+        this.map = map;
+!!!8816155.java!!!	getNextAttribute() : Object
+        if (++idx >= attrib.length) {
+            throw new SQLException("SQLInputImpl exception: Invalid read " + 
+				   "position");
+        } else {
+            return attrib[idx];
+        }
+!!!8816283.java!!!	readString() : String
+
+        String attrib = (String)getNextAttribute();   
+        
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return null;
+        } else {
+            lastValueWasNull = false;
+            return attrib;
+        }
+!!!8816411.java!!!	readBoolean() : boolean
+
+        Boolean attrib = (Boolean)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return false;
+        } else {
+            lastValueWasNull = false;
+            return attrib.booleanValue();
+        }
+!!!8816539.java!!!	readByte() : byte
+        Byte attrib = (Byte)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return (byte)0;
+        } else {
+            lastValueWasNull = false;
+            return attrib.byteValue();
+        }
+!!!8816667.java!!!	readShort() : short
+        Short attrib = (Short)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return (short)0;
+        } else {
+            lastValueWasNull = false;
+            return attrib.shortValue();
+        }
+!!!8816795.java!!!	readInt() : int
+        Integer attrib = (Integer)getNextAttribute();
+        
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return (int)0;
+        } else {
+            lastValueWasNull = false;
+            return attrib.intValue();
+        }
+!!!8816923.java!!!	readLong() : long
+        Long attrib = (Long)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return (long)0;
+        } else {
+            lastValueWasNull = false;
+            return attrib.longValue();
+        }
+!!!8817051.java!!!	readFloat() : float
+        Float attrib = (Float)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return (float)0;
+        } else {
+            lastValueWasNull = false;
+            return attrib.floatValue();
+        }
+!!!8817179.java!!!	readDouble() : double
+        Double attrib = (Double)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return (double)0;
+        } else {
+            lastValueWasNull = false;
+            return attrib.doubleValue();
+        }
+!!!8817307.java!!!	readBigDecimal() : BigDecimal
+        java.math.BigDecimal attrib = (java.math.BigDecimal)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return null;
+        } else {
+            lastValueWasNull = false;
+            return attrib;
+        }
+!!!8817435.java!!!	readBytes() : byte
+        byte[] attrib = (byte[])getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return null;
+        } else {
+            lastValueWasNull = false;
+            return attrib;
+        }
+!!!8817563.java!!!	readDate() : Date
+        java.sql.Date attrib = (java.sql.Date)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return null;
+        } else {
+            lastValueWasNull = false;
+            return attrib;
+        }
+!!!8817691.java!!!	readTime() : Time
+        java.sql.Time attrib = (java.sql.Time)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return null;
+        } else {
+            lastValueWasNull = false;
+            return attrib;
+        }
+!!!8817819.java!!!	readTimestamp() : Timestamp
+        java.sql.Timestamp attrib = (java.sql.Timestamp)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return null;
+        } else {
+            lastValueWasNull = false;
+            return attrib;
+        }
+!!!8817947.java!!!	readCharacterStream() : Reader
+        java.io.Reader attrib = (java.io.Reader)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return null;
+        } else {
+            lastValueWasNull = false;
+            return attrib;
+        }
+!!!8818075.java!!!	readAsciiStream() : InputStream
+        java.io.InputStream attrib = (java.io.InputStream)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return null;
+        } else {
+            lastValueWasNull = false;
+            return attrib;
+        }
+!!!8818203.java!!!	readBinaryStream() : InputStream
+        java.io.InputStream attrib = (java.io.InputStream)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return null;
+        } else {
+            lastValueWasNull = false;
+            return attrib;
+        }        
+!!!8818331.java!!!	readObject() : Object
+        Object attrib = (Object)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return null;
+        } else {
+            lastValueWasNull = false;
+            if (attrib instanceof Struct) {
+                Struct s = (Struct)attrib;
+                // look up the class in the map
+                Class c = (Class)map.get(s.getSQLTypeName());
+                if (c != null) {
+                    // create new instance of the class
+                    SQLData obj = null;
+                    try {
+                        obj = (SQLData)c.newInstance();
+                    } catch (java.lang.InstantiationException ex) {
+                        throw new SQLException("Unable to instantiate: " +
+                                               ex.getMessage());
+                    } catch (java.lang.IllegalAccessException ex) {
+                        throw new SQLException("Unable to instantiate: " +
+                                               ex.getMessage());
+                    }
+                    // get the attributes from the struct
+                    Object attribs[] = s.getAttributes(map);
+                    // create the SQLInput "stream"
+                    SQLInputImpl sqlInput = new SQLInputImpl(attribs, map);
+                    // read the values...
+                    obj.readSQL(sqlInput, s.getSQLTypeName());
+                    return (Object)obj;
+                } 
+            } 
+            return (Object)attrib;
+        }
+!!!8818459.java!!!	readRef() : Ref
+        Ref attrib = (Ref)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return null;
+        } else {
+            lastValueWasNull = false;
+            return attrib;
+        }
+!!!8818587.java!!!	readBlob() : Blob
+        Blob attrib = (Blob)getNextAttribute();
+        
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return null;
+        } else {
+            lastValueWasNull = false;
+            return attrib;
+        }
+!!!8818715.java!!!	readClob() : Clob
+
+        Clob attrib = (Clob)getNextAttribute();
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return null;
+        } else {
+            lastValueWasNull = false;
+            return attrib;
+        }
+!!!8818843.java!!!	readArray() : Array
+        Array attrib = (Array)getNextAttribute();
+
+        if (attrib == null) {
+            lastValueWasNull = true;
+            return null;
+        } else {
+            lastValueWasNull = false;
+            return attrib;
+        }
+!!!8818971.java!!!	wasNull() : boolean
+        return lastValueWasNull;
+!!!8819099.java!!!	readURL() : URL
+        throw new SQLException("Operation not supported");    

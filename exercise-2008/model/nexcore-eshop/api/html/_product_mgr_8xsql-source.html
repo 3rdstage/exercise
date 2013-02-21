@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+<title>Nexcore PetStore: ProductMgr.xsql 소스 파일</title>
+<link href="tabs.css" rel="stylesheet" type="text/css">
+<link href="doxygen.css" rel="stylesheet" type="text/css">
+</head><body>
+<!-- 다음에 의해 생성됨 :  Doxygen 1.5.8 -->
+<div class="navigation" id="top">
+  <div class="tabs">
+    <ul>
+      <li><a href="main.html"><span>메인&nbsp;페이지</span></a></li>
+      <li><a href="annotated.html"><span>클래스</span></a></li>
+      <li class="current"><a href="files.html"><span>파일들</span></a></li>
+    </ul>
+  </div>
+  <div class="tabs">
+    <ul>
+      <li><a href="files.html"><span>파일&nbsp;목록</span></a></li>
+    </ul>
+  </div>
+<h1>ProductMgr.xsql</h1><a href="_product_mgr_8xsql.html">이 파일의 문서화 페이지로 가기</a><div class="fragment"><pre class="fragment"><a name="l00001"></a>00001 &lt;?xml version=<span class="stringliteral">"1.0"</span> encoding=<span class="stringliteral">"UTF-8"</span>?&gt;
+<a name="l00002"></a>00002  &lt;!DOCTYPE sqlMap PUBLIC <span class="stringliteral">"-//iBATIS.com//DTD SQL Map 2.0//EN"</span> <span class="stringliteral">"http://ibatis.apache.org/dtd/sql-map-2.dtd"</span>&gt;
+<a name="l00003"></a>00003 &lt;sqlMap <span class="keyword">namespace</span>=<span class="stringliteral">"ProductMgr"</span>&gt;
+<a name="l00004"></a>00004     &lt;select <span class="keywordtype">id</span>=<span class="stringliteral">"findProduct"</span> resultClass=<span class="stringliteral">"hmap"</span> fetchSize=<span class="stringliteral">"50"</span> &gt;&lt;![CDATA[
+<a name="l00005"></a>00005 select a.id, a.name, a.category_id, b.name as category_name, a.short_descn
+<a name="l00006"></a>00006 from ps_product a, ps_category b
+<a name="l00007"></a>00007 where a.id = #<span class="keywordtype">id</span>#
+<a name="l00008"></a>00008 and b.id = a.category_id]]&gt;
+<a name="l00009"></a>00009     &lt;/select&gt;
+<a name="l00010"></a>00010     &lt;select <span class="keywordtype">id</span>=<span class="stringliteral">"findProductsByCategory"</span> resultClass=<span class="stringliteral">"hmap"</span> fetchSize=<span class="stringliteral">"50"</span> &gt;&lt;![CDATA[
+<a name="l00011"></a>00011 select a.id, a.name, a.category_id, b.name as category_name, a.short_descn
+<a name="l00012"></a>00012 from ps_product a, ps_category b
+<a name="l00013"></a>00013 where b.id = #category_id#
+<a name="l00014"></a>00014 and a.category_id = b.id
+<a name="l00015"></a>00015 order by a.name]]&gt;
+<a name="l00016"></a>00016     &lt;/select&gt;
+<a name="l00017"></a>00017     &lt;select <span class="keywordtype">id</span>=<span class="stringliteral">"findProductsByConditionPaging"</span> resultClass=<span class="stringliteral">"hmap"</span> fetchSize=<span class="stringliteral">"50"</span> &gt;&lt;![CDATA[
+<a name="l00018"></a>00018 select * from(
+<a name="l00019"></a>00019     select rownum as row_no, a.id, a.name, a.category_id, b.name as category_name, a.short_descn
+<a name="l00020"></a>00020     from ps_product a, ps_category b
+<a name="l00021"></a>00021     where a.category_id = b.id
+<a name="l00022"></a>00022 ]]&gt; &lt;isNotEmpty property=<span class="stringliteral">"category_id"</span> prepend=<span class="stringliteral">"and"</span>&gt;
+<a name="l00023"></a>00023 &lt;![CDATA[   b.id = #category_id#
+<a name="l00024"></a>00024 ]]&gt; &lt;/isNotEmpty&gt;
+<a name="l00025"></a>00025 &lt;![CDATA[]]&gt;    &lt;isNotEmpty property=<span class="stringliteral">"name_part"</span> prepend=<span class="stringliteral">"and"</span>&gt;
+<a name="l00026"></a>00026 &lt;![CDATA[   a.name like <span class="charliteral">'%'</span> || #name_part# || <span class="charliteral">'%'</span>
+<a name="l00027"></a>00027 ]]&gt; &lt;/isNotEmpty&gt;
+<a name="l00028"></a>00028 &lt;![CDATA[   order by a.name
+<a name="l00029"></a>00029 ) where row_no between #first_record_no# and #last_record_no#]]&gt;
+<a name="l00030"></a>00030     &lt;/select&gt;
+<a name="l00031"></a>00031     &lt;select <span class="keywordtype">id</span>=<span class="stringliteral">"countProductsByCondition"</span> resultClass=<span class="stringliteral">"java.lang.Integer"</span> fetchSize=<span class="stringliteral">"50"</span> &gt;&lt;![CDATA[
+<a name="l00032"></a>00032 select count(*)
+<a name="l00033"></a>00033 from ps_product a, ps_category b
+<a name="l00034"></a>00034 where a.category_id = b.<span class="keywordtype">id</span>
+<a name="l00035"></a>00035 ]]&gt;&lt;isNotEmpty property="category_id" prepend="and"&gt;
+<a name="l00036"></a>00036 &lt;![CDATA[b.<span class="keywordtype">id</span> = <span class="preprocessor">#category_id#</span>
+<a name="l00037"></a>00037 <span class="preprocessor"></span>]]&gt;&lt;/isNotEmpty&gt;
+<a name="l00038"></a>00038 &lt;![CDATA[]]&gt;&lt;isNotEmpty <span class="keyword">property</span>=<span class="stringliteral">"name_part"</span> prepend=<span class="stringliteral">"and"</span>&gt;
+<a name="l00039"></a>00039 &lt;![CDATA[a.name like <span class="charliteral">'%'</span> || #name_part# || <span class="charliteral">'%'</span>
+<a name="l00040"></a>00040 ]]&gt;&lt;/isNotEmpty&gt;
+<a name="l00041"></a>00041     &lt;/select&gt;
+<a name="l00042"></a>00042     &lt;select <span class="keywordtype">id</span>=<span class="stringliteral">"findProductsByCondition"</span> resultClass=<span class="stringliteral">"hmap"</span> fetchSize=<span class="stringliteral">"50"</span> &gt;&lt;![CDATA[
+<a name="l00043"></a>00043 select a.id, a.name, a.category_id, b.name as category_name, a.short_descn
+<a name="l00044"></a>00044 from ps_product a, ps_category b
+<a name="l00045"></a>00045 where a.category_id = b.id
+<a name="l00046"></a>00046 ]]&gt;&lt;isNotEmpty <span class="keyword">property</span>=<span class="stringliteral">"category_id"</span> prepend=<span class="stringliteral">"and"</span>&gt;
+<a name="l00047"></a>00047 &lt;![CDATA[b.id = #category_id#
+<a name="l00048"></a>00048 ]]&gt;&lt;/isNotEmpty&gt;
+<a name="l00049"></a>00049 &lt;![CDATA[]]&gt;&lt;isNotEmpty <span class="keyword">property</span>=<span class="stringliteral">"name_part"</span> prepend=<span class="stringliteral">"and"</span>&gt;
+<a name="l00050"></a>00050 &lt;![CDATA[a.name like <span class="charliteral">'%'</span> || #name_part# || <span class="charliteral">'%'</span>
+<a name="l00051"></a>00051 ]]&gt;&lt;/isNotEmpty&gt;
+<a name="l00052"></a>00052 &lt;![CDATA[order by a.name]]&gt;
+<a name="l00053"></a>00053     &lt;/select&gt;
+<a name="l00054"></a>00054     &lt;insert <span class="keywordtype">id</span>=<span class="stringliteral">"addProduct"</span> &gt;&lt;![CDATA[
+<a name="l00055"></a>00055 insert into ps_product(<span class="keywordtype">id</span>, name, category_id, short_descn, create_user, create_dt, last_modify_user, last_modify_dt)
+<a name="l00056"></a>00056 values (<span class="preprocessor">#id#, #name#, #category_id#, #short_descn#</span>
+<a name="l00057"></a>00057 <span class="preprocessor"></span>      , #onlineContext.userInfo.loginId#, to_char(sysdate, <span class="stringliteral">'YYYYMMDDHH24MISS'</span>)
+<a name="l00058"></a>00058       , #onlineContext.userInfo.loginId#, to_char(sysdate, <span class="stringliteral">'YYYYMMDDHH24MISS'</span>))  ]]&gt;
+<a name="l00059"></a>00059     &lt;/insert&gt;
+<a name="l00060"></a>00060     &lt;update <span class="keywordtype">id</span>=<span class="stringliteral">"modifyProduct"</span> &gt;&lt;![CDATA[
+<a name="l00061"></a>00061 update ps_product
+<a name="l00062"></a>00062 <span class="keyword">set</span> name = #name#, category_id = #category_id#, short_descn = #short_descn#
+<a name="l00063"></a>00063   , last_modify_user = #onlineContext.userInfo.loginId#, last_modify_dt = to_char(sysdate, <span class="stringliteral">'YYYYMMDDHH24MISS'</span>)
+<a name="l00064"></a>00064 where <span class="keywordtype">id</span> = #<span class="keywordtype">id</span>#]]&gt;
+<a name="l00065"></a>00065     &lt;/update&gt;
+<a name="l00066"></a>00066     &lt;<span class="keyword">delete</span> <span class="keywordtype">id</span>=<span class="stringliteral">"removeProduct"</span> &gt;&lt;![CDATA[
+<a name="l00067"></a>00067 <span class="keyword">delete</span> ps_product
+<a name="l00068"></a>00068 where <span class="keywordtype">id</span> = #<span class="keywordtype">id</span>#]]&gt;
+<a name="l00069"></a>00069     &lt;/<span class="keyword">delete</span>&gt;
+<a name="l00070"></a>00070     &lt;select <span class="keywordtype">id</span>=<span class="stringliteral">"findProductWithFullDescn"</span> resultClass=<span class="stringliteral">"hmap"</span> fetchSize=<span class="stringliteral">"50"</span> &gt;&lt;![CDATA[
+<a name="l00071"></a>00071 select a.id, a.name, a.category_id, b.name as category_name, a.short_descn, a.full_descn
+<a name="l00072"></a>00072 from ps_product a, ps_category b
+<a name="l00073"></a>00073 where a.id = #<span class="keywordtype">id</span>#
+<a name="l00074"></a>00074 and b.id = a.category_id]]&gt;
+<a name="l00075"></a>00075     &lt;/select&gt;
+<a name="l00076"></a>00076     &lt;insert <span class="keywordtype">id</span>=<span class="stringliteral">"addProductWithFullDescn"</span> &gt;&lt;![CDATA[
+<a name="l00077"></a>00077 insert into ps_product(<span class="keywordtype">id</span>, name, category_id, short_descn, full_descn, create_user, create_dt, last_modify_user, last_modify_dt)
+<a name="l00078"></a>00078 values (<span class="preprocessor">#id#, #name#, #category_id#, #short_descn#, #full_descn#</span>
+<a name="l00079"></a>00079 <span class="preprocessor"></span>      , #onlineContext.userInfo.loginId#, to_char(sysdate, <span class="stringliteral">'YYYYMMDDHH24MISS'</span>)
+<a name="l00080"></a>00080       , #onlineContext.userInfo.loginId#, to_char(sysdate, <span class="stringliteral">'YYYYMMDDHH24MISS'</span>))  ]]&gt;
+<a name="l00081"></a>00081     &lt;/insert&gt;
+<a name="l00082"></a>00082 &lt;/sqlMap&gt;
+</pre></div></div>
+<hr size="1"><address style="text-align: right;"><small>생성시간 : Fri Jan 9 20:04:41 2009, 프로젝트명 : Nexcore PetStore, 생성자 : &nbsp;
+<a href="http://www.doxygen.org/index.html">
+<img src="doxygen.png" alt="doxygen" align="middle" border="0"></a> 1.5.8 </small></address>
+</body>
+</html>

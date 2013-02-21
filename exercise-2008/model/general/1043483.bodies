@@ -1,0 +1,998 @@
+class RelationSupport
+!!!8382747.java!!!	RelationSupport(in theRelId : String, inout theRelServiceName : ObjectName, in theRelTypeName : String, inout theRoleList : RoleList)
+
+	super();
+
+	if (isTraceOn())
+            trace("Constructor: entering", null);
+
+	// Can throw InvalidRoleValueException and IllegalArgumentException
+	initMembers(theRelId,
+		    theRelServiceName,
+		    null,
+		    theRelTypeName,
+		    theRoleList);
+
+	if (isTraceOn())
+	    trace("Constructor: exiting", null);
+!!!8382875.java!!!	RelationSupport(in theRelId : String, inout theRelServiceName : ObjectName, inout theRelServiceMBeanServer : MBeanServer, in theRelTypeName : String, inout theRoleList : RoleList)
+
+	super();
+
+	if (theRelServiceMBeanServer == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isTraceOn())
+            trace("Constructor: entering", null);
+
+	// Can throw InvalidRoleValueException and
+	// IllegalArgumentException
+	initMembers(theRelId,
+		    theRelServiceName,
+		    theRelServiceMBeanServer,
+		    theRelTypeName,
+		    theRoleList);
+
+	if (isTraceOn())
+	    trace("Constructor: exiting", null);
+!!!8383003.java!!!	getRole(in theRoleName : String) : List
+
+	if (theRoleName == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isTraceOn())
+	    trace("getRole: entering", theRoleName);
+
+	// Can throw RoleNotFoundException and
+	// RelationServiceNotRegisteredException
+	ArrayList result = (ArrayList)
+	    (getRoleInt(theRoleName, false, null, false));
+
+	if (isTraceOn())
+	    trace("getRole: exiting", null);
+	return result;
+!!!8383131.java!!!	getRoles(in theRoleNameArray : String) : RoleResult
+
+	if (theRoleNameArray == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isTraceOn())
+            trace("getRoles: entering", null);
+
+	// Can throw RelationServiceNotRegisteredException
+	RoleResult result = getRolesInt(theRoleNameArray, false, null);
+
+	if (isTraceOn())
+            trace("getRoles: exiting", null);
+	return result;
+!!!8383259.java!!!	getAllRoles() : RoleResult
+
+	if (isTraceOn())
+            trace("getAllRoles: entering", null);
+
+	RoleResult result = null;
+	try {
+	    result = getAllRolesInt(false, null);
+	} catch (IllegalArgumentException exc) {
+	    // OK : Invalid parameters, ignore...
+	}
+
+	if (isTraceOn())
+            trace("getAllRoles: exiting", null);
+	return result;
+!!!8383387.java!!!	retrieveAllRoles() : RoleList
+
+	if (isTraceOn())
+            trace("retrieveAllRoles: entering", null);
+
+	RoleList result = null;
+	synchronized(myRoleName2ValueMap) {
+	    result =
+		new RoleList(new ArrayList(myRoleName2ValueMap.values()));
+	}
+
+	if (isTraceOn())
+            trace("retrieveAllRoles: exiting", null);
+	return result;
+!!!8383515.java!!!	getRoleCardinality(in theRoleName : String) : Integer
+
+	if (theRoleName == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isTraceOn())
+            trace("getRoleCardinality: entering", theRoleName);
+
+	// Try to retrieve the role
+	Role role = null;
+	synchronized(myRoleName2ValueMap) {
+	    // No null Role is allowed, so direct use of get()
+	    role = (Role)(myRoleName2ValueMap.get(theRoleName));
+	}
+	if (role == null) {
+	    int pbType = RoleStatus.NO_ROLE_WITH_NAME;
+	    // Will throw a RoleNotFoundException
+	    //
+	    // Will not throw InvalidRoleValueException, so catch it for the
+	    // compiler
+	    try {
+		RelationService.throwRoleProblemException(pbType,
+							  theRoleName);
+	    } catch (InvalidRoleValueException exc) {
+		// OK : Do not throw InvalidRoleValueException as
+		//      a RoleNotFoundException will be thrown.
+	    }
+	}
+
+	ArrayList roleValue = (ArrayList)(role.getRoleValue());
+
+	if (isTraceOn())
+            trace("getRoleCardinality: exiting", null);
+	return new Integer(roleValue.size());
+!!!8383643.java!!!	setRole(inout theRole : Role) : void
+
+	if (theRole == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isTraceOn())
+            trace("setRole: entering", theRole.toString());
+
+	// Will return null :)
+	Object result = setRoleInt(theRole, false, null, false);
+
+	if (isTraceOn())
+            trace("setRole: exiting", null);
+	return;
+!!!8383771.java!!!	setRoles(inout theRoleList : RoleList) : RoleResult
+
+	if (theRoleList == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isTraceOn())
+            trace("setRoles: entering", theRoleList.toString());
+
+	RoleResult result = setRolesInt(theRoleList, false, null);
+
+	if (isTraceOn())
+            trace("setRoles: exiting", null);
+	return result;
+!!!8383899.java!!!	handleMBeanUnregistration(inout theObjName : ObjectName, in theRoleName : String) : void
+
+	if (theObjName == null || theRoleName == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isTraceOn())
+            trace("handleMBeanUnregistration: entering",
+		  "theObjName " + theObjName + ", theRoleName " + theRoleName);
+
+	// Can throw RoleNotFoundException, InvalidRoleValueException,
+	// or RelationTypeNotFoundException
+	handleMBeanUnregistrationInt(theObjName,
+				     theRoleName,
+				     false,
+				     null);
+
+	if (isTraceOn())
+            trace("handleMBeanUnregistration: exiting", null);
+	return;
+!!!8384027.java!!!	getReferencedMBeans() : Map
+
+	if (isTraceOn())
+            trace("getReferencedMBeans: entering", null);
+
+	HashMap refMBeanMap = new HashMap();
+
+	synchronized(myRoleName2ValueMap) {
+
+	    for (Iterator roleIter = (myRoleName2ValueMap.values()).iterator();
+		 roleIter.hasNext();) {
+
+		Role currRole = (Role)(roleIter.next());
+
+		String currRoleName = currRole.getRoleName();
+		// Retrieves ObjectNames of MBeans referenced in current role
+		ArrayList currRefMBeanList = (ArrayList)
+		    (currRole.getRoleValue());
+
+		for (Iterator mbeanIter = currRefMBeanList.iterator();
+		     mbeanIter.hasNext();) {
+
+		    ObjectName currRoleObjName =
+			(ObjectName)(mbeanIter.next());
+
+		    // Sees if current MBean has been already referenced in
+		    // roles already seen
+		    ArrayList mbeanRoleNameList =
+			(ArrayList)(refMBeanMap.get(currRoleObjName));
+
+		    boolean newRefFlg = false;
+		    if (mbeanRoleNameList == null) {
+			newRefFlg = true;
+			mbeanRoleNameList = new ArrayList();
+		    }
+		    mbeanRoleNameList.add(currRoleName);
+		    if (newRefFlg) {
+			refMBeanMap.put(currRoleObjName, mbeanRoleNameList);
+		    }
+		}
+	    }
+	}
+
+	if (isTraceOn())
+            trace("getReferencedMBeans: exiting", null);
+	return refMBeanMap;		    
+!!!8384155.java!!!	getRelationTypeName() : String
+	return myRelTypeName;
+!!!8384283.java!!!	getRelationServiceName() : ObjectName
+	return myRelServiceName;
+!!!8384411.java!!!	getRelationId() : String
+	return myRelId;
+!!!8384539.java!!!	preRegister(inout server : MBeanServer, inout name : ObjectName) : ObjectName
+
+	myRelServiceMBeanServer = server;
+	return name;
+!!!8384667.java!!!	postRegister(inout registrationDone : Boolean) : void
+	return;
+!!!8384795.java!!!	preDeregister() : void
+	return;
+!!!8384923.java!!!	postDeregister() : void
+	return;
+!!!8385051.java!!!	isInRelationService() : Boolean
+	Boolean result = null;
+	synchronized(myInRelServFlg) {
+	    result = new Boolean(myInRelServFlg.booleanValue());
+	}
+	return result;
+!!!8385179.java!!!	setRelationServiceManagementFlag(inout theFlg : Boolean) : void
+
+	if (theFlg == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+	synchronized(myInRelServFlg) {
+	    myInRelServFlg = new Boolean(theFlg.booleanValue());
+	}
+	return;
+!!!8385307.java!!!	getRoleInt(in theRoleName : String, inout theRelServCallFlg : boolean, inout theRelServ : RelationService, inout theMultiRoleFlg : boolean) : Object
+
+	if (theRoleName == null ||
+	    (theRelServCallFlg && theRelServ == null)) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isDebugOn()) {
+	    String str = "theRoleName " + theRoleName;
+	    debug("getRoleInt: entering", str);
+	}
+
+	int pbType = 0;
+
+	Role role = null;
+	synchronized(myRoleName2ValueMap) {
+	    // No null Role is allowed, so direct use of get()
+	    role = (Role)(myRoleName2ValueMap.get(theRoleName));
+	}
+
+	if (role == null) {
+		pbType = RoleStatus.NO_ROLE_WITH_NAME;
+
+	} else {
+	    // Checks if the role is readable
+	    Integer status = null;
+
+	    if (theRelServCallFlg) {
+
+		// Call from the Relation Service, so direct access to it,
+		// avoiding MBean Server
+		// Shall not throw a RelationTypeNotFoundException
+		try {
+		    status = theRelServ.checkRoleReading(theRoleName,
+							 myRelTypeName);
+		} catch (RelationTypeNotFoundException exc) {
+		    throw new RuntimeException(exc.getMessage());
+		}
+
+	    } else {
+
+		// Call from getRole() method above
+		// So we have a MBean. We must access the Relation Service
+		// via the MBean Server.		
+		Object[] params = new Object[2];
+		params[0] = theRoleName;
+		params[1] = myRelTypeName;
+		String[] signature = new String[2];
+		signature[0] = "java.lang.String";
+		signature[1] = "java.lang.String";
+		// Can throw InstanceNotFoundException if the Relation
+		// Service is not registered (to be catched in any case and
+		// transformed into RelationServiceNotRegisteredException).
+		//
+		// Shall not throw a MBeanException, or a ReflectionException
+		// or an InstanceNotFoundException
+		try {
+		    status = (Integer)
+			(myRelServiceMBeanServer.invoke(myRelServiceName,
+							"checkRoleReading",
+							params,
+							signature));
+		} catch (MBeanException exc1) {
+		    throw new RuntimeException("incorrect relation type");
+		} catch (ReflectionException exc2) {
+		    throw new RuntimeException(exc2.getMessage());
+		} catch (InstanceNotFoundException exc3) {
+		    throw new RelationServiceNotRegisteredException(
+							    exc3.getMessage());
+		}
+	    }
+
+	    pbType = status.intValue();
+	}
+
+	Object result = null;
+
+	if (pbType == 0) {
+	    // Role can be retrieved
+
+	    if (!(theMultiRoleFlg)) {
+		// Single role retrieved: returns its value
+		// Note: no need to test if role value (list) not null before
+		//       cloning, null value not allowed, empty list if
+		//       nothing.
+		result = (ArrayList)
+		    (((ArrayList)(role.getRoleValue())).clone());
+
+	    } else {
+		// Role retrieved during multi-role retrieval: returns the
+		// role
+		result = (Role)(role.clone());
+	    }
+
+	} else {
+	    // Role not retrieved
+
+	    if (!(theMultiRoleFlg)) {
+		// Problem when retrieving a simple role: either role not
+		// found or not readable, so raises a RoleNotFoundException.
+		try {
+		    RelationService.throwRoleProblemException(pbType,
+							      theRoleName);
+		    // To keep compiler happy :)
+		    return null;
+		} catch (InvalidRoleValueException exc) {
+		    throw new RuntimeException(exc.getMessage());
+		}
+
+	    } else {
+		// Problem when retrieving a role in a multi-role retrieval:
+		// returns a RoleUnresolved object
+		result = new RoleUnresolved(theRoleName, null, pbType);
+	    }
+	}
+
+	if (isDebugOn())
+	    debug("getRoleInt: exiting", null);	
+	return result;
+!!!8385435.java!!!	getRolesInt(in theRoleNameArray : String, inout theRelServCallFlg : boolean, inout theRelServ : RelationService) : RoleResult
+
+	if (theRoleNameArray == null ||
+	    (theRelServCallFlg && theRelServ == null)) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isDebugOn())
+	    debug("getRolesInt: entering", null);
+
+	RoleList roleList = new RoleList();
+	RoleUnresolvedList roleUnresList = new RoleUnresolvedList();
+
+	for (int i = 0; i < theRoleNameArray.length; i++) {
+	    String currRoleName = theRoleNameArray[i];
+
+	    Object currResult = null;
+
+	    // Can throw RelationServiceNotRegisteredException
+	    //
+	    // RoleNotFoundException: not possible but catch it for compiler :)
+	    try {
+		currResult = getRoleInt(currRoleName,
+					theRelServCallFlg,
+					theRelServ,
+					true);
+
+	    } catch (RoleNotFoundException exc) {
+		return null; // :)
+	    }
+
+	    if (currResult instanceof Role) {
+		// Can throw IllegalArgumentException if role is null
+		// (normally should not happen :(
+		try {
+		    roleList.add((Role)currResult);
+		} catch (IllegalArgumentException exc) {
+		    throw new RuntimeException(exc.getMessage());
+		}
+
+	    } else if (currResult instanceof RoleUnresolved) {
+		// Can throw IllegalArgumentException if role is null
+		// (normally should not happen :(
+		try {
+		    roleUnresList.add((RoleUnresolved)currResult);
+		} catch (IllegalArgumentException exc) {
+		    throw new RuntimeException(exc.getMessage());
+		}
+	    }
+	}
+
+	RoleResult result = new RoleResult(roleList, roleUnresList);
+	if (isDebugOn())
+	    debug("getRolesInt: exiting", null);
+	return result;
+!!!8385563.java!!!	getAllRolesInt(inout theRelServCallFlg : boolean, inout theRelServ : RelationService) : RoleResult
+
+	if (theRelServCallFlg && theRelServ == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isDebugOn())
+	    debug("getAllRolesInt: entering", null);
+
+	ArrayList roleNameList = null;
+	synchronized(myRoleName2ValueMap) {
+	    roleNameList =
+		new ArrayList(myRoleName2ValueMap.keySet());
+	}
+	String[] roleNames = new String[roleNameList.size()];
+	int i = 0;
+	for (Iterator roleNameIter = roleNameList.iterator();
+	     roleNameIter.hasNext();) {
+	    String currRoleName = (String)(roleNameIter.next());
+	    roleNames[i] = currRoleName;
+	    i++;
+	}
+
+	RoleResult result = getRolesInt(roleNames,
+					theRelServCallFlg,
+					theRelServ);
+
+	if (isDebugOn())
+	    debug("getAllRolesInt: exiting", null);
+	return result;
+!!!8385691.java!!!	setRoleInt(inout theRole : Role, inout theRelServCallFlg : boolean, inout theRelServ : RelationService, inout theMultiRoleFlg : boolean) : Object
+
+	if (theRole == null ||
+	    (theRelServCallFlg && theRelServ == null)) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isDebugOn()) {
+	    String str =
+		"theRole " + theRole
+		+ ", theRelServCallFlg " + theRelServCallFlg
+		+ ", theMultiRoleFlg " + theMultiRoleFlg;
+	    debug("setRoleInt: entering" , str);
+	}
+
+	String roleName = theRole.getRoleName();
+	int pbType = 0;
+
+	// Checks if role exists in the relation
+	// No error if the role does not exist in the relation, to be able to
+	// handle initialisation of role when creating the relation
+	// (roles provided in the RoleList parameter are directly set but
+	// roles automatically initialised are set using setRole())
+	Role role = null;
+	synchronized(myRoleName2ValueMap) {
+	    role = (Role)(myRoleName2ValueMap.get(roleName));
+	}
+
+	ArrayList oldRoleValue = null;
+	Boolean initFlg = null;
+
+	if (role == null) {
+	    initFlg = new Boolean(true);
+	    oldRoleValue = new ArrayList();
+
+	} else {
+	    initFlg = new Boolean(false);
+	    oldRoleValue = (ArrayList)(role.getRoleValue());
+	}
+
+	// Checks if the role can be set: is writable (except if
+	// initialisation) and correct value
+	try {
+	    Integer status = null;
+
+	    if (theRelServCallFlg) {
+
+		// Call from the Relation Service, so direct access to it,
+		// avoiding MBean Server
+		//
+		// Shall not raise a RelationTypeNotFoundException
+		status = theRelServ.checkRoleWriting(theRole,
+						     myRelTypeName,
+						     initFlg);
+
+	    } else {
+
+		// Call from setRole() method above
+		// So we have a MBean. We must access the Relation Service
+		// via the MBean Server.		
+		Object[] params = new Object[3];
+		params[0] = theRole;
+		params[1] = myRelTypeName;
+		params[2] = initFlg;
+		String[] signature = new String[3];
+		signature[0] = "javax.management.relation.Role";
+		signature[1] = "java.lang.String";
+		signature[2] = "java.lang.Boolean";
+		// Can throw InstanceNotFoundException if the Relation Service
+		// is not registered (to be transformed into
+		// RelationServiceNotRegisteredException in any case).
+		//
+		// Can throw a MBeanException wrapping a
+		// RelationTypeNotFoundException:
+		// throw wrapped exception.
+		//
+		// Shall not throw a ReflectionException
+		status = (Integer)
+		    (myRelServiceMBeanServer.invoke(myRelServiceName,
+						    "checkRoleWriting",
+						    params,
+						    signature));
+	    }
+
+	    pbType = status.intValue();
+
+	} catch (MBeanException exc2) {
+
+	    // Retrieves underlying exception
+	    Exception wrappedExc = exc2.getTargetException();
+	    if (wrappedExc instanceof RelationTypeNotFoundException) {
+		throw ((RelationTypeNotFoundException)wrappedExc);
+
+	    } else {
+		throw new RuntimeException(wrappedExc.getMessage());
+	    }
+
+	} catch (ReflectionException exc3) {
+	    throw new RuntimeException(exc3.getMessage());
+
+	} catch (RelationTypeNotFoundException exc4) {
+	    throw new RuntimeException(exc4.getMessage());
+
+	} catch (InstanceNotFoundException exc5) {
+	    throw new RelationServiceNotRegisteredException(exc5.getMessage());
+	}
+
+	Object result = null;
+
+	if (pbType == 0) {
+	    // Role can be set
+	    if (!(initFlg.booleanValue())) {
+
+		// Not initialising the role
+		// If role being initialised:
+		// - do not send an update notification
+		// - do not try to update internal map of Relation Service
+		//   listing referenced MBeans, as role is initialised to an
+		//   empty list
+
+		// Sends a notification (RelationNotification)
+		// Can throw a RelationNotFoundException
+		sendRoleUpdateNotification(theRole,
+					   oldRoleValue,
+					   theRelServCallFlg,
+					   theRelServ);
+
+		// Updates the role map of the Relation Service
+		// Can throw RelationNotFoundException
+		updateRelationServiceMap(theRole,
+					 oldRoleValue,
+					 theRelServCallFlg,
+					 theRelServ);
+
+	    }
+
+	    // Sets the role
+	    synchronized(myRoleName2ValueMap) {
+		myRoleName2ValueMap.put(roleName,
+					(Role)(theRole.clone()));
+	    }
+
+	    // Single role set: returns null: nothing to set in result
+
+	    if (theMultiRoleFlg) {
+		// Multi-roles retrieval: returns the role
+		result = theRole;
+	    }
+
+	} else {
+
+	    // Role not set
+
+	    if (!(theMultiRoleFlg)) {
+		// Problem when setting a simple role: either role not
+		// found, not writable, or incorrect value:
+		// raises appropriate exception, RoleNotFoundException or
+		// InvalidRoleValueException
+		RelationService.throwRoleProblemException(pbType,
+							  roleName);
+		// To keep compiler happy :)
+		return null;
+
+	    } else {
+		// Problem when retrieving a role in a multi-role retrieval:
+		// returns a RoleUnresolved object
+		result = new RoleUnresolved(roleName,
+					    theRole.getRoleValue(),
+					    pbType);
+	    }
+	}
+
+	if (isDebugOn())
+	    debug("setRoleInt: exiting", null);
+	return result;
+!!!8385819.java!!!	sendRoleUpdateNotification(inout theNewRole : Role, inout theOldRoleValue : List, inout theRelServCallFlg : boolean, inout theRelServ : RelationService) : void
+
+	if (theNewRole == null ||
+	    theOldRoleValue == null ||
+	    (theRelServCallFlg && theRelServ == null)) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isDebugOn()) {
+	    String str =
+		"theNewRole " + theNewRole
+		+ ", theOldRoleValue " + theOldRoleValue
+		+ ", theRelServCallFlg " + theRelServCallFlg;
+	    debug("sendRoleUpdateNotification: entering", str);
+	}
+
+	if (theRelServCallFlg) {
+	    // Direct call to the Relation Service
+	    // Shall not throw a RelationNotFoundException for an internal
+	    // relation
+	    try {
+		theRelServ.sendRoleUpdateNotification(myRelId,
+						      theNewRole,
+						      theOldRoleValue);
+	    } catch (RelationNotFoundException exc) {
+		throw new RuntimeException(exc.getMessage());
+	    }
+
+	} else {
+
+	    Object[] params = new Object[3];
+	    params[0] = myRelId;
+	    params[1] = theNewRole;
+	    params[2] = ((ArrayList)theOldRoleValue);
+	    String[] signature = new String[3];
+	    signature[0] = "java.lang.String";
+	    signature[1] = "javax.management.relation.Role";
+	    signature[2] = "java.util.List";
+
+	    // Can throw InstanceNotFoundException if the Relation Service
+	    // is not registered (to be transformed).
+	    //
+	    // Can throw a MBeanException wrapping a
+	    // RelationNotFoundException (to be raised in any case): wrapped
+	    // exception to be thrown
+	    //
+	    // Shall not throw a ReflectionException
+	    try {
+		myRelServiceMBeanServer.invoke(myRelServiceName,
+					       "sendRoleUpdateNotification",
+					       params,
+					       signature);
+	    } catch (ReflectionException exc1) {
+		throw new RuntimeException(exc1.getMessage());
+	    } catch (InstanceNotFoundException exc2) {
+		throw new RelationServiceNotRegisteredException(
+							    exc2.getMessage());
+	    } catch (MBeanException exc3) {
+		Exception wrappedExc = exc3.getTargetException();
+		if (wrappedExc instanceof RelationNotFoundException) {
+		    throw ((RelationNotFoundException)wrappedExc);
+		} else {
+		    throw new RuntimeException(wrappedExc.getMessage());
+		}
+	    }
+	}
+
+	if (isDebugOn())
+	    debug("sendRoleUpdateNotification: exiting", null);
+	return;
+!!!8385947.java!!!	updateRelationServiceMap(inout theNewRole : Role, inout theOldRoleValue : List, inout theRelServCallFlg : boolean, inout theRelServ : RelationService) : void
+
+	if (theNewRole == null ||
+	    theOldRoleValue == null ||
+	    (theRelServCallFlg && theRelServ == null)) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isDebugOn()) {
+	    String str =
+		"theNewRole " + theNewRole
+		+ ", theOldRoleValue " + theOldRoleValue
+		+ ", theRelServCallFlg " + theRelServCallFlg;
+	    debug("updateRelationServiceMap: entering", str);
+	}
+
+	if (theRelServCallFlg) {
+	    // Direct call to the Relation Service
+	    // Shall not throw a RelationNotFoundException
+	    try {
+		theRelServ.updateRoleMap(myRelId,
+					 theNewRole,
+					 theOldRoleValue);
+	    } catch (RelationNotFoundException exc) {
+		throw new RuntimeException(exc.getMessage());
+	    }
+
+	} else {
+	    Object[] params = new Object[3];
+	    params[0] = myRelId;
+	    params[1] = theNewRole;
+	    params[2] = theOldRoleValue;
+	    String[] signature = new String[3];
+	    signature[0] = "java.lang.String";
+	    signature[1] = "javax.management.relation.Role";
+	    signature[2] = "java.util.List";
+	    // Can throw InstanceNotFoundException if the Relation Service
+	    // is not registered (to be transformed).
+	    // Can throw a MBeanException wrapping a RelationNotFoundException:
+	    // wrapped exception to be thrown
+	    //
+	    // Shall not throw a ReflectionException
+	    try {
+		myRelServiceMBeanServer.invoke(myRelServiceName,
+					       "updateRoleMap",
+					       params,
+					       signature);
+	    } catch (ReflectionException exc1) {
+		throw new RuntimeException(exc1.getMessage());
+	    } catch (InstanceNotFoundException exc2) {
+		throw new
+		     RelationServiceNotRegisteredException(exc2.getMessage());
+	    } catch (MBeanException exc3) {
+		Exception wrappedExc = exc3.getTargetException();
+		if (wrappedExc instanceof RelationNotFoundException) {
+		    throw ((RelationNotFoundException)wrappedExc);
+		} else {
+		    throw new RuntimeException(wrappedExc.getMessage());
+		}
+	    }
+	}
+
+	if (isDebugOn())
+	    debug("updateRelationServiceMap: exiting", null);
+	return;
+!!!8386075.java!!!	setRolesInt(inout theRoleList : RoleList, inout theRelServCallFlg : boolean, inout theRelServ : RelationService) : RoleResult
+
+	if (theRoleList == null ||
+	    (theRelServCallFlg && theRelServ == null)) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isDebugOn()) {
+	    String str =
+		"theRoleList " + theRoleList
+		+ ", theRelServCallFlg " + theRelServCallFlg;
+	    debug("setRolesInt: entering", str);
+	}
+
+	RoleList roleList = new RoleList();
+	RoleUnresolvedList roleUnresList = new RoleUnresolvedList();
+
+	for (Iterator roleIter = theRoleList.iterator();
+	     roleIter.hasNext();) {
+
+	    Role currRole = (Role)(roleIter.next());
+
+	    Object currResult = null;
+	    // Can throw:
+	    // RelationServiceNotRegisteredException,
+	    // RelationTypeNotFoundException
+	    //
+	    // Will not throw, due to parameters, RoleNotFoundException or
+	    // InvalidRoleValueException, but catch them to keep compiler
+	    // happy
+	    try {
+		currResult = setRoleInt(currRole,
+					theRelServCallFlg,
+					theRelServ,
+					true);
+	    } catch (RoleNotFoundException exc1) {
+		// OK : Do not throw a RoleNotFoundException.
+	    } catch (InvalidRoleValueException exc2) {
+		// OK : Do not throw an InvalidRoleValueException.
+	    }
+
+	    if (currResult instanceof Role) {
+		// Can throw IllegalArgumentException if role is null
+		// (normally should not happen :(
+		try {
+		    roleList.add((Role)currResult);
+		} catch (IllegalArgumentException exc) {
+		    throw new RuntimeException(exc.getMessage());
+		}
+
+	    } else if (currResult instanceof RoleUnresolved) {
+		// Can throw IllegalArgumentException if role is null
+		// (normally should not happen :(
+		try {
+		    roleUnresList.add((RoleUnresolved)currResult);
+		} catch (IllegalArgumentException exc) {
+		    throw new RuntimeException(exc.getMessage());
+		}
+	    }
+	}
+
+	RoleResult result = new RoleResult(roleList, roleUnresList);
+
+	if (isDebugOn())
+	    debug("setRolesInt: exiting", null);
+	return result;
+!!!8386203.java!!!	initMembers(in theRelId : String, inout theRelServiceName : ObjectName, inout theRelServiceMBeanServer : MBeanServer, in theRelTypeName : String, inout theRoleList : RoleList) : void
+
+	if (theRelId == null ||
+	    theRelServiceName == null ||
+	    theRelTypeName == null) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isDebugOn()) {
+	    StringBuffer strB =
+		new StringBuffer("theRelId " + theRelId
+				 + ", theRelServiceName "
+				 + theRelServiceName.toString()
+				 + ", theRelTypeName " + theRelTypeName);
+	    if (theRoleList != null) {
+		strB.append(", theRoleList " + theRoleList.toString());
+	    }
+	    debug("initMembers: entering", strB.toString());
+	}
+
+	myRelId = theRelId;
+	myRelServiceName = theRelServiceName;
+	myRelServiceMBeanServer = theRelServiceMBeanServer;
+	myRelTypeName = theRelTypeName;
+	// Can throw InvalidRoleValueException
+	initRoleMap(theRoleList);
+	myInRelServFlg = new Boolean(false);
+
+	if (isDebugOn())
+	    debug("initMembers: exiting", null);
+	return;
+!!!8386331.java!!!	initRoleMap(inout theRoleList : RoleList) : void
+
+	if (theRoleList == null) {
+	    return;
+	}
+
+	if (isDebugOn())
+	    debug("initRoleMap: entering", theRoleList.toString());
+
+	synchronized(myRoleName2ValueMap) {
+
+	    for (Iterator roleIter = theRoleList.iterator();
+		 roleIter.hasNext();) {
+
+		// No need to check if role is null, it is not allowed to store
+		// a null role in a RoleList :)
+		Role currRole = (Role)(roleIter.next());
+		String currRoleName = currRole.getRoleName();
+
+		if (myRoleName2ValueMap.containsKey(currRoleName)) {
+		    // Role already provided in current list
+		    // Revisit [cebro] Localize message
+		    StringBuffer excMsgStrB = new StringBuffer("Role name ");
+		    excMsgStrB.append(currRoleName);
+		    excMsgStrB.append(" used for two roles.");
+		    throw new InvalidRoleValueException(excMsgStrB.toString());
+		}
+
+		myRoleName2ValueMap.put(currRoleName,
+					(Role)(currRole.clone()));
+	    }
+	}
+
+	if (isDebugOn())
+	    debug("initRoleMap: exiting", null);
+	return;
+!!!8386459.java!!!	handleMBeanUnregistrationInt(inout theObjName : ObjectName, in theRoleName : String, inout theRelServCallFlg : boolean, inout theRelServ : RelationService) : void
+
+	if (theObjName == null ||
+	    theRoleName == null ||
+	    (theRelServCallFlg && theRelServ == null)) {
+	    // Revisit [cebro] Localize message
+	    String excMsg = "Invalid parameter.";
+	    throw new IllegalArgumentException(excMsg);
+	}
+
+	if (isDebugOn()) {
+	    String str =
+		"theObjName " + theObjName
+		+ ", theRoleName " + theRoleName
+		+ ", theRelServCallFlg " + theRelServCallFlg;
+	    debug("handleMBeanUnregistrationInt: entering", str);
+	}
+
+	// Retrieves current role value
+	Role role = null;
+	synchronized(myRoleName2ValueMap) {
+	    role = (Role)(myRoleName2ValueMap.get(theRoleName));
+	}
+
+	if (role == null) {
+	    StringBuffer excMsgStrB = new StringBuffer();
+	    // Revisit [cebro] Localize message
+	    String excMsg = "No role with name ";
+	    excMsgStrB.append(excMsg);
+	    excMsgStrB.append(theRoleName);
+	    throw new RoleNotFoundException(excMsgStrB.toString());
+	}
+	ArrayList currRoleValue = (ArrayList)(role.getRoleValue());
+
+	// Note: no need to test if list not null before cloning, null value
+	//       not allowed for role value.
+	ArrayList newRoleValue = (ArrayList)(currRoleValue.clone());
+	newRoleValue.remove(theObjName);
+	Role newRole = new Role(theRoleName, newRoleValue);
+
+	// Can throw InvalidRoleValueException,
+	// RelationTypeNotFoundException
+	// (RoleNotFoundException already detected)
+	Object result =
+	    setRoleInt(newRole, theRelServCallFlg, theRelServ, false);
+
+	if (isDebugOn())
+	    debug("handleMBeanUnregistrationInt: exiting", null);
+	return;
+!!!8386587.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_RELATION);
+!!!8386715.java!!!	trace(in methodName : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_RELATION, localClassName, methodName, info);
+	Trace.send(Trace.LEVEL_TRACE, Trace.INFO_RELATION, "", "", "\n");
+!!!8386843.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_RELATION);
+!!!8386971.java!!!	debug(in methodName : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_RELATION, localClassName, methodName, info);
+	Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_RELATION, "", "", "\n");

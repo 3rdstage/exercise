@@ -1,0 +1,40 @@
+class LSBCacheEntry
+!!!2066331.java!!!	LSBCacheEntry(inout frc : FontRenderContext, inout font : Font)
+            lsbCache = new byte[MAX_CHAR_INDEX - MIN_CHAR_INDEX];
+            reset(frc, font);
+!!!2066459.java!!!	reset(inout frc : FontRenderContext, inout font : Font) : void
+            this.font = font;
+            this.frc = frc;
+            for (int counter = lsbCache.length - 1; counter >= 0; counter--) {
+                lsbCache[counter] = UNSET;
+            }
+!!!2066587.java!!!	getLeftSideBearing(in aChar : char) : int
+            int index = aChar - MIN_CHAR_INDEX;
+            assert (index >= 0 && index < (MAX_CHAR_INDEX - MIN_CHAR_INDEX));
+            byte lsb = lsbCache[index];
+            if (lsb == UNSET) {
+                oneChar[0] = aChar;
+                GlyphVector gv = font.createGlyphVector(frc, oneChar);
+                lsb = (byte)gv.getGlyphPixelBounds(0, frc, 0f, 0f).x;
+                lsbCache[index] = lsb;
+            }
+            return lsb;
+!!!2066715.java!!!	equals(inout entry : Object) : boolean
+            if (entry == this) {
+                return true;
+            }
+            if (!(entry instanceof LSBCacheEntry)) {
+                return false;
+            }
+            LSBCacheEntry oEntry = (LSBCacheEntry)entry;
+            return (font.equals(oEntry.font) &&
+                    frc.equals(oEntry.frc));
+!!!2066843.java!!!	hashCode() : int
+            int result = 17;
+            if (font != null) {
+                result = 37 * result + font.hashCode();
+            }
+            if (frc != null) {
+                result = 37 * result + frc.hashCode();
+            }
+            return result;

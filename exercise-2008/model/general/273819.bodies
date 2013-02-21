@@ -1,0 +1,97 @@
+class InetSocketAddress
+!!!7215643.java!!!	InetSocketAddress(in port : int)
+	this(InetAddress.anyLocalAddress(), port);
+!!!7215771.java!!!	InetSocketAddress(inout addr : InetAddress, in port : int)
+	if (port < 0 || port > 0xFFFF) {
+	    throw new IllegalArgumentException("port out of range:" + port);
+	}
+	this.port = port;
+	if (addr == null)
+	    this.addr = InetAddress.anyLocalAddress();
+	else
+	    this.addr = addr;
+!!!7215899.java!!!	InetSocketAddress(in hostname : String, in port : int)
+	if (port < 0 || port > 0xFFFF) {
+	    throw new IllegalArgumentException("port out of range:" + port);
+	}
+	if (hostname == null) {
+	    throw new IllegalArgumentException("hostname can't be null");
+	}
+	try {
+	    addr = InetAddress.getByName(hostname);
+	} catch(UnknownHostException e) {
+	    this.hostname = hostname;
+	    addr = null;
+	}
+	this.port = port;
+!!!7216027.java!!!	createUnresolved(in host : String, in port : int) : InetSocketAddress
+	if (port < 0 || port > 0xFFFF) {
+	    throw new IllegalArgumentException("port out of range:" + port);
+	}
+	if (host == null) {
+	    throw new IllegalArgumentException("hostname can't be null");
+	}
+	InetSocketAddress s = new InetSocketAddress();
+	s.port = port;
+	s.hostname = host;
+	s.addr = null;
+	return s;
+!!!7216155.java!!!	readObject(inout s : ObjectInputStream) : void
+ 	s.defaultReadObject();
+	
+ 	// Check that our invariants are satisfied
+ 	if (port < 0 || port > 0xFFFF) {
+ 	    throw new InvalidObjectException("port out of range:" + port);
+ 	}
+ 	
+ 	if (hostname == null && addr == null) {
+ 	    throw new InvalidObjectException("hostname and addr " + 
+ 					     "can't both be null");
+ 	}
+!!!7216283.java!!!	getPort() : int
+	return port;
+!!!7216411.java!!!	getAddress() : InetAddress
+	return addr;
+!!!7216539.java!!!	getHostName() : String
+	if (hostname != null)
+	    return hostname;
+	if (addr != null)
+	    return addr.getHostName();
+	return null;
+!!!7216667.java!!!	getHostString() : String
+	if (hostname != null)
+	    return hostname;
+	if (addr != null) {
+	    if (addr.hostName != null)
+		return addr.hostName;
+	    else
+		return addr.getHostAddress();
+	}
+	return null;
+!!!7216795.java!!!	isUnresolved() : boolean
+	return addr == null;
+!!!7216923.java!!!	toString() : String
+	if (isUnresolved()) {
+	    return hostname + ":" + port;
+	} else {
+	    return addr.toString() + ":" + port;
+	}
+!!!7217051.java!!!	equals(inout obj : Object) : boolean
+	if (obj == null || !(obj instanceof InetSocketAddress))
+	    return false;
+	InetSocketAddress sockAddr = (InetSocketAddress) obj;
+	boolean sameIP = false;
+	if (this.addr != null)
+	    sameIP = this.addr.equals(sockAddr.addr);
+	else if (this.hostname != null)
+	    sameIP = (sockAddr.addr == null) &&
+		this.hostname.equals(sockAddr.hostname);
+	else
+	    sameIP = (sockAddr.addr == null) && (sockAddr.hostname == null);
+	return sameIP && (this.port == sockAddr.port);
+!!!7217179.java!!!	hashCode() : int
+	if (addr != null)
+	    return addr.hashCode() + port;
+	if (hostname != null)
+	    return hostname.hashCode() + port;
+	return port;

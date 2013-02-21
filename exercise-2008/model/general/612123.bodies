@@ -1,0 +1,98 @@
+class OperandStack
+!!!3973403.java!!!	OperandStack(in maxStack : int)
+		this.maxStack = maxStack;
+!!!3973531.java!!!	OperandStack(in maxStack : int, inout obj : ObjectType)
+		this.maxStack = maxStack;
+		this.push(obj);
+!!!3973659.java!!!	clone() : Object
+		OperandStack newstack = new OperandStack(this.maxStack);
+		newstack.stack = (ArrayList) this.stack.clone();
+		return newstack;
+!!!3973787.java!!!	clear() : void
+		stack = new ArrayList();
+!!!3973915.java!!!	equals(inout o : Object) : boolean
+		if (!(o instanceof OperandStack)) return false;
+		OperandStack s = (OperandStack) o;
+		return this.stack.equals(s.stack);
+!!!3974043.java!!!	getClone() : OperandStack
+		return (OperandStack) this.clone();
+!!!3974171.java!!!	isEmpty() : boolean
+		return stack.isEmpty();
+!!!3974299.java!!!	maxStack() : int
+		return this.maxStack;
+!!!3974427.java!!!	peek() : Type
+		return peek(0);
+!!!3974555.java!!!	peek(in i : int) : Type
+		return (Type) stack.get(size()-i-1);
+!!!3974683.java!!!	pop() : Type
+		Type e = (Type) stack.remove(size()-1);
+		return e;
+!!!3974811.java!!!	pop(in i : int) : Type
+		for (int j=0; j<i; j++){
+			pop();
+		}
+		return null;
+!!!3974939.java!!!	push(inout type : Type) : void
+		if (type == null) throw new AssertionViolatedException("Cannot push NULL onto OperandStack.");
+		if (type == Type.BOOLEAN || type == Type.CHAR || type == Type.BYTE || type == Type.SHORT){
+			throw new AssertionViolatedException("The OperandStack does not know about '"+type+"'; use Type.INT instead.");
+		}
+		if (slotsUsed() >= maxStack){
+			throw new AssertionViolatedException("OperandStack too small, should have thrown proper Exception elsewhere. Stack: "+this);
+		}
+		stack.add(type);
+!!!3975067.java!!!	size() : int
+		return stack.size();
+!!!3975195.java!!!	slotsUsed() : int
+		/*  XXX change this to a better implementation using a variable
+		    that keeps track of the actual slotsUsed()-value monitoring
+		    all push()es and pop()s.
+		*/
+		int slots = 0;
+		for (int i=0; i<stack.size(); i++){
+			slots += peek(i).getSize();
+		}
+		return slots;
+!!!3975323.java!!!	toString() : String
+		String s = "Slots used: "+slotsUsed()+" MaxStack: "+maxStack+".\n";
+		for (int i=0; i<size(); i++){
+			s+=peek(i)+" (Size: "+peek(i).getSize()+")\n";
+		}
+		return s;
+!!!3975451.java!!!	merge(inout s : OperandStack) : void
+		if ( (slotsUsed() != s.slotsUsed()) || (size() != s.size()) )
+			throw new StructuralCodeConstraintException("Cannot merge stacks of different size:\nOperandStack A:\n"+this+"\nOperandStack B:\n"+s);
+		
+		for (int i=0; i<size(); i++){
+			// If the object _was_ initialized and we're supposed to merge
+			// in some uninitialized object, we reject the code (see vmspec2, 4.9.4, last paragraph).
+			if ( (! (stack.get(i) instanceof UninitializedObjectType)) && (s.stack.get(i) instanceof UninitializedObjectType) ){
+				throw new StructuralCodeConstraintException("Backwards branch with an uninitialized object on the stack detected.");
+			}
+			// Even harder, we're not initialized but are supposed to broaden
+			// the known object type
+			if ( (!(stack.get(i).equals(s.stack.get(i)))) && (stack.get(i) instanceof UninitializedObjectType) && (!(s.stack.get(i) instanceof UninitializedObjectType))){
+				throw new StructuralCodeConstraintException("Backwards branch with an uninitialized object on the stack detected.");
+			}
+			// on the other hand...
+			if (stack.get(i) instanceof UninitializedObjectType){ //if we have an uninitialized object here
+				if (! (s.stack.get(i) instanceof UninitializedObjectType)){ //that has been initialized by now
+					stack.set(i, ((UninitializedObjectType) (stack.get(i))).getInitialized() ); //note that.
+				}
+			}
+			if (! stack.get(i).equals(s.stack.get(i))){
+				if (	(stack.get(i) instanceof ReferenceType) &&
+							(s.stack.get(i) instanceof ReferenceType)  ){
+					stack.set(i, ((ReferenceType) stack.get(i)).firstCommonSuperclass((ReferenceType) (s.stack.get(i))));
+				}
+				else{
+					throw new StructuralCodeConstraintException("Cannot merge stacks of different types:\nStack A:\n"+this+"\nStack B:\n"+s);
+				}
+			}
+		}
+!!!3975579.java!!!	initializeObject(inout u : UninitializedObjectType) : void
+		for (int i=0; i<stack.size(); i++){
+			if (stack.get(i) == u){
+				stack.set(i, u.getInitialized());
+			}
+		}

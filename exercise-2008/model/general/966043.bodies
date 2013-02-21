@@ -1,0 +1,52 @@
+class PrivateKeyEntry
+!!!7586203.java!!!	PrivateKeyEntry(inout privateKey : PrivateKey, inout chain : Certificate)
+	    if (privateKey == null || chain == null) {
+		throw new NullPointerException("invalid null input");
+	    }
+	    if (chain.length == 0) {
+		throw new IllegalArgumentException
+				("invalid zero-length input chain");
+	    }
+
+	    Certificate[] clonedChain = (Certificate[])chain.clone();
+	    String certType = clonedChain[0].getType();
+	    for (int i = 1; i < clonedChain.length; i++) {
+		if (!certType.equals(clonedChain[i].getType())) {
+		    throw new IllegalArgumentException
+				("chain does not contain certificates " +
+				"of the same type");
+		}
+	    }
+	    if (!privateKey.getAlgorithm().equals
+			(clonedChain[0].getPublicKey().getAlgorithm())) {
+		throw new IllegalArgumentException
+				("private key algorithm does not match " +
+				"algorithm of public key in end entity " +
+				"certificate (at index 0)");
+	    }
+	    this.privKey = privateKey;
+
+	    if (clonedChain[0] instanceof X509Certificate &&
+		!(clonedChain instanceof X509Certificate[])) {
+
+		this.chain = new X509Certificate[clonedChain.length];
+		System.arraycopy(clonedChain, 0,
+				this.chain, 0, clonedChain.length);
+	    } else {
+		this.chain = clonedChain;
+	    }
+!!!7586331.java!!!	getPrivateKey() : PrivateKey
+	    return privKey;
+!!!7586459.java!!!	getCertificateChain() : Certificate
+	    return (Certificate[])chain.clone();
+!!!7586587.java!!!	getCertificate() : Certificate
+	    return chain[0];
+!!!7586715.java!!!	toString() : String
+	    StringBuilder sb = new StringBuilder();
+	    sb.append("Private key entry and certificate chain with "
+		+ chain.length + " elements:\r\n");
+	    for (Certificate cert : chain) {
+		sb.append(cert);
+		sb.append("\r\n");
+	    }
+	    return sb.toString();

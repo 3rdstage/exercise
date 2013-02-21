@@ -1,0 +1,85 @@
+class AtomicIntegerArray
+!!!7979035.java!!!	rawIndex(in i : int) : long
+        if (i < 0 || i >= array.length)
+            throw new IndexOutOfBoundsException("index " + i);
+        return base + i * scale;
+!!!7979163.java!!!	AtomicIntegerArray(in length : int)
+        array = new int[length];
+        // must perform at least one volatile write to conform to JMM
+        if (length > 0)
+            unsafe.putIntVolatile(array, rawIndex(0), 0);
+!!!7979291.java!!!	AtomicIntegerArray(in array : int)
+        if (array == null) 
+            throw new NullPointerException();
+        int length = array.length;
+        this.array = new int[length];
+        if (length > 0) {
+            int last = length-1;
+            for (int i = 0; i < last; ++i)
+                this.array[i] = array[i];
+            // Do the last write as volatile
+            unsafe.putIntVolatile(this.array, rawIndex(last), array[last]);
+        }
+!!!7979419.java!!!	length() : int
+        return array.length;
+!!!7979547.java!!!	get(in i : int) : int
+        return unsafe.getIntVolatile(array, rawIndex(i));
+!!!7979675.java!!!	set(in i : int, in newValue : int) : void
+        unsafe.putIntVolatile(array, rawIndex(i), newValue);
+!!!7979803.java!!!	getAndSet(in i : int, in newValue : int) : int
+        while (true) {
+            int current = get(i);
+            if (compareAndSet(i, current, newValue))
+                return current;
+        }
+!!!7979931.java!!!	compareAndSet(in i : int, in expect : int, in update : int) : boolean
+        return unsafe.compareAndSwapInt(array, rawIndex(i), 
+                                        expect, update);
+!!!7980059.java!!!	weakCompareAndSet(in i : int, in expect : int, in update : int) : boolean
+        return compareAndSet(i, expect, update);
+!!!7980187.java!!!	getAndIncrement(in i : int) : int
+        while (true) {
+            int current = get(i);
+            int next = current + 1;
+            if (compareAndSet(i, current, next))
+                return current;
+        }
+!!!7980315.java!!!	getAndDecrement(in i : int) : int
+        while (true) {
+            int current = get(i);
+            int next = current - 1;
+            if (compareAndSet(i, current, next))
+                return current;
+        }
+!!!7980443.java!!!	getAndAdd(in i : int, in delta : int) : int
+        while (true) {
+            int current = get(i);
+            int next = current + delta;
+            if (compareAndSet(i, current, next))
+                return current;
+        }
+!!!7980571.java!!!	incrementAndGet(in i : int) : int
+        while (true) {
+            int current = get(i);
+            int next = current + 1;
+            if (compareAndSet(i, current, next))
+                return next;
+        }
+!!!7980699.java!!!	decrementAndGet(in i : int) : int
+        while (true) {
+            int current = get(i);
+            int next = current - 1;
+            if (compareAndSet(i, current, next))
+                return next;
+        }
+!!!7980827.java!!!	addAndGet(in i : int, in delta : int) : int
+        while (true) {
+            int current = get(i);
+            int next = current + delta;
+            if (compareAndSet(i, current, next))
+                return next;
+        }
+!!!7980955.java!!!	toString() : String
+        if (array.length > 0) // force volatile read
+            get(0);
+        return Arrays.toString(array);

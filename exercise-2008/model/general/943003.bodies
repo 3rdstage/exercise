@@ -1,0 +1,156 @@
+class HeapDoubleBuffer
+!!!7451803.java!!!	HeapDoubleBuffer(in cap : int, in lim : int)
+		// package-private
+
+	super(-1, 0, lim, cap, new double[cap], 0);
+	/*
+	hb = new double[cap];
+	offset = 0;
+	*/
+
+
+
+
+!!!7451931.java!!!	HeapDoubleBuffer(in buf : double, in off : int, in len : int)
+ // package-private
+
+	super(-1, off, off + len, buf.length, buf, 0);
+	/*
+	hb = buf;
+	offset = 0;
+	*/
+
+
+
+
+!!!7452059.java!!!	HeapDoubleBuffer(in buf : double, in mark : int, in pos : int, in lim : int, in cap : int, in off : int)
+
+
+	super(mark, pos, lim, cap, buf, off);
+	/*
+	hb = buf;
+	offset = off;
+	*/
+
+
+
+
+!!!7452187.java!!!	slice() : DoubleBuffer
+
+	return new HeapDoubleBuffer(hb,
+					-1,
+					0,
+					this.remaining(),
+					this.remaining(),
+					this.position() + offset);
+!!!7452315.java!!!	duplicate() : DoubleBuffer
+
+	return new HeapDoubleBuffer(hb,
+					this.markValue(),
+					this.position(),
+					this.limit(),
+					this.capacity(),
+					offset);
+!!!7452443.java!!!	asReadOnlyBuffer() : DoubleBuffer
+
+
+	return new HeapDoubleBufferR(hb,
+				     this.markValue(),
+				     this.position(),
+				     this.limit(),
+				     this.capacity(),
+				     offset);
+
+
+
+!!!7452571.java!!!	ix(in i : int) : int
+
+	return i + offset;
+!!!7452699.java!!!	get() : double
+
+	return hb[ix(nextGetIndex())];
+!!!7452827.java!!!	get(in i : int) : double
+
+	return hb[ix(checkIndex(i))];
+!!!7452955.java!!!	get(in dst : double, in offset : int, in length : int) : DoubleBuffer
+
+	checkBounds(offset, length, dst.length);
+	if (length > remaining())
+	    throw new BufferUnderflowException();
+	System.arraycopy(hb, ix(position()), dst, offset, length);
+	position(position() + length);
+	return this;
+!!!7453083.java!!!	isDirect() : boolean
+
+	return false;
+!!!7453211.java!!!	isReadOnly() : boolean
+
+	return false;
+!!!7453339.java!!!	put(in x : double) : DoubleBuffer
+
+
+	hb[ix(nextPutIndex())] = x;
+	return this;
+
+
+
+!!!7453467.java!!!	put(in i : int, in x : double) : DoubleBuffer
+
+
+	hb[ix(checkIndex(i))] = x;
+	return this;
+
+
+
+!!!7453595.java!!!	put(in src : double, in offset : int, in length : int) : DoubleBuffer
+
+
+	checkBounds(offset, length, src.length);
+	if (length > remaining())
+	    throw new BufferOverflowException();
+	System.arraycopy(src, offset, hb, ix(position()), length);
+	position(position() + length);
+	return this;
+
+
+
+!!!7453723.java!!!	put(inout src : DoubleBuffer) : DoubleBuffer
+
+
+	if (src instanceof HeapDoubleBuffer) {
+	    if (src == this)
+		throw new IllegalArgumentException();
+	    HeapDoubleBuffer sb = (HeapDoubleBuffer)src;
+	    int n = sb.remaining();
+	    if (n > remaining())
+		throw new BufferOverflowException();
+	    System.arraycopy(sb.hb, sb.ix(sb.position()),
+			     hb, ix(position()), n);
+	    sb.position(sb.position() + n);
+	    position(position() + n);
+	} else if (src.isDirect()) {
+	    int n = src.remaining();
+	    if (n > remaining())
+		throw new BufferOverflowException();
+	    src.get(hb, ix(position()), n);
+	    position(position() + n);
+	} else {
+	    super.put(src);
+	}
+	return this;
+
+
+
+!!!7453851.java!!!	compact() : DoubleBuffer
+
+
+	System.arraycopy(hb, ix(position()), hb, ix(0), remaining());
+	position(remaining());
+	limit(capacity());
+	return this;
+
+
+
+!!!7453979.java!!!	order() : ByteOrder
+
+	return ByteOrder.nativeOrder();

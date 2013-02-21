@@ -1,0 +1,352 @@
+class ArrayBlockingQueue
+!!!7873819.java!!!	inc(in i : int) : int
+        return (++i == items.length)? 0 : i;
+!!!7873947.java!!!	insert(inout x : E) : void
+        items[putIndex] = x;
+        putIndex = inc(putIndex);
+        ++count;
+        notEmpty.signal();
+!!!7874075.java!!!	extract() : E
+        final E[] items = this.items;
+        E x = items[takeIndex];
+        items[takeIndex] = null;
+        takeIndex = inc(takeIndex);
+        --count;
+        notFull.signal();
+        return x;
+!!!7874203.java!!!	removeAt(in i : int) : void
+        final E[] items = this.items;
+        // if removing front item, just advance
+        if (i == takeIndex) {
+            items[takeIndex] = null;
+            takeIndex = inc(takeIndex);
+        } else {
+            // slide over all others up through putIndex.
+            for (;;) {
+                int nexti = inc(i);
+                if (nexti != putIndex) {
+                    items[i] = items[nexti];
+                    i = nexti;
+                } else {
+                    items[i] = null;
+                    putIndex = i;
+                    break;
+                }
+            }
+        }
+        --count;
+        notFull.signal();
+!!!7874331.java!!!	ArrayBlockingQueue(in capacity : int)
+        this(capacity, false);
+!!!7874459.java!!!	ArrayBlockingQueue(in capacity : int, inout fair : boolean)
+        if (capacity <= 0)
+            throw new IllegalArgumentException();
+        this.items = (E[]) new Object[capacity];
+        lock = new ReentrantLock(fair);
+        notEmpty = lock.newCondition();
+        notFull =  lock.newCondition();
+!!!7874587.java!!!	ArrayBlockingQueue(in capacity : int, inout fair : boolean, inout c : Collection)
+        this(capacity, fair);
+        if (capacity < c.size())
+            throw new IllegalArgumentException();
+
+        for (Iterator<? extends E> it = c.iterator(); it.hasNext();)
+            add(it.next());
+!!!7874715.java!!!	offer(inout o : E) : boolean
+        if (o == null) throw new NullPointerException();
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            if (count == items.length)
+                return false;
+            else {
+                insert(o);
+                return true;
+            }
+        } finally {
+            lock.unlock();
+        }
+!!!7874843.java!!!	offer(inout o : E, in timeout : long, inout unit : TimeUnit) : boolean
+
+        if (o == null) throw new NullPointerException();
+        final ReentrantLock lock = this.lock;
+        lock.lockInterruptibly();
+        try {
+            long nanos = unit.toNanos(timeout);
+            for (;;) {
+                if (count != items.length) {
+                    insert(o);
+                    return true;
+                }
+                if (nanos <= 0)
+                    return false;
+                try {
+                    nanos = notFull.awaitNanos(nanos);
+                } catch (InterruptedException ie) {
+                    notFull.signal(); // propagate to non-interrupted thread
+                    throw ie;
+                }
+            }
+        } finally {
+            lock.unlock();
+        }
+!!!7874971.java!!!	poll() : E
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            if (count == 0)
+                return null;
+            E x = extract();
+            return x;
+        } finally {
+            lock.unlock();
+        }
+!!!7875099.java!!!	poll(in timeout : long, inout unit : TimeUnit) : E
+        final ReentrantLock lock = this.lock;
+        lock.lockInterruptibly();
+        try {
+            long nanos = unit.toNanos(timeout);
+            for (;;) {
+                if (count != 0) {
+                    E x = extract();
+                    return x;
+                }
+                if (nanos <= 0)
+                    return null;
+                try {
+                    nanos = notEmpty.awaitNanos(nanos);
+                } catch (InterruptedException ie) {
+                    notEmpty.signal(); // propagate to non-interrupted thread
+                    throw ie;
+                }
+
+            }
+        } finally {
+            lock.unlock();
+        }
+!!!7875227.java!!!	remove(inout o : Object) : boolean
+        if (o == null) return false;
+        final E[] items = this.items;
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            int i = takeIndex;
+            int k = 0;
+            for (;;) {
+                if (k++ >= count)
+                    return false;
+                if (o.equals(items[i])) {
+                    removeAt(i);
+                    return true;
+                }
+                i = inc(i);
+            }
+
+        } finally {
+            lock.unlock();
+        }
+!!!7875355.java!!!	peek() : E
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return (count == 0) ? null : items[takeIndex];
+        } finally {
+            lock.unlock();
+        }
+!!!7875483.java!!!	take() : E
+        final ReentrantLock lock = this.lock;
+        lock.lockInterruptibly();
+        try {
+            try {
+                while (count == 0)
+                    notEmpty.await();
+            } catch (InterruptedException ie) {
+                notEmpty.signal(); // propagate to non-interrupted thread
+                throw ie;
+            }
+            E x = extract();
+            return x;
+        } finally {
+            lock.unlock();
+        }
+!!!7875611.java!!!	put(inout o : E) : void
+        if (o == null) throw new NullPointerException();
+        final E[] items = this.items;
+        final ReentrantLock lock = this.lock;
+        lock.lockInterruptibly();
+        try {
+            try {
+                while (count == items.length)
+                    notFull.await();
+            } catch (InterruptedException ie) {
+                notFull.signal(); // propagate to non-interrupted thread
+                throw ie;
+            }
+            insert(o);
+        } finally {
+            lock.unlock();
+        }
+!!!7875739.java!!!	size() : int
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return count;
+        } finally {
+            lock.unlock();
+        }
+!!!7875867.java!!!	remainingCapacity() : int
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return items.length - count;
+        } finally {
+            lock.unlock();
+        }
+!!!7875995.java!!!	contains(inout o : Object) : boolean
+        if (o == null) return false;
+        final E[] items = this.items;
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            int i = takeIndex;
+            int k = 0;
+            while (k++ < count) {
+                if (o.equals(items[i]))
+                    return true;
+                i = inc(i);
+            }
+            return false;
+        } finally {
+            lock.unlock();
+        }
+!!!7876123.java!!!	toArray() : Object
+        final E[] items = this.items;
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            Object[] a = new Object[count];
+            int k = 0;
+            int i = takeIndex;
+            while (k < count) {
+                a[k++] = items[i];
+                i = inc(i);
+            }
+            return a;
+        } finally {
+            lock.unlock();
+        }
+!!!7876251.java!!!	toArray(inout a : T) : T
+        final E[] items = this.items;
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            if (a.length < count)
+                a = (T[])java.lang.reflect.Array.newInstance(
+                    a.getClass().getComponentType(),
+                    count
+                    );
+
+            int k = 0;
+            int i = takeIndex;
+            while (k < count) {
+                a[k++] = (T)items[i];
+                i = inc(i);
+            }
+            if (a.length > count)
+                a[count] = null;
+            return a;
+        } finally {
+            lock.unlock();
+        }
+!!!7876379.java!!!	toString() : String
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return super.toString();
+        } finally {
+            lock.unlock();
+        }
+!!!7876507.java!!!	clear() : void
+        final E[] items = this.items;
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            int i = takeIndex;
+            int k = count;
+            while (k-- > 0) {
+                items[i] = null;
+                i = inc(i);
+            }
+            count = 0;
+            putIndex = 0;
+            takeIndex = 0;
+            notFull.signalAll();
+        } finally {
+            lock.unlock();
+        }
+!!!7876635.java!!!	drainTo(inout c : Collection) : int
+        if (c == null)
+            throw new NullPointerException();
+        if (c == this)
+            throw new IllegalArgumentException();
+        final E[] items = this.items;
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            int i = takeIndex;
+            int n = 0;
+            int max = count;
+            while (n < max) {
+                c.add(items[i]);
+                items[i] = null;
+                i = inc(i);
+                ++n;
+            }
+            if (n > 0) {
+                count = 0;
+                putIndex = 0;
+                takeIndex = 0;
+                notFull.signalAll();
+            }
+            return n;
+        } finally {
+            lock.unlock();
+        }
+!!!7876763.java!!!	drainTo(inout c : Collection, in maxElements : int) : int
+        if (c == null)
+            throw new NullPointerException();
+        if (c == this)
+            throw new IllegalArgumentException();
+        if (maxElements <= 0)
+            return 0;
+        final E[] items = this.items;
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            int i = takeIndex;
+            int n = 0;
+            int sz = count;
+            int max = (maxElements < count)? maxElements : count;
+            while (n < max) {
+                c.add(items[i]);
+                items[i] = null;
+                i = inc(i);
+                ++n;
+            }
+            if (n > 0) {
+                count -= n;
+                takeIndex = i;
+                notFull.signalAll();
+            }
+            return n;
+        } finally {
+            lock.unlock();
+        }
+!!!7876891.java!!!	iterator() : Iterator
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return new Itr();
+        } finally {
+            lock.unlock();
+        }

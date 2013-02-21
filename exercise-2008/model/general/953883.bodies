@@ -1,0 +1,66 @@
+class ActivationID
+!!!7531803.java!!!	ActivationID(inout activator : Activator)
+	this.activator = activator;
+!!!7531931.java!!!	activate(inout force : boolean) : Remote
+ 	try {
+ 	    MarshalledObject mobj =
+		(MarshalledObject) activator.activate(this, force);
+ 	    return (Remote) mobj.get();
+ 	} catch (RemoteException e) {
+ 	    throw e;
+ 	} catch (IOException e) {
+ 	    throw new UnmarshalException("activation failed", e);
+ 	} catch (ClassNotFoundException e) {
+ 	    throw new UnmarshalException("activation failed", e);
+	}
+	
+!!!7532059.java!!!	hashCode() : int
+	return uid.hashCode();
+!!!7532187.java!!!	equals(inout obj : Object) : boolean
+	if (obj instanceof ActivationID) {
+	    ActivationID id = (ActivationID) obj;
+	    return (uid.equals(id.uid) && activator.equals(id.activator));
+	} else {
+	    return false;
+	}
+!!!7532315.java!!!	writeObject(inout out : ObjectOutputStream) : void
+	out.writeObject(uid);
+
+	RemoteRef ref;
+	if (activator instanceof RemoteObject) {
+	    ref = ((RemoteObject) activator).getRef();
+	} else if (Proxy.isProxyClass(activator.getClass())) {
+	    InvocationHandler handler = Proxy.getInvocationHandler(activator);
+	    if (!(handler instanceof RemoteObjectInvocationHandler)) {
+		throw new InvalidObjectException(
+		    "unexpected invocation handler");
+	    }
+	    ref = ((RemoteObjectInvocationHandler) handler).getRef();
+	    
+	} else {
+	    throw new InvalidObjectException("unexpected activator type");
+	}
+	out.writeUTF(ref.getRefClass(out));
+	ref.writeExternal(out);
+!!!7532443.java!!!	readObject(inout in : ObjectInputStream) : void
+	uid = (UID)in.readObject();
+	
+	try {
+	    Class refClass = Class.forName(RemoteRef.packagePrefix + "." +
+					   in.readUTF());
+	    RemoteRef ref = (RemoteRef) refClass.newInstance();
+	    ref.readExternal(in);
+	    activator = (Activator)
+		Proxy.newProxyInstance(null,
+				       new Class[]{ Activator.class },
+				       new RemoteObjectInvocationHandler(ref));
+
+	} catch (InstantiationException e) {
+	    throw (IOException)
+		new InvalidObjectException(
+		    "Unable to create remote reference").initCause(e);
+	} catch (IllegalAccessException e) {
+	    throw (IOException)
+		new InvalidObjectException(
+		    "Unable to create remote reference").initCause(e);
+	}

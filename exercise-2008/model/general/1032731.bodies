@@ -1,0 +1,88 @@
+class NumericValueExp
+!!!8253595.java!!!	NumericValueExp()
+ 
+!!!8253723.java!!!	NumericValueExp(inout val : Number)
+      this.val = val;
+!!!8253851.java!!!	doubleValue() : double
+ 
+      if (val instanceof Long || val instanceof Integer)
+      {
+        return (double)(val.longValue());
+      }
+      return val.doubleValue();
+!!!8253979.java!!!	longValue() : long
+ 
+      if (val instanceof Long || val instanceof Integer)
+      {
+        return val.longValue();
+      }
+      return (long)(val.doubleValue());
+!!!8254107.java!!!	isLong() : boolean
+ 
+	return (val instanceof Long || val instanceof Integer);
+!!!8254235.java!!!	toString() : String
+ 
+      if (val instanceof Long || val instanceof Integer)
+      {
+        return String.valueOf(val.longValue());
+      }
+      return String.valueOf(val.doubleValue());
+!!!8254363.java!!!	apply(inout name : ObjectName) : ValueExp
+ 
+	return this;
+!!!8254491.java!!!	readObject(inout in : ObjectInputStream) : void
+      if (compat)
+      {
+        // Read an object serialized in the old serial form
+        //
+        double doubleVal;
+        long longVal;
+        boolean isLong;
+        ObjectInputStream.GetField fields = in.readFields();
+        doubleVal = fields.get("doubleVal", (double)0);
+	if (fields.defaulted("doubleVal"))
+        {
+          throw new NullPointerException("doubleVal");
+        }
+        longVal = fields.get("longVal", (long)0);
+	if (fields.defaulted("longVal"))
+        {
+          throw new NullPointerException("longVal");
+        }
+        isLong = fields.get("valIsLong", false);
+	if (fields.defaulted("valIsLong"))
+        {
+          throw new NullPointerException("valIsLong");
+        }
+        if (isLong)
+        {
+          this.val = new Long(longVal);
+        }
+        else
+        {
+          this.val = new Double(doubleVal);
+        }
+      }
+      else
+      {
+        // Read an object serialized in the new serial form
+        //
+        in.defaultReadObject();
+      }
+!!!8254619.java!!!	writeObject(inout out : ObjectOutputStream) : void
+      if (compat)
+      {
+        // Serializes this instance in the old serial form
+        //
+        ObjectOutputStream.PutField fields = out.putFields();
+	fields.put("doubleVal", doubleValue());
+	fields.put("longVal", longValue());
+	fields.put("valIsLong", isLong());
+	out.writeFields();
+      }
+      else
+      {
+        // Serializes this instance in the new serial form
+        //
+        out.defaultWriteObject();
+      }

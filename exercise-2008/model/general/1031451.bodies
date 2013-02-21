@@ -1,0 +1,23 @@
+class ImmutabilityAction
+!!!8240283.java!!!	ImmutabilityAction(inout subclass : Class, inout immutableClass : Class)
+	    this.subclass = subclass;
+	    this.immutableClass = immutableClass;
+!!!8240411.java!!!	run() : Object
+	    Method[] methods = immutableClass.getMethods();
+	    for (int i = 0; i < methods.length; i++) {
+		Method method = methods[i];
+		String methodName = method.getName();
+		if (methodName.startsWith("get")
+		    || methodName.startsWith("is")) {
+		    Class[] paramTypes = method.getParameterTypes();
+		    try {
+			Method submethod =
+			    subclass.getMethod(methodName, paramTypes);
+			if (!submethod.equals(method))
+			    return Boolean.FALSE;
+		    } catch (NoSuchMethodException e) {
+			return Boolean.FALSE;
+		    }
+		}
+	    }
+	    return Boolean.TRUE;

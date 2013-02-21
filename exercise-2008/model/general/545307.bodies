@@ -1,0 +1,70 @@
+class SnmpQManager
+!!!3446939.java!!!	SnmpQManager()
+        newq = new SendQ(20, 5) ;
+        waitq = new WaitQ(20, 5) ;
+
+        queueThreadGroup = new ThreadGroup("Qmanager Thread Group") ;
+    
+        // TIME BOMB HERE
+        startQThreads() ;
+!!!3447067.java!!!	startQThreads() : void
+        if (timerQThread == null || timerQThread.isAlive() == false) {
+            timerQThread   = new SnmpTimerServer(queueThreadGroup, this) ;
+        }
+        if (requestQThread == null || requestQThread.isAlive() == false) {
+            requestQThread = new SnmpSendServer(queueThreadGroup, this) ;
+        }
+!!!3447195.java!!!	stopQThreads() : void
+        
+        ((SnmpTimerServer)timerQThread).isBeingDestroyed = true;
+        waitq.isBeingDestroyed = true;
+        ((SnmpSendServer)requestQThread).isBeingDestroyed = true;
+        newq.isBeingDestroyed = true;
+        
+        if (timerQThread != null && timerQThread.isAlive() == true) {   
+            ((SnmpTimerServer)timerQThread).stopTimerServer();
+        }
+        waitq = null;
+        timerQThread = null;
+        
+        if (requestQThread != null && requestQThread.isAlive() == true) {            
+            ((SnmpSendServer)requestQThread).stopSendServer();
+        }
+        newq = null;
+        requestQThread = null;
+!!!3447323.java!!!	addRequest(inout reqc : SnmpInformRequest) : void
+        newq.addRequest(reqc) ;
+        return ;
+!!!3447451.java!!!	addWaiting(inout reqc : SnmpInformRequest) : void
+        waitq.addWaiting(reqc) ;
+        return ;
+!!!3447579.java!!!	getAllOutstandingRequest(in range : long) : Vector
+        return newq.getAllOutstandingRequest(range) ;
+!!!3447707.java!!!	getTimeoutRequests() : SnmpInformRequest
+        return waitq.getTimeoutRequests() ;
+!!!3447835.java!!!	removeRequest(inout reqc : SnmpInformRequest) : void
+        newq.removeElement(reqc) ;
+        waitq.removeElement(reqc) ;
+!!!3447963.java!!!	removeRequest(in reqid : long) : SnmpInformRequest
+        SnmpInformRequest reqc = null ;
+
+        if ((reqc = newq.removeRequest(reqid)) == null) 
+            reqc = waitq.removeRequest(reqid) ;
+	
+        return reqc ;
+!!!3448091.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_ADAPTOR_SNMP);
+!!!3448219.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_ADAPTOR_SNMP, clz, func, info);
+!!!3448347.java!!!	trace(in func : String, in info : String) : void
+        SnmpQManager.trace(dbgTag, func, info);
+!!!3448475.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_ADAPTOR_SNMP);
+!!!3448603.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_ADAPTOR_SNMP, clz, func, info);
+!!!3448731.java!!!	debug(in clz : String, in func : String, inout exception : Throwable) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_ADAPTOR_SNMP, clz, func, exception);
+!!!3448859.java!!!	debug(in func : String, in info : String) : void
+        SnmpQManager.debug(dbgTag, func, info);
+!!!3448987.java!!!	debug(in func : String, inout exception : Throwable) : void
+        SnmpQManager.debug(dbgTag, func, exception);

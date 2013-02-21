@@ -1,0 +1,226 @@
+class Segment
+!!!7895835.java!!!	Segment(in initialCapacity : int, in lf : float)
+            loadFactor = lf;
+            setTable(new HashEntry[initialCapacity]);
+!!!7895963.java!!!	setTable(inout newTable : HashEntry) : void
+            threshold = (int)(newTable.length * loadFactor);
+            table = newTable;
+!!!7896091.java!!!	getFirst(in hash : int) : HashEntry
+            HashEntry[] tab = table;
+            return (HashEntry<K,V>) tab[hash & (tab.length - 1)];
+!!!7896219.java!!!	readValueUnderLock(inout e : HashEntry) : V
+            lock();
+            try {
+                return e.value;
+            } finally {
+                unlock();
+            }
+!!!7896347.java!!!	get(inout key : Object, in hash : int) : V
+            if (count != 0) { // read-volatile
+                HashEntry<K,V> e = getFirst(hash);
+                while (e != null) {
+                    if (e.hash == hash && key.equals(e.key)) {
+                        V v = e.value;
+                        if (v != null)
+                            return v;
+                        return readValueUnderLock(e); // recheck
+                    }
+                    e = e.next;
+                }
+            }
+            return null;
+!!!7896475.java!!!	containsKey(inout key : Object, in hash : int) : boolean
+            if (count != 0) { // read-volatile
+                HashEntry<K,V> e = getFirst(hash);
+                while (e != null) {
+                    if (e.hash == hash && key.equals(e.key))
+                        return true;
+                    e = e.next;
+                }
+            }
+            return false;
+!!!7896603.java!!!	containsValue(inout value : Object) : boolean
+            if (count != 0) { // read-volatile
+                HashEntry[] tab = table;
+                int len = tab.length;
+                for (int i = 0 ; i < len; i++) {
+                    for (HashEntry<K,V> e = (HashEntry<K,V>)tab[i]; 
+                         e != null ; 
+                         e = e.next) {
+                        V v = e.value;
+                        if (v == null) // recheck
+                            v = readValueUnderLock(e);
+                        if (value.equals(v))
+                            return true;
+                    }
+                }
+            }
+            return false;
+!!!7896731.java!!!	replace(inout key : K, in hash : int, inout oldValue : V, inout newValue : V) : boolean
+            lock();
+            try {
+                HashEntry<K,V> e = getFirst(hash);
+                while (e != null && (e.hash != hash || !key.equals(e.key)))
+                    e = e.next;
+
+                boolean replaced = false;
+                if (e != null && oldValue.equals(e.value)) {
+                    replaced = true;
+                    e.value = newValue;
+                }
+                return replaced;
+            } finally {
+                unlock();
+            }
+!!!7896859.java!!!	replace(inout key : K, in hash : int, inout newValue : V) : V
+            lock();
+            try {
+                HashEntry<K,V> e = getFirst(hash);
+                while (e != null && (e.hash != hash || !key.equals(e.key)))
+                    e = e.next;
+
+                V oldValue = null;
+                if (e != null) {
+                    oldValue = e.value;
+                    e.value = newValue;
+                }
+                return oldValue;
+            } finally {
+                unlock();
+            }
+!!!7896987.java!!!	put(inout key : K, in hash : int, inout value : V, inout onlyIfAbsent : boolean) : V
+            lock();
+            try {
+                int c = count;
+                if (c++ > threshold) // ensure capacity
+                    rehash();
+                HashEntry[] tab = table;
+                int index = hash & (tab.length - 1);
+                HashEntry<K,V> first = (HashEntry<K,V>) tab[index];
+                HashEntry<K,V> e = first;
+                while (e != null && (e.hash != hash || !key.equals(e.key)))
+                    e = e.next;
+
+                V oldValue;
+                if (e != null) {
+                    oldValue = e.value;
+                    if (!onlyIfAbsent)
+                        e.value = value;
+                }
+                else {
+                    oldValue = null;
+                    ++modCount;
+                    tab[index] = new HashEntry<K,V>(key, hash, first, value);
+                    count = c; // write-volatile
+                }
+                return oldValue;
+            } finally {
+                unlock();
+            }
+!!!7897115.java!!!	rehash() : void
+            HashEntry[] oldTable = table;            
+            int oldCapacity = oldTable.length;
+            if (oldCapacity >= MAXIMUM_CAPACITY)
+                return;
+
+            /*
+             * Reclassify nodes in each list to new Map.  Because we are
+             * using power-of-two expansion, the elements from each bin
+             * must either stay at same index, or move with a power of two
+             * offset. We eliminate unnecessary node creation by catching
+             * cases where old nodes can be reused because their next
+             * fields won't change. Statistically, at the default
+             * threshold, only about one-sixth of them need cloning when
+             * a table doubles. The nodes they replace will be garbage
+             * collectable as soon as they are no longer referenced by any
+             * reader thread that may be in the midst of traversing table
+             * right now.
+             */
+
+            HashEntry[] newTable = new HashEntry[oldCapacity << 1];
+            threshold = (int)(newTable.length * loadFactor);
+            int sizeMask = newTable.length - 1;
+            for (int i = 0; i < oldCapacity ; i++) {
+                // We need to guarantee that any existing reads of old Map can
+                //  proceed. So we cannot yet null out each bin.
+                HashEntry<K,V> e = (HashEntry<K,V>)oldTable[i];
+
+                if (e != null) {
+                    HashEntry<K,V> next = e.next;
+                    int idx = e.hash & sizeMask;
+
+                    //  Single node on list
+                    if (next == null)
+                        newTable[idx] = e;
+
+                    else {
+                        // Reuse trailing consecutive sequence at same slot
+                        HashEntry<K,V> lastRun = e;
+                        int lastIdx = idx;
+                        for (HashEntry<K,V> last = next;
+                             last != null;
+                             last = last.next) {
+                            int k = last.hash & sizeMask;
+                            if (k != lastIdx) {
+                                lastIdx = k;
+                                lastRun = last;
+                            }
+                        }
+                        newTable[lastIdx] = lastRun;
+
+                        // Clone all remaining nodes
+                        for (HashEntry<K,V> p = e; p != lastRun; p = p.next) {
+                            int k = p.hash & sizeMask;
+                            HashEntry<K,V> n = (HashEntry<K,V>)newTable[k];
+                            newTable[k] = new HashEntry<K,V>(p.key, p.hash,
+                                                             n, p.value);
+                        }
+                    }
+                }
+            }
+            table = newTable;
+!!!7897243.java!!!	remove(inout key : Object, in hash : int, inout value : Object) : V
+            lock();
+            try {
+                int c = count - 1;
+                HashEntry[] tab = table;
+                int index = hash & (tab.length - 1);
+                HashEntry<K,V> first = (HashEntry<K,V>)tab[index];
+                HashEntry<K,V> e = first;
+                while (e != null && (e.hash != hash || !key.equals(e.key)))
+                    e = e.next;
+
+                V oldValue = null;
+                if (e != null) {
+                    V v = e.value;
+                    if (value == null || value.equals(v)) {
+                        oldValue = v;
+                        // All entries following removed node can stay
+                        // in list, but all preceding ones need to be
+                        // cloned.
+                        ++modCount;
+                        HashEntry<K,V> newFirst = e.next;
+                        for (HashEntry<K,V> p = first; p != e; p = p.next)
+                            newFirst = new HashEntry<K,V>(p.key, p.hash,  
+                                                          newFirst, p.value);
+                        tab[index] = newFirst;
+                        count = c; // write-volatile
+                    }
+                }
+                return oldValue;
+            } finally {
+                unlock();
+            }
+!!!7897371.java!!!	clear() : void
+            if (count != 0) {
+                lock();
+                try {
+                    HashEntry[] tab = table;
+                    for (int i = 0; i < tab.length ; i++)
+                        tab[i] = null;
+                    ++modCount;
+                    count = 0; // write-volatile
+                } finally {
+                    unlock();
+                }
+            }

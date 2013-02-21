@@ -1,0 +1,88 @@
+class CompositeName
+!!!8461083.java!!!	CompositeName(inout comps : Enumeration)
+	impl = new NameImpl(null, comps); // null means use default syntax
+!!!8461211.java!!!	CompositeName(in n : String)
+	impl = new NameImpl(null, n);  // null means use default syntax
+!!!8461339.java!!!	CompositeName()
+	impl = new NameImpl(null);  // null means use default syntax
+!!!8461467.java!!!	toString() : String
+	return impl.toString();
+!!!8461595.java!!!	equals(inout obj : Object) : boolean
+	return (obj != null &&
+		obj instanceof CompositeName &&
+		impl.equals(((CompositeName)obj).impl));
+!!!8461723.java!!!	hashCode() : int
+	return impl.hashCode();
+!!!8461851.java!!!	compareTo(inout obj : Object) : int
+	if (!(obj instanceof CompositeName)) {
+	    throw new ClassCastException("Not a CompositeName");
+	}
+	return impl.compareTo(((CompositeName)obj).impl);
+!!!8461979.java!!!	clone() : Object
+	return (new CompositeName(getAll()));
+!!!8462107.java!!!	size() : int
+	return (impl.size());
+!!!8462235.java!!!	isEmpty() : boolean
+	return (impl.isEmpty());
+!!!8462363.java!!!	getAll() : Enumeration
+	return (impl.getAll());
+!!!8462491.java!!!	get(in posn : int) : String
+	return (impl.get(posn));
+!!!8462619.java!!!	getPrefix(in posn : int) : Name
+	Enumeration comps = impl.getPrefix(posn);
+	return (new CompositeName(comps));
+!!!8462747.java!!!	getSuffix(in posn : int) : Name
+	Enumeration comps = impl.getSuffix(posn);
+	return (new CompositeName(comps));
+!!!8462875.java!!!	startsWith(inout n : Name) : boolean
+	if (n instanceof CompositeName) {
+	    return (impl.startsWith(n.size(), n.getAll()));
+	} else {
+	    return false;
+	}
+!!!8463003.java!!!	endsWith(inout n : Name) : boolean
+	if (n instanceof CompositeName) {
+	    return (impl.endsWith(n.size(), n.getAll()));
+	} else {
+	    return false;
+	}
+!!!8463131.java!!!	addAll(inout suffix : Name) : Name
+	if (suffix instanceof CompositeName) {
+	    impl.addAll(suffix.getAll());
+	    return this;
+	} else {
+	    throw new InvalidNameException("Not a composite name: " +
+		suffix.toString());
+	}
+!!!8463259.java!!!	addAll(in posn : int, inout n : Name) : Name
+	if (n instanceof CompositeName) {
+	    impl.addAll(posn, n.getAll());
+	    return this;
+	} else {
+	    throw new InvalidNameException("Not a composite name: " +
+		n.toString());
+	}
+!!!8463387.java!!!	add(in comp : String) : Name
+	impl.add(comp);
+	return this;
+!!!8463515.java!!!	add(in posn : int, in comp : String) : Name
+	impl.add(posn, comp);
+	return this;
+!!!8463643.java!!!	remove(in posn : int) : Object
+	return impl.remove(posn);
+!!!8463771.java!!!	writeObject(inout s : ObjectOutputStream) : void
+	s.writeInt(size());
+	Enumeration comps = getAll();
+	while (comps.hasMoreElements()) {
+	    s.writeObject(comps.nextElement());
+	}
+!!!8463899.java!!!	readObject(inout s : ObjectInputStream) : void
+	impl = new NameImpl(null);  // null means use default syntax
+	int n = s.readInt();	// number of components
+	try {
+	    while (--n >= 0) {
+		add((String)s.readObject());
+	    }
+	} catch (InvalidNameException e) {
+	    throw (new java.io.StreamCorruptedException("Invalid name"));
+	}

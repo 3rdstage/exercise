@@ -1,0 +1,48 @@
+class ObjectNamePattern
+!!!3216923.java!!!	ObjectNamePattern(inout pattern : ObjectName)
+            this(pattern.isPattern(),pattern.getDomain(),
+                 pattern.isPropertyPattern(),
+                 pattern.getCanonicalKeyPropertyListString(),
+                 pattern.getKeyPropertyList(),pattern);
+!!!3217051.java!!!	ObjectNamePattern(inout domainPattern : boolean, in domain : String, inout propertyPattern : boolean, in canonicalProps : String, inout keyPropertyList : Hashtable, inout pattern : ObjectName)
+            final int len = (keyPropertyList==null?0:keyPropertyList.size());
+            final Enumeration e = 
+                (keyPropertyList==null?null:keyPropertyList.keys());
+            this.domain = (domain == null?null:domain.toCharArray());
+            this.keys   = new String[len];
+            this.values = new String[len];
+            for (int i = 0 ; i < len ; i++ ) {
+                final String k = (String)e.nextElement();
+                keys[i]   = k;
+                values[i] = (String)keyPropertyList.get(k);
+            }
+            this.properties = canonicalProps;
+            this.isPropertyPattern = propertyPattern;
+            this.pattern = pattern;
+!!!3217179.java!!!	matchKeys(inout name : ObjectName) : boolean
+            if (isPropertyPattern) {
+                // Every property inside pattern should exist in name 
+                for (int i= keys.length -1; i >= 0 ; i--) {
+
+                    // find value in given object name for key at current 
+		    // index in receiver
+                    String v = name.getKeyProperty(keys[i]);
+
+                    // did we find a value for this key ?
+                    if (v == null) return false; 
+                    
+                    // if this property is ok (same key, same value), 
+		    // go to next
+                    if (v.equals(values[i])) continue; 
+                    return false;
+                }
+                return true;
+            } else {
+                if (keys.length != name.getKeyPropertyList().size()) 
+		    return false;
+                final String p1 = name.getCanonicalKeyPropertyListString();
+                final String p2 = properties;
+                // if (p1 == null) return (p2 == null);
+                // if (p2 == null) return p1.equals("");
+                return (p1.equals(p2));
+            }

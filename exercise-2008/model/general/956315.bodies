@@ -1,0 +1,35 @@
+class ObjID
+!!!7539867.java!!!	ObjID()
+	/*
+	 * Create a new UID if the SecureRandom generator is used (mySpace
+	 * will be null in this case).  Using a different UID for each ObjID
+	 * ensures that ObjIDs will be unique in this VM incarnation when
+	 * paired with the result of the secure random number generator.
+	 */
+	space = (mySpace != null) ? mySpace : new UID();
+	objNum = generator.nextLong();
+!!!7539995.java!!!	ObjID(in objNum : int)
+	space = new UID((short) 0);
+	this.objNum = objNum;
+!!!7540123.java!!!	ObjID(in objNum : long, inout space : UID)
+	this.objNum = objNum;
+	this.space = space;
+!!!7540251.java!!!	write(inout out : ObjectOutput) : void
+	out.writeLong(objNum);
+	space.write(out);
+!!!7540379.java!!!	read(inout in : ObjectInput) : ObjID
+	long num = in.readLong();
+	UID space = UID.read(in);
+	return new ObjID(num, space);
+!!!7540507.java!!!	hashCode() : int
+	return (int) objNum;
+!!!7540635.java!!!	equals(inout obj : Object) : boolean
+	if (obj instanceof ObjID) {
+	    ObjID id = (ObjID)obj;
+	    return objNum == id.objNum && space.equals(id.space);
+	} else {
+	    return false;
+	}
+!!!7540763.java!!!	toString() : String
+	return "[" + (space.equals(mySpace) ? "" : space + ", ") +
+	    objNum + "]";

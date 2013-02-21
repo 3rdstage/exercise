@@ -1,0 +1,190 @@
+class CompositeDataSupport
+!!!8339227.java!!!	CompositeDataSupport(inout compositeType : CompositeType, in itemNames : String, inout itemValues : Object)
+
+	// Check compositeType is not null 
+	//
+	if (compositeType == null) {
+	    throw new IllegalArgumentException("Argument compositeType cannot be null.");
+	}
+
+	// item names defined in compositeType:
+	Set namesSet = compositeType.keySet();
+
+	// Check the array itemNames is not null or empty (length!=0) and 
+	// that there is no null element or empty string in it
+	//
+	checkForNullElement(itemNames, "itemNames");
+	checkForEmptyString(itemNames, "itemNames");
+
+	// Check the array itemValues is not null or empty (length!=0)
+	// (NOTE: we allow null values as array elements) 
+	//
+	if ( (itemValues == null) || (itemValues.length == 0) ) {
+	    throw new IllegalArgumentException("Argument itemValues[] cannot be null or empty.");
+	}
+
+	// Check that the sizes of the 2 arrays itemNames and itemValues are the same
+	//
+	if (itemNames.length != itemValues.length) {
+	    throw new IllegalArgumentException("Array arguments itemNames[] and itemValues[] "+
+					       "should be of same length (got "+ itemNames.length +
+					       " and "+ itemValues.length +").");
+	}
+	
+	// Check the size of the 2 arrays is equal to the number of items defined in compositeType
+	//
+	if (itemNames.length != namesSet.size()) {
+	    throw new OpenDataException("The size of array arguments itemNames[] and itemValues[] should be equal to the number of items defined"+
+					" in argument compositeType (found "+ itemNames.length +" elements in itemNames[] and itemValues[],"+
+					" expecting "+ namesSet.size() +" elements according to compositeType.");
+	}
+
+	// Check parameter itemNames[] contains all names defined in the compositeType of this instance
+	//
+	if ( ! Arrays.asList(itemNames).containsAll(namesSet) ) {
+	    throw new OpenDataException("Argument itemNames[] does not contain all names defined in the compositeType of this instance.");
+	}
+	
+	// Check each element of itemValues[], if not null, is of the open type defined for the corresponding item
+	//
+	OpenType itemType;
+	for (int i=0; i<itemValues.length; i++) {
+	    itemType = compositeType.getType(itemNames[i]);
+	    if ( (itemValues[i] != null) && (! itemType.isValue(itemValues[i])) ) {
+		throw new OpenDataException("Argument's element itemValues["+ i +"]=\""+ itemValues[i] +"\" is not a valid value for"+
+					    " this item (itemName="+ itemNames[i] +",itemType="+ itemType +").");
+	    }
+	}
+	
+	// Initialize internal fields: compositeType and contents 
+	//
+	this.compositeType = compositeType;
+	for (int i=0; i<itemNames.length; i++) {
+	    this.contents.put(itemNames[i], itemValues[i]);
+	}
+!!!8339355.java!!!	CompositeDataSupport(inout compositeType : CompositeType, inout items : Map)
+
+
+	// Let the other constructor do the job, as the call to another constructor must be the first call
+	//
+	this( compositeType, 
+	      (items==null  ?  null  :  (String[]) items.keySet().toArray(new String[items.size()])), // may raise an ArrayStoreException
+	      (items==null  ?  null  :  items.values().toArray()) );
+!!!8339483.java!!!	checkForNullElement(inout arg : Object, in argName : String) : void
+	if ( (arg == null) || (arg.length == 0) ) {
+	    throw new IllegalArgumentException("Argument "+ argName +"[] cannot be null or empty.");
+	}
+	for (int i=0; i<arg.length; i++) {
+	    if (arg[i] == null) {
+		throw new IllegalArgumentException("Argument's element "+ argName +"["+ i +"] cannot be null.");
+	    }
+	}
+!!!8339611.java!!!	checkForEmptyString(in arg : String, in argName : String) : void
+	for (int i=0; i<arg.length; i++) {
+	    if (arg[i].trim().equals("")) {
+		throw new IllegalArgumentException("Argument's element "+ argName +"["+ i +"] cannot be an empty string.");
+	    }
+	}
+!!!8339739.java!!!	getCompositeType() : CompositeType
+
+	return compositeType;
+!!!8339867.java!!!	get(in key : String) : Object
+
+	if ( (key == null) || (key.trim().equals("")) ) {
+	    throw new IllegalArgumentException("Argument key cannot be a null or empty String.");
+	}
+	if ( ! contents.containsKey(key.trim())) {
+	    throw new InvalidKeyException("Argument key=\""+ key.trim() +"\" is not an existing item name for this CompositeData instance.");
+	}
+	return contents.get(key.trim());
+!!!8339995.java!!!	getAll(in keys : String) : Object
+
+	if ( (keys == null) || (keys.length == 0) ) {
+	    return new Object[0];
+	}
+	Object[] results = new Object[keys.length];
+	for (int i=0; i<keys.length; i++) {
+	    results[i] = this.get(keys[i]);
+	}
+	return results;
+!!!8340123.java!!!	containsKey(in key : String) : boolean
+ 
+
+	if ( (key == null) || (key.trim().equals("")) ) {
+	    return false;
+	}
+	return contents.containsKey(key);
+!!!8340251.java!!!	containsValue(inout value : Object) : boolean
+ 
+
+	return contents.containsValue(value);
+!!!8340379.java!!!	values() : Collection
+ 
+
+	return Collections.unmodifiableCollection(contents.values());
+!!!8340507.java!!!	equals(inout obj : Object) : boolean
+ 
+
+	// if obj is null, return false
+	//
+	if (obj == null) {
+	    return false;
+	}
+
+	// if obj is not a CompositeData, return false
+	//
+	CompositeData other;
+	try {
+	    other = (CompositeData) obj;
+	} catch (ClassCastException e) {
+	    return false;
+	}
+
+	// their compositeType should be equal
+	if ( ! this.getCompositeType().equals(other.getCompositeType()) ) {
+	    return false;
+	}
+	
+	
+	    // Currently this test returns false if we have different Array instances with same contents.
+	    // Array objects are equals only if their references are equal, ie they are the same object!
+	    // CompositeData equals() method need to be modified to compare Array contents... 
+
+	// their content, i.e. (name, value) pairs, should be equal
+	Map.Entry entry;
+	boolean ok;
+	for (Iterator iter = contents.entrySet().iterator(); iter.hasNext();  ) {
+	    entry = (Map.Entry) iter.next();
+	    ok = ( entry.getValue() == null ?
+		   other.get((String)entry.getKey()) == null :
+		   entry.getValue().equals(other.get((String)entry.getKey())) );
+	    if ( ! ok ) { 
+		return false;
+	    }
+	}
+       
+	// All tests for equality were successfull
+	//
+	return true;
+!!!8340635.java!!!	hashCode() : int
+ 
+
+	int result = 0;
+	result += compositeType.hashCode();
+	Map.Entry entry;
+	for (Iterator iter = contents.entrySet().iterator(); iter.hasNext();  ) {
+	    entry = (Map.Entry) iter.next();
+	    result += ( entry.getValue() == null ?  0 :  entry.getValue().hashCode() );
+	}
+	return result;
+!!!8340763.java!!!	toString() : String
+ 
+
+	return new StringBuffer()
+	    .append(this.getClass().getName())
+	    .append("(compositeType=")
+	    .append(compositeType.toString())
+	    .append(",contents=")
+	    .append(contents.toString())
+	    .append(")")
+	    .toString();

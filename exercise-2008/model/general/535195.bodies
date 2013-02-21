@@ -1,0 +1,94 @@
+class SnmpString
+!!!3315099.java!!!	SnmpString()
+        value = new byte[0] ;
+!!!3315227.java!!!	SnmpString(in v : byte)
+        value = (byte[])v.clone() ;
+!!!3315355.java!!!	SnmpString(inout v : Byte)
+        value = new byte[v.length] ;
+        for (int i = 0 ; i < v.length ; i++) {
+            value[i] = v[i].byteValue() ;
+        }
+!!!3315483.java!!!	SnmpString(in v : String)
+        value = v.getBytes() ;
+!!!3315611.java!!!	SnmpString(inout address : InetAddress)
+	value = address.getAddress();
+!!!3315739.java!!!	inetAddressValue() : InetAddress
+	return InetAddress.getByAddress(value);
+!!!3315867.java!!!	BinToChar(in bin : String) : String
+        char value[] = new char[bin.length()/8]; 
+        int binLength = value.length;
+        for (int i = 0; i < binLength; i++) 
+            value[i] = (char)Integer.parseInt(bin.substring(8*i, 8*i+8), 2); 
+        return new String(value); 
+!!!3315995.java!!!	HexToChar(in hex : String) : String
+        char value[] = new char[hex.length()/2]; 
+        int hexLength = value.length;
+        for (int i = 0; i < hexLength; i++) 
+            value[i] = (char)Integer.parseInt(hex.substring(2*i, 2*i+2), 16); 
+        return new String(value); 
+!!!3316123.java!!!	byteValue() : byte
+        return value ;
+!!!3316251.java!!!	toByte() : Byte
+        Byte[] result = new Byte[value.length] ;
+        for (int i = 0 ; i < value.length ; i++) {
+            result[i] = new Byte(value[i]) ;
+        }
+        return result ;
+!!!3316379.java!!!	toString() : String
+        return new String(value) ;
+!!!3316507.java!!!	toOid() : SnmpOid
+        long[] ids = new long[value.length] ;
+        for (int i = 0 ; i < value.length ; i++) {
+            ids[i] = (long)(value[i] & 0xFF) ;
+        }
+        return new SnmpOid(ids) ;
+!!!3316635.java!!!	toOid(in index : long, in start : int) : SnmpOid
+        try {
+            if (index[start] > Integer.MAX_VALUE) {
+                throw new SnmpStatusException(SnmpStatusException.noSuchName) ;
+            }
+            int strLen = (int)index[start++] ;
+            long[] ids = new long[strLen] ;
+            for (int i = 0 ; i < strLen ; i++) {
+                ids[i] = index[start + i] ;
+            }
+            return new SnmpOid(ids) ;
+        }
+        catch(IndexOutOfBoundsException e) {
+            throw new SnmpStatusException(SnmpStatusException.noSuchName) ;
+        }
+!!!3316763.java!!!	nextOid(in index : long, in start : int) : int
+        try {
+            if (index[start] > Integer.MAX_VALUE) {
+                throw new SnmpStatusException(SnmpStatusException.noSuchName) ;
+            }
+            int strLen = (int)index[start++] ;
+            start += strLen ;
+            if (start <= index.length) {
+                return start ;
+            }
+            else {
+                throw new SnmpStatusException(SnmpStatusException.noSuchName) ;
+            }
+        }
+        catch(IndexOutOfBoundsException e) {
+            throw new SnmpStatusException(SnmpStatusException.noSuchName) ;
+        }
+!!!3316891.java!!!	appendToOid(inout source : SnmpOid, inout dest : SnmpOid) : void
+        dest.append(source.getLength()) ;
+        dest.append(source) ;
+!!!3317019.java!!!	duplicate() : SnmpValue
+        return (SnmpValue) clone() ;
+!!!3317147.java!!!	clone() : Object
+        SnmpString newclone = null ;
+
+        try {
+            newclone = (SnmpString) super.clone() ;
+            newclone.value = new byte[value.length] ;
+            System.arraycopy(value, 0, newclone.value, 0, value.length) ;
+        } catch (CloneNotSupportedException e) {
+            throw new InternalError() ; // vm bug.
+        }
+        return newclone ;
+!!!3317275.java!!!	getTypeName() : String
+        return name ;

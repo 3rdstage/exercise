@@ -1,0 +1,185 @@
+class DirectCharBufferRU
+!!!7395483.java!!!	DirectCharBufferRU(inout db : DirectBuffer, in mark : int, in pos : int, in lim : int, in cap : int, in off : int)
+
+
+
+
+
+
+
+
+
+	super(db, mark, pos, lim, cap, off);
+
+!!!7395611.java!!!	slice() : CharBuffer
+
+	int pos = this.position();
+	int lim = this.limit();
+	assert (pos <= lim);
+	int rem = (pos <= lim ? lim - pos : 0);
+	int off = (pos << 1);
+        assert (off >= 0);
+	return new DirectCharBufferRU(this, -1, 0, rem, rem, off);
+!!!7395739.java!!!	duplicate() : CharBuffer
+
+	return new DirectCharBufferRU(this,
+					      this.markValue(),
+					      this.position(),
+					      this.limit(),
+					      this.capacity(),
+					      0);
+!!!7395867.java!!!	asReadOnlyBuffer() : CharBuffer
+
+
+
+
+
+
+
+
+
+	return duplicate();
+
+!!!7395995.java!!!	put(in x : char) : CharBuffer
+
+
+
+
+
+	throw new ReadOnlyBufferException();
+
+!!!7396123.java!!!	put(in i : int, in x : char) : CharBuffer
+
+
+
+
+
+	throw new ReadOnlyBufferException();
+
+!!!7396251.java!!!	put(inout src : CharBuffer) : CharBuffer
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	throw new ReadOnlyBufferException();
+
+!!!7396379.java!!!	put(in src : char, in offset : int, in length : int) : CharBuffer
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	throw new ReadOnlyBufferException();
+
+!!!7396507.java!!!	compact() : CharBuffer
+
+
+
+
+
+
+
+
+
+
+
+
+	throw new ReadOnlyBufferException();
+
+!!!7396635.java!!!	isDirect() : boolean
+
+	return true;
+!!!7396763.java!!!	isReadOnly() : boolean
+
+	return true;
+!!!7396891.java!!!	toString(in start : int, in end : int) : String
+
+	if ((end > limit()) || (start > end))
+	    throw new IndexOutOfBoundsException();
+	try {
+	    int len = end - start;
+	    char[] ca = new char[len];
+	    CharBuffer cb = CharBuffer.wrap(ca);
+	    CharBuffer db = this.duplicate();
+	    db.position(start);
+	    db.limit(end);
+	    cb.put(db);
+	    return new String(ca);
+	} catch (StringIndexOutOfBoundsException x) {
+	    throw new IndexOutOfBoundsException();
+	}
+!!!7397019.java!!!	subSequence(in start : int, in end : int) : CharSequence
+
+	int pos = position();
+	int lim = limit();
+	assert (pos <= lim);
+	pos = (pos <= lim ? pos : lim);
+	int len = lim - pos;
+
+	if ((start < 0) || (end > len) || (start > end))
+	    throw new IndexOutOfBoundsException();
+	int sublen = end - start;
+ 	int off = (pos + start) << 1;
+        assert (off >= 0);
+	return new DirectCharBufferRU(this, -1, 0, sublen, sublen, off);
+!!!7397147.java!!!	order() : ByteOrder
+
+
+
+
+
+
+	return ((ByteOrder.nativeOrder() != ByteOrder.BIG_ENDIAN)
+		? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN);
+

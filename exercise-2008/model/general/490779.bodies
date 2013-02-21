@@ -1,0 +1,67 @@
+class WindowsTableHeaderUI
+!!!3027995.java!!!	createUI(inout h : JComponent) : ComponentUI
+        return new WindowsTableHeaderUI();
+!!!3028123.java!!!	installUI(inout c : JComponent) : void
+	super.installUI(c);
+
+	if (XPStyle.getXP() != null) {
+	    originalHeaderRenderer = header.getDefaultRenderer();
+	    if (originalHeaderRenderer instanceof UIResource) {
+		header.setDefaultRenderer(new XPDefaultRenderer());
+	    }
+	}
+!!!3028251.java!!!	updateRolloverColumn(inout e : MouseEvent) : void
+	if (header.getDraggedColumn() == null &&
+	    header.contains(e.getPoint())) {
+
+	    int col = header.columnAtPoint(e.getPoint());
+	    if (col != rolloverColumn) {
+		rolloverColumn = col;
+		header.repaint();
+	    }
+	}
+!!!3028379.java!!!	createMouseInputListener() : MouseInputListener
+	if (XPStyle.getXP() != null) {
+	    return new MouseInputHandler() {
+		public void mouseMoved(MouseEvent e) { 
+		    super.mouseMoved(e);
+		    updateRolloverColumn(e);
+		}
+
+		public void mouseEntered(MouseEvent e) {
+		    super.mouseEntered(e);
+		    updateRolloverColumn(e);
+		}
+
+		public void mouseExited(MouseEvent e) {
+		    super.mouseExited(e);
+		    rolloverColumn = -1;
+		    header.repaint();
+		}
+
+		public void mousePressed(MouseEvent e) {
+		    super.mousePressed(e);
+		    if (header.getReorderingAllowed()) {
+			rolloverColumn = -1;
+			header.repaint();
+		    }
+		}
+
+		public void mouseDragged(MouseEvent e) {
+		    super.mouseDragged(e);
+		    updateRolloverColumn(e);
+		}
+
+		public void mouseReleased(MouseEvent e) {
+		    super.mouseReleased(e);
+		    updateRolloverColumn(e);
+		}
+	    };
+	} else {
+	    return super.createMouseInputListener();
+	}
+!!!3028507.java!!!	uninstallUI(inout c : JComponent) : void
+	if (header.getDefaultRenderer() instanceof XPDefaultRenderer) {
+	    header.setDefaultRenderer(originalHeaderRenderer);
+	}
+	super.uninstallUI(c);

@@ -1,0 +1,51 @@
+class ExecutorThread
+!!!3546779.java!!!	ExecutorThread()
+	    super(threadGroup, "ThreadService-"+counter++);
+	    setDaemon(true);
+
+	    // init
+	    this.setPriority(priority);
+	    this.setContextClassLoader(cloader);
+ 
+	    idle++;
+!!!3546907.java!!!	run() : void
+
+	    while(!terminated) {
+		Runnable job = null;
+
+		synchronized(jobList) {
+		    if (jobList.size() > 0) {
+		        job = (Runnable)jobList.remove(0);
+			if (jobList.size() > 0) {
+			    jobList.notify();
+			}
+			
+		    } else {
+			try {
+			    jobList.wait();
+			} catch (InterruptedException ie) {
+			    // terminated ?
+			} finally {
+			}
+			continue;
+		    }
+		}
+		if (job != null) {
+		    try {
+			idle--;
+			job.run();
+//System.out.println("jsl-ThreadService: done job "+doneJobs++);
+
+		    } catch (Exception e) { 
+			// TODO
+			e.printStackTrace();
+		    } finally {
+			idle++;
+		    }
+		}
+
+		// re-init
+		this.setPriority(priority);
+		this.interrupted();
+		this.setContextClassLoader(cloader);
+	    }

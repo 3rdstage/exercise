@@ -1,0 +1,342 @@
+class StringMonitor
+!!!8332699.java!!!	makeDebugTag() : String
+        return "StringMonitor";
+!!!8332827.java!!!	StringMonitor()
+	dbgTag = makeDebugTag();
+!!!8332955.java!!!	start() : void
+
+        if (isTraceOn()) {
+            trace("start", "start the string monitor");
+        }
+
+	if (isActive) {
+	    if (isTraceOn()) {
+		trace("start", "the string monitor is already activated");
+	    }
+
+	    return;
+	}
+
+	isActive = true;
+
+	// Reset values.
+	//
+	for (int i = 0; i < elementCount; i++) {
+	    status[i] = MATCHING_OR_DIFFERING;
+	}
+
+	// Start the AlarmClock.
+	//
+	timer = new Timer();
+	timer.schedule(new StringAlarmClock(this),
+		       getGranularityPeriod(), getGranularityPeriod());
+!!!8333083.java!!!	stop() : void
+
+        if (isTraceOn()) {
+            trace("stop", "stop the string monitor");
+        }
+
+        synchronized(this) {
+	    if (!isActive) {
+		if (isTraceOn()) {
+		    trace("stop", "the string monitor is already deactivated");
+		}
+
+		return;
+	    }
+
+            isActive = false;
+
+            // Stop the AlarmClock.
+            //
+            if (timer != null) {
+		timer.cancel();
+		timer = null;
+            }
+	}
+!!!8333211.java!!!	setGranularityPeriod(in period : long) : void
+        super.setGranularityPeriod(period);
+
+        // Reschedule timer task if timer is already running
+        //
+	if (isActive) {
+	    timer.cancel();
+	    timer = new Timer();
+	    timer.schedule(new StringAlarmClock(this),
+			   getGranularityPeriod(), getGranularityPeriod());
+	}
+!!!8333339.java!!!	getDerivedGauge(inout object : ObjectName) : String
+        int index = indexOf(object);
+        if (index != -1)
+            return derivedGauge[index];
+        else
+            return null;
+!!!8333467.java!!!	getDerivedGaugeTimeStamp(inout object : ObjectName) : long
+        int index = indexOf(object);
+        if (index != -1)
+            return derivedGaugeTimestamp[index];
+        else
+            return 0;
+!!!8333595.java!!!	getDerivedGauge() : String
+        return derivedGauge[0];
+!!!8333723.java!!!	getDerivedGaugeTimeStamp() : long
+        return derivedGaugeTimestamp[0];
+!!!8333851.java!!!	getStringToCompare() : String
+        return stringToCompare;
+!!!8333979.java!!!	setStringToCompare(in value : String) : void
+
+        if (value == null) {
+	    throw new IllegalArgumentException("Null string to compare");
+        }
+
+        stringToCompare = value;
+
+        // Reset values.
+        //
+        for (int i = 0; i < elementCount; i++) {
+          status[i] = MATCHING_OR_DIFFERING;
+        }
+!!!8334107.java!!!	getNotifyMatch() : boolean
+        return notifyMatch;
+!!!8334235.java!!!	setNotifyMatch(inout value : boolean) : void
+        notifyMatch = value;
+!!!8334363.java!!!	getNotifyDiffer() : boolean
+        return notifyDiffer;
+!!!8334491.java!!!	setNotifyDiffer(inout value : boolean) : void
+        notifyDiffer = value;
+!!!8334619.java!!!	getNotificationInfo() : MBeanNotificationInfo
+        return notifsInfo;
+!!!8334747.java!!!	updateDerivedGauge(inout scanString : Object, in index : int) : void
+        derivedGaugeTimestamp[index] = System.currentTimeMillis();
+        derivedGauge[index] = (String)scanString;
+!!!8334875.java!!!	updateNotifications(in index : int) : void
+	boolean sendNotify = false;
+	String type = null;
+	long timeStamp = 0;
+	String msg = null;
+	Object derGauge = null;
+	Object trigger = null;
+
+	synchronized(this) {
+	    // Send matching notification if notifyMatch is true.
+	    // Send differing notification if notifyDiffer is true.
+	    //
+	    if (status[index] == MATCHING_OR_DIFFERING) {
+		if (derivedGauge[index].equals(stringToCompare)) {
+		    if (notifyMatch) {
+			sendNotify = true;
+			type =
+			    MonitorNotification.STRING_TO_COMPARE_VALUE_MATCHED;
+			timeStamp = derivedGaugeTimestamp[index];
+			msg = "";
+			derGauge = derivedGauge[index];
+			trigger = stringToCompare;
+		    }
+
+		    status[index] = DIFFERING;
+		} else {
+		    if (notifyDiffer) {
+			sendNotify = true;
+			type =
+			    MonitorNotification.STRING_TO_COMPARE_VALUE_DIFFERED;
+			timeStamp = derivedGaugeTimestamp[index];
+			msg = "";
+			derGauge = derivedGauge[index];
+			trigger = stringToCompare;
+		    }
+		    status[index] = MATCHING;
+		}
+	    } else {
+		if (status[index] == MATCHING) {
+		    if (derivedGauge[index].equals(stringToCompare)) {
+			if (notifyMatch) {
+			    sendNotify = true;
+			    type =
+				MonitorNotification.STRING_TO_COMPARE_VALUE_MATCHED;
+			    timeStamp = derivedGaugeTimestamp[index];
+			    msg = "";
+			    derGauge = derivedGauge[index];
+			    trigger = stringToCompare;
+
+			}
+			status[index] = DIFFERING;
+		    }
+		} else if (status[index] == DIFFERING) {
+		    if (!derivedGauge[index].equals(stringToCompare)) {
+			if (notifyDiffer) {
+			    sendNotify = true;
+			    type =
+				MonitorNotification.STRING_TO_COMPARE_VALUE_DIFFERED;
+			    timeStamp = derivedGaugeTimestamp[index];
+			    msg = "";
+			    derGauge = derivedGauge[index];
+			    trigger = stringToCompare;
+			}
+			status[index] = MATCHING;
+		    }
+		}
+	    }
+	}
+
+	if (sendNotify) {
+	    sendNotification(type, timeStamp, msg, derGauge, trigger, index);
+	}
+!!!8335003.java!!!	notifyAlarmClock(in index : int) : void
+	boolean sendNotify = false;
+	String type = null;
+	long timeStamp = 0;
+	String msg = null;
+	Object derGauge = null;
+	Object trigger = null;
+
+        Object  scan_string = null;
+        String  notif_type = null;
+
+	synchronized(this) {
+	    if (!isActive)
+		return;
+
+	    // Check if the observed object and observed attribute are valid.
+	    //
+
+	    // Check that neither the observed object nor the observed
+	    // attribute are null.  If the observed object or observed
+	    // attribute is null, this means that the monitor started
+	    // before a complete initialization and nothing is done.
+	    //
+	    if ((getObservedObject(index) == null) ||
+		(getObservedAttribute() == null))
+		return;
+
+	    // Check that the observed object is registered in the
+	    // MBean server and that the observed attribute belongs to
+	    // the observed object.
+	    //
+	    try {
+		scan_string = server.getAttribute(getObservedObject(index),
+						  getObservedAttribute());
+		if (scan_string == null)
+		    return;
+	    } catch (NullPointerException np_ex) {
+		if (alreadyNotified(index, RUNTIME_ERROR_NOTIFIED))
+		    return;
+		else {
+		    notif_type = MonitorNotification.RUNTIME_ERROR;
+		    setAlreadyNotified(index, RUNTIME_ERROR_NOTIFIED);
+		    msg =
+			"The string monitor must be registered in " +
+			"the MBean server.";
+		}
+	    } catch (InstanceNotFoundException inf_ex) {
+		if (alreadyNotified(index, OBSERVED_OBJECT_ERROR_NOTIFIED))
+		    return;
+		else {
+		    notif_type = MonitorNotification.OBSERVED_OBJECT_ERROR;
+		    setAlreadyNotified(index, OBSERVED_OBJECT_ERROR_NOTIFIED);
+		    msg =
+			"The observed object must be registered in " +
+			"the MBean server.";
+		}
+	    } catch (AttributeNotFoundException anf_ex) {
+		if (alreadyNotified(index, OBSERVED_ATTRIBUTE_ERROR_NOTIFIED))
+		    return;
+		else {
+		    notif_type = MonitorNotification.OBSERVED_ATTRIBUTE_ERROR;
+		    setAlreadyNotified(index,
+				       OBSERVED_ATTRIBUTE_ERROR_NOTIFIED);
+		    msg =
+			"The observed attribute must be accessible in " +
+			"the observed object.";
+		}
+	    } catch (MBeanException mb_ex) {
+		if (alreadyNotified(index, RUNTIME_ERROR_NOTIFIED))
+		    return;
+		else {
+		    notif_type = MonitorNotification.RUNTIME_ERROR;
+		    setAlreadyNotified(index, RUNTIME_ERROR_NOTIFIED);
+		    msg = mb_ex.getMessage();
+		}
+	    } catch (ReflectionException ref_ex) {
+		if (alreadyNotified(index, OBSERVED_ATTRIBUTE_ERROR_NOTIFIED))
+		    return;
+		else {
+		    notif_type = MonitorNotification.OBSERVED_ATTRIBUTE_ERROR;
+		    setAlreadyNotified(index, OBSERVED_ATTRIBUTE_ERROR_NOTIFIED);
+		    msg = ref_ex.getMessage();
+		}
+	    }
+
+	    if (msg == null) {
+		// Check that the observed attribute is of type "String".
+		//
+		if (!(scan_string instanceof String)) {
+		    if (alreadyNotified(index,
+					OBSERVED_ATTRIBUTE_TYPE_ERROR_NOTIFIED))
+			return;
+		    else {
+			notif_type =
+			    MonitorNotification.OBSERVED_ATTRIBUTE_TYPE_ERROR;
+			setAlreadyNotified(index,
+					   OBSERVED_ATTRIBUTE_TYPE_ERROR_NOTIFIED);
+			msg =
+			    "The observed attribute type must be " +
+			    "a string type.";
+		    }
+		}
+	    }
+
+	    if (msg == null) {
+
+		// Clear all already notified flags.
+		//
+		resetAllAlreadyNotified(index);
+
+		// Update the derived gauge attributes.
+		//
+		updateDerivedGauge(scan_string, index);
+
+		// Notify the listeners.
+		//
+		updateNotifications(index);
+
+	    } else {
+
+		// msg != null, will send the monitor error notification.
+
+		timeStamp = derivedGaugeTimestamp[index];
+                derGauge = derivedGauge[index];
+
+		// Reset values.
+		//
+		status[index] = MATCHING_OR_DIFFERING;
+	    }
+	}
+
+	if (msg != null) {
+	    sendNotification(type, timeStamp, msg, derGauge, null, index);
+	}
+!!!8335131.java!!!	insertSpecificElementAt(in index : int) : void
+        // Update derivedGauge, derivedGaugeTimestamp, and status arrays.
+        //
+
+	if (index != elementCount)
+	    throw new Error("Internal error: index != elementCount");
+
+	if (elementCount >= derivedGauge.length) {
+	    derivedGauge = expandArray(derivedGauge);
+	    derivedGaugeTimestamp = expandArray(derivedGaugeTimestamp);
+	    status = expandArray(status);
+	}
+
+	derivedGauge[index] = "";
+	derivedGaugeTimestamp[index] = System.currentTimeMillis();
+	status[index] = MATCHING_OR_DIFFERING;
+!!!8335259.java!!!	removeSpecificElementAt(in index : int) : void
+	if (index < 0 || index >= elementCount)
+	    return;
+
+        // Update derivedGauge, derivedGaugeTimestamp, and status arrays.
+        //
+        removeElementAt(derivedGauge, index);
+        removeElementAt(derivedGaugeTimestamp, index);
+        removeElementAt(status, index);

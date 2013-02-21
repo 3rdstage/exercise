@@ -1,0 +1,91 @@
+class SecuritySupport
+!!!10099611.java!!!	getContextClassLoader() : ClassLoader
+	return (ClassLoader)
+		AccessController.doPrivileged(new PrivilegedAction() {
+	    public Object run() {
+		ClassLoader cl = null;
+		try {
+		    cl = Thread.currentThread().getContextClassLoader();
+		} catch (SecurityException ex) { }
+		return cl;
+	    }
+	});
+!!!10099739.java!!!	getSystemProperty(in propName : String) : String
+	return (String)
+            AccessController.doPrivileged(new PrivilegedAction() {
+                public Object run() {
+                    return System.getProperty(propName);
+                }
+            });
+!!!10099867.java!!!	getFileInputStream(in file : File) : FileInputStream
+	try {
+            return (FileInputStream)
+                AccessController.doPrivileged(new PrivilegedExceptionAction() {
+                    public Object run() throws FileNotFoundException {
+                        return new FileInputStream(file);
+                    }
+                });
+	} catch (PrivilegedActionException e) {
+	    throw (FileNotFoundException)e.getException();
+	}
+!!!10099995.java!!!	getURLInputStream(in url : URL) : InputStream
+	try {
+            return (InputStream)
+                AccessController.doPrivileged(new PrivilegedExceptionAction() {
+                    public Object run() throws IOException {
+                        return url.openStream();
+                    }
+                });
+	} catch (PrivilegedActionException e) {
+	    throw (IOException)e.getException();
+	}
+!!!10100123.java!!!	getResourceAsURL(in cl : ClassLoader, in name : String) : URL
+        return (URL)
+            AccessController.doPrivileged(new PrivilegedAction() {
+                public Object run() {
+                    URL url;
+                    if (cl == null) {
+                        url = ClassLoader.getSystemResource(name);
+                    } else {
+                        url = cl.getResource(name);
+                    }
+                    return url;
+                }
+            });
+!!!10100251.java!!!	getResources(in cl : ClassLoader, in name : String) : Enumeration
+        try{
+        return (Enumeration)
+            AccessController.doPrivileged(new PrivilegedExceptionAction() {
+                public Object run() throws IOException{
+                    Enumeration enumeration;
+                    if (cl == null) {
+                        enumeration = ClassLoader.getSystemResources(name);
+                    } else {
+                        enumeration = cl.getResources(name);
+                    }
+                    return enumeration;
+                }
+            });
+        }catch(PrivilegedActionException e){
+            throw (IOException)e.getException();
+        }
+!!!10100379.java!!!	getResourceAsStream(in cl : ClassLoader, in name : String) : InputStream
+        return (InputStream)
+            AccessController.doPrivileged(new PrivilegedAction() {
+                public Object run() {
+                    InputStream ris;
+                    if (cl == null) {
+                        ris = ClassLoader.getSystemResourceAsStream(name);
+                    } else {
+                        ris = cl.getResourceAsStream(name);
+                    }
+                    return ris;
+                }
+            });
+!!!10100507.java!!!	doesFileExist(in f : File) : boolean
+    return ((Boolean)
+            AccessController.doPrivileged(new PrivilegedAction() {
+                public Object run() {
+                    return new Boolean(f.exists());
+                }
+            })).booleanValue();

@@ -1,0 +1,87 @@
+class ProcessBuilder
+!!!7020443.java!!!	ProcessBuilder(inout command : List)
+	if (command == null)
+	    throw new NullPointerException();
+	this.command = command;
+!!!7020571.java!!!	ProcessBuilder(inout  : String...command)
+	this.command = new ArrayList<String>(command.length);
+	for (String arg : command)
+	    this.command.add(arg);
+!!!7020699.java!!!	command(inout command : List) : ProcessBuilder
+	if (command == null)
+	    throw new NullPointerException();
+	this.command = command;
+	return this;
+!!!7020827.java!!!	command(inout  : String...command) : ProcessBuilder
+	this.command = new ArrayList<String>(command.length);
+	for (String arg : command)
+	    this.command.add(arg);
+	return this;
+!!!7020955.java!!!	command() : List
+	return command;
+!!!7021083.java!!!	environment() : Map
+	SecurityManager security = System.getSecurityManager();
+	if (security != null)
+	    security.checkPermission(new RuntimePermission("getenv.*"));
+
+	if (environment == null)
+	    environment = ProcessEnvironment.environment();
+
+	assert environment != null;
+
+	return environment;
+!!!7021211.java!!!	environment(in envp : String) : ProcessBuilder
+	assert environment == null;
+	if (envp != null) {
+	    environment = ProcessEnvironment.emptyEnvironment(envp.length);
+	    assert environment != null;
+
+	    for (String envstring : envp) {
+		// Before 1.5, we blindly passed invalid envstrings
+		// to the child process.
+		// We would like to throw an exception, but do not,
+		// for compatibility with old broken code.
+
+		// Silently discard any trailing junk.
+		if (envstring.indexOf((int) '\u0000') != -1)
+		    envstring = envstring.replaceFirst("\u0000.*", "");
+
+		int eqlsign =
+		    envstring.indexOf('=', ProcessEnvironment.MIN_NAME_LENGTH);
+		// Silently ignore envstrings lacking the required `='.
+		if (eqlsign != -1)
+		    environment.put(envstring.substring(0,eqlsign),
+				    envstring.substring(eqlsign+1));
+	    }
+	}
+	return this;
+!!!7021339.java!!!	directory() : File
+	return directory;
+!!!7021467.java!!!	directory(inout directory : File) : ProcessBuilder
+	this.directory = directory;
+	return this;
+!!!7021595.java!!!	redirectErrorStream() : boolean
+	return redirectErrorStream;
+!!!7021723.java!!!	redirectErrorStream(inout redirectErrorStream : boolean) : ProcessBuilder
+	this.redirectErrorStream = redirectErrorStream;
+	return this;
+!!!7021851.java!!!	start() : Process
+	// Must convert to array first -- a malicious user-supplied
+	// list might try to circumvent the security check.
+	String[] cmdarray = command.toArray(new String[command.size()]);
+	for (String arg : cmdarray)
+	    if (arg == null)
+		throw new NullPointerException();
+	// Throws IndexOutOfBoundsException if command is empty
+	String prog = cmdarray[0];
+
+	SecurityManager security = System.getSecurityManager();
+	if (security != null)
+	    security.checkExec(prog);
+
+	String dir = directory == null ? null : directory.toString();
+
+	return ProcessImpl.start(cmdarray,
+				 environment,
+				 dir,
+				 redirectErrorStream);

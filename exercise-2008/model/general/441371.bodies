@@ -1,0 +1,347 @@
+class Handler
+!!!2671515.java!!!	windowLostFocus(inout e : WindowEvent) : void
+            cancelResize();
+!!!2671643.java!!!	componentResized(inout e : ComponentEvent) : void
+            // Get the JInternalFrame's parent container size
+            Rectangle parentNewBounds = ((Component) e.getSource()).getBounds();
+            JInternalFrame.JDesktopIcon icon = null;
+
+            if (frame != null) {
+                icon = frame.getDesktopIcon();
+                // Resize the internal frame if it is maximized and relocate
+                // the associated icon as well.
+                if (frame.isMaximum()) {
+                    frame.setBounds(0, 0, parentNewBounds.width,
+                        parentNewBounds.height);
+                }
+            }
+
+            // Relocate the icon base on the new parent bounds.
+            if (icon != null) {
+                Rectangle iconBounds = icon.getBounds();
+                int y = iconBounds.y +
+                    (parentNewBounds.height - parentBounds.height);
+                icon.setBounds(iconBounds.x, y,
+                    iconBounds.width, iconBounds.height);
+            }
+
+            // Update the new parent bounds for next resize.
+            if (!parentBounds.equals(parentNewBounds)) {
+                parentBounds = parentNewBounds;
+            }
+
+            // Validate the component tree for this container.
+            if (frame != null) frame.validate();
+!!!2672155.java!!!	internalFrameClosed(inout e : InternalFrameEvent) : void
+            frame.removeInternalFrameListener(getHandler());
+!!!2672283.java!!!	internalFrameActivated(inout e : InternalFrameEvent) : void
+            if (!isKeyBindingRegistered()){
+                setKeyBindingRegistered(true);
+                setupMenuOpenKey();
+                setupMenuCloseKey();
+            }
+            if (isKeyBindingRegistered())
+                setKeyBindingActive(true);
+!!!2672411.java!!!	internalFrameDeactivated(inout e : InternalFrameEvent) : void
+            setKeyBindingActive(false);
+!!!2673307.java!!!	preferredLayoutSize(inout c : Container) : Dimension
+            Dimension result;
+            Insets i = frame.getInsets();
+        
+            result = new Dimension(frame.getRootPane().getPreferredSize());
+            result.width += i.left + i.right;
+            result.height += i.top + i.bottom;
+
+            if(getNorthPane() != null) {
+                Dimension d = getNorthPane().getPreferredSize();
+                result.width = Math.max(d.width, result.width);
+                result.height += d.height;
+            }
+
+            if(getSouthPane() != null) {
+                Dimension d = getSouthPane().getPreferredSize();
+                result.width = Math.max(d.width, result.width);
+                result.height += d.height;
+            }
+
+            if(getEastPane() != null) {
+                Dimension d = getEastPane().getPreferredSize();
+                result.width += d.width;
+                result.height = Math.max(d.height, result.height);
+            }
+
+            if(getWestPane() != null) {
+                Dimension d = getWestPane().getPreferredSize();
+                result.width += d.width;
+                result.height = Math.max(d.height, result.height);
+            }
+            return result;
+!!!2673435.java!!!	minimumLayoutSize(inout c : Container) : Dimension
+            // The minimum size of the internal frame only takes into
+            // account the title pane since you are allowed to resize
+            // the frames to the point where just the title pane is visible.
+            Dimension result = new Dimension();
+            if (getNorthPane() != null &&
+                getNorthPane() instanceof BasicInternalFrameTitlePane) {
+                  result = new Dimension(getNorthPane().getMinimumSize());
+            }
+            Insets i = frame.getInsets();
+            result.width += i.left + i.right;
+            result.height += i.top + i.bottom;
+        
+            return result;
+!!!2673563.java!!!	layoutContainer(inout c : Container) : void
+            Insets i = frame.getInsets();
+            int cx, cy, cw, ch;
+            
+            cx = i.left;
+            cy = i.top;
+            cw = frame.getWidth() - i.left - i.right;
+            ch = frame.getHeight() - i.top - i.bottom;
+            
+            if(getNorthPane() != null) {
+                Dimension size = getNorthPane().getPreferredSize();
+                if (DefaultLookup.getBoolean(frame, BasicInternalFrameUI.this,
+                          "InternalFrame.layoutTitlePaneAtOrigin", false)) {
+                    cy = 0;
+		    ch += i.top;
+                    getNorthPane().setBounds(0, 0, frame.getWidth(),
+                                             size.height);
+                }
+                else {
+                    getNorthPane().setBounds(cx, cy, cw, size.height);
+                }
+                cy += size.height;
+                ch -= size.height;
+            }
+    
+            if(getSouthPane() != null) {
+                Dimension size = getSouthPane().getPreferredSize();
+                getSouthPane().setBounds(cx, frame.getHeight() 
+                                                    - i.bottom - size.height, 
+                                                    cw, size.height);
+                ch -= size.height;
+            }
+    
+            if(getWestPane() != null) {
+                Dimension size = getWestPane().getPreferredSize();
+                getWestPane().setBounds(cx, cy, size.width, ch);
+                cw -= size.width;
+                cx += size.width;           
+            }
+    
+            if(getEastPane() != null) {
+                Dimension size = getEastPane().getPreferredSize();
+                getEastPane().setBounds(cw - size.width, cy, size.width, ch);
+                cw -= size.width;           
+            }
+            
+            if(frame.getRootPane() != null) {
+                frame.getRootPane().setBounds(cx, cy, cw, ch);
+            }
+!!!2673691.java!!!	mousePressed(inout e : MouseEvent) : void
+            // what is going on here is the GlassPane is up on the inactive
+            // internalframe and want's to "catch" the first mousePressed on
+            // the frame in order to give it to the BorderLister (and not the
+            // underlying component) and let it activate the frame
+            if (borderListener != null){
+                borderListener.mousePressed(e);
+            } 
+            forwardMouseEvent(e);
+!!!2673819.java!!!	mouseEntered(inout e : MouseEvent) : void
+            forwardMouseEvent(e);
+!!!2673947.java!!!	mouseMoved(inout e : MouseEvent) : void
+            forwardMouseEvent(e);
+!!!2674075.java!!!	mouseExited(inout e : MouseEvent) : void
+            forwardMouseEvent(e);
+!!!2674331.java!!!	mouseReleased(inout e : MouseEvent) : void
+            forwardMouseEvent(e);
+!!!2674459.java!!!	mouseDragged(inout e : MouseEvent) : void
+            forwardMouseEvent(e);
+!!!2674587.java!!!	forwardMouseEvent(inout e : MouseEvent) : void
+            // We only want to do this for the selected internal frame.
+            Component target =
+                findComponentAt(frame.getRootPane().getLayeredPane(), 
+                    e.getX(), e.getY());
+
+            // Search hierarchy for target with mouse listeners.
+            while ((target != null)                                &&
+                   ((target.getMouseListeners().length == 0)       &&
+                    (target.getMouseMotionListeners().length == 0) &&
+                    (target.getMouseWheelListeners().length == 0))) {
+                target = target.getParent();
+            }
+            if (target == null) {
+                // No target found with mouse listeners.
+                return;
+            }
+
+            int id = e.getID();
+            switch(id) {
+                case MouseEvent.MOUSE_ENTERED:
+                    if (isDragging && !frame.isSelected()) {
+                        return;
+                    }
+                    if (target != mouseEventTarget) {
+                        mouseEventTarget = target;
+                    }
+                    retargetMouseEvent(id, e, mouseEventTarget);
+                    break;
+                case MouseEvent.MOUSE_PRESSED:
+                    if (target != mouseEventTarget) {
+                        mouseEventTarget = target;
+                    }
+                    retargetMouseEvent(id, e, mouseEventTarget);
+                    // Set the drag source in case we start dragging.
+                    dragSource = target;
+                    break;
+                case MouseEvent.MOUSE_EXITED:
+                    if (isDragging && !frame.isSelected()) {
+                        return;
+                    }
+                    retargetMouseEvent(id, e, mouseEventTarget);
+                    break;
+                case MouseEvent.MOUSE_CLICKED:
+                    retargetMouseEvent(id, e, mouseEventTarget);
+                    break;
+                case MouseEvent.MOUSE_MOVED:
+                    if (target != mouseEventTarget) {
+                        retargetMouseEvent(MouseEvent.MOUSE_EXITED, e,
+                                mouseEventTarget);
+                        mouseEventTarget = target;
+                        retargetMouseEvent(MouseEvent.MOUSE_ENTERED, e,
+                                mouseEventTarget);
+                    }
+                    retargetMouseEvent(id, e, mouseEventTarget);
+                    break;
+                case MouseEvent.MOUSE_DRAGGED:
+                    if (!isDragging) {
+                        isDragging = true;
+                    }
+                    retargetMouseEvent(id, e, dragSource);
+                    break;
+                case MouseEvent.MOUSE_RELEASED:
+                    if (isDragging) {
+                        retargetMouseEvent(id, e, dragSource);
+                        isDragging = false;
+                    } else {
+                        retargetMouseEvent(id, e, mouseEventTarget);
+                    }
+                    break;
+                case MouseEvent.MOUSE_WHEEL:
+                    retargetMouseEvent(id, e, mouseEventTarget);
+                    break;
+            }
+!!!2674715.java!!!	findComponentAt(inout c : Container, in x : int, in y : int) : Component
+        if (!c.contains(x, y)) {
+	  return c;
+        }
+        int ncomponents = c.getComponentCount();
+        Component component[] = c.getComponents();
+        for (int i = 0 ; i < ncomponents ; i++) {
+	  Component comp = component[i];
+	  Point loc = comp.getLocation();
+	  if ((comp != null) && (comp.contains(x - loc.x, y - loc.y)) &&
+	      (comp.getPeer() instanceof LightweightPeer) &&
+	      (comp.isVisible() == true)) {
+	    // found a component that intersects the point, see if there
+	    // is a deeper possibility.
+	    if (comp instanceof Container) {
+	      Container child = (Container) comp;
+	      Point childLoc = child.getLocation();
+	      Component deeper = findComponentAt(child,
+						 x - childLoc.x, y - childLoc.y);
+	      if (deeper != null) {
+		return deeper;
+	      }
+	    } else {
+	      return comp;
+	    }
+	  }
+        }
+        return c;
+!!!2674843.java!!!	retargetMouseEvent(in id : int, inout e : MouseEvent, inout target : Component) : void
+            if (target == null) {
+                return;
+            }
+            // fix for bug #4202966 -- hania
+            // When retargetting a mouse event, we need to translate
+            // the event's coordinates relative to the target.
+
+            Point p = SwingUtilities.convertPoint(frame.getLayeredPane(),
+                                                e.getX(), e.getY(),
+                                                target);
+            MouseEvent retargeted = new MouseEvent(target, 
+                id,
+                e.getWhen(),
+                e.getModifiers() | e.getModifiersEx(),
+                p.x,
+                p.y,
+                e.getClickCount(),
+                e.isPopupTrigger());
+            target.dispatchEvent(retargeted);
+!!!2674971.java!!!	propertyChange(inout evt : PropertyChangeEvent) : void
+            String prop = (String)evt.getPropertyName();
+            JInternalFrame f = (JInternalFrame)evt.getSource();
+            Object newValue = evt.getNewValue();
+            Object oldValue = evt.getOldValue();
+
+            if (JInternalFrame.IS_CLOSED_PROPERTY == prop) {
+                if (newValue == Boolean.TRUE) {
+                    cancelResize();
+                    if ((frame.getParent() != null) && componentListenerAdded) {
+                        frame.getParent().removeComponentListener(
+                                componentListener);
+                    }
+                    closeFrame(f);
+                }
+            } else if (JInternalFrame.IS_MAXIMUM_PROPERTY == prop) {
+                if(newValue == Boolean.TRUE) {
+                    maximizeFrame(f);
+                } else {
+                    minimizeFrame(f);
+                }
+            } else if(JInternalFrame.IS_ICON_PROPERTY == prop) {
+                if (newValue == Boolean.TRUE) {
+                    iconifyFrame(f);
+                } else {
+                    deiconifyFrame(f);
+                }
+            } else if (JInternalFrame.IS_SELECTED_PROPERTY == prop) {
+                Component glassPane = f.getGlassPane();
+                if (newValue == Boolean.TRUE && oldValue == Boolean.FALSE) {
+                    activateFrame(f);
+                    glassPane.setVisible(false);
+                } else if (newValue == Boolean.FALSE &&
+                           oldValue == Boolean.TRUE) {
+                    deactivateFrame(f);
+                    glassPane.setVisible(true);
+                }
+            } else if (prop == "ancestor") {
+                if (newValue == null) {
+                    cancelResize();
+                }
+                if (frame.getParent() != null) {
+                    parentBounds = f.getParent().getBounds();
+                } else {
+                    parentBounds = null;
+                }
+                if ((frame.getParent() != null) && !componentListenerAdded) {
+                    f.getParent().addComponentListener(componentListener);
+                    componentListenerAdded = true;
+                } else if ((newValue == null) && componentListenerAdded) {
+                    if (f.getParent() != null) {
+                        f.getParent().removeComponentListener(
+                                componentListener);
+                    }
+                    componentListenerAdded = false;
+                }
+            } else if (JInternalFrame.TITLE_PROPERTY == prop ||
+                    prop == "closable" || prop == "iconable" ||
+                    prop == "maximizable") {
+                Dimension dim = frame.getMinimumSize();
+                Dimension frame_dim = frame.getSize();
+                if (dim.width > frame_dim.width) {
+                    frame.setSize(dim.width, frame_dim.height);
+                }
+            }

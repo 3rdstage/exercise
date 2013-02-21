@@ -1,0 +1,127 @@
+class DragFixHandler
+!!!2915355.java!!!	isActualPath(inout path : TreePath, in x : int, in y : int) : boolean
+            if (path == null) {
+                return false;
+            }
+
+            Rectangle bounds = getPathBounds(tree, path);
+            if (y > (bounds.y + bounds.height)) {
+                return false;
+            }
+
+            return (x >= bounds.x) && (x <= (bounds.x + bounds.width));
+!!!2915483.java!!!	mousePressed(inout e : MouseEvent) : void
+            if (SwingUtilities2.shouldIgnore(e, tree)) {
+                return;
+            }
+
+            // if we can't stop any ongoing editing, do nothing
+            if (isEditing(tree) && tree.getInvokesStopCellEditing()
+                                && !stopEditing(tree)) {
+                return;
+            }
+
+            completeEditing();
+
+            pressedPath = getClosestPathForLocation(tree, e.getX(), e.getY());
+
+            if (tree.getDragEnabled()) {
+                mousePressedDND(e);
+            } else {
+                SwingUtilities2.adjustFocus(tree);
+                handleSelectionImpl(e, pressedPath);
+            }
+!!!2915611.java!!!	mousePressedDND(inout e : MouseEvent) : void
+            pressedEvent = e;
+            boolean grabFocus = true;
+            dragStarted = false;
+            valueChangedOnPress = false;
+
+            // if we have a valid path and this is a drag initiating event
+            if (isActualPath(pressedPath, e.getX(), e.getY()) &&
+                    DragRecognitionSupport.mousePressed(e)) {
+
+                dragPressDidSelection = false;
+                
+                if (e.isControlDown()) {
+                    // do nothing for control - will be handled on release
+                    // or when drag starts
+                    return;
+                } else if (!e.isShiftDown() && tree.isPathSelected(pressedPath)) {
+                    // clicking on something that's already selected
+                    // and need to make it the lead now
+                    setAnchorSelectionPath(pressedPath);
+                    setLeadSelectionPath(pressedPath, true);
+                    return;
+                }
+
+                dragPressDidSelection = true;
+
+                // could be a drag initiating event - don't grab focus
+                grabFocus = false;
+            }
+
+            if (grabFocus) {
+                SwingUtilities2.adjustFocus(tree);
+            }
+
+            handleSelectionImpl(e, pressedPath);
+!!!2915739.java!!!	dragStarting(inout me : MouseEvent) : void
+            dragStarted = true;
+
+            if (me.isControlDown()) {
+                tree.addSelectionPath(pressedPath);
+                setAnchorSelectionPath(pressedPath);
+                setLeadSelectionPath(pressedPath, true);
+            }
+
+            pressedEvent = null;
+            pressedPath = null;
+!!!2915867.java!!!	mouseDragged(inout e : MouseEvent) : void
+            if (SwingUtilities2.shouldIgnore(e, tree)) {
+                return;
+            }
+
+            if (tree.getDragEnabled()) {
+                DragRecognitionSupport.mouseDragged(e, this);
+            }
+!!!2915995.java!!!	mouseReleased(inout e : MouseEvent) : void
+            if (SwingUtilities2.shouldIgnore(e, tree)) {
+                return;
+            }
+
+            if (tree.getDragEnabled()) {
+                mouseReleasedDND(e);
+            }
+
+            pressedEvent = null;
+            pressedPath = null;
+!!!2916123.java!!!	mouseReleasedDND(inout e : MouseEvent) : void
+            MouseEvent me = DragRecognitionSupport.mouseReleased(e);
+            if (me != null) {
+                SwingUtilities2.adjustFocus(tree);
+                if (!dragPressDidSelection) {
+                    handleSelectionImpl(me, pressedPath);
+                }
+            }
+
+            if (!dragStarted) {
+                
+                // Note: We don't give the tree a chance to start editing if the
+                // mouse press caused a selection change. Otherwise the default
+                // tree cell editor will start editing on EVERY press and
+                // release. If it turns out that this affects some editors, we
+                // can always parameterize this with a client property. ex:
+                //
+                // if (pressedPath != null &&
+                //         (Boolean.TRUE == tree.getClientProperty("Tree.DnD.canEditOnValueChange") ||
+                //          !valueChangedOnPress) && ...
+                if (pressedPath != null && !valueChangedOnPress &&
+                        isActualPath(pressedPath, pressedEvent.getX(), pressedEvent.getY())) {
+
+                    startEditingOnRelease(pressedPath, pressedEvent, e);
+                }
+            }
+!!!2916251.java!!!	valueChanged(inout event : TreeSelectionEvent) : void
+            valueChangedOnPress = true;
+            super.valueChanged(event);

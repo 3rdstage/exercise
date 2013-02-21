@@ -1,0 +1,41 @@
+class AtomicStampedReference
+!!!7995419.java!!!	AtomicStampedReference(inout initialRef : V, in initialStamp : int)
+        atomicRef = new AtomicReference<ReferenceIntegerPair<V>>
+            (new ReferenceIntegerPair<V>(initialRef, initialStamp));
+!!!7995547.java!!!	getReference() : V
+        return atomicRef.get().reference;
+!!!7995675.java!!!	getStamp() : int
+        return atomicRef.get().integer;
+!!!7995803.java!!!	get(in stampHolder : int) : V
+        ReferenceIntegerPair<V> p = atomicRef.get();
+        stampHolder[0] = p.integer;
+        return p.reference;
+!!!7995931.java!!!	weakCompareAndSet(inout expectedReference : V, inout newReference : V, in expectedStamp : int, in newStamp : int) : boolean
+        ReferenceIntegerPair current = atomicRef.get();
+        return  expectedReference == current.reference &&
+            expectedStamp == current.integer &&
+            ((newReference == current.reference &&
+              newStamp == current.integer) ||
+             atomicRef.weakCompareAndSet(current,
+                                     new ReferenceIntegerPair<V>(newReference,
+                                                              newStamp)));
+!!!7996059.java!!!	compareAndSet(inout expectedReference : V, inout newReference : V, in expectedStamp : int, in newStamp : int) : boolean
+        ReferenceIntegerPair current = atomicRef.get();
+        return  expectedReference == current.reference &&
+            expectedStamp == current.integer &&
+            ((newReference == current.reference &&
+              newStamp == current.integer) ||
+             atomicRef.compareAndSet(current,
+                                     new ReferenceIntegerPair<V>(newReference,
+                                                              newStamp)));
+!!!7996187.java!!!	set(inout newReference : V, in newStamp : int) : void
+        ReferenceIntegerPair current = atomicRef.get();
+        if (newReference != current.reference || newStamp != current.integer)
+            atomicRef.set(new ReferenceIntegerPair<V>(newReference, newStamp));
+!!!7996315.java!!!	attemptStamp(inout expectedReference : V, in newStamp : int) : boolean
+        ReferenceIntegerPair current = atomicRef.get();
+        return  expectedReference == current.reference &&
+            (newStamp == current.integer ||
+             atomicRef.compareAndSet(current,
+                                     new ReferenceIntegerPair<V>(expectedReference,
+                                                              newStamp)));

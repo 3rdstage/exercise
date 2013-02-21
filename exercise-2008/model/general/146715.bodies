@@ -1,0 +1,45 @@
+class EntryIterator
+!!!258459.java!!!	next() : Entry
+            if (!hasNext())
+                throw new NoSuchElementException();
+            lastReturnedIndex = index++;
+            return this;
+!!!258587.java!!!	getKey() : K
+            checkLastReturnedIndexForEntryUse();
+            return keyUniverse[lastReturnedIndex];
+!!!258715.java!!!	getValue() : V
+            checkLastReturnedIndexForEntryUse();
+            return unmaskNull(vals[lastReturnedIndex]);
+!!!258843.java!!!	setValue(inout value : V) : V
+            checkLastReturnedIndexForEntryUse();
+            V oldValue = unmaskNull(vals[lastReturnedIndex]);
+            vals[lastReturnedIndex] = maskNull(value);
+            return oldValue;
+!!!258971.java!!!	equals(inout o : Object) : boolean
+            if (lastReturnedIndex < 0)
+                return o == this;
+
+            if (!(o instanceof Map.Entry))
+                return false;
+            Map.Entry e = (Map.Entry)o;
+            V ourValue = unmaskNull(vals[lastReturnedIndex]);
+            Object hisValue = e.getValue();
+            return e.getKey() == keyUniverse[lastReturnedIndex] &&
+                (ourValue == hisValue ||
+                 (ourValue != null && ourValue.equals(hisValue)));
+!!!259099.java!!!	hashCode() : int
+            if (lastReturnedIndex < 0)
+                return super.hashCode();
+
+            Object value = vals[lastReturnedIndex];
+            return keyUniverse[lastReturnedIndex].hashCode()
+                ^ (value == NULL ? 0 : value.hashCode());
+!!!259227.java!!!	toString() : String
+            if (lastReturnedIndex < 0)
+                return super.toString();
+
+            return keyUniverse[lastReturnedIndex] + "="
+                + unmaskNull(vals[lastReturnedIndex]);
+!!!259355.java!!!	checkLastReturnedIndexForEntryUse() : void
+            if (lastReturnedIndex < 0)
+                throw new IllegalStateException("Entry was removed");

@@ -1,0 +1,268 @@
+class Inet6Address
+!!!7210395.java!!!	Inet6Address()
+	super();
+	hostName = null;
+	ipaddress = new byte[INADDRSZ];
+	family = IPv6;
+!!!7210523.java!!!	Inet6Address(in hostName : String, in addr : byte, in scope_id : int)
+	this.hostName = hostName;
+	if (addr.length == INADDRSZ) { // normal IPv6 address
+	    family = IPv6;
+	    ipaddress = (byte[])addr.clone();
+	} 
+	if (scope_id >= 0) {
+	    this.scope_id = scope_id;
+	    scope_id_set = true;
+	}
+!!!7210651.java!!!	Inet6Address(in hostName : String, in addr : byte)
+	try {
+	    initif (hostName, addr, null);
+	} catch (UnknownHostException e) {} /* cant happen if ifname is null */
+!!!7210779.java!!!	Inet6Address(in hostName : String, in addr : byte, inout nif : NetworkInterface)
+	initif (hostName, addr, nif);
+!!!7210907.java!!!	Inet6Address(in hostName : String, in addr : byte, in ifname : String)
+	initstr (hostName, addr, ifname);
+!!!7211035.java!!!	getByAddress(in host : String, in addr : byte, inout nif : NetworkInterface) : Inet6Address
+	if (host != null && host.length() > 0 && host.charAt(0) == '[') {
+	    if (host.charAt(host.length()-1) == ']') {
+		host = host.substring(1, host.length() -1);
+	    }
+	}
+	if (addr != null) {
+	    if (addr.length == Inet6Address.INADDRSZ) {
+	    	return new Inet6Address(host, addr, nif); 
+	    } 
+	} 
+	throw new UnknownHostException("addr is of illegal length");
+!!!7211163.java!!!	getByAddress(in host : String, in addr : byte, in scope_id : int) : Inet6Address
+	if (host != null && host.length() > 0 && host.charAt(0) == '[') {
+	    if (host.charAt(host.length()-1) == ']') {
+		host = host.substring(1, host.length() -1);
+	    }
+	}
+	if (addr != null) {
+	    if (addr.length == Inet6Address.INADDRSZ) {
+	    	return new Inet6Address(host, addr, scope_id); 
+	    } 
+	} 
+	throw new UnknownHostException("addr is of illegal length");
+!!!7211291.java!!!	initstr(in hostName : String, in addr : byte, in ifname : String) : void
+	try {
+	    NetworkInterface nif = NetworkInterface.getByName (ifname);
+	    if (nif == null) {
+		throw new UnknownHostException ("no such interface " + ifname);
+	    }
+	    initif (hostName, addr, nif);
+	} catch (SocketException e) {
+	    throw new UnknownHostException ("SocketException thrown" + ifname);
+	}
+!!!7211419.java!!!	initif(in hostName : String, in addr : byte, inout nif : NetworkInterface) : void
+	this.hostName = hostName;
+	if (addr.length == INADDRSZ) { // normal IPv6 address
+	    family = IPv6;
+	    ipaddress = (byte[])addr.clone();
+	} 
+	if (nif != null) {
+	    this.scope_ifname = nif;
+	    scope_ifname_set = true;
+	    scope_id = deriveNumericScope (nif);
+	    scope_id_set = true;
+	}
+!!!7211547.java!!!	differentLocalAddressTypes(inout other : Inet6Address) : boolean
+
+	if (isLinkLocalAddress() && !other.isLinkLocalAddress()) {
+	    return false;
+	}
+	if (isSiteLocalAddress() && !other.isSiteLocalAddress()) {
+	    return false;
+	}
+	return true;
+!!!7211675.java!!!	deriveNumericScope(inout ifc : NetworkInterface) : int
+	Enumeration addresses = ifc.getInetAddresses();
+	while (addresses.hasMoreElements()) {
+	    InetAddress address = (InetAddress)addresses.nextElement();
+	    if (!(address instanceof Inet6Address)) {
+		continue;	
+	    }
+	    Inet6Address ia6_addr = (Inet6Address)address;
+	    /* check if site or link local prefixes match */
+	    if (!differentLocalAddressTypes(ia6_addr)){
+		/* type not the same, so carry on searching */
+		continue;
+	    }
+	    /* found a matching address - return its scope_id */
+	    return ia6_addr.scope_id;
+	}
+	throw new UnknownHostException ("no scope_id found");
+!!!7211803.java!!!	deriveNumericScope(in ifname : String) : int
+	Enumeration en;
+	try {
+	    en = NetworkInterface.getNetworkInterfaces();
+	} catch (SocketException e) {
+	    throw new UnknownHostException ("could not enumerate local network interfaces");
+	}
+	while (en.hasMoreElements()) {
+	    NetworkInterface ifc = (NetworkInterface)en.nextElement();
+	    if (ifc.getName().equals (ifname)) {
+		Enumeration addresses = ifc.getInetAddresses();
+		while (addresses.hasMoreElements()) {
+		    InetAddress address = (InetAddress)addresses.nextElement();
+		    if (!(address instanceof Inet6Address)) {
+			continue;	
+		    }
+		    Inet6Address ia6_addr = (Inet6Address)address;
+		    /* check if site or link local prefixes match */
+		    if (!differentLocalAddressTypes(ia6_addr)){
+			/* type not the same, so carry on searching */
+			continue;
+		    }
+		    /* found a matching address - return its scope_id */
+		    return ia6_addr.scope_id;
+		}
+	    }
+	}
+	throw new UnknownHostException ("No matching address found for interface : " +ifname);
+!!!7211931.java!!!	readObject(inout s : ObjectInputStream) : void
+	scope_ifname = null;
+	scope_ifname_set = false;
+	s.defaultReadObject();
+	
+	if (ifname != null && !"".equals (ifname)) {
+	    try {
+		scope_ifname = NetworkInterface.getByName(ifname);
+		try {
+		    scope_id = deriveNumericScope (scope_ifname);
+		} catch (UnknownHostException e) {
+		    // should not happen
+		    assert false;
+		}
+	    } catch (SocketException e) {}
+
+	    if (scope_ifname == null) {
+	        /* the interface does not exist on this system, so we clear
+ 	         * the scope information completely */
+	        scope_id_set = false;
+	        scope_ifname_set = false;
+	        scope_id = 0;
+	    }
+	}
+	/* if ifname was not supplied, then the numeric info is used */
+	    
+	ipaddress = (byte[])ipaddress.clone();
+
+	// Check that our invariants are satisfied
+	if (ipaddress.length != INADDRSZ) {
+	    throw new InvalidObjectException("invalid address length: "+
+					     ipaddress.length);
+	}
+	
+	if (family != IPv6) {
+	    throw new InvalidObjectException("invalid address family type");
+	}
+!!!7212059.java!!!	isMulticastAddress() : boolean
+	return ((ipaddress[0] & 0xff) == 0xff);
+!!!7212187.java!!!	isAnyLocalAddress() : boolean
+	byte test = 0x00;
+	for (int i = 0; i < INADDRSZ; i++) {
+	    test |= ipaddress[i];
+	}
+	return (test == 0x00);
+!!!7212315.java!!!	isLoopbackAddress() : boolean
+	byte test = 0x00;
+	for (int i = 0; i < 15; i++) {
+	    test |= ipaddress[i];
+	}
+	return (test == 0x00) && (ipaddress[15] == 0x01);
+!!!7212443.java!!!	isLinkLocalAddress() : boolean
+	return ((ipaddress[0] & 0xff) == 0xfe 
+		&& (ipaddress[1] & 0xc0) == 0x80);
+!!!7212571.java!!!	isSiteLocalAddress() : boolean
+	return ((ipaddress[0] & 0xff) == 0xfe 
+		&& (ipaddress[1] & 0xc0) == 0xc0);
+!!!7212699.java!!!	isMCGlobal() : boolean
+	return ((ipaddress[0] & 0xff) == 0xff
+		&& (ipaddress[1] & 0x0f) == 0x0e);
+!!!7212827.java!!!	isMCNodeLocal() : boolean
+	return ((ipaddress[0] & 0xff) == 0xff
+		&& (ipaddress[1] & 0x0f) == 0x01);
+!!!7212955.java!!!	isMCLinkLocal() : boolean
+	return ((ipaddress[0] & 0xff) == 0xff
+		&& (ipaddress[1] & 0x0f) == 0x02);
+!!!7213083.java!!!	isMCSiteLocal() : boolean
+	return ((ipaddress[0] & 0xff) == 0xff
+		&& (ipaddress[1] & 0x0f) == 0x05);
+!!!7213211.java!!!	isMCOrgLocal() : boolean
+	return ((ipaddress[0] & 0xff) == 0xff
+		&& (ipaddress[1] & 0x0f) == 0x08);
+!!!7213339.java!!!	getAddress() : byte
+	return (byte[])ipaddress.clone();
+!!!7213467.java!!!	getScopeId() : int
+	return scope_id;
+!!!7213595.java!!!	getScopedInterface() : NetworkInterface
+	return scope_ifname;
+!!!7213723.java!!!	getHostAddress() : String
+	String s = numericToTextFormat(ipaddress);
+	if (scope_ifname_set) { /* must check this first */
+	    s = s + "%" + scope_ifname.getName();
+	} else if (scope_id_set) {
+	    s = s + "%" + scope_id;
+	}
+	return s;
+!!!7213851.java!!!	hashCode() : int
+	if (ipaddress != null) {
+
+	    int hash = 0;
+	    int i=0;
+  	    while (i<INADDRSZ) {
+		int j=0;
+		int component=0;
+		while (j<4 && i<INADDRSZ) {
+		    component = (component << 8) + ipaddress[i];
+		    j++; 
+		    i++;
+		}
+		hash += component;
+	    }
+	    return hash;
+
+	} else {
+	    return 0;
+	}
+!!!7213979.java!!!	equals(inout obj : Object) : boolean
+	if (obj == null || 
+	    !(obj instanceof Inet6Address))
+	    return false;
+
+	Inet6Address inetAddr = (Inet6Address)obj;
+
+	for (int i = 0; i < INADDRSZ; i++) {
+	    if (ipaddress[i] != inetAddr.ipaddress[i])
+		return false;
+	}
+	
+	return true;
+!!!7214107.java!!!	isIPv4CompatibleAddress() : boolean
+	if ((ipaddress[0] == 0x00) && (ipaddress[1] == 0x00) && 
+	    (ipaddress[2] == 0x00) && (ipaddress[3] == 0x00) && 
+	    (ipaddress[4] == 0x00) && (ipaddress[5] == 0x00) && 
+	    (ipaddress[6] == 0x00) && (ipaddress[7] == 0x00) && 
+	    (ipaddress[8] == 0x00) && (ipaddress[9] == 0x00) && 
+	    (ipaddress[10] == 0x00) && (ipaddress[11] == 0x00))  {   
+	    return true;
+	}
+	return false;
+!!!7214235.java!!!	numericToTextFormat(in src : byte) : String
+	StringBuffer sb = new StringBuffer(39);
+	for (int i = 0; i < (INADDRSZ / INT16SZ); i++) {
+	    sb.append(Integer.toHexString(((src[i<<1]<<8) & 0xff00)
+					  | (src[(i<<1)+1] & 0xff)));
+	    if (i < (INADDRSZ / INT16SZ) -1 ) {
+	       sb.append(":");
+	    }
+	}
+	return sb.toString();
+!!!7214491.java!!!	writeObject(inout s : ObjectOutputStream) : void
+	if (scope_ifname_set) {
+	    ifname = scope_ifname.getName();
+	}
+	s.defaultWriteObject();

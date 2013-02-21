@@ -1,0 +1,75 @@
+class POAPolicyMediatorImpl_NR_USM
+!!!1343771.java!!!	POAPolicyMediatorImpl_NR_USM(inout policies : Policies, inout poa : POAImpl)
+	super( policies, poa ) ;
+
+	// assert !policies.retainServants() && policies.useServantManager()
+	if (policies.retainServants())
+	    throw poa.invocationWrapper().policyMediatorBadPolicyInFactory() ;
+
+	if (!policies.useServantManager())
+	    throw poa.invocationWrapper().policyMediatorBadPolicyInFactory() ;
+
+	locator = null ;
+!!!1343899.java!!!	internalGetServant(in id : byte, in operation : String) : Object
+ 
+	if (locator == null)
+	    throw poa.invocationWrapper().poaNoServantManager() ;
+    
+	CookieHolder cookieHolder = orb.peekInvocationInfo().getCookieHolder() ;
+
+	// Try - finally is J2EE requirement.
+	java.lang.Object servant;
+	try{
+	    poa.unlock() ;
+
+	    servant = locator.preinvoke(id, poa, operation, cookieHolder);
+	    if (servant == null)
+		servant = new NullServantImpl( poa.omgInvocationWrapper().nullServantReturned() ) ;
+	    else
+		setDelegate( (Servant)servant, id);
+	} finally {
+	    poa.lock() ;
+	}
+
+	return servant;
+!!!1344027.java!!!	returnServant() : void
+	OAInvocationInfo info = orb.peekInvocationInfo();
+	if (locator == null)
+	    return;
+
+	try {
+	    poa.unlock() ;
+	    locator.postinvoke(info.id(), (POA)(info.oa()),
+		info.getOperation(), info.getCookieHolder().value,
+		(Servant)(info.getServantContainer()) );
+	} finally {
+	    poa.lock() ;
+	}
+!!!1344155.java!!!	etherealizeAll() : void
+	
+	// NO-OP
+!!!1344283.java!!!	clearAOM() : void
+	// NO-OP
+!!!1344411.java!!!	getServantManager() : ServantManager
+	return locator ;
+!!!1344539.java!!!	setServantManager(inout servantManager : ServantManager) : void
+	if (locator != null)
+	    throw poa.invocationWrapper().servantManagerAlreadySet() ;
+
+	if (servantManager instanceof ServantLocator)
+	    locator = (ServantLocator)servantManager;
+	else
+	    throw poa.invocationWrapper().servantManagerBadType() ;
+!!!1344667.java!!!	getDefaultServant() : Servant
+	throw new WrongPolicy();
+!!!1344795.java!!!	setDefaultServant(inout servant : Servant) : void
+	throw new WrongPolicy();
+!!!1344923.java!!!	activateObject(in id : byte, inout servant : Servant) : void
+	throw new WrongPolicy();
+!!!1345051.java!!!	deactivateObject(in id : byte) : Servant
+	throw new WrongPolicy();
+!!!1345179.java!!!	servantToId(inout servant : Servant) : byte
+	
+	throw new WrongPolicy();
+!!!1345307.java!!!	idToServant(in id : byte) : Servant
+	throw new WrongPolicy();

@@ -1,0 +1,226 @@
+class ORB
+!!!1385115.java!!!	getSystemProperty(in name : String) : String
+
+	// This will not throw a SecurityException because this
+	// class was loaded from rt.jar using the bootstrap classloader.
+        String propValue = (String) AccessController.doPrivileged(
+	    new PrivilegedAction() {
+		public java.lang.Object run() {
+	            return System.getProperty(name);
+	        }
+            }
+	);
+
+	return propValue;
+!!!1385243.java!!!	getPropertyFromFile(in name : String) : String
+	// This will not throw a SecurityException because this
+	// class was loaded from rt.jar using the bootstrap classloader.
+
+        String propValue = (String) AccessController.doPrivileged(
+	    new PrivilegedAction() {
+		private Properties getFileProperties( String fileName ) {
+		    try {
+			File propFile = new File( fileName ) ;
+			if (!propFile.exists())
+			    return null ;
+
+			Properties props = new Properties() ;
+			FileInputStream fis = new FileInputStream(propFile);
+			try {
+			    props.load( fis );
+			} finally {
+			    fis.close() ;
+			}
+
+			return props ;
+		    } catch (Exception exc) {
+			return null ;
+		    }
+		}
+
+		public java.lang.Object run() {
+		    String userHome = System.getProperty("user.home");
+		    String fileName = userHome + File.separator + 
+			"orb.properties" ;
+		    Properties props = getFileProperties( fileName ) ;
+
+		    if (props != null) {
+			String value = props.getProperty( name ) ;
+			if (value != null) 
+			    return value ;
+		    }
+			
+		    String javaHome = System.getProperty("java.home");
+		    fileName = javaHome + File.separator
+			+ "lib" + File.separator + "orb.properties";
+		    props = getFileProperties( fileName ) ;
+
+		    if (props == null) 
+			return null ;
+		    else
+			return props.getProperty( name ) ;
+		}	
+	    }
+	);
+
+	return propValue;
+!!!1385371.java!!!	init() : ORB
+        if (singleton == null) {
+            String className = getSystemProperty(ORBSingletonClassKey);
+            if (className == null)
+                className = getPropertyFromFile(ORBSingletonClassKey);
+            if (className == null)
+                className = defaultORBSingleton;
+
+            singleton = create_impl(className);
+        }
+	return singleton;
+!!!1385499.java!!!	create_impl(in className : String) : ORB
+        
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        if (cl == null)
+            cl = ClassLoader.getSystemClassLoader();
+
+        try {
+            return (ORB) Class.forName(className, true, cl).newInstance();
+        } catch (Throwable ex) {
+	    SystemException systemException = new INITIALIZE(
+               "can't instantiate default ORB implementation " + className);
+	    systemException.initCause(ex);
+	    throw systemException;
+        }
+!!!1385627.java!!!	init(in args : String, inout props : Properties) : ORB
+	//
+	// Note that there is no standard command-line argument for
+	// specifying the default ORB implementation. For an
+	// application you can choose an implementation either by
+	// setting the CLASSPATH to pick a different org.omg.CORBA
+	// and it's baked-in ORB implementation default or by
+	// setting an entry in the properties object or in the
+	// system properties.
+	//
+        String className = null;
+	ORB orb;
+
+	if (props != null)
+	    className = props.getProperty(ORBClassKey);
+	if (className == null)
+	    className = getSystemProperty(ORBClassKey);
+	if (className == null)
+            className = getPropertyFromFile(ORBClassKey);
+        if (className == null)
+            className = defaultORB;
+
+	orb = create_impl(className);
+	orb.set_parameters(args, props);
+	return orb;
+!!!1385755.java!!!	init(inout app : Applet, inout props : Properties) : ORB
+        String className;
+	ORB orb;
+
+        className = app.getParameter(ORBClassKey);
+	if (className == null && props != null)
+	    className = props.getProperty(ORBClassKey);
+	if (className == null)
+	    className = getSystemProperty(ORBClassKey);
+	if (className == null)
+            className = getPropertyFromFile(ORBClassKey);
+        if (className == null)
+            className = defaultORB;
+
+        orb = create_impl(className);
+        orb.set_parameters(app, props);
+	return orb;
+!!!1386139.java!!!	connect(inout obj : Object) : void
+	throw new NO_IMPLEMENT();
+!!!1386267.java!!!	destroy() : void
+	throw new NO_IMPLEMENT();
+!!!1386395.java!!!	disconnect(inout obj : Object) : void
+	throw new NO_IMPLEMENT();
+!!!1387163.java!!!	create_operation_list(inout oper : Object) : NVList
+	// If we came here, it means that the actual ORB implementation
+	// did not have a create_operation_list(...CORBA.Object oper) method,
+	// so lets check if it has a create_operation_list(OperationDef oper)
+	// method.
+	try {
+	    // First try to load the OperationDef class
+	    String opDefClassName = "org.omg.CORBA.OperationDef";
+	    Class opDefClass = null;
+
+	    ClassLoader cl = Thread.currentThread().getContextClassLoader();
+	    if ( cl == null )
+		cl = ClassLoader.getSystemClassLoader();
+	    // if this throws a ClassNotFoundException, it will be caught below.
+	    opDefClass = Class.forName(opDefClassName, true, cl);
+	    
+	    // OK, we loaded OperationDef. Now try to get the
+	    // create_operation_list(OperationDef oper) method.
+	    Class[] argc = { opDefClass };
+            java.lang.reflect.Method meth = 
+                this.getClass().getMethod("create_operation_list", argc);
+
+	    // OK, the method exists, so invoke it and be happy.
+	    Object[] argx = { oper };
+            return (org.omg.CORBA.NVList)meth.invoke(this, argx);
+        } 
+        catch( java.lang.reflect.InvocationTargetException exs ) {
+            Throwable t = exs.getTargetException();
+            if (t instanceof Error) {
+                throw (Error) t;
+            }
+            else if (t instanceof RuntimeException) {
+                throw (RuntimeException) t;
+            }
+            else {
+                throw new org.omg.CORBA.NO_IMPLEMENT();
+            }
+        }
+	catch( RuntimeException ex ) {
+	    throw ex;
+	} 
+	catch( Exception exr ) {
+            throw new org.omg.CORBA.NO_IMPLEMENT();
+        }
+!!!1390107.java!!!	create_native_tc(in id : String, in name : String) : TypeCode
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1390235.java!!!	create_abstract_interface_tc(in id : String, in name : String) : TypeCode
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1390363.java!!!	create_fixed_tc(in digits : short, in scale : short) : TypeCode
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1390491.java!!!	create_value_tc(in id : String, in name : String, in type_modifier : short, inout concrete_base : TypeCode, inout members : ValueMember) : TypeCode
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1390619.java!!!	create_recursive_tc(in id : String) : TypeCode
+        // implemented in subclass
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1390747.java!!!	create_value_box_tc(in id : String, in name : String, inout boxed_type : TypeCode) : TypeCode
+        // implemented in subclass
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1391003.java!!!	get_current() : Current
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1391131.java!!!	run() : void
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1391259.java!!!	shutdown(inout wait_for_completion : boolean) : void
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1391387.java!!!	work_pending() : boolean
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1391515.java!!!	perform_work() : void
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1391643.java!!!	get_service_information(in service_type : short, inout service_info : ServiceInformationHolder) : boolean
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1391771.java!!!	create_dyn_any(inout value : Any) : DynAny
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1391899.java!!!	create_basic_dyn_any(inout type : TypeCode) : DynAny
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1392027.java!!!	create_dyn_struct(inout type : TypeCode) : DynStruct
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1392155.java!!!	create_dyn_sequence(inout type : TypeCode) : DynSequence
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1392283.java!!!	create_dyn_array(inout type : TypeCode) : DynArray
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1392411.java!!!	create_dyn_union(inout type : TypeCode) : DynUnion
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1392539.java!!!	create_dyn_enum(inout type : TypeCode) : DynEnum
+        throw new org.omg.CORBA.NO_IMPLEMENT();
+!!!1392667.java!!!	create_policy(in type : int, inout val : Any) : Policy
+	// Currently not implemented until PIORB.
+        throw new org.omg.CORBA.NO_IMPLEMENT();

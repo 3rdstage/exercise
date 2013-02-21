@@ -1,0 +1,97 @@
+class CompoundName
+!!!8464027.java!!!	CompoundName(inout comps : Enumeration, inout syntax : Properties)
+	if (syntax == null) {
+	    throw new NullPointerException();
+	}
+	mySyntax = syntax;
+	impl = new NameImpl(syntax, comps);
+!!!8464155.java!!!	CompoundName(in n : String, inout syntax : Properties)
+	if (syntax == null) {
+	    throw new NullPointerException();
+	}
+	mySyntax = syntax;
+	impl = new NameImpl(syntax, n);
+!!!8464283.java!!!	toString() : String
+	return (impl.toString());
+!!!8464411.java!!!	equals(inout obj : Object) : boolean
+	// %%% check syntax too?
+	return (obj != null &&
+		obj instanceof CompoundName &&
+		impl.equals(((CompoundName)obj).impl));
+!!!8464539.java!!!	hashCode() : int
+	return impl.hashCode();
+!!!8464667.java!!!	clone() : Object
+	return (new CompoundName(getAll(), mySyntax));
+!!!8464795.java!!!	compareTo(inout obj : Object) : int
+	if (!(obj instanceof CompoundName)) {
+	    throw new ClassCastException("Not a CompoundName");
+	}
+	return impl.compareTo(((CompoundName)obj).impl);
+!!!8464923.java!!!	size() : int
+	return (impl.size());
+!!!8465051.java!!!	isEmpty() : boolean
+	return (impl.isEmpty());
+!!!8465179.java!!!	getAll() : Enumeration
+	return (impl.getAll());
+!!!8465307.java!!!	get(in posn : int) : String
+	return (impl.get(posn));
+!!!8465435.java!!!	getPrefix(in posn : int) : Name
+	Enumeration comps = impl.getPrefix(posn);
+	return (new CompoundName(comps, mySyntax));
+!!!8465563.java!!!	getSuffix(in posn : int) : Name
+	Enumeration comps = impl.getSuffix(posn);
+	return (new CompoundName(comps, mySyntax));
+!!!8465691.java!!!	startsWith(inout n : Name) : boolean
+	if (n instanceof CompoundName) {
+	    return (impl.startsWith(n.size(), n.getAll()));
+	} else {
+	    return false;
+	}
+!!!8465819.java!!!	endsWith(inout n : Name) : boolean
+	if (n instanceof CompoundName) {
+	    return (impl.endsWith(n.size(), n.getAll()));
+	} else {
+	    return false;
+	}
+!!!8465947.java!!!	addAll(inout suffix : Name) : Name
+	if (suffix instanceof CompoundName) {
+	    impl.addAll(suffix.getAll());
+	    return this;
+	} else {
+	    throw new InvalidNameException("Not a compound name: " +
+		suffix.toString());
+	}
+!!!8466075.java!!!	addAll(in posn : int, inout n : Name) : Name
+	if (n instanceof CompoundName) {
+	    impl.addAll(posn, n.getAll());
+	    return this;
+	} else {
+	    throw new InvalidNameException("Not a compound name: " +
+		n.toString());
+	}
+!!!8466203.java!!!	add(in comp : String) : Name
+	impl.add(comp);
+	return this;
+!!!8466331.java!!!	add(in posn : int, in comp : String) : Name
+	impl.add(posn, comp);
+	return this;
+!!!8466459.java!!!	remove(in posn : int) : Object
+	return impl.remove(posn);
+!!!8466587.java!!!	writeObject(inout s : ObjectOutputStream) : void
+	s.writeObject(mySyntax);
+	s.writeInt(size());
+	Enumeration comps = getAll();
+	while (comps.hasMoreElements()) {
+	    s.writeObject(comps.nextElement());
+	}
+!!!8466715.java!!!	readObject(inout s : ObjectInputStream) : void
+	mySyntax = (Properties)s.readObject();
+	impl = new NameImpl(mySyntax);
+	int n = s.readInt();	// number of components
+	try {
+	    while (--n >= 0) {
+		add((String)s.readObject());
+	    }
+	} catch (InvalidNameException e) {
+	    throw (new java.io.StreamCorruptedException("Invalid name"));
+	}

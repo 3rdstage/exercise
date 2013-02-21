@@ -1,0 +1,565 @@
+class SwingUtilities2
+!!!2063259.java!!!	drawTextAntialiased(inout c : JComponent) : boolean
+        if (!AA_TEXT_DEFINED) {
+            if (c != null) {
+                // Check if the component wants aa text
+                return ((Boolean)c.getClientProperty(
+                                  AA_TEXT_PROPERTY_KEY)).booleanValue();
+            }
+            // No component, assume aa is off
+            return false;
+        }
+        // 'swing.aatext' was defined, use its value.
+        return AA_TEXT;
+!!!2063387.java!!!	drawTextAntialiased(inout aaText : boolean) : boolean
+        if (!AA_TEXT_DEFINED) {
+            // 'swing.aatext' wasn't defined, use the components aa text value.
+            return aaText;
+        }
+        // 'swing.aatext' was defined, use its value.
+        return AA_TEXT;
+!!!2063515.java!!!	getLeftSideBearing(inout c : JComponent, inout fm : FontMetrics, in string : String) : int
+        return getLeftSideBearing(c, fm, string.charAt(0));
+!!!2063643.java!!!	getLeftSideBearing(inout c : JComponent, inout fm : FontMetrics, in firstChar : char) : int
+        int charIndex = (int)firstChar;
+        if (charIndex < MAX_CHAR_INDEX && charIndex >= MIN_CHAR_INDEX) {
+            byte[] lsbs = null;
+
+            FontRenderContext frc = getFRC(c, fm);
+            Font font = fm.getFont();
+            synchronized(SwingUtilities2.class) {
+                LSBCacheEntry entry = null;
+                if (searchKey == null) {
+                    searchKey = new LSBCacheEntry(frc, font);
+                }
+                else {
+                    searchKey.reset(frc, font);
+                }
+                // See if we already have an entry for this pair
+                for (LSBCacheEntry cacheEntry : fontCache) {
+                    if (searchKey.equals(cacheEntry)) {
+                        entry = cacheEntry;
+                        break;
+                    }
+                }
+                if (entry == null) {
+                    // No entry for this pair, add it.
+                    entry = searchKey;
+                    fontCache[nextIndex] = searchKey;
+                    searchKey = null;
+                    nextIndex = (nextIndex + 1) % CACHE_SIZE;
+                }
+                return entry.getLeftSideBearing(firstChar);
+            }
+        }
+        return 0;
+!!!2063771.java!!!	getFontMetrics(inout c : JComponent, inout g : Graphics) : FontMetrics
+        return getFontMetrics(c, g, g.getFont());
+!!!2063899.java!!!	getFontMetrics(inout c : JComponent, inout g : Graphics, inout font : Font) : FontMetrics
+        if (c != null) {
+            // Note: We assume that we're using the FontMetrics
+            // from the widget to layout out text, otherwise we can get
+            // mismatches when printing.
+            return c.getFontMetrics(font);
+        }
+        return Toolkit.getDefaultToolkit().getFontMetrics(font);
+!!!2064027.java!!!	stringWidth(inout c : JComponent, inout fm : FontMetrics, in string : String) : int
+        return fm.stringWidth(string);
+!!!2064155.java!!!	clipStringIfNecessary(inout c : JComponent, inout fm : FontMetrics, in string : String, in availTextWidth : int) : String
+        if ((string == null) || (string.equals("")))  {
+            return "";
+        }
+        int textWidth = SwingUtilities2.stringWidth(c, fm, string);
+        if (textWidth > availTextWidth) {
+            return SwingUtilities2.clipString(c, fm, string, availTextWidth);
+        }
+        return string;
+!!!2064283.java!!!	clipString(inout c : JComponent, inout fm : FontMetrics, in string : String, in availTextWidth : int) : String
+        // c may be null here.
+        String clipString = "...";
+        int width = SwingUtilities2.stringWidth(c, fm, clipString);
+        // NOTE: This does NOT work for surrogate pairs and other fun
+        // stuff
+        int nChars = 0;
+        for(int max = string.length(); nChars < max; nChars++) {
+            width += fm.charWidth(string.charAt(nChars));
+            if (width > availTextWidth) {
+                break;
+            }
+        }
+        string = string.substring(0, nChars) + clipString;
+        return string;
+!!!2064411.java!!!	getFRC(inout c : JComponent, inout fm : FontMetrics) : FontRenderContext
+        // c may be null.
+        if (fm instanceof FontDesignMetrics) {
+            return ((FontDesignMetrics)fm).getFRC();
+        }
+        if (fm == null && c != null) {
+            //we do it this way because we need first case to 
+            //work as fast as possible
+            return getFRC(c, c.getFontMetrics(c.getFont()));
+        }
+
+        // PENDING: This shouldn't really happen, but if it does we
+        // should try and handle AA as necessary.
+        assert false;
+        return DEFAULT_FRC;
+!!!2064539.java!!!	drawString(inout c : JComponent, inout g : Graphics, in text : String, in x : int, in y : int) : void
+        // c may be null
+
+        // All non-editable widgets that draw strings call into this
+        // methods.  By non-editable that means widgets like JLabel, JButton
+        // but NOT JTextComponents.
+        if ( text == null || text.length() <= 0 ) { //no need to paint empty strings
+            return;
+        }
+        if (isPrinting(g)) {
+            Graphics2D g2d = getGraphics2D(g);
+            if (g2d != null) {
+                TextLayout layout = new TextLayout(text, g2d.getFont(),
+                                                   DEFAULT_FRC);
+
+                /* Use alternate print color if specified */
+                Color col = g2d.getColor();
+                if (col instanceof PrintColorUIResource) {
+                    g2d.setColor(((PrintColorUIResource)col).getPrintColor());
+                }
+
+                layout.draw(g2d, x, y);
+                
+                g2d.setColor(col);
+
+                return;
+            }
+        } 
+
+        // If we get here we're not printing
+        if (drawTextAntialiased(c) && (g instanceof Graphics2D)) {
+            Graphics2D g2 = (Graphics2D)g;
+            Object oldAAValue = g2.getRenderingHint(
+                                       RenderingHints.KEY_TEXT_ANTIALIASING);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+                                    RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            g.drawString(text, x, y);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+                                    oldAAValue);
+        }
+        else {
+            g.drawString(text, x, y);
+        }
+!!!2064667.java!!!	drawStringUnderlineCharAt(inout c : JComponent, inout g : Graphics, in text : String, in underlinedIndex : int, in x : int, in y : int) : void
+        SwingUtilities2.drawString(c, g, text, x, y);
+        if (underlinedIndex >= 0 && underlinedIndex < text.length() ) {
+            // PENDING: this needs to change.
+            FontMetrics fm = g.getFontMetrics();
+            int underlineRectX = x + SwingUtilities2.stringWidth(c,
+                                      fm, text.substring(0,underlinedIndex));
+            int underlineRectY = y;
+            int underlineRectWidth = fm.charWidth(text.
+                                                  charAt(underlinedIndex));
+            int underlineRectHeight = 1;
+            g.fillRect(underlineRectX, underlineRectY + 1,
+                       underlineRectWidth, underlineRectHeight);
+        }
+!!!2064795.java!!!	loc2IndexFileList(inout list : JList, inout point : Point) : int
+        int index = list.locationToIndex(point);
+        if (index != -1) {
+            Object bySize = list.getClientProperty("List.isFileList");
+            if (bySize instanceof Boolean && ((Boolean)bySize).booleanValue() &&
+                !pointIsInActualBounds(list, index, point)) {
+                index = -1;
+            }
+        }
+        return index;
+!!!2064923.java!!!	pointIsInActualBounds(inout list : JList, in index : int, inout point : Point) : boolean
+        ListCellRenderer renderer = list.getCellRenderer();
+        ListModel dataModel = list.getModel();
+        Object value = dataModel.getElementAt(index);
+        Component item = renderer.getListCellRendererComponent(list,
+                          value, index, false, false);
+        Dimension itemSize = item.getPreferredSize();
+        Rectangle cellBounds = list.getCellBounds(index, index);
+	if (!item.getComponentOrientation().isLeftToRight()) {
+	    cellBounds.x += (cellBounds.width - itemSize.width);
+	}
+        cellBounds.width = itemSize.width;
+        cellBounds.height = itemSize.height;
+
+	return cellBounds.contains(point);
+!!!2065051.java!!!	pointOutsidePrefSize(inout table : JTable, in row : int, in column : int, inout p : Point) : boolean
+        if (table.convertColumnIndexToModel(column) != 0 || row == -1) {
+            return true;
+        }
+        TableCellRenderer tcr = table.getCellRenderer(row, column);
+        Object value = table.getValueAt(row, column);
+        Component cell = tcr.getTableCellRendererComponent(table, value, false,
+                false, row, column);
+        Dimension itemSize = cell.getPreferredSize();
+        Rectangle cellBounds = table.getCellRect(row, column, false);
+        cellBounds.width = itemSize.width;
+        cellBounds.height = itemSize.height;
+
+        // See if coords are inside
+        // ASSUME: mouse x,y will never be < cell's x,y
+        assert (p.x >= cellBounds.x && p.y >= cellBounds.y);
+        if (p.x > cellBounds.x + cellBounds.width ||
+                p.y > cellBounds.y + cellBounds.height) {
+            return true;
+        }
+        return false;
+!!!2065179.java!!!	shouldIgnore(inout me : MouseEvent, inout c : JComponent) : boolean
+        return c == null || !c.isEnabled()
+                         || !SwingUtilities.isLeftMouseButton(me);
+!!!2065307.java!!!	adjustFocus(inout c : JComponent) : void
+        if (!c.hasFocus() && c.isRequestFocusEnabled()) {
+            c.requestFocus();
+        }
+!!!2065435.java!!!	drawChars(inout c : JComponent, inout g : Graphics, in data : char, in offset : int, in length : int, in x : int, in y : int) : int
+ 
+        if ( length <= 0 ) { //no need to paint empty strings
+            return x;
+        }
+        int nextX = x + getFontMetrics(c, g).charsWidth(data, offset, length);
+        if (isPrinting(g)) {
+            Graphics2D g2d = getGraphics2D(g);
+            if (g2d != null) {
+                FontRenderContext deviceFontRenderContext = g2d.
+                    getFontRenderContext();
+                FontRenderContext frc = getFRC(c, null);
+                if (frc.isAntiAliased() || frc.usesFractionalMetrics()) {
+                    frc = new FontRenderContext(frc.getTransform(), false, false);
+                }
+                if (frc != null  
+                    && ! isFontRenderContextCompatible(deviceFontRenderContext,
+                                                       frc)) {
+                    TextLayout layout = 
+                        new TextLayout(new String(data,offset,length),
+                                       g2d.getFont(),
+                                       frc);
+
+                    /* Use alternate print color if specified */
+                    Color col = g2d.getColor();
+                    if (col instanceof PrintColorUIResource) {
+                        g2d.setColor(((PrintColorUIResource)col).getPrintColor());
+                    }
+
+                    layout.draw(g2d,x,y);
+
+                    g2d.setColor(col);
+
+                    return nextX;
+                }  
+            }
+        } 
+        // Assume we're not printing if we get here.
+        if (drawTextAntialiased(c) && (g instanceof Graphics2D)) {
+            Graphics2D g2 = (Graphics2D)g;
+            Object oldAAValue = g2.getRenderingHint(
+                                       RenderingHints.KEY_TEXT_ANTIALIASING);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+                                RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            g.drawChars(data, offset, length, x, y);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+                                oldAAValue);
+        }
+        else {
+            g.drawChars(data, offset, length, x, y);
+        }
+        return nextX;
+!!!2065563.java!!!	drawString(inout c : JComponent, inout g : Graphics, inout iterator : AttributedCharacterIterator, in x : int, in y : int) : float
+
+        float retVal;
+        boolean isPrinting = isPrinting(g);
+        Color col = g.getColor();
+
+        if (isPrinting) {
+            /* Use alternate print color if specified */
+            if (col instanceof PrintColorUIResource) {
+                g.setColor(((PrintColorUIResource)col).getPrintColor());
+            }
+        }
+
+        Graphics2D g2d = getGraphics2D(g);
+        if (g2d == null) {
+            g.drawString(iterator,x,y); //for the cases where advance
+                                        //matters it should not happen
+            retVal = x;                   
+
+        } else {
+            FontRenderContext frc;
+            if (isPrinting) {
+                frc = getFRC(c, null);
+                if (frc.isAntiAliased() || frc.usesFractionalMetrics()) {
+                    frc = new FontRenderContext(frc.getTransform(), false, false);
+                }
+            } else if (drawTextAntialiased(c)) {
+                frc = AA_FRC;
+            } else {
+                frc = g2d.getFontRenderContext();
+            }
+            TextLayout layout = new TextLayout(iterator, frc);
+            layout.draw(g2d, x, y);
+            retVal = layout.getAdvance();
+        }
+
+        if (isPrinting) {
+            g.setColor(col);
+        }
+
+        return retVal;
+!!!2065691.java!!!	isFontRenderContextCompatible(inout frc1 : FontRenderContext, inout frc2 : FontRenderContext) : boolean
+        return (frc1 != null) ? frc1.equals(frc2) : frc2 == null;
+!!!2065819.java!!!	getGraphics2D(inout g : Graphics) : Graphics2D
+        if (g instanceof Graphics2D) {
+            return (Graphics2D) g;
+        } else if (g instanceof ProxyPrintGraphics) {
+            return (Graphics2D)(((ProxyPrintGraphics)g).getGraphics());
+        } else {
+            return null;
+        }
+!!!2065947.java!!!	getFontRenderContext(inout c : Component) : FontRenderContext
+ 
+        if (c == null) {
+            return DEFAULT_FRC;
+        } else {
+            return getFRC(null, c.getFontMetrics(c.getFont()));
+        }
+!!!2066075.java!!!	isPrinting(inout g : Graphics) : boolean
+        return (g instanceof PrinterGraphics || g instanceof PrintGraphics);
+!!!2066203.java!!!	useSelectedTextColor(inout h : Highlight, inout c : JTextComponent) : boolean
+        Highlighter.HighlightPainter painter = h.getPainter();
+        String painterClass = painter.getClass().getName();
+        if (painterClass.indexOf("javax.swing.text.DefaultHighlighter") != 0 &&
+                painterClass.indexOf("com.sun.java.swing.plaf.windows.WindowsTextUI") != 0) {
+            return false;
+        }
+        try {
+            DefaultHighlighter.DefaultHighlightPainter defPainter =
+                    (DefaultHighlighter.DefaultHighlightPainter) painter;
+            if (defPainter.getColor() != null &&
+                    !defPainter.getColor().equals(c.getSelectionColor())) {
+                return false;
+            }
+        } catch (ClassCastException e) {
+            return false;
+        }
+        return true;
+!!!2066971.java!!!	canAccessSystemClipboard() : boolean
+        boolean canAccess = false;
+        if (!GraphicsEnvironment.isHeadless()) {
+            SecurityManager sm = System.getSecurityManager();
+            if (sm == null) {
+                canAccess = true;
+            } else {
+                try {
+                    sm.checkSystemClipboardAccess();
+                    canAccess = true;  
+                } catch (SecurityException e) {
+                }
+                if (canAccess && ! isTrustedContext()) {
+                    canAccess = canCurrentEventAccessSystemClipboard(true);
+                }
+            }
+        }
+        return canAccess;
+!!!2067099.java!!!	canCurrentEventAccessSystemClipboard() : boolean
+        return  isTrustedContext()
+            || canCurrentEventAccessSystemClipboard(false);
+!!!2067227.java!!!	canEventAccessSystemClipboard(inout e : AWTEvent) : boolean
+        return isTrustedContext() 
+            || canEventAccessSystemClipboard(e, false);
+!!!2067355.java!!!	inputEvent_canAccessSystemClipboard(inout ie : InputEvent) : boolean
+        if (inputEvent_CanAccessSystemClipboard_Field == null) { 
+            inputEvent_CanAccessSystemClipboard_Field =
+                (Field)AccessController.doPrivileged(
+                    new java.security.PrivilegedAction() {
+                        public Object run() {
+                            Field field = null;
+                            try {
+                                field = InputEvent.class.
+                                    getDeclaredField("canAccessSystemClipboard");
+                                field.setAccessible(true);
+                                return field;
+                            } catch (SecurityException e) {
+                            } catch (NoSuchFieldException e) {
+                            }
+                            return null;
+                        }
+                    });
+        }
+        if (inputEvent_CanAccessSystemClipboard_Field == null) { 
+            return false;
+        }
+        boolean ret = false;
+        try {
+            ret = inputEvent_CanAccessSystemClipboard_Field.
+                getBoolean(ie);
+        } catch(IllegalAccessException e) {
+        } 
+        return ret;
+!!!2067483.java!!!	isAccessClipboardGesture(inout ie : InputEvent) : boolean
+        boolean allowedGesture = false;
+        if (ie instanceof KeyEvent) { //we can validate only keyboard gestures
+            KeyEvent ke = (KeyEvent)ie;
+            int keyCode = ke.getKeyCode();
+            int keyModifiers = ke.getModifiers();
+            switch(keyCode) {
+            case KeyEvent.VK_C:
+            case KeyEvent.VK_V:
+            case KeyEvent.VK_X:
+                allowedGesture = (keyModifiers == InputEvent.CTRL_MASK);
+                break;
+            case KeyEvent.VK_INSERT:
+                allowedGesture = (keyModifiers == InputEvent.CTRL_MASK ||
+                                  keyModifiers == InputEvent.SHIFT_MASK);
+                break;
+            case KeyEvent.VK_COPY:
+            case KeyEvent.VK_PASTE:
+            case KeyEvent.VK_CUT:
+                allowedGesture = true;
+                break;
+            case KeyEvent.VK_DELETE:
+                allowedGesture = ( keyModifiers == InputEvent.SHIFT_MASK);
+                break;
+            }
+        } 
+        return allowedGesture;
+!!!2067611.java!!!	canEventAccessSystemClipboard(inout e : AWTEvent, inout checkGesture : boolean) : boolean
+        if (EventQueue.isDispatchThread()) { 
+            /*
+             * Checking event permissions makes sense only for event
+             * dispathing thread 
+             */
+            if (e instanceof InputEvent 
+                && (! checkGesture || isAccessClipboardGesture((InputEvent)e))) {
+                return inputEvent_canAccessSystemClipboard((InputEvent)e);
+            } else { 
+                return false;
+            }
+        } else {
+            return true;
+        }
+!!!2067739.java!!!	canCurrentEventAccessSystemClipboard(inout checkGesture : boolean) : boolean
+        AWTEvent event = EventQueue.getCurrentEvent();
+        return canEventAccessSystemClipboard(event, checkGesture);
+!!!2067867.java!!!	isTrustedContext() : boolean
+        return (System.getSecurityManager() == null) 
+            || (AppContext.getAppContext().
+                get(UntrustedClipboardAccess) == null);
+!!!2067995.java!!!	displayPropertiesToCSS(inout font : Font, inout fg : Color) : String
+        StringBuffer rule = new StringBuffer("body {");
+        if (font != null) {
+            rule.append(" font-family: ");
+            rule.append(font.getFamily());
+            rule.append(" ; ");
+            rule.append(" font-size: ");
+            rule.append(font.getSize());
+            rule.append("pt ;");
+            if (font.isBold()) {
+                rule.append(" font-weight: 700 ; ");
+            }
+            if (font.isItalic()) {
+                rule.append(" font-style: italic ; ");
+            }
+        }
+        if (fg != null) {
+            rule.append(" color: #");
+            if (fg.getRed() < 16) {
+                rule.append('0');
+            }
+            rule.append(Integer.toHexString(fg.getRed()));
+            if (fg.getGreen() < 16) {
+                rule.append('0');
+            }
+            rule.append(Integer.toHexString(fg.getGreen()));
+            if (fg.getBlue() < 16) {
+                rule.append('0');
+            }
+            rule.append(Integer.toHexString(fg.getBlue()));
+            rule.append(" ; ");
+        }
+        rule.append(" }");
+        return rule.toString();
+!!!2068123.java!!!	makeIcon(in baseClass : Class, in rootClass : Class, in imageFile : String) : Object
+
+        return new UIDefaults.LazyValue() {
+            public Object createValue(UIDefaults table) {
+                /* Copy resource into a byte array.  This is
+                 * necessary because several browsers consider
+                 * Class.getResource a security risk because it
+                 * can be used to load additional classes.
+                 * Class.getResourceAsStream just returns raw
+                 * bytes, which we can convert to an image.
+                 */
+                byte[] buffer = (byte[])
+                    java.security.AccessController.doPrivileged(
+                        new java.security.PrivilegedAction() {
+                    public Object run() {
+                        try {
+                            InputStream resource = null;
+                            Class<?> srchClass = baseClass;
+
+                            while (srchClass != null) {
+                                resource = srchClass.getResourceAsStream(imageFile);
+
+                                if (resource != null || srchClass == rootClass) {
+                                    break;
+                                }
+
+                                srchClass = srchClass.getSuperclass();
+                            }
+
+                            if (resource == null) {
+                                return null; 
+                            }
+
+                            BufferedInputStream in = 
+                                new BufferedInputStream(resource);
+                            ByteArrayOutputStream out = 
+                                new ByteArrayOutputStream(1024);
+                            byte[] buffer = new byte[1024];
+                            int n;
+                            while ((n = in.read(buffer)) > 0) {
+                                out.write(buffer, 0, n);
+                            }
+                            in.close();
+                            out.flush();
+                            return out.toByteArray();
+                        } catch (IOException ioe) {
+                            System.err.println(ioe.toString());
+                        }
+                        return null;
+                    }
+                });
+
+                if (buffer == null) {
+                    return null;
+                }
+                if (buffer.length == 0) {
+                    System.err.println("warning: " + imageFile + 
+                                       " is zero-length");
+                    return null;
+                }
+
+                return new IconUIResource(new ImageIcon(buffer));
+            }
+        };
+!!!2068251.java!!!	setSkipClickCount(inout comp : Component, in count : int) : void
+        if (comp instanceof JTextComponent
+                && ((JTextComponent) comp).getCaret() instanceof DefaultCaret) {
+
+            ((JTextComponent) comp).putClientProperty(SKIP_CLICK_COUNT, count);
+        }
+!!!2068379.java!!!	getAdjustedClickCount(inout comp : JTextComponent, inout e : MouseEvent) : int
+        int cc = e.getClickCount();
+
+        if (cc == 1) {
+            comp.putClientProperty(SKIP_CLICK_COUNT, null);
+        } else {
+            Integer sub = (Integer) comp.getClientProperty(SKIP_CLICK_COUNT);
+            if (sub != null) {
+                return cc - sub;
+            }
+        }
+
+        return cc;

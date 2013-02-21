@@ -1,0 +1,41 @@
+class JarURLConnection
+!!!7217307.java!!!	JarURLConnection(inout url : URL)
+	super(url);
+	parseSpecs(url);
+!!!7217435.java!!!	parseSpecs(inout url : URL) : void
+	String spec = url.getFile();
+
+	int separator = spec.indexOf('!');
+	/*
+	 * REMIND: we don't handle nested JAR URLs
+	 */
+	if (separator == -1) {
+	    throw new MalformedURLException("no ! found in url spec:" + spec);
+	}
+
+	jarFileURL = new URL(spec.substring(0, separator++));
+	entryName = null;
+
+	/* if ! is the last letter of the innerURL, entryName is null */
+	if (++separator != spec.length()) {
+	    entryName = spec.substring(separator, spec.length());
+	    entryName = ParseUtil.decode (entryName);
+	}
+!!!7217563.java!!!	getJarFileURL() : URL
+	return jarFileURL;
+!!!7217691.java!!!	getEntryName() : String
+	return entryName;
+!!!7217947.java!!!	getManifest() : Manifest
+	return getJarFile().getManifest();
+!!!7218075.java!!!	getJarEntry() : JarEntry
+	return getJarFile().getJarEntry(entryName);
+!!!7218203.java!!!	getAttributes() : Attributes
+	JarEntry e = getJarEntry();
+	return e != null ? e.getAttributes() : null;
+!!!7218331.java!!!	getMainAttributes() : Attributes
+ 
+	Manifest man = getManifest();
+	return man != null ? man.getMainAttributes() : null;
+!!!7218459.java!!!	getCertificates() : Certificate
+	JarEntry e = getJarEntry();
+	return e != null ? e.getCertificates() : null;

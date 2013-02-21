@@ -1,0 +1,139 @@
+class IntegerArray
+!!!4786715.java!!!	IntegerArray()
+	this(InitialSize);
+!!!4786843.java!!!	IntegerArray(in size : int)
+	_array = new int[_size = size];
+!!!4786971.java!!!	IntegerArray(in array : int)
+	this(array.length);
+	System.arraycopy(array, 0, _array, 0, _free = _size);
+!!!4787099.java!!!	clear() : void
+	_free = 0;
+!!!4787227.java!!!	clone() : Object
+	final IntegerArray clone = new IntegerArray(_free > 0 ? _free : 1);
+	System.arraycopy(_array, 0, clone._array, 0, _free);
+	clone._free = _free;
+	return clone;
+!!!4787355.java!!!	toIntArray() : int
+	final int[] result = new int[cardinality()];
+	System.arraycopy(_array, 0, result, 0, cardinality());
+	return result;
+!!!4787483.java!!!	at(in index : int) : int
+	return _array[index];
+!!!4787611.java!!!	set(in index : int, in value : int) : void
+	_array[index] = value;
+!!!4787739.java!!!	indexOf(in n : int) : int
+	for (int i = 0; i < _free; i++) {
+	    if (n == _array[i]) return i;
+	}
+	return -1;
+!!!4787867.java!!!	add(in value : int) : void
+	if (_free == _size) {
+	    growArray(_size * 2);
+	}
+	_array[_free++] = value;
+!!!4787995.java!!!	addNew(in value : int) : void
+	for (int i = 0; i < _free; i++) {
+	    if (_array[i] == value) return;  // already in array
+	}
+	add(value);
+!!!4788123.java!!!	reverse() : void
+	int left = 0; 
+	int right = _free - 1;
+
+	while (left < right) {
+	    int temp = _array[left];
+	    _array[left++] = _array[right];
+	    _array[right--] = temp;
+	}
+!!!4788251.java!!!	merge(inout other : IntegerArray) : void
+	final int newSize = _free + other._free;
+// System.out.println("IntegerArray.merge() begin newSize = " + newSize);
+	int[] newArray = new int[newSize];
+
+	// Merge the two arrays
+	int i = 0, j = 0, k;
+	for (k = 0; i < _free && j < other._free; k++) {
+	    int x = _array[i];
+	    int y = other._array[j];
+
+	    if (x < y) {
+		newArray[k] = x;
+		i++;
+	    }
+	    else if (x > y) {
+		newArray[k] = y;
+		j++;
+	    }
+	    else {
+		newArray[k] = x;
+		i++; j++;
+	    }
+	}
+
+	// Copy the rest if of different lengths
+	if (i >= _free) {
+	    while (j < other._free) {
+		newArray[k++] = other._array[j++];
+	    }
+	}
+	else {
+	    while (i < _free) {
+		newArray[k++] = _array[i++];
+	    }
+	}
+
+	// Update reference to this array
+	_array = newArray;
+	_free = _size = newSize;
+// System.out.println("IntegerArray.merge() end");
+!!!4788379.java!!!	sort() : void
+	quicksort(_array, 0, _free - 1);
+!!!4788507.java!!!	quicksort(in array : int, in p : int, in r : int) : void
+	if (p < r) {
+	    final int q = partition(array, p, r);
+	    quicksort(array, p, q);
+	    quicksort(array, q + 1, r);
+	}
+!!!4788635.java!!!	partition(in array : int, in p : int, in r : int) : int
+	final int x = array[(p + r) >>> 1];
+	int i = p - 1; int j = r + 1;
+
+	while (true) {
+	    while (x < array[--j]);
+	    while (x > array[++i]);
+	    if (i < j) {
+		int temp = array[i];
+		array[i] = array[j];
+		array[j] = temp;
+	    }
+	    else {
+		return j;
+	    }
+	}
+!!!4788763.java!!!	growArray(in size : int) : void
+	final int[] newArray = new int[_size = size];
+	System.arraycopy(_array, 0, newArray, 0, _free);
+	_array = newArray;
+!!!4788891.java!!!	popLast() : int
+	return _array[--_free];
+!!!4789019.java!!!	last() : int
+	return _array[_free - 1];
+!!!4789147.java!!!	setLast(in n : int) : void
+	_array[_free - 1] = n;
+!!!4789275.java!!!	pop() : void
+	_free--;
+!!!4789403.java!!!	pop(in n : int) : void
+	_free -= n;
+!!!4789531.java!!!	cardinality() : int
+	return _free;
+!!!4789659.java!!!	print(inout out : PrintStream) : void
+	if (_free > 0) {
+	    for (int i = 0; i < _free - 1; i++) {
+		out.print(_array[i]);
+		out.print(' ');
+	    }
+	    out.println(_array[_free - 1]);
+	}
+	else {
+	    out.println("IntegerArray: empty");
+	}

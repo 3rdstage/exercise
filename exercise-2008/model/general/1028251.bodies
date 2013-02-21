@@ -1,0 +1,52 @@
+class FileImageOutputStream
+!!!8212379.java!!!	FileImageOutputStream(inout f : File)
+        this(f == null ? null : new RandomAccessFile(f, "rw"));
+!!!8212507.java!!!	FileImageOutputStream(inout raf : RandomAccessFile)
+        if (raf == null) {
+            throw new IllegalArgumentException("raf == null!");
+        }
+        this.raf = raf;
+!!!8212635.java!!!	read() : int
+        checkClosed();
+        bitOffset = 0;
+        int val = raf.read();
+        if (val != -1) {
+            ++streamPos;
+        }
+        return val;
+!!!8212763.java!!!	read(in b : byte, in off : int, in len : int) : int
+        checkClosed();
+        bitOffset = 0;
+        int nbytes = raf.read(b, off, len);
+        if (nbytes != -1) {
+            streamPos += nbytes;
+        }
+        return nbytes;
+!!!8212891.java!!!	write(in b : int) : void
+        checkClosed();
+        flushBits();
+        raf.write(b);
+        ++streamPos;
+!!!8213019.java!!!	write(in b : byte, in off : int, in len : int) : void
+        checkClosed();
+        flushBits();
+        raf.write(b, off, len);
+        streamPos += len;
+!!!8213147.java!!!	length() : long
+        try {
+            checkClosed();
+            return raf.length();
+        } catch (IOException e) {
+            return -1L;
+        }
+!!!8213275.java!!!	seek(in pos : long) : void
+        checkClosed();
+        if (pos < flushedPos) {
+            throw new IndexOutOfBoundsException("pos < flushedPos!");
+        }
+        bitOffset = 0;
+        raf.seek(pos);
+        streamPos = raf.getFilePointer();
+!!!8213403.java!!!	close() : void
+        super.close();
+        raf.close();

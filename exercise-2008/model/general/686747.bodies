@@ -1,0 +1,70 @@
+class DupFilterIterator
+!!!4624155.java!!!	DupFilterIterator(inout source : DTMAxisIterator)
+	_source = source;
+// System.out.println("DFI source = " + source + " this = " + this);
+
+	// Cache contents of id() or key() index right away. Necessary for
+	// union expressions containing multiple calls to the same index, and
+	// correct as well since start-node is irrelevant for id()/key() exrp.
+	if (source instanceof KeyIndex) {
+	    setStartNode(DTMDefaultBase.ROOTNODE);
+	}
+!!!4624283.java!!!	setStartNode(in node : int) : DTMAxisIterator
+	if (_isRestartable) {
+	    // KeyIndex iterators are always relative to the root node, so there
+	    // is never any point in re-reading the iterator (and we SHOULD NOT).
+	    if (_source instanceof KeyIndex
+                    && _startNode == DTMDefaultBase.ROOTNODE) {
+		return this;
+	    }
+
+	    if (node != _startNode) {
+		_source.setStartNode(_startNode = node);
+
+		_nodes.clear();
+		while ((node = _source.next()) != END) {
+		    _nodes.add(node);
+		}
+		_nodes.sort();
+		_nodesSize = _nodes.cardinality();
+		_current = 0;
+		_lastNext = END;
+		resetPosition();
+	    }
+	}
+	return this;
+!!!4624411.java!!!	next() : int
+	while (_current < _nodesSize) {
+	    final int next = _nodes.at(_current++);
+	    if (next != _lastNext) {
+		return returnNode(_lastNext = next);
+	    }
+	}
+	return END;
+!!!4624539.java!!!	cloneIterator() : DTMAxisIterator
+	try {
+	    final DupFilterIterator clone =
+		(DupFilterIterator) super.clone();
+	    clone._nodes = (IntegerArray) _nodes.clone();
+	    clone._source = _source.cloneIterator();
+	    clone._isRestartable = false;
+	    return clone.reset();
+	}
+	catch (CloneNotSupportedException e) {
+	    BasisLibrary.runTimeError(BasisLibrary.ITERATOR_CLONE_ERR,
+				      e.toString());
+	    return null;
+	}
+!!!4624667.java!!!	setRestartable(inout isRestartable : boolean) : void
+	_isRestartable = isRestartable;
+	_source.setRestartable(isRestartable);
+!!!4624795.java!!!	setMark() : void
+	_markedNode = _current;
+        _markedLastNext = _lastNext;    // Bugzilla 25924
+!!!4624923.java!!!	gotoMark() : void
+	_current = _markedNode;
+        _lastNext = _markedLastNext;    // Bugzilla 25924
+!!!4625051.java!!!	reset() : DTMAxisIterator
+	_current = 0;
+	_lastNext = END;
+	return resetPosition();

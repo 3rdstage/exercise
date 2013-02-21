@@ -1,0 +1,234 @@
+class XMLDocumentScannerImpl
+!!!4949787.java!!!	setInputSource(inout inputSource : XMLInputSource) : void
+        fEntityManager.setEntityHandler(this);
+        fEntityManager.startDocumentEntity(inputSource);
+        //fDocumentSystemId = fEntityManager.expandSystemId(inputSource.getSystemId());
+!!!4949915.java!!!	reset(inout componentManager : XMLComponentManager) : void
+
+        super.reset(componentManager);
+
+        // other settings
+        fDoctypeName = null;
+        fDoctypePublicId = null;
+        fDoctypeSystemId = null;
+        fSeenDoctypeDecl = false;
+        fScanningDTD = false;
+        fExternalSubsetSource = null;
+
+		if (!fParserSettings) {
+			// parser settings have not been changed
+			fNamespaceContext.reset();
+			// setup dispatcher
+			setScannerState(SCANNER_STATE_XML_DECL);
+			setDispatcher(fXMLDeclDispatcher);
+			return;
+		}
+
+        // xerces features
+        try {
+            fLoadExternalDTD = componentManager.getFeature(LOAD_EXTERNAL_DTD);
+        }
+        catch (XMLConfigurationException e) {
+            fLoadExternalDTD = true;
+        }
+        try {
+            fDisallowDoctype = componentManager.getFeature(DISALLOW_DOCTYPE_DECL_FEATURE);
+        }
+        catch (XMLConfigurationException e) {
+            fDisallowDoctype = false;
+        }
+
+        // xerces properties
+        fDTDScanner = (XMLDTDScanner)componentManager.getProperty(DTD_SCANNER);
+        try {
+            fValidationManager = (ValidationManager)componentManager.getProperty(VALIDATION_MANAGER);
+        }
+        catch (XMLConfigurationException e) {
+            fValidationManager = null;
+        }
+
+        try {
+            fNamespaceContext = (NamespaceContext)componentManager.getProperty(NAMESPACE_CONTEXT);
+        }
+        catch (XMLConfigurationException e) { }
+        if (fNamespaceContext == null) {
+            fNamespaceContext = new NamespaceSupport();
+        }
+        fNamespaceContext.reset();
+        
+        // setup dispatcher
+        setScannerState(SCANNER_STATE_XML_DECL);
+        setDispatcher(fXMLDeclDispatcher);
+
+!!!4950043.java!!!	getRecognizedFeatures() : String
+        String[] featureIds = super.getRecognizedFeatures();
+        int length = featureIds != null ? featureIds.length : 0;
+        String[] combinedFeatureIds = new String[length + RECOGNIZED_FEATURES.length];
+        if (featureIds != null) {
+            System.arraycopy(featureIds, 0, combinedFeatureIds, 0, featureIds.length);
+        }
+        System.arraycopy(RECOGNIZED_FEATURES, 0, combinedFeatureIds, length, RECOGNIZED_FEATURES.length);
+        return combinedFeatureIds;
+!!!4950171.java!!!	setFeature(in featureId : String, inout state : boolean) : void
+
+        super.setFeature(featureId, state);
+
+        // Xerces properties
+        if (featureId.startsWith(Constants.XERCES_FEATURE_PREFIX)) {
+            final int suffixLength = featureId.length() - Constants.XERCES_FEATURE_PREFIX.length();
+        	
+            if (suffixLength == Constants.LOAD_EXTERNAL_DTD_FEATURE.length() && 
+                featureId.endsWith(Constants.LOAD_EXTERNAL_DTD_FEATURE)) {
+                fLoadExternalDTD = state;
+                return;
+            }
+            else if (suffixLength == Constants.DISALLOW_DOCTYPE_DECL_FEATURE.length() && 
+                featureId.endsWith(Constants.DISALLOW_DOCTYPE_DECL_FEATURE)) {
+                fDisallowDoctype = state;
+                return;
+            }
+        }
+
+!!!4950299.java!!!	getRecognizedProperties() : String
+        String[] propertyIds = super.getRecognizedProperties();
+        int length = propertyIds != null ? propertyIds.length : 0;
+        String[] combinedPropertyIds = new String[length + RECOGNIZED_PROPERTIES.length];
+        if (propertyIds != null) {
+            System.arraycopy(propertyIds, 0, combinedPropertyIds, 0, propertyIds.length);
+        }
+        System.arraycopy(RECOGNIZED_PROPERTIES, 0, combinedPropertyIds, length, RECOGNIZED_PROPERTIES.length);
+        return combinedPropertyIds;
+!!!4950427.java!!!	setProperty(in propertyId : String, inout value : Object) : void
+
+        super.setProperty(propertyId, value);
+
+        // Xerces properties
+        if (propertyId.startsWith(Constants.XERCES_PROPERTY_PREFIX)) {
+            final int suffixLength = propertyId.length() - Constants.XERCES_PROPERTY_PREFIX.length();
+            
+            if (suffixLength == Constants.DTD_SCANNER_PROPERTY.length() && 
+                propertyId.endsWith(Constants.DTD_SCANNER_PROPERTY)) {
+                fDTDScanner = (XMLDTDScanner)value;
+            }
+            if (suffixLength == Constants.NAMESPACE_CONTEXT_PROPERTY.length() && 
+                propertyId.endsWith(Constants.NAMESPACE_CONTEXT_PROPERTY)) {
+                if (value != null) {
+                    fNamespaceContext = (NamespaceContext)value;
+                }
+            }
+
+            return;
+        }
+
+!!!4950555.java!!!	getFeatureDefault(in featureId : String) : Boolean
+
+        for (int i = 0; i < RECOGNIZED_FEATURES.length; i++) {
+            if (RECOGNIZED_FEATURES[i].equals(featureId)) {
+                return FEATURE_DEFAULTS[i];
+            }
+        }
+        return super.getFeatureDefault(featureId);
+!!!4950683.java!!!	getPropertyDefault(in propertyId : String) : Object
+        for (int i = 0; i < RECOGNIZED_PROPERTIES.length; i++) {
+            if (RECOGNIZED_PROPERTIES[i].equals(propertyId)) {
+                return PROPERTY_DEFAULTS[i];
+            }
+        }
+        return super.getPropertyDefault(propertyId);
+!!!4950811.java!!!	startEntity(in name : String, inout identifier : XMLResourceIdentifier, in encoding : String, inout augs : Augmentations) : void
+
+        super.startEntity(name, identifier, encoding, augs);
+
+        // prepare to look for a TextDecl if external general entity
+        if (!name.equals("[xml]") && fEntityScanner.isExternal()) {
+            setScannerState(SCANNER_STATE_TEXT_DECL);
+        } 
+
+        // call handler
+        if (fDocumentHandler != null && name.equals("[xml]")) {
+            fDocumentHandler.startDocument(fEntityScanner, encoding, fNamespaceContext, null);
+        }
+
+!!!4950939.java!!!	endEntity(in name : String, inout augs : Augmentations) : void
+
+        super.endEntity(name, augs);
+
+        // call handler
+        if (fDocumentHandler != null && name.equals("[xml]")) {
+            fDocumentHandler.endDocument(null);
+        }
+
+!!!4951067.java!!!	createContentDispatcher() : Dispatcher
+        return new ContentDispatcher();
+!!!4951195.java!!!	scanDoctypeDecl() : boolean
+
+        // spaces
+        if (!fEntityScanner.skipSpaces()) {
+            reportFatalError("MSG_SPACE_REQUIRED_BEFORE_ROOT_ELEMENT_TYPE_IN_DOCTYPEDECL",
+                             null);
+        }
+
+        // root element name
+        fDoctypeName = fEntityScanner.scanName();
+        if (fDoctypeName == null) {
+            reportFatalError("MSG_ROOT_ELEMENT_TYPE_REQUIRED", null);
+        }
+
+        // external id
+        if (fEntityScanner.skipSpaces()) {
+            scanExternalID(fStrings, false);
+            fDoctypeSystemId = fStrings[0];
+            fDoctypePublicId = fStrings[1];
+            fEntityScanner.skipSpaces();
+        }
+
+        fHasExternalDTD = fDoctypeSystemId != null;
+        
+        // Attempt to locate an external subset with an external subset resolver.
+        if (!fHasExternalDTD && fExternalSubsetResolver != null) {
+            XMLDTDDescription desc = new XMLDTDDescription(null, 
+                null, fEntityManager.getCurrentResourceIdentifier().getExpandedSystemId(), null, fDoctypeName);
+            fExternalSubsetSource = fExternalSubsetResolver.getExternalSubset(desc);
+            fHasExternalDTD = fExternalSubsetSource != null;
+        }
+
+        // call handler
+        if (fDocumentHandler != null) {
+            // NOTE: I don't like calling the doctypeDecl callback until
+            //       end of the *full* doctype line (including internal
+            //       subset) is parsed correctly but SAX2 requires that
+            //       it knows the root element name and public and system
+            //       identifier for the startDTD call. -Ac
+            if (fExternalSubsetSource == null) {
+                fDocumentHandler.doctypeDecl(fDoctypeName, fDoctypePublicId, fDoctypeSystemId, null);
+            }
+            else {
+                fDocumentHandler.doctypeDecl(fDoctypeName, fExternalSubsetSource.getPublicId(), fExternalSubsetSource.getSystemId(), null);
+            }
+        }
+
+        // is there an internal subset?
+        boolean internalSubset = true;
+        if (!fEntityScanner.skipChar('[')) {
+            internalSubset = false;
+            fEntityScanner.skipSpaces();
+            if (!fEntityScanner.skipChar('>')) {
+                reportFatalError("DoctypedeclUnterminated", new Object[]{fDoctypeName});
+            }
+            fMarkupDepth--;
+        }
+
+        return internalSubset;
+
+!!!4951323.java!!!	getScannerStateName(in state : int) : String
+
+        switch (state) {
+            case SCANNER_STATE_XML_DECL: return "SCANNER_STATE_XML_DECL";
+            case SCANNER_STATE_PROLOG: return "SCANNER_STATE_PROLOG";
+            case SCANNER_STATE_TRAILING_MISC: return "SCANNER_STATE_TRAILING_MISC";
+            case SCANNER_STATE_DTD_INTERNAL_DECLS: return "SCANNER_STATE_DTD_INTERNAL_DECLS";
+            case SCANNER_STATE_DTD_EXTERNAL: return "SCANNER_STATE_DTD_EXTERNAL";
+            case SCANNER_STATE_DTD_EXTERNAL_DECLS: return "SCANNER_STATE_DTD_EXTERNAL_DECLS";
+        }
+        return super.getScannerStateName(state);
+

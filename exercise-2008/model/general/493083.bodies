@@ -1,0 +1,244 @@
+class DragFixHandler
+!!!3036827.java!!!	canStartDrag() : boolean
+            if (pressedRow == -1 || pressedCol == -1) {
+                return false;
+            }
+
+            if (isFileList) {
+                return !outsidePrefSize;
+            }
+
+            // if this is a single selection table
+            if ((table.getSelectionModel().getSelectionMode() ==
+                     ListSelectionModel.SINGLE_SELECTION) &&
+                (table.getColumnModel().getSelectionModel().getSelectionMode() ==
+                     ListSelectionModel.SINGLE_SELECTION)) {
+
+                return true;
+            }
+
+            return table.isCellSelected(pressedRow, pressedCol);
+!!!3036955.java!!!	mousePressed(inout e : MouseEvent) : void
+            if (SwingUtilities2.shouldIgnore(e, table)) {
+                return;
+            }
+
+            if (table.isEditing() && !table.getCellEditor().stopCellEditing()) {
+                Component editorComponent = table.getEditorComponent();
+                if (editorComponent != null && !editorComponent.hasFocus()) {
+                    BasicLookAndFeel.compositeRequestFocus(editorComponent);
+                }
+                return;
+            }
+
+            Point p = e.getPoint();
+            pressedRow = table.rowAtPoint(p);
+            pressedCol = table.columnAtPoint(p);
+            outsidePrefSize = pointOutsidePrefSize(table, pressedRow, pressedCol, p);
+
+            if (isFileList) {
+                shouldStartTimer =
+                    table.isCellSelected(pressedRow, pressedCol) &&
+                    !e.isShiftDown() &&
+                    !e.isControlDown() &&
+                    !outsidePrefSize;
+            }
+
+            if (table.getDragEnabled()) {
+                mousePressedDND(e);
+            } else {
+                SwingUtilities2.adjustFocus(table);
+                if (!isFileList) {
+                    setValueIsAdjusting(true);
+                }
+                adjustSelection(e);
+            }
+!!!3037083.java!!!	mousePressedDND(inout e : MouseEvent) : void
+            pressedEvent = e;
+            boolean grabFocus = true;
+            dragStarted = false;
+
+            if (canStartDrag() && DragRecognitionSupport.mousePressed(e)) {
+
+                dragPressDidSelection = false;
+
+                if (e.isControlDown() && isFileList) {
+                    // do nothing for control - will be handled on release
+                    // or when drag starts
+                    return;
+                } else if (!e.isShiftDown() && table.isCellSelected(pressedRow, pressedCol)) {
+                    // clicking on something that's already selected
+                    // and need to make it the lead now
+                    table.getSelectionModel().addSelectionInterval(pressedRow,
+                                                                   pressedRow);
+                    table.getColumnModel().getSelectionModel().
+                        addSelectionInterval(pressedCol, pressedCol);
+
+                    return;
+                }
+
+                dragPressDidSelection = true;
+
+                // could be a drag initiating event - don't grab focus
+                grabFocus = false;
+            } else if (!isFileList) {
+                // When drag can't happen, mouse drags might change the selection in the table
+                // so we want the isAdjusting flag to be set
+                setValueIsAdjusting(true);
+            }
+
+            if (grabFocus) {
+                SwingUtilities2.adjustFocus(table);
+            }
+
+            adjustSelection(e);
+!!!3037211.java!!!	adjustSelection(inout e : MouseEvent) : void
+            // Fix for 4835633
+            if (outsidePrefSize) {
+                // If shift is down in multi-select, we should just return.
+                // For single select or non-shift-click, clear the selection
+                if (e.getID() ==  MouseEvent.MOUSE_PRESSED &&
+                    (!e.isShiftDown() ||
+                     table.getSelectionModel().getSelectionMode() ==
+                     ListSelectionModel.SINGLE_SELECTION)) {
+                    table.clearSelection();
+                    TableCellEditor tce = table.getCellEditor();
+                    if (tce != null) {
+                        tce.stopCellEditing();
+                    }
+                }
+                return;
+            }
+            // The autoscroller can generate drag events outside the
+            // table's range.
+            if ((pressedCol == -1) || (pressedRow == -1)) {
+                return;
+            }
+
+            boolean dragEnabled = table.getDragEnabled();
+
+            if (!dragEnabled && !isFileList && table.editCellAt(pressedRow, pressedCol, e)) {
+                setDispatchComponent(e);
+                repostEvent(e);
+            }
+
+            CellEditor editor = table.getCellEditor();
+            if (dragEnabled || editor == null || editor.shouldSelectCell(e)) {
+                makeSelectionChange(pressedRow, pressedCol, e);
+            }
+!!!3037339.java!!!	valueChanged(inout e : ListSelectionEvent) : void
+            if (timer != null) {
+                timer.stop();
+                timer = null;
+            }
+!!!3037467.java!!!	actionPerformed(inout ae : ActionEvent) : void
+            table.editCellAt(pressedRow, pressedCol, null);
+            Component editorComponent = table.getEditorComponent();
+            if (editorComponent != null && !editorComponent.hasFocus()) {
+                BasicLookAndFeel.compositeRequestFocus(editorComponent);
+            }
+            return;
+!!!3037595.java!!!	maybeStartTimer() : void
+            if (!shouldStartTimer) {
+                return;
+            }
+
+            if (timer == null) {
+                timer = new Timer(1200, this);
+                timer.setRepeats(false);
+            }
+
+            timer.start();
+!!!3037723.java!!!	mouseReleased(inout e : MouseEvent) : void
+            if (SwingUtilities2.shouldIgnore(e, table)) {
+                return;
+            }
+
+            if (table.getDragEnabled()) {
+                mouseReleasedDND(e);
+            } else {
+                if (isFileList) {
+                    maybeStartTimer();
+                }
+            }
+
+            pressedEvent = null;
+            repostEvent(e);
+            dispatchComponent = null;
+            setValueIsAdjusting(false);
+!!!3037851.java!!!	mouseReleasedDND(inout e : MouseEvent) : void
+            MouseEvent me = DragRecognitionSupport.mouseReleased(e);
+            if (me != null) {
+                SwingUtilities2.adjustFocus(table);
+                if (!dragPressDidSelection) {
+                    adjustSelection(me);
+                }
+            }
+
+            if (!dragStarted) {
+                if (isFileList) {
+                    maybeStartTimer();
+                    return;
+                }
+                
+                Point p = e.getPoint();
+
+                if (pressedEvent != null &&
+                        table.rowAtPoint(p) == pressedRow &&
+                        table.columnAtPoint(p) == pressedCol &&
+                        table.editCellAt(pressedRow, pressedCol, pressedEvent)) {
+
+                    setDispatchComponent(pressedEvent);
+                    repostEvent(pressedEvent);
+
+                    // This may appear completely odd, but must be done for backward
+                    // compatibility reasons. Developers have been known to rely on
+                    // a call to shouldSelectCell after editing has begun.
+                    CellEditor ce = table.getCellEditor();
+                    if (ce != null) {
+                        ce.shouldSelectCell(pressedEvent);
+                    }
+                }
+            }
+!!!3037979.java!!!	dragStarting(inout me : MouseEvent) : void
+            dragStarted = true;
+
+            if (me.isControlDown() && isFileList) {
+                table.getSelectionModel().addSelectionInterval(pressedRow,
+                                                               pressedRow);
+                table.getColumnModel().getSelectionModel().
+                    addSelectionInterval(pressedCol, pressedCol);
+            }
+
+            pressedEvent = null;
+!!!3038107.java!!!	mouseDragged(inout e : MouseEvent) : void
+            if (SwingUtilities2.shouldIgnore(e, table)) {
+                return;
+            }
+
+            if (table.getDragEnabled() &&
+                    (DragRecognitionSupport.mouseDragged(e, this) || dragStarted)) {
+
+                return;
+            }
+
+            mouseDraggedImpl(e);
+!!!3038235.java!!!	propertyChange(inout event : PropertyChangeEvent) : void
+            super.propertyChange(event);
+
+            String changeName = event.getPropertyName();
+
+            if ("Table.isFileList" == changeName) {
+                if (isFileList) {
+                    table.getSelectionModel().addListSelectionListener(getDragFixHandler());
+                } else {
+                    table.getSelectionModel().removeListSelectionListener(getDragFixHandler());
+                    timer = null;
+                }
+            } else if ("selectionModel" == changeName) {
+                if (isFileList) {
+                    ListSelectionModel old = (ListSelectionModel)event.getOldValue();
+                    old.removeListSelectionListener(getDragFixHandler());
+                    table.getSelectionModel().addListSelectionListener(getDragFixHandler());
+                }
+            }

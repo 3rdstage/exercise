@@ -1,0 +1,94 @@
+class Builder
+!!!7591195.java!!!	Builder()
+	    // empty
+!!!7591579.java!!!	newInstance(in keyStore : KeyStore, in protectionParameter : ProtectionParameter) : Builder
+	    if ((keyStore == null) || (protectionParameter == null)) {
+		throw new NullPointerException();
+	    }
+	    if (keyStore.initialized == false) {
+		throw new IllegalArgumentException("KeyStore not initialized");
+	    }
+	    return new Builder() {
+		private volatile boolean getCalled;
+		
+		public KeyStore getKeyStore() {
+		    getCalled = true;
+		    return keyStore;
+		}
+		
+		public ProtectionParameter getProtectionParameter(String alias)
+		{
+		    if (alias == null) {
+			throw new NullPointerException();
+		    }
+		    if (getCalled == false) {
+			throw new IllegalStateException
+			    ("getKeyStore() must be called first");
+		    }
+		    return protectionParameter;
+		}
+	    };
+!!!7591707.java!!!	newInstance(in type : String, inout provider : Provider, inout file : File, inout protection : ProtectionParameter) : Builder
+	    if ((type == null) || (file == null) || (protection == null)) {
+		throw new NullPointerException();
+	    }
+	    if ((protection instanceof PasswordProtection == false) &&
+		(protection instanceof CallbackHandlerProtection == false)) {
+		throw new IllegalArgumentException
+		("Protection must be PasswordProtection or " +
+		 "CallbackHandlerProtection");
+	    }
+	    if (file.isFile() == false) {
+		throw new IllegalArgumentException
+		    ("File does not exist or it does not refer " +
+		     "to a normal file: " + file);
+	    }
+	    return new FileBuilder(type, provider, file, protection, 
+		AccessController.getContext());
+!!!7592219.java!!!	newInstance(in type : String, in provider : Provider, in protection : ProtectionParameter) : Builder
+	    if ((type == null) || (protection == null)) {
+		throw new NullPointerException();
+	    }
+	    final AccessControlContext context = AccessController.getContext();
+	    return new Builder() {
+		private volatile boolean getCalled;
+		
+		private final PrivilegedExceptionAction action
+		= new PrivilegedExceptionAction() {
+		    
+		    public Object run() throws Exception {
+			KeyStore ks;
+			if (provider == null) {
+			    ks = KeyStore.getInstance(type);
+			} else {
+			    ks = KeyStore.getInstance(type, provider);
+			}
+			ks.load(new SimpleLoadStoreParameter(protection));
+			getCalled = true;
+			return ks;
+		    }
+		};
+		
+		public synchronized KeyStore getKeyStore()
+			throws KeyStoreException {
+		    try {
+			return (KeyStore)AccessController.doPrivileged(action);
+		    } catch (PrivilegedActionException e) {
+			Throwable cause = e.getCause();
+			throw new KeyStoreException
+			    ("KeyStore instantiation failed", cause);
+		    }
+		}
+		
+		public ProtectionParameter getProtectionParameter(String alias)
+		{
+		    if (alias == null) {
+			throw new NullPointerException();
+		    }
+		    if (getCalled == false) {
+			throw new IllegalStateException
+			    ("getKeyStore() must be called first");
+		    }
+		    return protection;
+		}
+	    };

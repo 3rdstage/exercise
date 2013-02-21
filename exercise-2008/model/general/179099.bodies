@@ -1,0 +1,62 @@
+class InputStream
+!!!443163.java!!!	read(in b : byte) : int
+	return read(b, 0, b.length);
+!!!443291.java!!!	read(in b : byte, in off : int, in len : int) : int
+	if (b == null) {
+	    throw new NullPointerException();
+	} else if ((off < 0) || (off > b.length) || (len < 0) ||
+		   ((off + len) > b.length) || ((off + len) < 0)) {
+	    throw new IndexOutOfBoundsException();
+	} else if (len == 0) {
+	    return 0;
+	}
+
+	int c = read();
+	if (c == -1) {
+	    return -1;
+	}
+	b[off] = (byte)c;
+
+	int i = 1;
+	try {
+	    for (; i < len ; i++) {
+		c = read();
+		if (c == -1) {
+		    break;
+		}
+		if (b != null) {
+		    b[off + i] = (byte)c;
+		}
+	    }
+	} catch (IOException ee) {
+	}
+	return i;
+!!!443419.java!!!	skip(in n : long) : long
+
+	long remaining = n;
+	int nr;
+	if (skipBuffer == null)
+	    skipBuffer = new byte[SKIP_BUFFER_SIZE];
+
+	byte[] localSkipBuffer = skipBuffer;
+		
+	if (n <= 0) {
+	    return 0;
+	}
+
+	while (remaining > 0) {
+	    nr = read(localSkipBuffer, 0,
+		      (int) Math.min(SKIP_BUFFER_SIZE, remaining));
+	    if (nr < 0) {
+		break;
+	    }
+	    remaining -= nr;
+	}
+	
+	return n - remaining;
+!!!443547.java!!!	available() : int
+	return 0;
+!!!443931.java!!!	reset() : void
+	throw new IOException("mark/reset not supported");
+!!!444059.java!!!	markSupported() : boolean
+	return false;

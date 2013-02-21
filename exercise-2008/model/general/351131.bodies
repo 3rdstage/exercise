@@ -1,0 +1,41 @@
+class JFIFThumbRGB
+!!!1985947.java!!!	JFIFThumbRGB(inout buffer : JPEGBuffer, in width : int, in height : int)
+
+            super(buffer, width, height, width*height*3, "JFIFthumbRGB");
+!!!1986075.java!!!	JFIFThumbRGB(inout node : Node)
+            super(node, "JFIFthumbRGB");
+!!!1986203.java!!!	JFIFThumbRGB(inout thumb : BufferedImage)
+            super(thumb);
+!!!1986331.java!!!	getLength() : int
+            return (thumbWidth*thumbHeight*3);
+!!!1986459.java!!!	getThumbnail(inout iis : ImageInputStream, inout reader : JPEGImageReader) : BufferedImage
+            iis.mark();
+            iis.seek(streamPos);
+            DataBufferByte buffer = new DataBufferByte(getLength());
+            readByteBuffer(iis, 
+                           buffer.getData(), 
+                           reader,
+                           1.0F,
+                           0.0F);
+            iis.reset();
+
+            WritableRaster raster = 
+                Raster.createInterleavedRaster(buffer, 
+                                               thumbWidth,
+                                               thumbHeight,
+                                               thumbWidth*3,
+                                               3,
+                                               new int [] {0, 1, 2},
+                                               null);
+            ColorModel cm = new ComponentColorModel(JPEG.sRGB,
+                                                    false,
+                                                    false,
+                                                    ColorModel.OPAQUE,
+                                                    DataBuffer.TYPE_BYTE);
+            return new BufferedImage(cm,
+                                     raster,
+                                     false,
+                                     null);
+!!!1986587.java!!!	write(inout ios : ImageOutputStream, inout writer : JPEGImageWriter) : void
+            super.write(ios, writer); // width and height
+            writePixels(ios, writer);

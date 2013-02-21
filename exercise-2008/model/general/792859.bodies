@@ -1,0 +1,677 @@
+class DTMNodeProxy
+!!!5606683.java!!!	DTMNodeProxy(inout dtm : DTM, in node : int)
+    this.dtm = dtm;
+    this.node = node;
+!!!5606811.java!!!	getDTM() : DTM
+    return dtm;
+!!!5606939.java!!!	getDTMNodeNumber() : int
+    return node;
+!!!5607067.java!!!	equals(inout node : Node) : boolean
+
+    try
+    {
+      DTMNodeProxy dtmp = (DTMNodeProxy) node;
+
+      // return (dtmp.node == this.node);
+      // Patch attributed to Gary L Peskin <garyp@firstech.com>
+      return (dtmp.node == this.node) && (dtmp.dtm == this.dtm);
+    }
+    catch (ClassCastException cce)
+    {
+      return false;
+    }
+!!!5607195.java!!!	equals(inout node : Object) : boolean
+
+    try
+    {
+
+      // DTMNodeProxy dtmp = (DTMNodeProxy)node;
+      // return (dtmp.node == this.node);
+      // Patch attributed to Gary L Peskin <garyp@firstech.com>
+      return equals((Node) node);
+    }
+    catch (ClassCastException cce)
+    {
+      return false;
+    }
+!!!5607323.java!!!	sameNodeAs(inout other : Node) : boolean
+
+    if (!(other instanceof DTMNodeProxy))
+      return false;
+
+    DTMNodeProxy that = (DTMNodeProxy) other;
+
+    return this.dtm == that.dtm && this.node == that.node;
+!!!5607451.java!!!	getNodeName() : String
+    return dtm.getNodeName(node);
+!!!5607579.java!!!	getTarget() : String
+    return dtm.getNodeName(node);
+!!!5607707.java!!!	getLocalName() : String
+    return dtm.getLocalName(node);
+!!!5607835.java!!!	getPrefix() : String
+    return dtm.getPrefix(node);
+!!!5607963.java!!!	setPrefix(in prefix : String) : void
+    throw new DTMDOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR);
+!!!5608091.java!!!	getNamespaceURI() : String
+    return dtm.getNamespaceURI(node);
+!!!5608219.java!!!	supports(in feature : String, in version : String) : boolean
+    return implementation.hasFeature(feature,version);
+    //throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5608347.java!!!	isSupported(in feature : String, in version : String) : boolean
+    return implementation.hasFeature(feature,version);
+    // throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5608475.java!!!	getNodeValue() : String
+    return dtm.getNodeValue(node);
+!!!5608603.java!!!	getStringValue() : String
+  	return dtm.getStringValue(node).toString();
+!!!5608731.java!!!	setNodeValue(in nodeValue : String) : void
+    throw new DTMDOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR);
+!!!5608859.java!!!	getNodeType() : short
+    return (short) dtm.getNodeType(node);
+!!!5608987.java!!!	getParentNode() : Node
+
+    if (getNodeType() == Node.ATTRIBUTE_NODE)
+      return null;
+
+    int newnode = dtm.getParent(node);
+
+    return (newnode == DTM.NULL) ? null : dtm.getNode(newnode);
+!!!5609115.java!!!	getOwnerNode() : Node
+
+    int newnode = dtm.getParent(node);
+
+    return (newnode == DTM.NULL) ? null : dtm.getNode(newnode);
+!!!5609243.java!!!	getChildNodes() : NodeList
+                
+    // Annoyingly, AxisIterators do not currently implement DTMIterator, so
+    // we can't just wap DTMNodeList around an Axis.CHILD iterator.
+    // Instead, we've created a special-case operating mode for that object.
+    return new DTMChildIterNodeList(dtm,node);
+
+    // throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5609371.java!!!	getFirstChild() : Node
+
+    int newnode = dtm.getFirstChild(node);
+
+    return (newnode == DTM.NULL) ? null : dtm.getNode(newnode);
+!!!5609499.java!!!	getLastChild() : Node
+
+    int newnode = dtm.getLastChild(node);
+
+    return (newnode == DTM.NULL) ? null : dtm.getNode(newnode);
+!!!5609627.java!!!	getPreviousSibling() : Node
+
+    int newnode = dtm.getPreviousSibling(node);
+
+    return (newnode == DTM.NULL) ? null : dtm.getNode(newnode);
+!!!5609755.java!!!	getNextSibling() : Node
+
+    // Attr's Next is defined at DTM level, but not at DOM level.
+    if (dtm.getNodeType(node) == Node.ATTRIBUTE_NODE)
+      return null;
+
+    int newnode = dtm.getNextSibling(node);
+
+    return (newnode == DTM.NULL) ? null : dtm.getNode(newnode);
+!!!5609883.java!!!	getAttributes() : NamedNodeMap
+
+    return new DTMNamedNodeMap(dtm, node);
+!!!5610011.java!!!	hasAttribute(in name : String) : boolean
+    return DTM.NULL != dtm.getAttributeNode(node,null,name);
+!!!5610139.java!!!	hasAttributeNS(in name : String, in x : String) : boolean
+    return DTM.NULL != dtm.getAttributeNode(node,x,name);
+!!!5610267.java!!!	getOwnerDocument() : Document
+  	// Note that this uses the DOM-compatable version of the call
+	return (Document)(dtm.getNode(dtm.getOwnerDocument(node)));
+!!!5610395.java!!!	insertBefore(inout newChild : Node, inout refChild : Node) : Node
+    throw new DTMDOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR);
+!!!5610523.java!!!	replaceChild(inout newChild : Node, inout oldChild : Node) : Node
+    throw new DTMDOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR);
+!!!5610651.java!!!	removeChild(inout oldChild : Node) : Node
+    throw new DTMDOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR);
+!!!5610779.java!!!	appendChild(inout newChild : Node) : Node
+    throw new DTMDOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR);
+!!!5610907.java!!!	hasChildNodes() : boolean
+    return (DTM.NULL != dtm.getFirstChild(node));
+!!!5611035.java!!!	cloneNode(inout deep : boolean) : Node
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5611163.java!!!	getDoctype() : DocumentType
+    return null;
+!!!5611291.java!!!	getImplementation() : DOMImplementation
+    return implementation;
+!!!5611419.java!!!	getDocumentElement() : Element
+		int dochandle=dtm.getDocument();
+		int elementhandle=DTM.NULL;
+		for(int kidhandle=dtm.getFirstChild(dochandle);
+				kidhandle!=DTM.NULL;
+				kidhandle=dtm.getNextSibling(kidhandle))
+		{
+			switch(dtm.getNodeType(kidhandle))
+			{
+			case Node.ELEMENT_NODE:
+				if(elementhandle!=DTM.NULL) 
+				{
+					elementhandle=DTM.NULL; // More than one; ill-formed.
+					kidhandle=dtm.getLastChild(dochandle); // End loop
+				}
+				else
+					elementhandle=kidhandle;
+				break;
+				
+			// These are harmless; document is still wellformed
+			case Node.COMMENT_NODE:
+			case Node.PROCESSING_INSTRUCTION_NODE:
+			case Node.DOCUMENT_TYPE_NODE:
+				break;
+					
+			default:
+				elementhandle=DTM.NULL; // ill-formed
+				kidhandle=dtm.getLastChild(dochandle); // End loop
+				break;
+			}
+		}
+		if(elementhandle==DTM.NULL)
+			throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+		else
+			return (Element)(dtm.getNode(elementhandle));
+!!!5611547.java!!!	createElement(in tagName : String) : Element
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5611675.java!!!	createDocumentFragment() : DocumentFragment
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5611803.java!!!	createTextNode(in data : String) : Text
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5611931.java!!!	createComment(in data : String) : Comment
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5612059.java!!!	createCDATASection(in data : String) : CDATASection
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5612187.java!!!	createProcessingInstruction(in target : String, in data : String) : ProcessingInstruction
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5612315.java!!!	createAttribute(in name : String) : Attr
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5612443.java!!!	createEntityReference(in name : String) : EntityReference
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5612571.java!!!	getElementsByTagName(in tagname : String) : NodeList
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5612699.java!!!	importNode(inout importedNode : Node, inout deep : boolean) : Node
+    throw new DTMDOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR);
+!!!5612827.java!!!	createElementNS(in namespaceURI : String, in qualifiedName : String) : Element
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5612955.java!!!	createAttributeNS(in namespaceURI : String, in qualifiedName : String) : Attr
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5613083.java!!!	getElementsByTagNameNS(in namespaceURI : String, in localName : String) : NodeList
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5613211.java!!!	getElementById(in elementId : String) : Element
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5613339.java!!!	splitText(in offset : int) : Text
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5613467.java!!!	getData() : String
+    return dtm.getNodeValue(node);
+!!!5613595.java!!!	setData(in data : String) : void
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5613723.java!!!	getLength() : int
+    // %OPT% This should do something smarter?
+    return dtm.getNodeValue(node).length();
+!!!5613851.java!!!	substringData(in offset : int, in count : int) : String
+    return getData().substring(offset,offset+count);
+!!!5613979.java!!!	appendData(in arg : String) : void
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5614107.java!!!	insertData(in offset : int, in arg : String) : void
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5614235.java!!!	deleteData(in offset : int, in count : int) : void
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5614363.java!!!	replaceData(in offset : int, in count : int, in arg : String) : void
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5614491.java!!!	getTagName() : String
+    return dtm.getNodeName(node);
+!!!5614619.java!!!	getAttribute(in name : String) : String
+
+    DTMNamedNodeMap  map = new DTMNamedNodeMap(dtm, node);
+    Node node = map.getNamedItem(name);
+    return (null == node) ? null : node.getNodeValue();
+!!!5614747.java!!!	setAttribute(in name : String, in value : String) : void
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5614875.java!!!	removeAttribute(in name : String) : void
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5615003.java!!!	getAttributeNode(in name : String) : Attr
+
+    DTMNamedNodeMap  map = new DTMNamedNodeMap(dtm, node);
+    return (Attr)map.getNamedItem(name);
+!!!5615131.java!!!	setAttributeNode(inout newAttr : Attr) : Attr
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5615259.java!!!	removeAttributeNode(inout oldAttr : Attr) : Attr
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5615387.java!!!	hasAttributes() : boolean
+    return DTM.NULL != dtm.getFirstAttribute(node);
+!!!5615515.java!!!	normalize() : void
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5615643.java!!!	getAttributeNS(in namespaceURI : String, in localName : String) : String
+    DTMNamedNodeMap  map = new DTMNamedNodeMap(dtm, node);
+    Node node = map.getNamedItemNS(namespaceURI,localName);
+    return (null == node) ? null : node.getNodeValue();
+!!!5615771.java!!!	setAttributeNS(in namespaceURI : String, in qualifiedName : String, in value : String) : void
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5615899.java!!!	removeAttributeNS(in namespaceURI : String, in localName : String) : void
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5616027.java!!!	getAttributeNodeNS(in namespaceURI : String, in localName : String) : Attr
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5616155.java!!!	setAttributeNodeNS(inout newAttr : Attr) : Attr
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5616283.java!!!	getName() : String
+    return dtm.getNodeName(node);
+!!!5616411.java!!!	getSpecified() : boolean
+    // We really don't know which attributes might have come from the
+    // source document versus from the DTD. Treat them all as having
+    // been provided by the user.
+    // %REVIEW% if/when we become aware of DTDs/schemae.
+    return true;
+!!!5616539.java!!!	getValue() : String
+    return dtm.getNodeValue(node);
+!!!5616667.java!!!	setValue(in value : String) : void
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5616795.java!!!	getOwnerElement() : Element
+    if (getNodeType() != Node.ATTRIBUTE_NODE)
+      return null;
+    // In XPath and DTM data models, unlike DOM, an Attr's parent is its
+    // owner element.
+    int newnode = dtm.getParent(node);
+    return (newnode == DTM.NULL) ? null : (Element)(dtm.getNode(newnode));
+!!!5616923.java!!!	adoptNode(inout source : Node) : Node
+
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5617051.java!!!	getInputEncoding() : String
+
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5617179.java!!!	setEncoding(in encoding : String) : void
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5617307.java!!!	getStandalone() : boolean
+
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5617435.java!!!	setStandalone(inout standalone : boolean) : void
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5617563.java!!!	getStrictErrorChecking() : boolean
+
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5617691.java!!!	setStrictErrorChecking(inout strictErrorChecking : boolean) : void
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5617819.java!!!	getVersion() : String
+
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5617947.java!!!	setVersion(in version : String) : void
+    throw new DTMDOMException(DOMException.NOT_SUPPORTED_ERR);
+!!!5618587.java!!!	setUserData(in key : String, inout data : Object, inout handler : UserDataHandler) : Object
+        return getOwnerDocument().setUserData( key, data, handler);
+!!!5618715.java!!!	getUserData(in key : String) : Object
+        return getOwnerDocument().getUserData( key);
+!!!5618843.java!!!	getFeature(in feature : String, in version : String) : Object
+        // we don't have any alternate node, either this node does the job
+        // or we don't have anything that does
+        return isSupported(feature, version) ? this : null;
+!!!5618971.java!!!	isEqualNode(inout arg : Node) : boolean
+        if (arg == this) {
+            return true;
+        }
+        if (arg.getNodeType() != getNodeType()) {
+            return false;
+        }
+        // in theory nodeName can't be null but better be careful
+        // who knows what other implementations may be doing?...
+        if (getNodeName() == null) {
+            if (arg.getNodeName() != null) {
+                return false;
+            }
+        }
+        else if (!getNodeName().equals(arg.getNodeName())) {
+            return false;
+        }
+
+        if (getLocalName() == null) {
+            if (arg.getLocalName() != null) {
+                return false;
+            }
+        }
+        else if (!getLocalName().equals(arg.getLocalName())) {
+            return false;
+        }
+
+        if (getNamespaceURI() == null) {
+            if (arg.getNamespaceURI() != null) {
+                return false;
+            }
+        }
+        else if (!getNamespaceURI().equals(arg.getNamespaceURI())) {
+            return false;
+        }
+
+        if (getPrefix() == null) {
+            if (arg.getPrefix() != null) {
+                return false;
+            }
+        }
+        else if (!getPrefix().equals(arg.getPrefix())) {
+            return false;
+        }
+
+        if (getNodeValue() == null) {
+            if (arg.getNodeValue() != null) {
+                return false;
+            }
+        }
+        else if (!getNodeValue().equals(arg.getNodeValue())) {
+            return false;
+        }
+    /*
+        if (getBaseURI() == null) {
+            if (((NodeImpl) arg).getBaseURI() != null) {
+                return false;
+            }
+        }
+        else if (!getBaseURI().equals(((NodeImpl) arg).getBaseURI())) {
+            return false;
+        }
+*/
+
+             return true;
+!!!5619099.java!!!	lookupNamespaceURI(in specifiedPrefix : String) : String
+        short type = this.getNodeType();
+        switch (type) {
+        case Node.ELEMENT_NODE : {
+
+                String namespace = this.getNamespaceURI();
+                String prefix = this.getPrefix();
+                if (namespace !=null) {
+                    // REVISIT: is it possible that prefix is empty string?
+                    if (specifiedPrefix== null && prefix==specifiedPrefix) {
+                        // looking for default namespace
+                        return namespace;
+                    } else if (prefix != null && prefix.equals(specifiedPrefix)) {
+                        // non default namespace
+                        return namespace;
+                    }
+                }
+                if (this.hasAttributes()) {
+                    NamedNodeMap map = this.getAttributes();
+                    int length = map.getLength();
+                    for (int i=0;i<length;i++) {
+                        Node attr = map.item(i);
+                        String attrPrefix = attr.getPrefix();
+                        String value = attr.getNodeValue();
+                        namespace = attr.getNamespaceURI();
+                        if (namespace !=null && namespace.equals("http://www.w3.org/2000/xmlns/")) {
+                            // at this point we are dealing with DOM Level 2 nodes only
+                            if (specifiedPrefix == null &&
+                                attr.getNodeName().equals("xmlns")) {
+                                // default namespace
+                                return value;
+                            } else if (attrPrefix !=null &&
+                                       attrPrefix.equals("xmlns") &&
+                                       attr.getLocalName().equals(specifiedPrefix)) {
+                 // non default namespace
+                                return value;
+                            }
+                        }
+                    }
+                }
+		/*
+                NodeImpl ancestor = (NodeImpl)getElementAncestor(this);
+                if (ancestor != null) {
+                    return ancestor.lookupNamespaceURI(specifiedPrefix);
+                }
+		*/
+
+                return null;
+
+
+            }
+/*
+        case Node.DOCUMENT_NODE : {
+                return((NodeImpl)((Document)this).getDocumentElement()).lookupNamespaceURI(specifiedPrefix) ;
+            }
+*/
+        case Node.ENTITY_NODE :
+        case Node.NOTATION_NODE:
+        case Node.DOCUMENT_FRAGMENT_NODE:
+        case Node.DOCUMENT_TYPE_NODE:
+            // type is unknown
+            return null;
+        case Node.ATTRIBUTE_NODE:{
+                if (this.getOwnerElement().getNodeType() == Node.ELEMENT_NODE) {
+                    return getOwnerElement().lookupNamespaceURI(specifiedPrefix);
+
+                }
+                return null;
+            }
+        default:{
+	   /*
+                NodeImpl ancestor = (NodeImpl)getElementAncestor(this);
+                if (ancestor != null) {
+                    return ancestor.lookupNamespaceURI(specifiedPrefix);
+                }
+             */
+                return null;
+            }
+
+        }
+!!!5619227.java!!!	isDefaultNamespace(in namespaceURI : String) : boolean
+       /*
+        // REVISIT: remove casts when DOM L3 becomes REC.
+        short type = this.getNodeType();
+        switch (type) {
+        case Node.ELEMENT_NODE: {
+            String namespace = this.getNamespaceURI();
+            String prefix = this.getPrefix();
+
+            // REVISIT: is it possible that prefix is empty string?
+            if (prefix == null || prefix.length() == 0) {
+                if (namespaceURI == null) {
+                    return (namespace == namespaceURI);
+                }
+                return namespaceURI.equals(namespace);
+            }
+            if (this.hasAttributes()) {
+                ElementImpl elem = (ElementImpl)this;
+                NodeImpl attr = (NodeImpl)elem.getAttributeNodeNS("http://www.w3.org/2000/xmlns/", "xmlns");
+                if (attr != null) {
+                    String value = attr.getNodeValue();
+                    if (namespaceURI == null) {
+                        return (namespace == value);
+                    }
+                    return namespaceURI.equals(value);
+                }
+            }
+
+            NodeImpl ancestor = (NodeImpl)getElementAncestor(this);
+            if (ancestor != null) {
+                return ancestor.isDefaultNamespace(namespaceURI);
+            }
+            return false;
+        }
+        case Node.DOCUMENT_NODE:{
+                return((NodeImpl)((Document)this).getDocumentElement()).isDefaultNamespace(namespaceURI);
+            }
+
+        case Node.ENTITY_NODE :
+          case Node.NOTATION_NODE:
+        case Node.DOCUMENT_FRAGMENT_NODE:
+        case Node.DOCUMENT_TYPE_NODE:
+            // type is unknown
+            return false;
+        case Node.ATTRIBUTE_NODE:{
+                if (this.ownerNode.getNodeType() == Node.ELEMENT_NODE) {
+                    return ownerNode.isDefaultNamespace(namespaceURI);
+
+                }
+                return false;
+            }
+        default:{  
+                NodeImpl ancestor = (NodeImpl)getElementAncestor(this);
+                if (ancestor != null) {
+                    return ancestor.isDefaultNamespace(namespaceURI);
+                }
+                return false;
+            }
+
+        }
+*/
+        return false;
+
+
+!!!5619355.java!!!	lookupPrefix(in namespaceURI : String) : String
+
+        // REVISIT: When Namespaces 1.1 comes out this may not be true
+        // Prefix can't be bound to null namespace
+        if (namespaceURI == null) {
+            return null;
+        }
+
+        short type = this.getNodeType();
+
+        switch (type) {
+/*
+        case Node.ELEMENT_NODE: {
+
+                String namespace = this.getNamespaceURI(); // to flip out children
+                return lookupNamespacePrefix(namespaceURI, (ElementImpl)this);
+            }
+
+        case Node.DOCUMENT_NODE:{
+                return((NodeImpl)((Document)this).getDocumentElement()).lookupPrefix(namespaceURI);
+            }
+*/
+        case Node.ENTITY_NODE :
+        case Node.NOTATION_NODE:
+        case Node.DOCUMENT_FRAGMENT_NODE:
+        case Node.DOCUMENT_TYPE_NODE:
+            // type is unknown
+            return null;
+        case Node.ATTRIBUTE_NODE:{
+                if (this.getOwnerElement().getNodeType() == Node.ELEMENT_NODE) {
+                    return getOwnerElement().lookupPrefix(namespaceURI);
+
+                }
+                return null;
+            }
+        default:{ 
+/*
+                NodeImpl ancestor = (NodeImpl)getElementAncestor(this);
+                if (ancestor != null) {
+                    return ancestor.lookupPrefix(namespaceURI);
+                }
+*/
+                return null;
+            }
+         }
+!!!5619483.java!!!	isSameNode(inout other : Node) : boolean
+        // we do not use any wrapper so the answer is obvious
+        return this == other;
+!!!5619611.java!!!	setTextContent(in textContent : String) : void
+        setNodeValue(textContent);
+!!!5619739.java!!!	getTextContent() : String
+        return getNodeValue();  // overriden in some subclasses
+!!!5619867.java!!!	compareDocumentPosition(inout other : Node) : short
+        return 0;
+!!!5619995.java!!!	getBaseURI() : String
+        return null;
+!!!5620123.java!!!	renameNode(inout n : Node, in namespaceURI : String, in name : String) : Node
+        return n;
+!!!5620251.java!!!	normalizeDocument() : void
+   
+
+!!!5620379.java!!!	getDomConfig() : DOMConfiguration
+       return null;
+!!!5620507.java!!!	setDocumentURI(in documentURI : String) : void
+        
+        fDocumentURI= documentURI;
+!!!5620635.java!!!	getDocumentURI() : String
+        return fDocumentURI;
+!!!5620763.java!!!	getActualEncoding() : String
+        return actualEncoding;
+!!!5620891.java!!!	setActualEncoding(in value : String) : void
+        actualEncoding = value;
+!!!5621019.java!!!	replaceWholeText(in content : String) : Text
+/*
+
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+
+        // make sure we can make the replacement
+        if (!canModify(nextSibling)) {
+            throw new DOMException(DOMException.NO_MODIFICATION_ALLOWED_ERR,
+                DOMMessageFormatter.formatMessage(DOMMessageFormatter.DOM_DOMAIN, "NO_MODIFICATION_ALLOWED_ERR", null));
+        }
+
+        Node parent = this.getParentNode();
+        if (content == null || content.length() == 0) {
+            // remove current node
+            if (parent !=null) { // check if node in the tree
+                parent.removeChild(this);
+                return null;
+            }
+        }
+        Text currentNode = null;
+        if (isReadOnly()){
+            Text newNode = this.ownerDocument().createTextNode(content);
+            if (parent !=null) { // check if node in the tree
+                parent.insertBefore(newNode, this);
+                parent.removeChild(this);
+                currentNode = newNode;
+            } else {
+                return newNode;
+            }
+        }  else {
+            this.setData(content);
+            currentNode = this;
+        }
+        Node sibling =  currentNode.getNextSibling();
+        while ( sibling !=null) {
+            parent.removeChild(sibling);
+            sibling = currentNode.getNextSibling();
+        }
+
+        return currentNode;
+*/
+        return null; //Pending
+!!!5621147.java!!!	getWholeText() : String
+
+/*
+        if (needsSyncData()) {
+            synchronizeData();
+        }
+        if (nextSibling == null) {
+            return data;
+        }
+        StringBuffer buffer = new StringBuffer();
+        if (data != null && data.length() != 0) {
+            buffer.append(data);
+        }
+        getWholeText(nextSibling, buffer);
+        return buffer.toString();
+*/
+        return null; // PENDING
+
+!!!5621275.java!!!	isElementContentWhitespace() : boolean
+        return false;
+!!!5621403.java!!!	setIdAttribute(inout id : boolean) : void
+        //PENDING
+!!!5621531.java!!!	setIdAttribute(in name : String, inout makeId : boolean) : void
+        //PENDING
+!!!5621659.java!!!	setIdAttributeNode(inout at : Attr, inout makeId : boolean) : void
+        //PENDING
+!!!5621787.java!!!	setIdAttributeNS(in namespaceURI : String, in localName : String, inout makeId : boolean) : void
+        //PENDING
+!!!5621915.java!!!	getSchemaTypeInfo() : TypeInfo
+      return null; //PENDING
+!!!5622043.java!!!	isId() : boolean
+        return false; //PENDING
+!!!5622171.java!!!	getXmlEncoding() : String
+        return xmlEncoding;
+!!!5622299.java!!!	setXmlEncoding(in xmlEncoding : String) : void
+        this.xmlEncoding = xmlEncoding;
+!!!5622427.java!!!	getXmlStandalone() : boolean
+        return xmlStandalone;
+!!!5622555.java!!!	setXmlStandalone(inout xmlStandalone : boolean) : void
+        this.xmlStandalone = xmlStandalone;
+!!!5622683.java!!!	getXmlVersion() : String
+        return xmlVersion;
+!!!5622811.java!!!	setXmlVersion(in xmlVersion : String) : void
+        this.xmlVersion = xmlVersion;

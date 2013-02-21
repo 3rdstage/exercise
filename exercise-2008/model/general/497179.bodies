@@ -1,0 +1,34 @@
+class WindowsUtils
+!!!3061787.java!!!	isLeftToRight(inout c : Component) : boolean
+        return c.getComponentOrientation().isLeftToRight();
+!!!3061915.java!!!	repaintMnemonicsInWindow(inout w : Window) : void
+        if(w == null || !w.isShowing()) {
+            return;
+        }
+
+        Window[] ownedWindows = w.getOwnedWindows();
+        for(int i=0;i<ownedWindows.length;i++) {
+            repaintMnemonicsInWindow(ownedWindows[i]);
+        }
+
+        repaintMnemonicsInContainer(w);
+!!!3062043.java!!!	repaintMnemonicsInContainer(inout cont : Container) : void
+        Component c;
+        for(int i=0; i<cont.getComponentCount(); i++) {
+            c = cont.getComponent(i);
+            if(c == null || !c.isVisible()) {
+                continue;
+            }
+            if(c instanceof AbstractButton
+               && ((AbstractButton)c).getMnemonic() != '\0') {
+                c.repaint();
+                continue;
+            } else if(c instanceof JLabel
+                      && ((JLabel)c).getDisplayedMnemonic() != '\0') {
+                c.repaint();
+                continue;
+            }
+            if(c instanceof Container) {
+                repaintMnemonicsInContainer((Container)c);
+            }
+        }

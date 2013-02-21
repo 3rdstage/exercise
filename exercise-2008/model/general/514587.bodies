@@ -1,0 +1,182 @@
+class DynamicMetaDataImpl
+!!!3174683.java!!!	DynamicMetaDataImpl()
+	// ------------------------------ 
+	// ------------------------------ 
+!!!3174811.java!!!	testCompliance(inout c : Class) : void
+	// ------------------------------ 
+	// ------------------------------ 
+	if (DynamicMBean.class.isAssignableFrom(c)) return;
+	throw new NotCompliantMBeanException(
+	       "Only DynamicMBeans are supported by this implementation");
+!!!3174939.java!!!	getMBeanInfo(inout moi : Object) : MBeanInfo
+
+	try {
+	    return (MBeanInfo) 
+		((javax.management.DynamicMBean)moi).getMBeanInfo();
+	} catch (RuntimeMBeanException r) {
+	    throw r;
+	} catch (RuntimeErrorException r) {
+	    throw r;
+	} catch (RuntimeException r) {
+	    debugX("getMBeanInfo",r);
+	    throw new RuntimeMBeanException((RuntimeException)r, 
+           "Runtime Exception thrown by getMBeanInfo method of Dynamic MBean");
+	} catch (Error e ) {
+	    debugX("getMBeanInfo",e);
+	    throw new RuntimeErrorException((Error)e, 
+                      "Error thrown by getMBeanInfo method of Dynamic MBean");
+	}
+
+!!!3175067.java!!!	getAttribute(inout instance : Object, in attribute : String) : Object
+        if (attribute == null) {
+	    final RuntimeException r = 
+		new IllegalArgumentException("Attribute name cannot be null");
+            throw new RuntimeOperationsException(r, 
+                "Exception occured trying to invoke the getter on the MBean");
+        }  
+ 
+	try {
+	    return ((javax.management.DynamicMBean)instance).
+		getAttribute(attribute);
+	} catch (RuntimeOperationsException r) {
+	    throw r;
+	} catch (RuntimeErrorException r) {
+	    throw r;
+	} catch (RuntimeException e) {
+	    debugX("getAttribute",e);
+	    throw new RuntimeMBeanException(e, "RuntimeException" +
+		    " thrown by the getAttribute method of the DynamicMBean" +
+		    " for the attribute " + attribute);
+	} catch (Error e) {
+	    debugX("getAttribute",e);
+	    throw new RuntimeErrorException((Error)e, "Error" + 
+                    " thrown by the getAttribute method of the DynamicMBean "+
+                    " for the attribute " + attribute);                  
+	}
+!!!3175195.java!!!	getAttributes(inout instance : Object, in attributes : String) : AttributeList
+
+        if (attributes == null) {
+            throw new RuntimeOperationsException(new 
+		IllegalArgumentException("Attributes cannot be null"), 
+                "Exception occured trying to invoke the getter on the MBean");
+        }
+
+	try {
+	    return ((javax.management.DynamicMBean)instance).
+		getAttributes(attributes);
+	} catch (RuntimeOperationsException r) {
+	    throw r;
+	} catch (RuntimeErrorException r) {
+	    throw r;
+	} catch (RuntimeException e) {
+	    debugX("getAttributes",e);
+	    throw new RuntimeOperationsException(e, "RuntimeException" +
+                   " thrown by the getAttributes method of the DynamicMBean");
+	} catch (Error e) {
+	    debugX("getAttributes",e);
+	    throw new RuntimeErrorException((Error)e, "Error" + 
+                   " thrown by the getAttributes method of the DynamicMBean");
+	}
+!!!3175323.java!!!	setAttributes(inout instance : Object, inout attributes : AttributeList) : AttributeList
+
+	try {
+	    return ((javax.management.DynamicMBean)instance).
+		setAttributes(attributes);
+	} catch (RuntimeOperationsException r) {
+	    throw r;
+	} catch (RuntimeErrorException r) {
+	    throw r;
+	} catch (RuntimeException e) {
+	    debugX("setAttributes",e);
+	    throw new RuntimeOperationsException(e, 
+		     "RuntimeException thrown by the setAttributes " + 
+		     "method of the Dynamic MBean");
+	} catch (Error e) {
+	    debugX("setAttributes",e);
+	    throw new RuntimeErrorException((Error)e, 
+                      "Error thrown by the setAttributes " + 
+		      "method of the Dynamic MBean");
+	}
+!!!3175451.java!!!	setAttribute(inout instance : Object, inout attribute : Attribute) : Object
+
+        if (attribute == null) {
+	    final RuntimeException r = 
+		new IllegalArgumentException("Attribute name cannot be null");
+            throw new RuntimeOperationsException(r, 
+                "Exception occured trying to invoke the setter on the MBean");
+        }  
+ 
+	try {
+	    ((javax.management.DynamicMBean)instance).
+		setAttribute(attribute);
+	    return attribute.getValue();
+	} catch (RuntimeOperationsException r) {
+	    throw r;
+	} catch (RuntimeErrorException r) {
+	    throw r;
+	} catch (RuntimeException e) {
+	    debugX("setAttribute",e);
+	    throw new RuntimeMBeanException(e, 
+		      "RuntimeException thrown by the setAttribute " + 
+		      attribute + "method of the Dynamic MBean");
+	} catch (Error e) {
+	    debugX("setAttribute",e);
+	    throw new RuntimeErrorException((Error)e, 
+                      "Error thrown by the setAttribute " + attribute + 
+		      "method of the Dynamic MBean");
+	}
+!!!3175579.java!!!	invoke(inout instance : Object, in operationName : String, inout params : Object, in signature : String) : Object
+
+        if (operationName == null) {
+	    final RuntimeException r = 
+	      new IllegalArgumentException("Operation name  cannot be null");
+            throw new RuntimeOperationsException(r, 
+              "Exception occured trying to invoke the operation on the MBean");
+        } 
+
+	try {
+	    return (((javax.management.DynamicMBean)instance).
+		    invoke(operationName, params, signature));
+	} catch (ReflectionException e) {
+	    debugX("invoke",e);
+	    throw e;
+	} catch (MBeanException e) {
+	    debugX("invoke",e);
+	    throw e;
+	} catch (RuntimeOperationsException r) {
+	    throw r;
+	} catch (RuntimeErrorException r) {
+	    throw r;
+	} catch (RuntimeException e) {
+	    debugX("invoke",e);
+	    throw new RuntimeMBeanException(e, "RuntimeException" +
+		      " thrown by the invoke method of the Dynamic MBean");
+	} catch (Error e) {
+	    debugX("invoke",e);
+	    throw new RuntimeErrorException((Error)e, "Error" + 
+                     " thrown by the invoke method of the Dynamic MBean");
+	}
+!!!3175707.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_MBEANSERVER);
+!!!3175835.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_MBEANSERVER, clz, func, info);
+!!!3175963.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!3176091.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_MBEANSERVER);
+!!!3176219.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_MBEANSERVER, clz, func, info);
+!!!3176347.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);
+!!!3176475.java!!!	debugX(in func : String, inout e : Throwable) : void
+	if (isDebugOn()) {
+	    final StringWriter s = new StringWriter();
+	    e.printStackTrace(new PrintWriter(s));
+	    final String stack = s.toString();
+	    
+	    debug(dbgTag,func,"Exception caught in "+ func+"(): "+e);
+	    debug(dbgTag,func,stack);
+	    // java.lang.System.err.println("**** Exception caught in "+
+	    //			     func+"(): "+e);
+	    // java.lang.System.err.println(stack);
+	}

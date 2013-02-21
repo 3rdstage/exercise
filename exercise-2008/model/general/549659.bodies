@@ -1,0 +1,68 @@
+class AclImpl
+!!!3494299.java!!!	AclImpl(inout owner : PrincipalImpl, in name : String)
+	super(owner);
+	entryList = new Vector();
+	aclName = name;
+!!!3494427.java!!!	setName(inout caller : Principal, in name : String) : void
+	  if (!isOwner(caller))
+		throw new NotOwnerException();	
+	  aclName = name;
+!!!3494555.java!!!	getName() : String
+	return aclName;
+!!!3494683.java!!!	addEntry(inout caller : Principal, inout entry : AclEntry) : boolean
+	  if (!isOwner(caller)) 
+		throw new NotOwnerException();
+	
+	  if (entryList.contains(entry))
+		return false;
+	  /* 
+		 for (Enumeration e = entryList.elements();e.hasMoreElements();){
+		 AclEntry ent = (AclEntry) e.nextElement();
+		 if (ent.getPrincipal().equals(entry.getPrincipal())) 
+		 return false;
+		 }
+		 */
+	  
+	  entryList.addElement(entry);
+	  return true;
+!!!3494811.java!!!	removeEntry(inout caller : Principal, inout entry : AclEntry) : boolean
+	  if (!isOwner(caller))
+		throw new NotOwnerException();
+	  
+	  return (entryList.removeElement(entry));
+!!!3494939.java!!!	removeAll(inout caller : Principal) : void
+	  if (!isOwner(caller))
+		throw new NotOwnerException();
+	entryList.removeAllElements();
+!!!3495067.java!!!	getPermissions(inout user : Principal) : Enumeration
+	Vector empty = new Vector();
+	for (Enumeration e = entryList.elements();e.hasMoreElements();){
+	  AclEntry ent = (AclEntry) e.nextElement();
+	  if (ent.getPrincipal().equals(user))
+		return ent.permissions();
+	}
+	return empty.elements();
+!!!3495195.java!!!	entries() : Enumeration
+	return entryList.elements();
+!!!3495323.java!!!	checkPermission(inout user : Principal, inout perm : Permission) : boolean
+	for (Enumeration e = entryList.elements();e.hasMoreElements();){
+	  AclEntry ent = (AclEntry) e.nextElement();
+	  if (ent.getPrincipal().equals(user))
+		if (ent.checkPermission(perm)) return true;
+	}
+	return false;
+!!!3495451.java!!!	checkPermission(inout user : Principal, in community : String, inout perm : Permission) : boolean
+	for (Enumeration e = entryList.elements();e.hasMoreElements();){
+	  AclEntryImpl ent = (AclEntryImpl) e.nextElement();
+	  if (ent.getPrincipal().equals(user))
+		if (ent.checkPermission(perm) && ent.checkCommunity(community)) return true;
+	}
+	return false;
+!!!3495579.java!!!	checkCommunity(in community : String) : boolean
+	for (Enumeration e = entryList.elements();e.hasMoreElements();){
+	  AclEntryImpl ent = (AclEntryImpl) e.nextElement();
+	  if (ent.checkCommunity(community)) return true;
+	}
+	return false;
+!!!3495707.java!!!	toString() : String
+	return ("AclImpl: "+ getName());

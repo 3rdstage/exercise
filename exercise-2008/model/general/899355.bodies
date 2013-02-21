@@ -1,0 +1,72 @@
+class XMLDecoder
+!!!6794267.java!!!	XMLDecoder(inout in : InputStream)
+ 
+        this(in, null); 
+!!!6794395.java!!!	XMLDecoder(inout in : InputStream, inout owner : Object)
+ 
+        this(in, owner, null); 
+!!!6794523.java!!!	XMLDecoder(inout in : InputStream, inout owner : Object, inout exceptionListener : ExceptionListener)
+ 
+	this(in, owner, exceptionListener, null);
+!!!6794651.java!!!	XMLDecoder(inout in : InputStream, inout owner : Object, inout exceptionListener : ExceptionListener, inout cl : ClassLoader)
+ 
+        this.in = in;  
+        setOwner(owner);  
+        setExceptionListener(exceptionListener); 
+        setClassLoader(cl);
+!!!6794779.java!!!	setClassLoader(inout cl : ClassLoader) : void
+	if (cl != null) {
+	    this.clref = new WeakReference(cl);
+	}
+!!!6794907.java!!!	getClassLoader() : ClassLoader
+ 
+        if (clref != null) {
+            return (ClassLoader)clref.get();
+        }
+        return null; 
+!!!6795035.java!!!	close() : void
+ 
+        if (in != null) {
+            try { 
+                in.close(); 
+            } 
+            catch (IOException e) { 
+                getExceptionListener().exceptionThrown(e); 
+            }
+        }
+!!!6795163.java!!!	setExceptionListener(inout exceptionListener : ExceptionListener) : void
+ 
+        this.exceptionListener = exceptionListener; 
+!!!6795291.java!!!	getExceptionListener() : ExceptionListener
+ 
+        return (exceptionListener != null) ? exceptionListener : 
+	    Statement.defaultExceptionListener;
+!!!6795419.java!!!	readObject() : Object
+ 
+	if (in == null) {
+	    return null;
+	}
+        if (handler == null) {
+            SAXParserFactory factory = SAXParserFactory.newInstance();
+            try {
+                SAXParser saxParser = factory.newSAXParser();
+                handler = new ObjectHandler(this, getClassLoader());
+                saxParser.parse(in, handler); 
+            } 
+            catch (ParserConfigurationException e) {
+                getExceptionListener().exceptionThrown(e);
+            } 
+            catch (SAXException se) { 
+                Exception e = se.getException(); 
+                getExceptionListener().exceptionThrown((e == null) ? se : e); 
+            }
+            catch (IOException ioe) { 
+                getExceptionListener().exceptionThrown(ioe); 
+            }
+        }
+        return handler.dequeueResult(); 
+!!!6795547.java!!!	setOwner(inout owner : Object) : void
+ 
+        this.owner = owner; 
+!!!6795675.java!!!	getOwner() : Object
+	return owner; 

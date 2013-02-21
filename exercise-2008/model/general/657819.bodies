@@ -1,0 +1,122 @@
+class SymbolTable
+!!!4449819.java!!!	getKey(inout name : QName) : Key
+        if (_keys == null) return null;
+        return (Key) _keys.get(name);
+!!!4449947.java!!!	addKey(inout name : QName, inout key : Key) : void
+        if (_keys == null) _keys = new Hashtable();
+        _keys.put(name, key);
+!!!4450075.java!!!	getDecimalFormatting(inout name : QName) : DecimalFormatting
+	if (_decimalFormats == null) return null;
+	return((DecimalFormatting)_decimalFormats.get(name));
+!!!4450203.java!!!	addDecimalFormatting(inout name : QName, inout symbols : DecimalFormatting) : void
+	if (_decimalFormats == null) _decimalFormats = new Hashtable();
+	_decimalFormats.put(name, symbols);
+!!!4450331.java!!!	addStylesheet(inout name : QName, inout node : Stylesheet) : Stylesheet
+	return (Stylesheet)_stylesheets.put(name, node);
+!!!4450459.java!!!	lookupStylesheet(inout name : QName) : Stylesheet
+	return (Stylesheet)_stylesheets.get(name);
+!!!4450587.java!!!	addTemplate(inout template : Template) : Template
+	final QName name = template.getName();
+	if (_templates == null) _templates = new Hashtable();
+	return (Template)_templates.put(name, template);
+!!!4450715.java!!!	lookupTemplate(inout name : QName) : Template
+	if (_templates == null) return null;
+	return (Template)_templates.get(name);
+!!!4450843.java!!!	addVariable(inout variable : Variable) : Variable
+	if (_variables == null) _variables = new Hashtable();
+	final String name = variable.getName().getStringRep();
+	return (Variable)_variables.put(name, variable);
+!!!4450971.java!!!	addParam(inout parameter : Param) : Param
+	if (_variables == null) _variables = new Hashtable();
+	final String name = parameter.getName().getStringRep();
+	return (Param)_variables.put(name, parameter);
+!!!4451099.java!!!	lookupVariable(inout qname : QName) : Variable
+	if (_variables == null) return null;
+	final String name = qname.getStringRep();
+	final Object obj = _variables.get(name);
+	return obj instanceof Variable ? (Variable)obj : null;
+!!!4451227.java!!!	lookupParam(inout qname : QName) : Param
+	if (_variables == null) return null;
+	final String name = qname.getStringRep();
+	final Object obj = _variables.get(name);
+	return obj instanceof Param ? (Param)obj : null;
+!!!4451355.java!!!	lookupName(inout qname : QName) : SyntaxTreeNode
+	if (_variables == null) return null;
+	final String name = qname.getStringRep();
+	return (SyntaxTreeNode)_variables.get(name);
+!!!4451483.java!!!	addAttributeSet(inout atts : AttributeSet) : AttributeSet
+	if (_attributeSets == null) _attributeSets = new Hashtable();
+	return (AttributeSet)_attributeSets.put(atts.getName(), atts);
+!!!4451611.java!!!	lookupAttributeSet(inout name : QName) : AttributeSet
+	if (_attributeSets == null) return null;
+	return (AttributeSet)_attributeSets.get(name);
+!!!4451739.java!!!	addPrimop(in name : String, inout mtype : MethodType) : void
+	Vector methods = (Vector)_primops.get(name);
+	if (methods == null) {
+	    _primops.put(name, methods = new Vector());
+	}
+	methods.addElement(mtype);
+!!!4451867.java!!!	lookupPrimop(in name : String) : Vector
+	return (Vector)_primops.get(name);
+!!!4451995.java!!!	generateNamespacePrefix() : String
+	return(new String("ns"+(_nsCounter++)));
+!!!4452123.java!!!	setCurrentNode(inout node : SyntaxTreeNode) : void
+	_current = node;
+!!!4452251.java!!!	lookupNamespace(in prefix : String) : String
+	if (_current == null) return(Constants.EMPTYSTRING);
+	return(_current.lookupNamespace(prefix));
+!!!4452379.java!!!	addPrefixAlias(in prefix : String, in alias : String) : void
+	if (_aliases == null) _aliases = new Hashtable();
+	_aliases.put(prefix,alias);
+!!!4452507.java!!!	lookupPrefixAlias(in prefix : String) : String
+	if (_aliases == null) return null;
+	return (String)_aliases.get(prefix);
+!!!4452635.java!!!	excludeURI(in uri : String) : void
+	// The null-namespace cannot be excluded
+	if (uri == null) return;
+
+	// Create new hashtable of exlcuded URIs if none exists
+	if (_excludedURI == null) _excludedURI = new Hashtable();
+
+	// Register the namespace URI
+	Integer refcnt = (Integer)_excludedURI.get(uri);
+	if (refcnt == null)
+	    refcnt = new Integer(1);
+	else
+	    refcnt = new Integer(refcnt.intValue() + 1);
+	_excludedURI.put(uri,refcnt);
+!!!4452763.java!!!	excludeNamespaces(in prefixes : String) : void
+	if (prefixes != null) {
+	    StringTokenizer tokens = new StringTokenizer(prefixes);
+	    while (tokens.hasMoreTokens()) {
+		final String prefix = tokens.nextToken();
+		final String uri;
+		if (prefix.equals("#default"))
+		    uri = lookupNamespace(Constants.EMPTYSTRING);
+		else
+		    uri = lookupNamespace(prefix);
+		if (uri != null) excludeURI(uri);
+	    }
+	}
+!!!4452891.java!!!	isExcludedNamespace(in uri : String) : boolean
+	if (uri != null && _excludedURI != null) {
+	    final Integer refcnt = (Integer)_excludedURI.get(uri);
+	    return (refcnt != null && refcnt.intValue() > 0);
+	}
+	return false;
+!!!4453019.java!!!	unExcludeNamespaces(in prefixes : String) : void
+	if (_excludedURI == null) return;
+	if (prefixes != null) {
+	    StringTokenizer tokens = new StringTokenizer(prefixes);
+	    while (tokens.hasMoreTokens()) {
+		final String prefix = tokens.nextToken();
+		final String uri;
+		if (prefix.equals("#default"))
+		    uri = lookupNamespace(Constants.EMPTYSTRING);
+		else
+		    uri = lookupNamespace(prefix);
+		Integer refcnt = (Integer)_excludedURI.get(uri);
+		if (refcnt != null)
+		    _excludedURI.put(uri, new Integer(refcnt.intValue() - 1));
+	    }
+	}	

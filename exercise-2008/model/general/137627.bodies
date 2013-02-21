@@ -1,0 +1,215 @@
+class ArrayList
+!!!162971.java!!!	ArrayList(in initialCapacity : int)
+	super();
+        if (initialCapacity < 0)
+            throw new IllegalArgumentException("Illegal Capacity: "+
+                                               initialCapacity);
+	this.elementData = (E[])new Object[initialCapacity];
+!!!163099.java!!!	ArrayList()
+	this(10);
+!!!163227.java!!!	ArrayList(inout c : Collection)
+        size = c.size();
+        // Allow 10% room for growth
+        int capacity = (int) Math.min((size*110L)/100, Integer.MAX_VALUE);
+        elementData = (E[]) c.toArray(new Object[capacity]);
+!!!163355.java!!!	trimToSize() : void
+	modCount++;
+	int oldCapacity = elementData.length;
+	if (size < oldCapacity) {
+	    Object oldData[] = elementData;
+	    elementData = (E[])new Object[size];
+	    System.arraycopy(oldData, 0, elementData, 0, size);
+	}
+!!!163483.java!!!	ensureCapacity(in minCapacity : int) : void
+	modCount++;
+	int oldCapacity = elementData.length;
+	if (minCapacity > oldCapacity) {
+	    Object oldData[] = elementData;
+	    int newCapacity = (oldCapacity * 3)/2 + 1;
+    	    if (newCapacity < minCapacity)
+		newCapacity = minCapacity;
+	    elementData = (E[])new Object[newCapacity];
+	    System.arraycopy(oldData, 0, elementData, 0, size);
+	}
+!!!163611.java!!!	size() : int
+	return size;
+!!!163739.java!!!	isEmpty() : boolean
+	return size == 0;
+!!!163867.java!!!	contains(inout elem : Object) : boolean
+	return indexOf(elem) >= 0;
+!!!163995.java!!!	indexOf(inout elem : Object) : int
+	if (elem == null) {
+	    for (int i = 0; i < size; i++)
+		if (elementData[i]==null)
+		    return i;
+	} else {
+	    for (int i = 0; i < size; i++)
+		if (elem.equals(elementData[i]))
+		    return i;
+	}
+	return -1;
+!!!164123.java!!!	lastIndexOf(inout elem : Object) : int
+	if (elem == null) {
+	    for (int i = size-1; i >= 0; i--)
+		if (elementData[i]==null)
+		    return i;
+	} else {
+	    for (int i = size-1; i >= 0; i--)
+		if (elem.equals(elementData[i]))
+		    return i;
+	}
+	return -1;
+!!!164251.java!!!	clone() : Object
+	try { 
+	    ArrayList<E> v = (ArrayList<E>) super.clone();
+	    v.elementData = (E[])new Object[size];
+	    System.arraycopy(elementData, 0, v.elementData, 0, size);
+	    v.modCount = 0;
+	    return v;
+	} catch (CloneNotSupportedException e) { 
+	    // this shouldn't happen, since we are Cloneable
+	    throw new InternalError();
+	}
+!!!164379.java!!!	toArray() : Object
+	Object[] result = new Object[size];
+	System.arraycopy(elementData, 0, result, 0, size);
+	return result;
+!!!164507.java!!!	toArray(inout a : T) : T
+        if (a.length < size)
+            a = (T[])java.lang.reflect.Array.
+		newInstance(a.getClass().getComponentType(), size);
+	System.arraycopy(elementData, 0, a, 0, size);
+        if (a.length > size)
+            a[size] = null;
+        return a;
+!!!164635.java!!!	get(in index : int) : E
+	RangeCheck(index);
+
+	return elementData[index];
+!!!164763.java!!!	set(in index : int, inout element : E) : E
+	RangeCheck(index);
+
+	E oldValue = elementData[index];
+	elementData[index] = element;
+	return oldValue;
+!!!164891.java!!!	add(inout o : E) : boolean
+	ensureCapacity(size + 1);  // Increments modCount!!
+	elementData[size++] = o;
+	return true;
+!!!165019.java!!!	add(in index : int, inout element : E) : void
+	if (index > size || index < 0)
+	    throw new IndexOutOfBoundsException(
+		"Index: "+index+", Size: "+size);
+
+	ensureCapacity(size+1);  // Increments modCount!!
+	System.arraycopy(elementData, index, elementData, index + 1,
+			 size - index);
+	elementData[index] = element;
+	size++;
+!!!165147.java!!!	remove(in index : int) : E
+	RangeCheck(index);
+
+	modCount++;
+	E oldValue = elementData[index];
+
+	int numMoved = size - index - 1;
+	if (numMoved > 0)
+	    System.arraycopy(elementData, index+1, elementData, index,
+			     numMoved);
+	elementData[--size] = null; // Let gc do its work
+
+	return oldValue;
+!!!165275.java!!!	remove(inout o : Object) : boolean
+	if (o == null) {
+            for (int index = 0; index < size; index++)
+		if (elementData[index] == null) {
+		    fastRemove(index);
+		    return true;
+		}
+	} else {
+	    for (int index = 0; index < size; index++)
+		if (o.equals(elementData[index])) {
+		    fastRemove(index);
+		    return true;
+		}
+        }
+	return false;
+!!!165403.java!!!	fastRemove(in index : int) : void
+        modCount++;
+        int numMoved = size - index - 1;
+        if (numMoved > 0)
+            System.arraycopy(elementData, index+1, elementData, index, 
+                             numMoved);
+        elementData[--size] = null; // Let gc do its work
+!!!165531.java!!!	clear() : void
+	modCount++;
+
+	// Let gc do its work
+	for (int i = 0; i < size; i++)
+	    elementData[i] = null;
+
+	size = 0;
+!!!165659.java!!!	addAll(inout c : Collection) : boolean
+	Object[] a = c.toArray();
+        int numNew = a.length;
+	ensureCapacity(size + numNew);  // Increments modCount
+        System.arraycopy(a, 0, elementData, size, numNew);
+        size += numNew;
+	return numNew != 0;
+!!!165787.java!!!	addAll(in index : int, inout c : Collection) : boolean
+	if (index > size || index < 0)
+	    throw new IndexOutOfBoundsException(
+		"Index: " + index + ", Size: " + size);
+
+	Object[] a = c.toArray();
+	int numNew = a.length;
+	ensureCapacity(size + numNew);  // Increments modCount
+
+	int numMoved = size - index;
+	if (numMoved > 0)
+	    System.arraycopy(elementData, index, elementData, index + numNew,
+			     numMoved);
+
+        System.arraycopy(a, 0, elementData, index, numNew);
+	size += numNew;
+	return numNew != 0;
+!!!165915.java!!!	removeRange(in fromIndex : int, in toIndex : int) : void
+	modCount++;
+	int numMoved = size - toIndex;
+        System.arraycopy(elementData, toIndex, elementData, fromIndex,
+                         numMoved);
+
+	// Let gc do its work
+	int newSize = size - (toIndex-fromIndex);
+	while (size != newSize)
+	    elementData[--size] = null;
+!!!166043.java!!!	RangeCheck(in index : int) : void
+	if (index >= size)
+	    throw new IndexOutOfBoundsException(
+		"Index: "+index+", Size: "+size);
+!!!166171.java!!!	writeObject(inout s : java.io.ObjectOutputStream) : void
+	int expectedModCount = modCount;
+	// Write out element count, and any hidden stuff
+	s.defaultWriteObject();
+
+        // Write out array length
+        s.writeInt(elementData.length);
+
+	// Write out all elements in the proper order.
+	for (int i=0; i<size; i++)
+            s.writeObject(elementData[i]);
+
+ 	if (modCount != expectedModCount) {
+	    throw new ConcurrentModificationException();
+	}
+!!!166299.java!!!	readObject(inout s : java.io.ObjectInputStream) : void
+	// Read in size, and any hidden stuff
+	s.defaultReadObject();
+
+        // Read in array length and allocate array
+        int arrayLength = s.readInt();
+        Object[] a = elementData = (E[])new Object[arrayLength];
+
+	// Read in all elements in the proper order.
+	for (int i=0; i<size; i++)
+            a[i] = s.readObject();

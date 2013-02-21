@@ -1,0 +1,48 @@
+class ParserDelegator
+!!!10014363.java!!!	setDefaultDTD() : void
+        if (dtd == null) {
+	    DTD _dtd = null;
+	    // (PENDING) Hate having to hard code!
+	    String nm = "html32";
+	    try {
+		_dtd = DTD.getDTD(nm);
+	    } catch (IOException e) {
+		// (PENDING) UGLY!
+		System.out.println("Throw an exception: could not get default dtd: " + nm);
+	    }
+	    dtd = createDTD(_dtd, nm);
+        }
+!!!10014491.java!!!	createDTD(inout dtd : DTD, in name : String) : DTD
+
+	InputStream in = null;
+	boolean debug = true;
+	try {
+	    String path = name + ".bdtd";
+	    in = getResourceAsStream(path);
+            if (in != null) {
+                dtd.read(new DataInputStream(new BufferedInputStream(in)));
+                dtd.putDTDHash(name, dtd);
+	    }
+        } catch (Exception e) {
+            System.out.println(e);
+        }
+        return dtd;
+!!!10014619.java!!!	ParserDelegator()
+	if (dtd == null) {
+	    setDefaultDTD();
+	}
+!!!10014747.java!!!	parse(inout r : Reader, inout cb : ParserCallback, inout ignoreCharSet : boolean) : void
+	new DocumentParser(dtd).parse(r, cb, ignoreCharSet);
+!!!10014875.java!!!	getResourceAsStream(in name : String) : InputStream
+	try {
+            return ResourceLoader.getResourceAsStream(name);
+	} catch (Throwable e) {
+	    // If the class doesn't exist or we have some other 
+	    // problem we just try to call getResourceAsStream directly.
+	    return ParserDelegator.class.getResourceAsStream(name);
+	}
+!!!10015003.java!!!	readObject(inout s : ObjectInputStream) : void
+	s.defaultReadObject();
+	if (dtd == null) {
+	    setDefaultDTD();
+	}

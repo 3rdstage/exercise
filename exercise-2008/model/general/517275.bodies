@@ -1,0 +1,646 @@
+class StandardMetaDataImpl
+!!!3203611.java!!!	StandardMetaDataImpl()
+        this(true);
+!!!3203739.java!!!	StandardMetaDataImpl(inout wrapRuntimeExceptions : boolean)
+	this.wrapRuntimeExceptions = wrapRuntimeExceptions;
+!!!3203867.java!!!	buildMBeanInfo(inout c : Class) : MBeanInfo
+	return Introspector.testCompliance(c);
+!!!3203995.java!!!	buildMBeanInfo(inout c : Class, inout mbeanInterface : Class) : MBeanInfo
+	return Introspector.testCompliance(c,mbeanInterface);	
+!!!3204123.java!!!	testCompliance(inout c : Class) : void
+	// ------------------------------ 
+	// ------------------------------
+
+	final MBeanInfo mbeanInfo  = buildMBeanInfo(c);
+	final Class mbeanInterface = Introspector.getMBeanInterface(c);
+	cacheMBeanInfo(c,mbeanInterface,mbeanInfo);
+!!!3204251.java!!!	testCompliance(inout c : Class, inout mbeanInterface : Class) : void
+	// ------------------------------ 
+	// ------------------------------
+
+	final MBeanInfo mbeanInfo = 
+	    buildMBeanInfo(c,mbeanInterface);
+	if (mbeanInterface == null) 
+	    mbeanInterface = Introspector.getStandardMBeanInterface(c);
+	cacheMBeanInfo(c,mbeanInterface,mbeanInfo);
+!!!3204379.java!!!	getMBeanInterfaceFromClass(inout c : Class) : Class
+	final Class itf = getCachedMBeanInterface(c);
+	if (itf != null) return itf;
+	synchronized (this) {
+	    return Introspector.getMBeanInterface(c);
+	}
+!!!3204507.java!!!	getStandardMBeanInterface(inout c : Class) : Class
+	synchronized (this) {
+	    return Introspector.getStandardMBeanInterface(c);
+	}
+!!!3204635.java!!!	getMBeanInfoFromClass(inout beanClass : Class) : MBeanInfo
+
+	// Check the mbean information cache.
+	MBeanInfo bi = getCachedMBeanInfo(beanClass);
+
+	// Make an independent copy of the MBeanInfo.        
+	if (bi != null) return (MBeanInfo) bi.clone() ;
+
+	// We don't have have any MBeanInfo for that class yet.
+	// => test compliance.
+	testCompliance(beanClass);
+
+	bi = getCachedMBeanInfo(beanClass);;
+
+	// Make an independent copy of the MBeanInfo.
+	if (bi != null) return (MBeanInfo) bi.clone() ;
+	return bi;
+!!!3204763.java!!!	getMBeanClassName(inout moi : Object) : String
+	return moi.getClass().getName();
+!!!3204891.java!!!	getMBeanInfo(inout moi : Object) : MBeanInfo
+	try {
+	    final MBeanInfo mbi = getMBeanInfoFromClass(moi.getClass());
+	    return new MBeanInfo(mbi.getClassName(), mbi.getDescription(), 
+				 mbi.getAttributes(), 
+				 mbi.getConstructors(), 
+				 mbi.getOperations(), 
+				 findNotifications(moi));
+	} catch (NotCompliantMBeanException x) {
+	    debugX("getMBeanInfo",x);
+	    throw new IntrospectionException("Can't build MBeanInfo for "+
+					     moi.getClass().getName());
+	}
+!!!3205019.java!!!	getAttribute(inout instance : Object, in attribute : String) : Object
+
+        Class mbeanClass = getMBeanInterfaceFromInstance(instance);
+	if (isDebugOn()) {
+	    debug("getAttribute","MBean Class is " + instance.getClass());
+	    debug("getAttribute","MBean Interface is " + mbeanClass);
+	}
+
+        return getAttribute(instance, attribute, mbeanClass);
+!!!3205147.java!!!	getAttributes(inout instance : Object, in attributes : String) : AttributeList
+
+	final Class mbeanClass = 
+	    getMBeanInterfaceFromInstance(instance);
+
+	if (isDebugOn()) {
+	    debug("getAttributes","MBean Class is " + instance.getClass());
+	    debug("getAttributes","MBean Interface is " + mbeanClass);
+	}
+
+        if (attributes == null) {
+            throw new RuntimeOperationsException(new 
+		IllegalArgumentException("Attributes cannot be null"), 
+                "Exception occured trying to invoke the getter on the MBean");
+        }
+
+	// Go through the list of attributes
+        //
+        final int maxLimit = attributes.length;
+	final AttributeList result = new AttributeList(maxLimit);
+
+        for (int i=0;i<maxLimit;i++) { 
+            final String elmt = (String)attributes[i];
+            try {        
+                final Object value = 
+		    getAttribute(instance, elmt, mbeanClass);
+                result.add(new Attribute(elmt, value));
+            } catch (Exception excep) {
+                if (isDebugOn()) {
+                    debug("getAttributes", "Object= " + instance + 
+			  ", Attribute=" + elmt + " failed: " + excep);
+                }          
+            }
+        }
+        return result;
+!!!3205275.java!!!	setAttributes(inout instance : Object, inout attributes : AttributeList) : AttributeList
+	
+	final Class objClass       = instance.getClass();
+        final Class mbeanClass     = getMBeanInterfaceFromInstance(instance);
+	final ClassLoader aLoader  = objClass.getClassLoader();
+	
+	if (isDebugOn()) {
+	    debug("setAttributes","MBean Class is " + instance.getClass());
+	    debug("setAttributes","MBean Interface is " + mbeanClass);
+	}
+
+	if (attributes == null) return new AttributeList();
+
+	final AttributeList result = new AttributeList(attributes.size());
+
+	// Go through the list of attributes
+        for (final Iterator i = attributes.iterator(); i.hasNext();) {
+            final Attribute attr = (Attribute) i.next();
+            final String id          = attr.getName();
+            final Object value       = attr.getValue();          
+            try {
+                final Object newValue = 
+		    setAttribute(instance, attr, mbeanClass);  
+                if (isTraceOn()) {
+                    trace("setAttributes", "Updating the list\n");
+                }                                                
+                result.add(new Attribute(id, newValue));
+            } catch (Exception excep) {
+                if (isDebugOn()) {
+                    debug("setAttributes", "Unexpected exception occured: " +
+			  excep.getClass().getName());
+                }
+            }
+        }
+        return result;	
+
+!!!3205403.java!!!	setAttribute(inout instance : Object, inout attribute : Attribute) : Object
+
+        final Class mbeanClass = 
+	    getMBeanInterfaceFromInstance(instance);
+
+	if (isDebugOn()) {
+	    debug("setAttribute","MBean Class is " + instance.getClass());
+	    debug("setAttribute","MBean Interface is " + mbeanClass);
+	}
+
+	return setAttribute(instance,attribute,mbeanClass);
+!!!3205531.java!!!	invoke(inout instance : Object, in operationName : String, inout params : Object, in signature : String) : Object
+
+        if (operationName == null) {
+	    final RuntimeException r = 
+	      new IllegalArgumentException("Operation name cannot be null");
+            throw new RuntimeOperationsException(r, 
+              "Exception occured trying to invoke the operation on the MBean");
+        } 
+
+	final Class objClass = instance.getClass();
+        final Class mbeanClass = getMBeanInterfaceFromInstance(instance);
+	final ClassLoader aLoader = objClass.getClassLoader();
+
+	if (isDebugOn()) {
+	    debug("invoke","MBean Class is " + instance.getClass());
+	    debug("invoke","MBean Interface is " + mbeanClass);
+	}
+
+        // Build the signature of the method
+        //
+        final Class[] tab = 
+	    ((signature == null)?null:
+	     findSignatureClasses(signature,aLoader));
+	
+        // Query the metadata service to get the right method
+        //    
+        Method mth= findMethod(mbeanClass, operationName, tab);
+        
+        if (mth == null) {
+            if (isTraceOn()) {
+                trace("invoke", operationName + " not found in class " +
+		      mbeanClass.getName());
+            }
+            throw new ReflectionException(
+		          new NoSuchMethodException(operationName), 
+                          "The operation with name " + operationName + 
+			  " could not be found");
+        }
+
+        // Make it impossible to call getters and setters through invoke()
+        //
+        forbidInvokeGetterSetter(mth, operationName);
+
+        // invoke the method        
+        if (isTraceOn()) {
+            trace("invoke", "Invoking " + operationName);
+        }           
+        Object result=null;
+        try {
+            result= mth.invoke(instance, params); 
+        } catch (IllegalAccessException e) {
+	    debugX("invoke",e);
+            throw new ReflectionException(e, "IllegalAccessException" + 
+		   " occured trying to invoke operation " + operationName);
+        } catch (RuntimeException e) {
+	    debugX("invoke",e);
+            throw new RuntimeOperationsException(e, "RuntimeException" + 
+                   " occured trying to invoke operation " + operationName);
+        } catch (InvocationTargetException e) {
+            // Wrap the exception.         
+            Throwable t = e.getTargetException();
+	    debugX("invoke",t);
+            if (t instanceof RuntimeException) {
+		final String msg = "RuntimeException thrown in operation " +
+		    operationName;
+		throw wrapRuntimeException((RuntimeException) t, msg);
+            } else if (t instanceof Error) {
+                throw new RuntimeErrorException((Error) t, 
+                   "Error thrown in operation " + operationName);
+            } else {
+                throw new MBeanException((Exception) t, 
+                   "Exception thrown in operation " + operationName);
+            }
+        }
+        if (isTraceOn()) {
+            trace("invoke", "Send the result");
+        }      
+        return (result);
+!!!3205659.java!!!	startsWithAndHasMore(in s : String, in prefix : String) : boolean
+	return (s.startsWith(prefix) && s.length() > prefix.length());
+!!!3205787.java!!!	forbidInvokeGetterSetter(inout mth : Method, in operationName : String) : void
+
+        final Class argTypes[] = mth.getParameterTypes();
+        final Class resultType = mth.getReturnType();
+        final int argCount = argTypes.length;
+
+	boolean isInvokeGetterSetter = false;
+
+	switch (argCount) {
+	case 0: // might be a getter
+	    if ((startsWithAndHasMore(operationName, "get") &&
+		 resultType != Void.TYPE) ||
+		(startsWithAndHasMore(operationName, "is") &&
+		 resultType == Boolean.TYPE)) {
+		// Operation is a getter
+		isInvokeGetterSetter = true;
+	    }
+	    break;
+
+	case 1: // might be a setter
+	    if (startsWithAndHasMore(operationName, "set") &&
+		resultType == Void.TYPE) {
+		// Operation is a setter
+		isInvokeGetterSetter = true;
+	    }
+	    break;
+	}
+
+	if (isInvokeGetterSetter) {
+	    boolean allow;
+	    try {
+		GetPropertyAction getProp =
+		    new GetPropertyAction("jmx.invoke.getters");
+		allow = (AccessController.doPrivileged(getProp) != null);
+	    } catch (SecurityException e) {
+		// too bad, don't allow it
+		allow = false;
+	    }
+	    if (!allow) {
+		final String msg =
+		    "Cannot invoke getter or setter (" + operationName +
+		    ") as operation unless jmx.invoke.getters property is set";
+		final Exception nested =
+		    new NoSuchMethodException(operationName);
+		throw new ReflectionException(nested, msg);
+	    }
+	}
+!!!3205915.java!!!	isInstanceOf(inout instance : Object, in className : String) : boolean
+	
+	final Class c = 
+	    findClass(className, instance.getClass().getClassLoader());
+
+	return c.isInstance(instance);
+!!!3206043.java!!!	getMBeanInterfaceFromInstance(inout instance : Object) : Class
+	if (instance == null) return null;
+	return getMBeanInterfaceFromClass(instance.getClass());
+!!!3206171.java!!!	cacheMBeanInfo(inout c : Class, inout mbeanInterface : Class, inout info : MBeanInfo) : void
+	if (info != null) {
+	    synchronized (mbeanInfoCache) {
+		if (mbeanInfoCache.get(c) == null) {
+		    mbeanInfoCache.put(c, info);
+		}
+	    }
+	}
+	if (mbeanInterface != null) {
+	    synchronized (mbeanInterfaceCache) {
+		if ((mbeanInterfaceCache.get(c) == null) || (((WeakReference)mbeanInterfaceCache.get(c)).get() == null)) {
+		    mbeanInterfaceCache.put(c, new WeakReference(mbeanInterface));
+		}
+	    }
+	}
+!!!3206299.java!!!	getCachedMBeanInterface(inout c : Class) : Class
+	synchronized (mbeanInterfaceCache) {
+	    return (Class)(((WeakReference)mbeanInterfaceCache.get(c)).get());
+	}
+!!!3206427.java!!!	getCachedMBeanInfo(inout c : Class) : MBeanInfo
+        synchronized (mbeanInfoCache) {
+	    return (MBeanInfo)mbeanInfoCache.get(c);
+	}
+!!!3206555.java!!!	findClass(in className : String, inout loader : ClassLoader) : Class
+	return MBeanInstantiatorImpl.loadClass(className, 
+					       loader);
+!!!3206683.java!!!	findSignatureClasses(in signature : String, inout loader : ClassLoader) : Class
+	return ((signature == null)?null:
+		MBeanInstantiatorImpl.loadSignatureClasses(signature,loader));
+!!!3206811.java!!!	getAttribute(inout instance : Object, in attribute : String, inout mbeanClass : Class) : Object
+
+        if (attribute == null) {
+	    final RuntimeException r = 
+		new IllegalArgumentException("Attribute name cannot be null");
+            throw new RuntimeOperationsException(r, 
+                "Exception occured trying to invoke the getter on the MBean");
+        }  
+ 
+	// Standard MBean: need to reflect...
+        Method meth = null;
+        meth = findGetter(mbeanClass, attribute);
+        if (meth == null) {
+	    if (isTraceOn()) {
+		trace("getAttribute", "Cannot find getter for "+attribute+
+		      " in class " + mbeanClass.getName());
+	    }                 
+            throw new AttributeNotFoundException(attribute + 
+						 " not accessible");
+        }
+
+        // Invoke the getter     
+        if (isTraceOn()) {
+            trace("getAttribute", "Invoke callback");
+        }                 
+        Object result= null;
+        try {
+            result = meth.invoke(instance, (Object[]) null);      
+        } catch (InvocationTargetException e) {
+            Throwable t = e.getTargetException();
+            if (t instanceof RuntimeException) {
+		debugX("getAttribute",t);
+		final String msg =
+		    "RuntimeException thrown in the getter for the attribute "
+		    + attribute;
+		throw wrapRuntimeException((RuntimeException) t, msg);
+            } else if (t instanceof Error) {
+		debugX("getAttribute",t);
+                throw new RuntimeErrorException((Error) t ,
+		  "Error thrown in the getter for the attribute " + 
+						attribute);    
+            } else {
+		debugX("getAttribute",t);
+                throw new MBeanException((Exception) t, 
+		  "Exception thrown in the getter for the attribute " + 
+		  attribute);    
+            }
+        } catch (RuntimeException e) {
+	    debugX("getAttribute",e);
+            throw new RuntimeOperationsException(e, 
+                  "RuntimeException thrown trying to invoke the getter" +
+		  " for the attribute " + attribute);    
+        } catch (IllegalAccessException e) {
+	    debugX("getAttribute",e);
+            throw new ReflectionException(e, "Exception thrown trying to" +
+                  " invoke the getter for the attribute " + attribute);
+        } catch (Error e) {
+	    debugX("getAttribute",e);
+            throw new RuntimeErrorException((Error)e, 
+		  "Error thrown trying to invoke the getter " +
+		  " for the attribute " + attribute);
+        }
+
+        if (isTraceOn()) {
+            trace("getAttribute", attribute + "= " + result + "\n");
+        }                 
+        return result; 
+!!!3206939.java!!!	setAttribute(inout instance : Object, inout attribute : Attribute, inout mbeanClass : Class) : Object
+
+        if (attribute == null) {
+	    final RuntimeException r = 
+		new IllegalArgumentException("Attribute name cannot be null");
+            throw new RuntimeOperationsException(r, 
+                "Exception occured trying to invoke the setter on the MBean");
+        }  
+ 
+	final Class objClass = instance.getClass();
+	final ClassLoader aLoader = objClass.getClassLoader();
+
+        Object result = null;
+        final Object value   = attribute.getValue();
+	final String attname = attribute.getName();
+
+        // Query the metadata service to get the appropriate setter
+        // of the object.
+        Method meth = null;
+
+	if (value == null) {
+	    meth = findSetter(mbeanClass, attname);
+	} else {
+	    meth = findSetter(mbeanClass, attname, value.getClass());
+	}
+        if (meth == null) {       
+            // Check whether the type is a primitive one       
+            Class primClass = findPrimForClass(value);     
+       
+            if (primClass != null) {       
+                meth = findSetter(mbeanClass, attname, primClass);     
+            }
+        }     
+        if (meth == null) {
+            // Try to check if the attribute name does correspond to a 
+	    // valid property       
+            meth= findSetter(mbeanClass, attname);
+	    if (meth == null) {
+		if (isTraceOn()) {
+		    trace("setAttribute", "Cannot find setter for "+attribute+
+			  " in class " + mbeanClass.getName());
+		}                 
+                throw new AttributeNotFoundException( attname + 
+						      " not accessible");
+            } else {
+		final Object v = attribute.getValue();
+		if (v == null) {
+		    throw new InvalidAttributeValueException("attribute= " + 
+                                attname + " value = null");
+		} else {
+		    throw new InvalidAttributeValueException("attribute= " + 
+                                attname + " value = " + v);
+		}
+            }
+        }     
+        // Invoke the setter     
+        if (isTraceOn()) {
+            trace("setAttribute", "Invoking the set method for " + 
+		  attname);
+        }   
+     
+        final Object[] values = new Object[1];
+        values[0] = value;
+
+        try {
+            result = meth.invoke(instance,values);
+        } catch (IllegalAccessException e) {
+	    debugX("setAttribute",e);
+            // Wrap the exception.            
+            throw new ReflectionException(e, "IllegalAccessException" + 
+                          " occured trying to invoke the setter on the MBean");
+        } catch (InvocationTargetException e) {
+            Throwable t = e.getTargetException();
+	    debugX("setAttribute",t);
+	    if (t instanceof RuntimeException) {
+		final String msg =
+		    "RuntimeException thrown in the setter for the attribute "
+		    + attribute;
+		throw wrapRuntimeException((RuntimeException) t, msg);
+            } else if (t instanceof Error) {
+                throw new RuntimeErrorException((Error) t, 
+                           "Error thrown in the MBean's setter");   
+            } else {
+                throw new MBeanException((Exception) t, 
+                           "Exception thrown in the MBean's setter");
+            }
+        }
+        if (isTraceOn()) {
+            trace("setAttribute", attname + "= " + value);
+        }         
+        return value;
+!!!3207067.java!!!	findNotifications(inout moi : Object) : MBeanNotificationInfo
+        
+        if (moi instanceof javax.management.NotificationBroadcaster) {       
+            MBeanNotificationInfo[] mbn = 
+	    ((NotificationBroadcaster)moi).getNotificationInfo();
+            if (mbn == null) {
+                return new MBeanNotificationInfo[0];
+            }
+            MBeanNotificationInfo[] result = 
+	    new MBeanNotificationInfo[mbn.length];
+            for (int i = 0; i < mbn.length; i++) {
+                result[i] = (MBeanNotificationInfo) mbn[i].clone();
+            }
+            return result;
+        }
+        return new MBeanNotificationInfo[0];
+!!!3207195.java!!!	findMethod(inout classObj : Class, in name : String, inout parameterTypes : Class) : Method
+	Method method=null;   
+	try {
+	    method= classObj.getMethod(name, parameterTypes); 
+	} catch(Exception e) {
+	    // OK: will return null.
+	}
+	
+	return method;
+!!!3207323.java!!!	findMethod(inout classObj : Class, in name : String) : Method
+	Method method = null ;
+	
+	try {
+	    Method[] methods=classObj.getMethods();
+	    int i = 0;
+	    while ((i < methods.length) && 
+		   !methods[i].getName().equals(name)) {
+		i++;
+	    }
+	    if (i < methods.length) { 
+		method = methods[i];
+	    }
+	} catch(Exception e) {
+	    // OK: will return null.
+	}
+	return method;
+!!!3207451.java!!!	findMethod(inout classObj : Class, in name : String, in paramCount : int) : Method
+ 
+	Method method = null;
+	try {
+            Method[] methods=classObj.getMethods();
+            int i = 0;
+            boolean found = false;
+            while ((i < methods.length) && !found) {
+                found = methods[i].getName().equals(name);
+                if (found) { // Now check if the number of parameters
+                    found = (methods[i].getParameterTypes().length == 
+			     paramCount);
+                }
+                i++;
+            }
+            if (found) { 
+                method = methods[i-1] ; // Note i-1 !
+            }
+        } catch(Exception e) {
+	    // OK: will return null;
+        }
+        return method;
+!!!3207579.java!!!	findGetter(inout classObj : Class, in attribute : String) : Method
+	// Methods called "is" or "get" tout court are not getters
+	if (attribute.length() == 0)
+	    return null;
+
+	// Look for a method T getX(), where T is not void
+
+	Method m = findMethod(classObj, "get" + attribute, null);
+	if (m != null && m.getReturnType() != void.class)
+	    return m;
+
+
+	// Look for a method boolean isX()
+	// must not be any other type than "boolean", including not "Boolean"
+
+	m = findMethod(classObj, "is" + attribute, null);
+	if (m != null && m.getReturnType() == boolean.class)
+	    return m;
+
+	return null;
+!!!3207707.java!!!	findSetter(inout classObj : Class, in attribute : String, inout type : Class) : Method
+	
+
+	Method mth= findMethod(classObj, "set" + attribute, 1);
+	if (mth != null) {
+	    Class[] pars = mth.getParameterTypes();
+	    if (pars[0].isAssignableFrom(type)) {
+		return mth;
+	    }
+	}
+	return null;
+!!!3207835.java!!!	findSetter(inout classObj : Class, in attribute : String) : Method
+	return findMethod(classObj, "set" + attribute, 1) ;
+!!!3207963.java!!!	findConstructor(inout theClass : Class, inout parameterTypes : Class) : Constructor
+	// Get the list of methods		
+	Constructor mth = null;
+	
+	try {
+	    mth = theClass.getConstructor(parameterTypes);
+	} catch(Exception e) {
+	    return null;
+	}
+	return mth;
+!!!3208091.java!!!	findClassForPrim(in primName : String) : Class
+	return (Class) primitiveClasses.get(primName);
+!!!3208219.java!!!	findPrimForClass(inout value : Object) : Class
+	if (value instanceof Boolean)
+	    return Boolean.TYPE;
+	else if (value instanceof Character)
+	    return Character.TYPE;
+	else if (value instanceof Byte)
+	    return Byte.TYPE;
+	else if (value instanceof Short)
+	    return Short.TYPE;
+	else if (value instanceof Integer)
+	    return Integer.TYPE;
+	else if (value instanceof Long)
+	 return Long.TYPE;
+	else if (value instanceof Float)
+	    return Float.TYPE;
+	else if (value instanceof Double)
+	    return Double.TYPE;
+	return null;
+!!!3208347.java!!!	findSignatures(inout clz : Class) : String
+        String signers[] = new String[clz.length];
+        for (int i = 0; i < clz.length; i++) {
+            signers[i] = findSignature(clz[i]);
+        }
+        return signers;
+!!!3208475.java!!!	findSignature(inout clz : Class) : String
+        return clz.getName();
+!!!3208603.java!!!	wrapRuntimeException(inout re : RuntimeException, in msg : String) : RuntimeException
+	if (wrapRuntimeExceptions)
+	    return new RuntimeMBeanException(re, msg);
+	else
+	    return re;
+!!!3208731.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_MBEANSERVER);
+!!!3208859.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_MBEANSERVER, clz, func, info);
+!!!3208987.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!3209115.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_MBEANSERVER);
+!!!3209243.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_MBEANSERVER, clz, func, info);
+!!!3209371.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);
+!!!3209499.java!!!	debugX(in func : String, inout e : Throwable) : void
+	if (isDebugOn()) {
+	    final StringWriter s = new StringWriter();
+	    e.printStackTrace(new PrintWriter(s));
+	    final String stack = s.toString();
+	    
+	    debug(dbgTag,func,"Exception caught in "+ func+"(): "+e);
+	    debug(dbgTag,func,stack);
+	
+	    // java.lang.System.err.println("**** Exception caught in "+
+	    // 			     func+"(): "+e);
+	    // java.lang.System.err.println(stack);
+	}

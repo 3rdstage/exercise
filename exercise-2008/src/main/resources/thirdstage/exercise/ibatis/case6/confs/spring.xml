@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop" 
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="
+	   http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.5.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd"
+	default-lazy-init="false">
+
+
+	<!-- General Definitions -->
+	<bean id="requiredAnnotationEnbabler"
+	      class="org.springframework.beans.factory.annotation.RequiredAnnotationBeanPostProcessor">
+		<description>@Require annotation enabler</description>
+	</bean>
+
+	
+	<!-- Data Access Common Definitions -->
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" destroy-method="close">
+		<property name="driverClassName" value="oracle.jdbc.OracleDriver"></property>
+		<property name="url" value="jdbc:oracle:thin:@127.0.0.1:1521:XE"></property>
+		<property name="username" value="eshop"></property>
+		<property name="password" value="eshopdev"></property>
+
+		<property name="defaultAutoCommit" value="true"></property>
+		<property name="maxActive" value="10"></property>
+		<property name="maxIdle" value="10" />
+		<property name="minIdle" value="0" />
+		<property name="initialSize" value="10"></property>
+	</bean>
+
+	<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource"></property>
+		<property name="defaultTimeout" value="120"/>
+	</bean>
+	
+	<!-- 
+	IMPORTANT Annotated MBean and CGLIB
+	MetadataMBeanInfoAssembler does not support JDK dynamic proxies.
+	So, You should use CGLIB proxies for Spring AOP by toggling on
+	"proxy-target-class" attribute
+	-->
+	<tx:annotation-driven 
+		transaction-manager="transactionManager"
+		mode="proxy"
+		proxy-target-class="true"
+	/>
+	
+	<!-- 
+	IMPORTANT Transaction management of SqlMapClient created by springframework's SqlMapClientFactoryBean
+	SqlMapClientBean of springframework creates SqlMapClient with EXTERNAL
+	transaction management by default. So, the SqlMapClient created by below
+	bean definiton would have no self transaction management capability
+	with SqlMpaClient.startTransaction(), SqlMapClient.commitTransaction()
+	or SqlMapClient.endTransaction() 
+
+	Read more on API documentation of SqlMapClientFactoryBean, specially
+	setDataSource, setUseTransactionAwareDataSource, and
+	setTransactionConfigClass.	
+	-->
+	<bean id="sqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean">
+		<description>SqlMap setup for iBATIS database layer</description>
+		<property name="configLocation" value="classpath:thirdstage/exercise/ibatis/case6/confs/sql-map.xml" />
+		
+		<!-- 
+		IMPORTANT DataSource for SqlMapClientFactoryBean.
+		You can supply just plain datasource not transaction aware datasource to
+		SqlMapClientFactoryBean which can automatically(internally) wrap the given
+		datasource to TransactionAwareDataSourceProxy 
+		 -->
+		<property name="dataSource" ref="dataSource" />
+
+		<!-- Default setting is specified for clarity. -->
+		<property name="useTransactionAwareDataSource" value="true"/>
+
+		<!-- Default setting is specified for clarity. -->
+		<!-- 
+		IMPORTANT Transaction config of SqlMapClientFactoryBean.
+		ExternalTransactionConfig would set the "SetAutoCommitAllowed" property of 
+		SqlMapClient to false, in contrast to the iBATIS default, to always keep the 
+		original autoCommit value as provided by the connection pool.
+		-->
+		<property name="transactionConfigClass">
+			<value type="java.lang.Class">com.ibatis.sqlmap.engine.transaction.external.ExternalTransactionConfig</value>
+		</property>
+
+	</bean>
+	<!-- Data Access Common Definitions : end -->
+
+
+
+	<!-- DAO Definitions Set1 : iBATIS implementations -->
+	<bean id="productDao" class="thirdstage.exercise.ibatis.case6.ProductIBatisDao">
+		<property name="sqlMapClient" ref="sqlMapClient"></property>
+	</bean>
+	<!-- DAO Definitions Set1 : end -->
+
+
+</beans>

@@ -1,0 +1,264 @@
+class SchemaGrammar
+!!!5159579.java!!!	SchemaGrammar(in targetNamespace : String, inout grammarDesc : XSDDescription, inout symbolTable : SymbolTable)
+        fTargetNamespace = targetNamespace;
+        fGrammarDescription = grammarDesc;
+        fSymbolTable = symbolTable;
+
+        // REVISIT: do we know the numbers of the following global decls
+        // when creating this grammar? If so, we can pass the numbers in,
+        // and use that number to initialize the following hashtables.
+        fGlobalAttrDecls  = new SymbolHash();
+        fGlobalAttrGrpDecls = new SymbolHash();
+        fGlobalElemDecls = new SymbolHash();
+        fGlobalGroupDecls = new SymbolHash();
+        fGlobalNotationDecls = new SymbolHash();
+        fGlobalIDConstraintDecls = new SymbolHash();
+
+        // if we are parsing S4S, put built-in types in first
+        // they might get overwritten by the types from S4S, but that's
+        // considered what the application wants to do.
+        if (fTargetNamespace == SchemaSymbols.URI_SCHEMAFORSCHEMA)
+            fGlobalTypeDecls = SG_SchemaNS.fGlobalTypeDecls.makeClone();
+        else
+            fGlobalTypeDecls = new SymbolHash();
+!!!5161499.java!!!	getGrammarDescription() : XMLGrammarDescription
+        return fGrammarDescription;
+!!!5161627.java!!!	isNamespaceAware() : boolean
+        return true;
+!!!5161755.java!!!	setImportedGrammars(inout importedGrammars : Vector) : void
+        fImported = importedGrammars;
+!!!5161883.java!!!	getImportedGrammars() : Vector
+        return fImported;
+!!!5162011.java!!!	getTargetNamespace() : String
+        return fTargetNamespace;
+!!!5162139.java!!!	addGlobalAttributeDecl(inout decl : XSAttributeDecl) : void
+        fGlobalAttrDecls.put(decl.fName, decl);
+!!!5162267.java!!!	addGlobalAttributeGroupDecl(inout decl : XSAttributeGroupDecl) : void
+        fGlobalAttrGrpDecls.put(decl.fName, decl);
+!!!5162395.java!!!	addGlobalElementDecl(inout decl : XSElementDecl) : void
+        fGlobalElemDecls.put(decl.fName, decl);
+
+        // if there is a substitution group affiliation, store in an array,
+        // for further constraint checking: UPA, PD, EDC
+        if (decl.fSubGroup != null) {
+            if (fSubGroupCount == fSubGroups.length)
+                fSubGroups = resize(fSubGroups, fSubGroupCount+INC_SIZE);
+            fSubGroups[fSubGroupCount++] = decl;
+        }
+!!!5162523.java!!!	addGlobalGroupDecl(inout decl : XSGroupDecl) : void
+        fGlobalGroupDecls.put(decl.fName, decl);
+!!!5162651.java!!!	addGlobalNotationDecl(inout decl : XSNotationDecl) : void
+        fGlobalNotationDecls.put(decl.fName, decl);
+!!!5162779.java!!!	addGlobalTypeDecl(inout decl : XSTypeDefinition) : void
+        fGlobalTypeDecls.put(decl.getName(), decl);
+!!!5162907.java!!!	addIDConstraintDecl(inout elmDecl : XSElementDecl, inout decl : IdentityConstraint) : void
+        elmDecl.addIDConstraint(decl);
+        fGlobalIDConstraintDecls.put(decl.getIdentityConstraintName(), decl);
+!!!5163035.java!!!	getGlobalAttributeDecl(in declName : String) : XSAttributeDecl
+        return(XSAttributeDecl)fGlobalAttrDecls.get(declName);
+!!!5163163.java!!!	getGlobalAttributeGroupDecl(in declName : String) : XSAttributeGroupDecl
+        return(XSAttributeGroupDecl)fGlobalAttrGrpDecls.get(declName);
+!!!5163291.java!!!	getGlobalElementDecl(in declName : String) : XSElementDecl
+        return(XSElementDecl)fGlobalElemDecls.get(declName);
+!!!5163419.java!!!	getGlobalGroupDecl(in declName : String) : XSGroupDecl
+        return(XSGroupDecl)fGlobalGroupDecls.get(declName);
+!!!5163547.java!!!	getGlobalNotationDecl(in declName : String) : XSNotationDecl
+        return(XSNotationDecl)fGlobalNotationDecls.get(declName);
+!!!5163675.java!!!	getGlobalTypeDecl(in declName : String) : XSTypeDefinition
+        return(XSTypeDefinition)fGlobalTypeDecls.get(declName);
+!!!5163803.java!!!	getIDConstraintDecl(in declName : String) : IdentityConstraint
+        return(IdentityConstraint)fGlobalIDConstraintDecls.get(declName);
+!!!5163931.java!!!	hasIDConstraints() : boolean
+        return fGlobalIDConstraintDecls.getLength() > 0;
+!!!5164059.java!!!	addComplexTypeDecl(inout decl : XSComplexTypeDecl, inout locator : SimpleLocator) : void
+        if (fCTCount == fComplexTypeDecls.length) {
+            fComplexTypeDecls = resize(fComplexTypeDecls, fCTCount+INC_SIZE);
+            fCTLocators = resize(fCTLocators, fCTCount+INC_SIZE);
+        }
+        fCTLocators[fCTCount] = locator;
+        fComplexTypeDecls[fCTCount++] = decl;
+!!!5164187.java!!!	addRedefinedGroupDecl(inout derived : XSGroupDecl, inout base : XSGroupDecl, inout locator : SimpleLocator) : void
+        if (fRGCount == fRedefinedGroupDecls.length) {
+            // double array size each time.
+            fRedefinedGroupDecls = resize(fRedefinedGroupDecls, fRGCount << 1);
+            fRGLocators = resize(fRGLocators, fRGCount);
+        }
+        fRGLocators[fRGCount/2] = locator;
+        fRedefinedGroupDecls[fRGCount++] = derived;
+        fRedefinedGroupDecls[fRGCount++] = base;
+!!!5164315.java!!!	getUncheckedComplexTypeDecls() : XSComplexTypeDecl
+        if (fCTCount < fComplexTypeDecls.length) {
+            fComplexTypeDecls = resize(fComplexTypeDecls, fCTCount);
+            fCTLocators = resize(fCTLocators, fCTCount);
+        }
+        return fComplexTypeDecls;
+!!!5164443.java!!!	getUncheckedCTLocators() : SimpleLocator
+        if (fCTCount < fCTLocators.length) {
+            fComplexTypeDecls = resize(fComplexTypeDecls, fCTCount);
+            fCTLocators = resize(fCTLocators, fCTCount);
+        }
+        return fCTLocators;
+!!!5164571.java!!!	getRedefinedGroupDecls() : XSGroupDecl
+        if (fRGCount < fRedefinedGroupDecls.length) {
+            fRedefinedGroupDecls = resize(fRedefinedGroupDecls, fRGCount);
+            fRGLocators = resize(fRGLocators, fRGCount/2);
+        }
+        return fRedefinedGroupDecls;
+!!!5164699.java!!!	getRGLocators() : SimpleLocator
+        if (fRGCount < fRedefinedGroupDecls.length) {
+            fRedefinedGroupDecls = resize(fRedefinedGroupDecls, fRGCount);
+            fRGLocators = resize(fRGLocators, fRGCount/2);
+        }
+        return fRGLocators;
+!!!5164827.java!!!	setUncheckedTypeNum(in newSize : int) : void
+        fCTCount = newSize;
+        fComplexTypeDecls = resize(fComplexTypeDecls, fCTCount);
+        fCTLocators = resize(fCTLocators, fCTCount);
+!!!5164955.java!!!	getSubstitutionGroups() : XSElementDecl
+        if (fSubGroupCount < fSubGroups.length)
+            fSubGroups = resize(fSubGroups, fSubGroupCount);
+        return fSubGroups;
+!!!5176603.java!!!	resize(inout oldArray : XSComplexTypeDecl, in newSize : int) : XSComplexTypeDecl
+        XSComplexTypeDecl[] newArray = new XSComplexTypeDecl[newSize];
+        System.arraycopy(oldArray, 0, newArray, 0, Math.min(oldArray.length, newSize));
+        return newArray;
+!!!5176731.java!!!	resize(inout oldArray : XSGroupDecl, in newSize : int) : XSGroupDecl
+        XSGroupDecl[] newArray = new XSGroupDecl[newSize];
+        System.arraycopy(oldArray, 0, newArray, 0, Math.min(oldArray.length, newSize));
+        return newArray;
+!!!5176859.java!!!	resize(inout oldArray : XSElementDecl, in newSize : int) : XSElementDecl
+        XSElementDecl[] newArray = new XSElementDecl[newSize];
+        System.arraycopy(oldArray, 0, newArray, 0, Math.min(oldArray.length, newSize));
+        return newArray;
+!!!5176987.java!!!	resize(inout oldArray : SimpleLocator, in newSize : int) : SimpleLocator
+        SimpleLocator[] newArray = new SimpleLocator[newSize];
+        System.arraycopy(oldArray, 0, newArray, 0, Math.min(oldArray.length, newSize));
+        return newArray;
+!!!5177115.java!!!	addDocument(inout document : Object, in location : String) : void
+        if (fDocuments == null) {
+            fDocuments = new Vector();
+            fLocations = new Vector();
+        }
+        fDocuments.addElement(document);
+        fLocations.addElement(location);
+!!!5177243.java!!!	getSchemaNamespace() : String
+        return fTargetNamespace;
+!!!5177371.java!!!	getDOMParser() : DOMParser
+        if (fDOMParser != null) return fDOMParser;
+        // REVISIT:  when schema handles XML 1.1, will need to 
+        // revisit this (and the practice of not prepending an XML decl to the annotation string
+        IntegratedParserConfiguration config = new IntegratedParserConfiguration(fSymbolTable);
+        // note that this should never produce errors or require
+        // entity resolution, so just a barebones configuration with
+        // a couple of feature  set will do fine
+        config.setFeature(Constants.SAX_FEATURE_PREFIX + Constants.NAMESPACES_FEATURE, true);
+        config.setFeature(Constants.SAX_FEATURE_PREFIX + Constants.VALIDATION_FEATURE, false);
+        fDOMParser = new DOMParser(config);
+        return fDOMParser;
+!!!5177499.java!!!	getSAXParser() : SAXParser
+        if (fSAXParser != null) return fSAXParser;
+        // REVISIT:  when schema handles XML 1.1, will need to 
+        // revisit this (and the practice of not prepending an XML decl to the annotation string
+        IntegratedParserConfiguration config = new IntegratedParserConfiguration(fSymbolTable);
+        // note that this should never produce errors or require
+        // entity resolution, so just a barebones configuration with
+        // a couple of feature  set will do fine
+        config.setFeature(Constants.SAX_FEATURE_PREFIX + Constants.NAMESPACES_FEATURE, true);
+        config.setFeature(Constants.SAX_FEATURE_PREFIX + Constants.VALIDATION_FEATURE, false);
+        fSAXParser = new SAXParser(config);
+        return fSAXParser;
+!!!5177627.java!!!	getComponents(in objectType : short) : XSNamedMap
+        if (objectType <= 0 || objectType > MAX_COMP_IDX ||
+            !GLOBAL_COMP[objectType]) {
+            return null;
+        }
+        
+        if (fComponents == null)
+            fComponents = new XSNamedMap[MAX_COMP_IDX+1];
+
+        // get the hashtable for this type of components
+        if (fComponents[objectType] == null) {
+            SymbolHash table = null;
+            switch (objectType) {
+            case XSConstants.TYPE_DEFINITION:
+            case XSTypeDefinition.COMPLEX_TYPE:
+            case XSTypeDefinition.SIMPLE_TYPE:
+                table = fGlobalTypeDecls;
+                break;
+            case XSConstants.ATTRIBUTE_DECLARATION:
+                table = fGlobalAttrDecls;
+                break;
+            case XSConstants.ELEMENT_DECLARATION:
+                table = fGlobalElemDecls;
+                break;
+            case XSConstants.ATTRIBUTE_GROUP:
+                table = fGlobalAttrGrpDecls;
+                break;
+            case XSConstants.MODEL_GROUP_DEFINITION:
+                table = fGlobalGroupDecls;
+                break;
+            case XSConstants.NOTATION_DECLARATION:
+                table = fGlobalNotationDecls;
+                break;
+            }
+            
+            // for complex/simple types, create a special implementation,
+            // which take specific types out of the hash table
+            if (objectType == XSTypeDefinition.COMPLEX_TYPE ||
+                objectType == XSTypeDefinition.SIMPLE_TYPE) {
+                fComponents[objectType] = new XSNamedMap4Types(fTargetNamespace, table, objectType);
+            }
+            else {
+                fComponents[objectType] = new XSNamedMapImpl(fTargetNamespace, table);
+            }
+        }
+        
+        return fComponents[objectType];
+!!!5177755.java!!!	getTypeDefinition(in name : String) : XSTypeDefinition
+        return getGlobalTypeDecl(name);
+!!!5177883.java!!!	getAttributeDeclaration(in name : String) : XSAttributeDeclaration
+        return getGlobalAttributeDecl(name);
+!!!5178011.java!!!	getElementDeclaration(in name : String) : XSElementDeclaration
+        return getGlobalElementDecl(name);
+!!!5178139.java!!!	getAttributeGroup(in name : String) : XSAttributeGroupDefinition
+        return getGlobalAttributeGroupDecl(name);
+!!!5178267.java!!!	getModelGroupDefinition(in name : String) : XSModelGroupDefinition
+        return getGlobalGroupDecl(name);
+!!!5178395.java!!!	getNotationDeclaration(in name : String) : XSNotationDeclaration
+        return getGlobalNotationDecl(name);
+!!!5178523.java!!!	getDocumentLocations() : StringList
+        return new StringListImpl(fLocations);
+!!!5178651.java!!!	toXSModel() : XSModel
+        return new XSModelImpl(new SchemaGrammar[]{this});
+!!!5178779.java!!!	toXSModel(inout grammars : XSGrammar) : XSModel
+        if (grammars == null || grammars.length == 0)
+            return toXSModel();
+
+        int len = grammars.length;
+        boolean hasSelf = false;
+        for (int i = 0; i < len; i++) {
+            if (grammars[i] == this) {
+                hasSelf = true;
+                break;
+            }
+        }
+
+        SchemaGrammar[] gs = new SchemaGrammar[hasSelf ? len : len+1];
+        for (int i = 0; i < len; i++)
+            gs[i] = (SchemaGrammar)grammars[i];
+        if (!hasSelf)
+            gs[len] = this;
+        return new XSModelImpl(gs);
+!!!5178907.java!!!	getAnnotations() : XSObjectList
+        return new XSObjectListImpl(fAnnotations, fNumAnnotations);
+!!!5179035.java!!!	addAnnotation(inout annotation : XSAnnotationImpl) : void
+        if(annotation == null)
+            return;
+        if(fAnnotations == null) {
+            fAnnotations = new XSAnnotationImpl[2];
+        } else if(fNumAnnotations == fAnnotations.length) {
+            XSAnnotationImpl[] newArray = new XSAnnotationImpl[fNumAnnotations << 1];
+            System.arraycopy(fAnnotations, 0, newArray, 0, fNumAnnotations);
+            fAnnotations = newArray;
+        }
+        fAnnotations[fNumAnnotations++] = annotation;

@@ -1,0 +1,30 @@
+class ReferenceHandler
+!!!2268571.java!!!	ReferenceHandler(inout g : ThreadGroup, in name : String)
+	    super(g, name);
+!!!2268699.java!!!	run() : void
+	    for (;;) {
+
+		Reference r;
+		synchronized (lock) {
+		    if (pending != null) {
+			r = pending;
+			Reference rn = r.next;
+			pending = (rn == r) ? null : rn;
+			r.next = r;
+		    } else {
+			try {
+			    lock.wait();
+			} catch (InterruptedException x) { }
+			continue;
+		    }
+		}
+
+		// Fast path for cleaners
+		if (r instanceof Cleaner) {
+		    ((Cleaner)r).clean();
+		    continue;
+		}
+
+		ReferenceQueue q = r.queue;
+		if (q != ReferenceQueue.NULL) q.enqueue(r);
+	    }

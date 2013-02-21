@@ -1,0 +1,166 @@
+class MenuItem
+!!!6184347.java!!!	MenuItem()
+	this("", null);
+!!!6184475.java!!!	MenuItem(in label : String)
+	this(label, null);
+!!!6184603.java!!!	MenuItem(in label : String, inout s : MenuShortcut)
+	this.label = label;
+        this.shortcut = s;
+!!!6184731.java!!!	constructComponentName() : String
+        synchronized (getClass()) {
+	    return base + nameCounter++;
+	}
+!!!6184859.java!!!	addNotify() : void
+        synchronized (getTreeLock()) {
+	    if (peer == null)
+	        peer = Toolkit.getDefaultToolkit().createMenuItem(this);
+	}
+!!!6184987.java!!!	getLabel() : String
+	return label;
+!!!6185115.java!!!	setLabel(in label : String) : void
+	this.label = label;
+	MenuItemPeer peer = (MenuItemPeer)this.peer;
+	if (peer != null) {
+	    peer.setLabel(label);
+	}
+!!!6185243.java!!!	isEnabled() : boolean
+	return enabled;
+!!!6185371.java!!!	setEnabled(inout b : boolean) : void
+    	enable(b);
+!!!6185499.java!!!	enable() : void
+	enabled = true;
+	MenuItemPeer peer = (MenuItemPeer)this.peer;
+	if (peer != null) {
+	    peer.enable();
+	}
+!!!6185627.java!!!	enable(inout b : boolean) : void
+    	if (b) {
+	    enable();
+	} else {
+	    disable();
+	}
+!!!6185755.java!!!	disable() : void
+	enabled = false;
+	MenuItemPeer peer = (MenuItemPeer)this.peer;
+	if (peer != null) {
+	    peer.disable();
+	}
+!!!6185883.java!!!	getShortcut() : MenuShortcut
+        return shortcut;
+!!!6186011.java!!!	setShortcut(inout s : MenuShortcut) : void
+        shortcut = s;
+	MenuItemPeer peer = (MenuItemPeer)this.peer;
+	if (peer != null) {
+	    peer.setLabel(label);
+	}
+!!!6186139.java!!!	deleteShortcut() : void
+        shortcut = null;
+	MenuItemPeer peer = (MenuItemPeer)this.peer;
+	if (peer != null) {
+	    peer.setLabel(label);
+	}
+!!!6186267.java!!!	deleteShortcut(inout s : MenuShortcut) : void
+        if (s.equals(shortcut)) {
+            shortcut = null;
+            MenuItemPeer peer = (MenuItemPeer)this.peer;
+            if (peer != null) {
+                peer.setLabel(label);
+            }
+        }
+!!!6186395.java!!!	doMenuEvent(in when : long, in modifiers : int) : void
+        Toolkit.getEventQueue().postEvent(
+            new ActionEvent(this, ActionEvent.ACTION_PERFORMED,
+                            getActionCommand(), when, modifiers));
+!!!6186523.java!!!	handleShortcut(inout e : KeyEvent) : boolean
+        MenuShortcut s = new MenuShortcut(e.getKeyCode(),
+                             (e.getModifiers() & InputEvent.SHIFT_MASK) > 0);
+        if (s.equals(shortcut) && enabled) {
+            // MenuShortcut match -- issue an event on keydown.
+            if (e.getID() == KeyEvent.KEY_PRESSED) {
+                doMenuEvent(e.getWhen(), e.getModifiers());
+            } else {
+                // silently eat key release.
+            }
+            return true;
+	}
+        return false;
+!!!6186651.java!!!	getShortcutMenuItem(inout s : MenuShortcut) : MenuItem
+        return (s.equals(shortcut)) ? this : null;
+!!!6186779.java!!!	enableEvents(in eventsToEnable : long) : void
+        eventMask |= eventsToEnable;
+	newEventsOnly = true;
+!!!6186907.java!!!	disableEvents(in eventsToDisable : long) : void
+        eventMask &= ~eventsToDisable;
+!!!6187035.java!!!	setActionCommand(in command : String) : void
+        actionCommand = command;
+!!!6187163.java!!!	getActionCommand() : String
+        return getActionCommandImpl();
+!!!6187291.java!!!	getActionCommandImpl() : String
+        return (actionCommand == null? label : actionCommand);
+!!!6187419.java!!!	addActionListener(inout l : ActionListener) : void
+	if (l == null) {
+	    return;
+	}
+	actionListener = AWTEventMulticaster.add(actionListener, l);
+        newEventsOnly = true;
+!!!6187547.java!!!	removeActionListener(inout l : ActionListener) : void
+	if (l == null) {
+	    return;
+	}
+	actionListener = AWTEventMulticaster.remove(actionListener, l);
+!!!6187675.java!!!	getActionListeners() : ActionListener
+        return (ActionListener[])(getListeners(ActionListener.class));
+!!!6187803.java!!!	getListeners(inout listenerType : Class) : T
+	EventListener l = null; 
+	if  (listenerType == ActionListener.class) { 
+	    l = actionListener;
+	}
+	return AWTEventMulticaster.getListeners(l, listenerType);
+!!!6187931.java!!!	processEvent(inout e : AWTEvent) : void
+        if (e instanceof ActionEvent) {
+            processActionEvent((ActionEvent)e);
+        }
+!!!6188059.java!!!	eventEnabled(inout e : AWTEvent) : boolean
+        if (e.id == ActionEvent.ACTION_PERFORMED) {
+            if ((eventMask & AWTEvent.ACTION_EVENT_MASK) != 0 ||
+                actionListener != null) {
+                return true;
+            }
+            return false;
+        }
+        return super.eventEnabled(e);
+!!!6188187.java!!!	processActionEvent(inout e : ActionEvent) : void
+        ActionListener listener = actionListener;
+        if (listener != null) {
+            listener.actionPerformed(e);
+        }
+!!!6188315.java!!!	paramString() : String
+        String str = ",label=" + label;
+        if (shortcut != null) {
+            str += ",shortcut=" + shortcut;
+        }
+        return super.paramString() + str;
+!!!6188443.java!!!	writeObject(inout s : ObjectOutputStream) : void
+      s.defaultWriteObject();
+
+      AWTEventMulticaster.save(s, actionListenerK, actionListener);
+      s.writeObject(null);
+!!!6188571.java!!!	readObject(inout s : ObjectInputStream) : void
+      // HeadlessException will be thrown from MenuComponent's readObject
+      s.defaultReadObject();
+
+      Object keyOrNull;
+      while(null != (keyOrNull = s.readObject())) {
+	String key = ((String)keyOrNull).intern();
+
+	if (actionListenerK == key)
+	  addActionListener((ActionListener)(s.readObject()));
+
+	else // skip value for unrecognized key
+	  s.readObject();
+      }
+!!!6188827.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleAWTMenuItem();
+        }
+        return accessibleContext;

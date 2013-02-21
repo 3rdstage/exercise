@@ -1,0 +1,210 @@
+class PriorityQueue
+!!!327707.java!!!	PriorityQueue()
+        this(DEFAULT_INITIAL_CAPACITY, null);
+!!!327835.java!!!	PriorityQueue(in initialCapacity : int)
+        this(initialCapacity, null);
+!!!327963.java!!!	PriorityQueue(in initialCapacity : int, inout comparator : Comparator)
+        if (initialCapacity < 1)
+            throw new IllegalArgumentException();
+        this.queue = new Object[initialCapacity + 1];
+        this.comparator = comparator;
+!!!328091.java!!!	initializeArray(inout c : Collection) : void
+        int sz = c.size();
+        int initialCapacity = (int)Math.min((sz * 110L) / 100,
+                                            Integer.MAX_VALUE - 1);
+        if (initialCapacity < 1)
+            initialCapacity = 1;
+
+        this.queue = new Object[initialCapacity + 1];
+!!!328219.java!!!	fillFromSorted(inout c : Collection) : void
+        for (Iterator<? extends E> i = c.iterator(); i.hasNext(); )
+            queue[++size] = i.next();
+!!!328347.java!!!	fillFromUnsorted(inout c : Collection) : void
+        for (Iterator<? extends E> i = c.iterator(); i.hasNext(); )
+            queue[++size] = i.next();
+        heapify();
+!!!328475.java!!!	PriorityQueue(inout c : Collection)
+        initializeArray(c);
+        if (c instanceof SortedSet) {
+            SortedSet<? extends E> s = (SortedSet<? extends E>)c;
+            comparator = (Comparator<? super E>)s.comparator();
+            fillFromSorted(s);
+        } else if (c instanceof PriorityQueue) {
+            PriorityQueue<? extends E> s = (PriorityQueue<? extends E>) c;
+            comparator = (Comparator<? super E>)s.comparator();
+            fillFromSorted(s);
+        } else {
+            comparator = null;
+            fillFromUnsorted(c);
+        }
+!!!328603.java!!!	PriorityQueue(inout c : PriorityQueue)
+        initializeArray(c);
+        comparator = (Comparator<? super E>)c.comparator();
+        fillFromSorted(c);
+!!!328731.java!!!	PriorityQueue(inout c : SortedSet)
+        initializeArray(c);
+        comparator = (Comparator<? super E>)c.comparator();
+        fillFromSorted(c);
+!!!328859.java!!!	grow(in index : int) : void
+        int newlen = queue.length;
+        if (index < newlen) // don't need to grow
+            return;
+        if (index == Integer.MAX_VALUE)
+            throw new OutOfMemoryError();
+        while (newlen <= index) {
+            if (newlen >= Integer.MAX_VALUE / 2)  // avoid overflow
+                newlen = Integer.MAX_VALUE;
+            else
+                newlen <<= 2;
+        }
+        Object[] newQueue = new Object[newlen];
+        System.arraycopy(queue, 0, newQueue, 0, queue.length);
+        queue = newQueue;
+!!!328987.java!!!	offer(inout o : E) : boolean
+        if (o == null)
+            throw new NullPointerException();
+        modCount++;
+        ++size;
+
+        // Grow backing store if necessary
+        if (size >= queue.length) 
+            grow(size);
+
+        queue[size] = o;
+        fixUp(size);
+        return true;
+!!!329115.java!!!	peek() : E
+        if (size == 0)
+            return null;
+        return (E) queue[1];
+!!!329243.java!!!	add(inout o : E) : boolean
+        return offer(o);
+!!!329371.java!!!	remove(inout o : Object) : boolean
+        if (o == null)
+            return false;
+
+        if (comparator == null) {
+            for (int i = 1; i <= size; i++) {
+                if (((Comparable<E>)queue[i]).compareTo((E)o) == 0) {
+                    removeAt(i);
+                    return true;
+                }
+            }
+        } else {
+            for (int i = 1; i <= size; i++) {
+                if (comparator.compare((E)queue[i], (E)o) == 0) {
+                    removeAt(i);
+                    return true;
+                }
+            }
+        }
+        return false;
+!!!329499.java!!!	iterator() : Iterator
+        return new Itr();
+!!!330139.java!!!	size() : int
+        return size;
+!!!330267.java!!!	clear() : void
+        modCount++;
+
+        // Null out element references to prevent memory leak
+        for (int i=1; i<=size; i++)
+            queue[i] = null;
+
+        size = 0;
+!!!330395.java!!!	poll() : E
+        if (size == 0)
+            return null;
+        modCount++;
+
+        E result = (E) queue[1];
+        queue[1] = queue[size];
+        queue[size--] = null;  // Drop extra ref to prevent memory leak
+        if (size > 1)
+            fixDown(1);
+
+        return result;
+!!!330523.java!!!	removeAt(in i : int) : E
+ 
+        assert i > 0 && i <= size;
+        modCount++;
+
+        E moved = (E) queue[size];
+        queue[i] = moved;
+        queue[size--] = null;  // Drop extra ref to prevent memory leak
+        if (i <= size) {
+            fixDown(i);
+            if (queue[i] == moved) {
+                fixUp(i);
+                if (queue[i] != moved)
+                    return moved;
+            }
+        }
+        return null;
+!!!330651.java!!!	fixUp(in k : int) : void
+        if (comparator == null) {
+            while (k > 1) {
+                int j = k >> 1;
+                if (((Comparable<E>)queue[j]).compareTo((E)queue[k]) <= 0)
+                    break;
+                Object tmp = queue[j];  queue[j] = queue[k]; queue[k] = tmp;
+                k = j;
+            }
+        } else {
+            while (k > 1) {
+                int j = k >>> 1;
+                if (comparator.compare((E)queue[j], (E)queue[k]) <= 0)
+                    break;
+                Object tmp = queue[j];  queue[j] = queue[k]; queue[k] = tmp;
+                k = j;
+            }
+        }
+!!!330779.java!!!	fixDown(in k : int) : void
+        int j;
+        if (comparator == null) {
+            while ((j = k << 1) <= size && (j > 0)) {
+                if (j<size && 
+                    ((Comparable<E>)queue[j]).compareTo((E)queue[j+1]) > 0)
+                    j++; // j indexes smallest kid
+
+                if (((Comparable<E>)queue[k]).compareTo((E)queue[j]) <= 0)
+                    break;
+                Object tmp = queue[j];  queue[j] = queue[k]; queue[k] = tmp;
+                k = j;
+            }
+        } else {
+            while ((j = k << 1) <= size && (j > 0)) {
+                if (j<size && 
+                    comparator.compare((E)queue[j], (E)queue[j+1]) > 0)
+                    j++; // j indexes smallest kid
+                if (comparator.compare((E)queue[k], (E)queue[j]) <= 0)
+                    break;
+                Object tmp = queue[j];  queue[j] = queue[k]; queue[k] = tmp;
+                k = j;
+            }
+        }
+!!!330907.java!!!	heapify() : void
+        for (int i = size/2; i >= 1; i--)
+            fixDown(i);
+!!!331035.java!!!	comparator() : Comparator
+        return comparator;
+!!!331163.java!!!	writeObject(inout s : java.io.ObjectOutputStream) : void
+        // Write out element count, and any hidden stuff
+        s.defaultWriteObject();
+
+        // Write out array length
+        s.writeInt(queue.length);
+
+        // Write out all elements in the proper order.
+        for (int i=1; i<=size; i++)
+            s.writeObject(queue[i]);
+!!!331291.java!!!	readObject(inout s : java.io.ObjectInputStream) : void
+        // Read in size, and any hidden stuff
+        s.defaultReadObject();
+
+        // Read in array length and allocate array
+        int arrayLength = s.readInt();
+        queue = new Object[arrayLength];
+
+        // Read in all elements in the proper order.
+        for (int i=1; i<=size; i++)
+            queue[i] = (E) s.readObject();

@@ -1,0 +1,36 @@
+class CacheMap
+!!!3256859.java!!!	CacheMap(in nSoftReferences : int)
+	if (nSoftReferences < 0) {
+	    throw new IllegalArgumentException("nSoftReferences = " +
+					       nSoftReferences);
+	}
+	this.nSoftReferences = nSoftReferences;
+!!!3256987.java!!!	put(inout key : Object, inout value : Object) : Object
+	cache(key);
+	return super.put(key, value);
+!!!3257115.java!!!	get(inout key : Object) : Object
+	cache(key);
+	return super.get(key);
+!!!3257243.java!!!	cache(inout key : Object) : void
+	Iterator it = cache.iterator();
+	while (it.hasNext()) {
+            SoftReference sref = (SoftReference) it.next();
+            Object key1 = sref.get();
+	    if (key1 == null)
+                it.remove();
+	    else if (key.equals(key1)) {
+		// Move this element to the head of the LRU list
+		it.remove();
+		cache.add(0, sref);
+		return;
+	    }
+	}
+
+	int size = cache.size();
+	if (size == nSoftReferences) {
+	    if (size == 0)
+		return;  // degenerate case, equivalent to WeakHashMap
+	    it.remove();
+	}
+
+	cache.add(0, new SoftReference(key));

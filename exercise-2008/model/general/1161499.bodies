@@ -1,0 +1,143 @@
+class MetalComboBoxUI
+!!!9478043.java!!!	createUI(inout c : JComponent) : ComponentUI
+        return new MetalComboBoxUI();
+!!!9478171.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        if (MetalLookAndFeel.usingOcean()) {
+            super.paint(g, c);
+        }
+!!!9478299.java!!!	paintCurrentValue(inout g : Graphics, inout bounds : Rectangle, inout hasFocus : boolean) : void
+        // This is really only called if we're using ocean.
+        if (MetalLookAndFeel.usingOcean()) {
+            bounds.x += 2;
+            bounds.y += 2;
+            bounds.width -= 3;
+            bounds.height -= 4;
+            super.paintCurrentValue(g, bounds, hasFocus);
+        }
+        else if (g == null || bounds == null) {
+            throw new NullPointerException(
+                "Must supply a non-null Graphics and Rectangle");
+        }
+!!!9478427.java!!!	paintCurrentValueBackground(inout g : Graphics, inout bounds : Rectangle, inout hasFocus : boolean) : void
+        // This is really only called if we're using ocean.
+        if (MetalLookAndFeel.usingOcean()) {
+            g.setColor(MetalLookAndFeel.getControlDarkShadow());
+            g.drawRect(bounds.x, bounds.y, bounds.width, bounds.height - 1);
+            g.setColor(MetalLookAndFeel.getControlShadow());
+            g.drawRect(bounds.x + 1, bounds.y + 1, bounds.width - 2,
+                       bounds.height - 3);
+        }
+        else if (g == null || bounds == null) {
+            throw new NullPointerException(
+                "Must supply a non-null Graphics and Rectangle");
+        }
+!!!9478555.java!!!	createEditor() : ComboBoxEditor
+        return new MetalComboBoxEditor.UIResource();
+!!!9478683.java!!!	createPopup() : ComboPopup
+        return super.createPopup();
+!!!9478811.java!!!	createArrowButton() : JButton
+        boolean iconOnly = (comboBox.isEditable() ||
+                            MetalLookAndFeel.usingOcean());
+        JButton button = new MetalComboBoxButton( comboBox,
+                                                  new MetalComboBoxIcon(),
+                                                  iconOnly,
+                                                  currentValuePane,
+                                                  listBox );
+        button.setMargin( new Insets( 0, 1, 1, 3 ) );
+        if (MetalLookAndFeel.usingOcean()) {
+            // Disabled rollover effect.
+            button.putClientProperty(MetalBorders.NO_BUTTON_ROLLOVER,
+                                     Boolean.TRUE);
+        }
+        updateButtonForOcean(button);
+        return button;
+!!!9478939.java!!!	updateButtonForOcean(inout button : JButton) : void
+        if (MetalLookAndFeel.usingOcean()) {
+            // Ocean renders the focus in a different way, this
+            // would be redundant.
+            button.setFocusPainted(comboBox.isEditable());
+        }
+!!!9479067.java!!!	createPropertyChangeListener() : PropertyChangeListener
+        return new MetalPropertyChangeListener();
+!!!9479451.java!!!	createLayoutManager() : LayoutManager
+        return new MetalComboBoxLayoutManager();
+!!!9479835.java!!!	layoutComboBox(inout parent : Container, inout manager : MetalComboBoxLayoutManager) : void
+        if (comboBox.isEditable() && !MetalLookAndFeel.usingOcean()) {
+            manager.superLayout( parent );
+            return;
+        }
+
+        if (arrowButton != null) {
+            if (MetalLookAndFeel.usingOcean() &&
+                                (arrowButton instanceof MetalComboBoxButton)) {
+                Icon icon = ((MetalComboBoxButton)arrowButton).getComboIcon();
+                Insets buttonInsets = arrowButton.getInsets();
+                Insets insets = comboBox.getInsets();
+                int buttonWidth = icon.getIconWidth() + buttonInsets.left +
+                                  buttonInsets.right;
+		arrowButton.setBounds(MetalUtils.isLeftToRight(comboBox)
+				? (comboBox.getWidth() - insets.right - buttonWidth)
+				: insets.left,
+                            insets.top, buttonWidth,
+                            comboBox.getHeight() - insets.top - insets.bottom);
+            }
+            else {
+                Insets insets = comboBox.getInsets();
+                int width = comboBox.getWidth();
+                int height = comboBox.getHeight();
+                arrowButton.setBounds( insets.left, insets.top,
+                                       width - (insets.left + insets.right),
+                                       height - (insets.top + insets.bottom) );
+            }
+        }
+
+        if (editor != null && MetalLookAndFeel.usingOcean()) {
+            Rectangle cvb = rectangleForCurrentValue();
+            editor.setBounds(cvb);
+        }
+!!!9479963.java!!!	removeListeners() : void
+        if ( propertyChangeListener != null ) {
+            comboBox.removePropertyChangeListener( propertyChangeListener );
+        }
+!!!9480091.java!!!	configureEditor() : void
+	super.configureEditor();
+!!!9480219.java!!!	unconfigureEditor() : void
+	super.unconfigureEditor();
+!!!9480347.java!!!	getMinimumSize(inout c : JComponent) : Dimension
+        if ( !isMinimumSizeDirty ) {
+            return new Dimension( cachedMinimumSize );
+        }
+
+        Dimension size = null;
+
+        if ( !comboBox.isEditable() &&
+             arrowButton != null &&
+             arrowButton instanceof MetalComboBoxButton ) {
+
+            MetalComboBoxButton button = (MetalComboBoxButton)arrowButton;
+            Insets buttonInsets = button.getInsets();
+            Insets insets = comboBox.getInsets();
+
+            size = getDisplaySize();
+            size.width += insets.left + insets.right;
+            size.width += buttonInsets.left + buttonInsets.right;
+            size.width += buttonInsets.right + button.getComboIcon().getIconWidth();
+            size.height += insets.top + insets.bottom;
+            size.height += buttonInsets.top + buttonInsets.bottom;
+        }
+        else if ( comboBox.isEditable() &&
+                  arrowButton != null &&
+                  editor != null ) {
+            size = super.getMinimumSize( c );
+            Insets margin = arrowButton.getMargin();
+            size.height += margin.top + margin.bottom;
+            size.width += margin.left + margin.right;
+        }
+        else {
+            size = super.getMinimumSize( c );
+        }
+
+        cachedMinimumSize.setSize( size.width, size.height ); 
+        isMinimumSizeDirty = false;
+
+        return new Dimension( cachedMinimumSize );

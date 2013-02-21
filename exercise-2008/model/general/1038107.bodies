@@ -1,0 +1,67 @@
+class OpenType
+!!!8335643.java!!!	OpenType(in className : String, in typeName : String, in description : String)
+	
+	// Check parameters that cannot be null or empty
+	//
+	if ( (className == null) || (className.trim().equals("")) ) {
+	    throw new IllegalArgumentException("Argument className cannot be null or empty.");
+	}
+	if ( (typeName == null) || (typeName.trim().equals("")) ) {
+	    throw new IllegalArgumentException("Argument typeName cannot be null or empty.");
+	}
+	if ( (description == null) || (description.trim().equals("")) ) {
+	    throw new IllegalArgumentException("Argument description cannot be null or empty.");
+	}
+
+	// remove leading and trailing white spaces, if any
+	//
+	className   = className.trim();
+	typeName    = typeName.trim();
+	description = description.trim();
+
+	// Check if className describes an array class, and determines its elements' class name.
+	// (eg: a 3-dimensional array of Strings has for class name: "[[[Ljava.lang.String;")
+	//
+	int n = 0;
+	while (className.startsWith("[", n)) {
+	    n++;
+	}
+	String eltClassName; // class name of array elements
+	boolean isArray = false;
+	if (n > 0) {
+	    // removes the n leading '[' + the 'L' characters and the last ';' character
+	    eltClassName = className.substring(n+1, className.length()-1); // see javadoc of String.substring(begin,end)
+	    isArray = true;
+	} else {
+	    // not an array
+	    eltClassName = className;
+	}
+
+	// Check that eltClassName's value is one of the allowed basic data types for open data
+	//
+	if ( ! ALLOWED_CLASSNAMES_LIST.contains(eltClassName) ) {
+	    throw new OpenDataException("Argument className=\""+ className +
+					"\" is not one of the allowed Java class names for open data.");
+	}
+
+	// Now initializes this OpenType instance
+	//
+	this.className   = className;
+	this.typeName    = typeName;
+	this.description = description;
+	this.isArray     = isArray;
+!!!8335771.java!!!	getClassName() : String
+
+	return className;
+!!!8335899.java!!!	getTypeName() : String
+
+	return typeName;
+!!!8336027.java!!!	getDescription() : String
+
+	return description;
+!!!8336155.java!!!	isArray() : boolean
+
+	return isArray;
+!!!8336795.java!!!	readObject(inout in : ObjectInputStream) : void
+      in.defaultReadObject();
+      isArray = (className.startsWith("["));

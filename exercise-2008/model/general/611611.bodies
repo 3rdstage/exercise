@@ -1,0 +1,663 @@
+class ExecutionVisitor
+!!!3928731.java!!!	stack() : OperandStack
+		return frame.getStack();
+!!!3928859.java!!!	locals() : LocalVariables
+		return frame.getLocals();
+!!!3928987.java!!!	setConstantPoolGen(inout cpg : ConstantPoolGen) : void
+		this.cpg = cpg;
+!!!3929115.java!!!	setFrame(inout f : Frame) : void
+		this.frame = f;
+!!!3929243.java!!!	visitAALOAD(inout o : AALOAD) : void
+		stack().pop();														// pop the index int
+//System.out.print(stack().peek());
+		Type t = stack().pop(); // Pop Array type
+		if (t == Type.NULL){
+			stack().push(Type.NULL);
+		}	// Do nothing stackwise --- a NullPointerException is thrown at Run-Time
+		else{
+			ArrayType at = (ArrayType) t;	
+			stack().push(at.getElementType());
+		}
+!!!3929371.java!!!	visitAASTORE(inout o : AASTORE) : void
+		stack().pop();
+		stack().pop();
+		stack().pop();
+!!!3929499.java!!!	visitACONST_NULL(inout o : ACONST_NULL) : void
+		stack().push(Type.NULL);
+!!!3929627.java!!!	visitALOAD(inout o : ALOAD) : void
+		stack().push(locals().get(o.getIndex()));
+!!!3929755.java!!!	visitANEWARRAY(inout o : ANEWARRAY) : void
+		stack().pop(); //count
+		stack().push( new ArrayType(o.getType(cpg), 1) );
+!!!3929883.java!!!	visitARETURN(inout o : ARETURN) : void
+		stack().pop();
+!!!3930011.java!!!	visitARRAYLENGTH(inout o : ARRAYLENGTH) : void
+		stack().pop();
+		stack().push(Type.INT);
+!!!3930139.java!!!	visitASTORE(inout o : ASTORE) : void
+		locals().set(o.getIndex(), stack().pop());
+		//System.err.println("TODO-DEBUG:	set LV '"+o.getIndex()+"' to '"+locals().get(o.getIndex())+"'.");
+!!!3930267.java!!!	visitATHROW(inout o : ATHROW) : void
+		Type t = stack().pop();
+		stack().clear();
+		if (t.equals(Type.NULL))
+			stack().push(Type.getType("Ljava/lang/NullPointerException;"));
+		else
+			stack().push(t);
+!!!3930395.java!!!	visitBALOAD(inout o : BALOAD) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3930523.java!!!	visitBASTORE(inout o : BASTORE) : void
+		stack().pop();
+		stack().pop();
+		stack().pop();
+!!!3930651.java!!!	visitBIPUSH(inout o : BIPUSH) : void
+		stack().push(Type.INT);
+!!!3930779.java!!!	visitCALOAD(inout o : CALOAD) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3930907.java!!!	visitCASTORE(inout o : CASTORE) : void
+		stack().pop();
+		stack().pop();
+		stack().pop();
+!!!3931035.java!!!	visitCHECKCAST(inout o : CHECKCAST) : void
+		// It's possibly wrong to do so, but SUN's
+		// ByteCode verifier seems to do (only) this, too.
+		// TODO: One could use a sophisticated analysis here to check
+		//       if a type cannot possibly be cated to another and by
+		//       so doing predict the ClassCastException at run-time.
+		stack().pop();
+		stack().push(o.getType(cpg));
+!!!3931163.java!!!	visitD2F(inout o : D2F) : void
+		stack().pop();
+		stack().push(Type.FLOAT);
+!!!3931291.java!!!	visitD2I(inout o : D2I) : void
+		stack().pop();
+		stack().push(Type.INT);
+!!!3931419.java!!!	visitD2L(inout o : D2L) : void
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3931547.java!!!	visitDADD(inout o : DADD) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.DOUBLE);
+!!!3931675.java!!!	visitDALOAD(inout o : DALOAD) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.DOUBLE);
+!!!3931803.java!!!	visitDASTORE(inout o : DASTORE) : void
+		stack().pop();
+		stack().pop();
+		stack().pop();
+!!!3931931.java!!!	visitDCMPG(inout o : DCMPG) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3932059.java!!!	visitDCMPL(inout o : DCMPL) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3932187.java!!!	visitDCONST(inout o : DCONST) : void
+		stack().push(Type.DOUBLE);
+!!!3932315.java!!!	visitDDIV(inout o : DDIV) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.DOUBLE);
+!!!3932443.java!!!	visitDLOAD(inout o : DLOAD) : void
+		stack().push(Type.DOUBLE);
+!!!3932571.java!!!	visitDMUL(inout o : DMUL) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.DOUBLE);
+!!!3932699.java!!!	visitDNEG(inout o : DNEG) : void
+		stack().pop();
+		stack().push(Type.DOUBLE);
+!!!3932827.java!!!	visitDREM(inout o : DREM) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.DOUBLE);
+!!!3932955.java!!!	visitDRETURN(inout o : DRETURN) : void
+		stack().pop();
+!!!3933083.java!!!	visitDSTORE(inout o : DSTORE) : void
+		locals().set(o.getIndex(), stack().pop());
+		locals().set(o.getIndex()+1, Type.UNKNOWN);
+!!!3933211.java!!!	visitDSUB(inout o : DSUB) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.DOUBLE);
+!!!3933339.java!!!	visitDUP(inout o : DUP) : void
+		Type t = stack().pop();
+		stack().push(t);
+		stack().push(t);
+!!!3933467.java!!!	visitDUP_X1(inout o : DUP_X1) : void
+		Type w1 = stack().pop();
+		Type w2 = stack().pop();
+		stack().push(w1);
+		stack().push(w2);
+		stack().push(w1);
+!!!3933595.java!!!	visitDUP_X2(inout o : DUP_X2) : void
+		Type w1 = stack().pop();
+		Type w2 = stack().pop();
+		if (w2.getSize() == 2){
+			stack().push(w1);
+			stack().push(w2);
+			stack().push(w1);
+		}
+		else{
+			Type w3 = stack().pop();
+			stack().push(w1);
+			stack().push(w3);
+			stack().push(w2);
+			stack().push(w1);
+		}
+!!!3933723.java!!!	visitDUP2(inout o : DUP2) : void
+		Type t = stack().pop();
+		if (t.getSize() == 2){
+			stack().push(t);
+			stack().push(t);
+		}
+		else{ // t.getSize() is 1
+			Type u = stack().pop();
+			stack().push(u);
+			stack().push(t);
+			stack().push(u);
+			stack().push(t);
+		}
+!!!3933851.java!!!	visitDUP2_X1(inout o : DUP2_X1) : void
+		Type t = stack().pop();
+		if (t.getSize() == 2){
+			Type u = stack().pop();
+			stack().push(t);
+			stack().push(u);
+			stack().push(t);
+		}
+		else{ //t.getSize() is1
+			Type u = stack().pop();
+			Type v = stack().pop();
+			stack().push(u);
+			stack().push(t);
+			stack().push(v);
+			stack().push(u);
+			stack().push(t);
+		}
+!!!3933979.java!!!	visitDUP2_X2(inout o : DUP2_X2) : void
+		Type t = stack().pop();
+		if (t.getSize() == 2){
+			Type u = stack().pop();
+			if (u.getSize() == 2){
+				stack().push(t);
+				stack().push(u);
+				stack().push(t);
+			}else{
+				Type v = stack().pop();
+				stack().push(t);
+				stack().push(v);
+				stack().push(u);
+				stack().push(t);
+			}
+		}
+		else{ //t.getSize() is 1
+			Type u = stack().pop();
+			Type v = stack().pop();
+			if (v.getSize() == 2){
+				stack().push(u);
+				stack().push(t);
+				stack().push(v);
+				stack().push(u);
+				stack().push(t);
+			}else{
+				Type w = stack().pop();
+				stack().push(u);
+				stack().push(t);
+				stack().push(w);
+				stack().push(v);
+				stack().push(u);
+				stack().push(t);
+			}
+		}
+!!!3934107.java!!!	visitF2D(inout o : F2D) : void
+		stack().pop();
+		stack().push(Type.DOUBLE);
+!!!3934235.java!!!	visitF2I(inout o : F2I) : void
+		stack().pop();
+		stack().push(Type.INT);
+!!!3934363.java!!!	visitF2L(inout o : F2L) : void
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3934491.java!!!	visitFADD(inout o : FADD) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.FLOAT);
+!!!3934619.java!!!	visitFALOAD(inout o : FALOAD) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.FLOAT);
+!!!3934747.java!!!	visitFASTORE(inout o : FASTORE) : void
+		stack().pop();
+		stack().pop();
+		stack().pop();
+!!!3934875.java!!!	visitFCMPG(inout o : FCMPG) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3935003.java!!!	visitFCMPL(inout o : FCMPL) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3935131.java!!!	visitFCONST(inout o : FCONST) : void
+		stack().push(Type.FLOAT);
+!!!3935259.java!!!	visitFDIV(inout o : FDIV) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.FLOAT);
+!!!3935387.java!!!	visitFLOAD(inout o : FLOAD) : void
+		stack().push(Type.FLOAT);
+!!!3935515.java!!!	visitFMUL(inout o : FMUL) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.FLOAT);
+!!!3935643.java!!!	visitFNEG(inout o : FNEG) : void
+		stack().pop();
+		stack().push(Type.FLOAT);
+!!!3935771.java!!!	visitFREM(inout o : FREM) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.FLOAT);
+!!!3935899.java!!!	visitFRETURN(inout o : FRETURN) : void
+		stack().pop();
+!!!3936027.java!!!	visitFSTORE(inout o : FSTORE) : void
+		locals().set(o.getIndex(), stack().pop());
+!!!3936155.java!!!	visitFSUB(inout o : FSUB) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.FLOAT);
+!!!3936283.java!!!	visitGETFIELD(inout o : GETFIELD) : void
+		stack().pop();
+		Type t = o.getFieldType(cpg);
+		if (	t.equals(Type.BOOLEAN)	||
+					t.equals(Type.CHAR)			||
+					t.equals(Type.BYTE) 		||
+					t.equals(Type.SHORT)		)
+			t = Type.INT;
+		stack().push(t);
+!!!3936411.java!!!	visitGETSTATIC(inout o : GETSTATIC) : void
+		Type t = o.getFieldType(cpg);
+		if (	t.equals(Type.BOOLEAN)	||
+					t.equals(Type.CHAR)			||
+					t.equals(Type.BYTE) 		||
+					t.equals(Type.SHORT)		)
+			t = Type.INT;
+		stack().push(t);
+!!!3936539.java!!!	visitGOTO(inout o : GOTO) : void
+		// no stack changes.
+!!!3936667.java!!!	visitGOTO_W(inout o : GOTO_W) : void
+		// no stack changes.
+!!!3936795.java!!!	visitI2B(inout o : I2B) : void
+		stack().pop();
+		stack().push(Type.INT);
+!!!3936923.java!!!	visitI2C(inout o : I2C) : void
+		stack().pop();
+		stack().push(Type.INT);
+!!!3937051.java!!!	visitI2D(inout o : I2D) : void
+		stack().pop();
+		stack().push(Type.DOUBLE);
+!!!3937179.java!!!	visitI2F(inout o : I2F) : void
+		stack().pop();
+		stack().push(Type.FLOAT);
+!!!3937307.java!!!	visitI2L(inout o : I2L) : void
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3937435.java!!!	visitI2S(inout o : I2S) : void
+		stack().pop();
+		stack().push(Type.INT);
+!!!3937563.java!!!	visitIADD(inout o : IADD) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3937691.java!!!	visitIALOAD(inout o : IALOAD) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3937819.java!!!	visitIAND(inout o : IAND) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3937947.java!!!	visitIASTORE(inout o : IASTORE) : void
+		stack().pop();
+		stack().pop();
+		stack().pop();
+!!!3938075.java!!!	visitICONST(inout o : ICONST) : void
+		stack().push(Type.INT);
+!!!3938203.java!!!	visitIDIV(inout o : IDIV) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3938331.java!!!	visitIF_ACMPEQ(inout o : IF_ACMPEQ) : void
+		stack().pop();
+		stack().pop();
+!!!3938459.java!!!	visitIF_ACMPNE(inout o : IF_ACMPNE) : void
+		stack().pop();
+		stack().pop();
+!!!3938587.java!!!	visitIF_ICMPEQ(inout o : IF_ICMPEQ) : void
+		stack().pop();
+		stack().pop();
+!!!3938715.java!!!	visitIF_ICMPGE(inout o : IF_ICMPGE) : void
+		stack().pop();
+		stack().pop();
+!!!3938843.java!!!	visitIF_ICMPGT(inout o : IF_ICMPGT) : void
+		stack().pop();
+		stack().pop();
+!!!3938971.java!!!	visitIF_ICMPLE(inout o : IF_ICMPLE) : void
+		stack().pop();
+		stack().pop();
+!!!3939099.java!!!	visitIF_ICMPLT(inout o : IF_ICMPLT) : void
+		stack().pop();
+		stack().pop();
+!!!3939227.java!!!	visitIF_ICMPNE(inout o : IF_ICMPNE) : void
+		stack().pop();
+		stack().pop();
+!!!3939355.java!!!	visitIFEQ(inout o : IFEQ) : void
+		stack().pop();
+!!!3939483.java!!!	visitIFGE(inout o : IFGE) : void
+		stack().pop();
+!!!3939611.java!!!	visitIFGT(inout o : IFGT) : void
+		stack().pop();
+!!!3939739.java!!!	visitIFLE(inout o : IFLE) : void
+		stack().pop();
+!!!3939867.java!!!	visitIFLT(inout o : IFLT) : void
+		stack().pop();
+!!!3939995.java!!!	visitIFNE(inout o : IFNE) : void
+		stack().pop();
+!!!3940123.java!!!	visitIFNONNULL(inout o : IFNONNULL) : void
+		stack().pop();
+!!!3940251.java!!!	visitIFNULL(inout o : IFNULL) : void
+		stack().pop();
+!!!3940379.java!!!	visitIINC(inout o : IINC) : void
+		// stack is not changed.
+!!!3940507.java!!!	visitILOAD(inout o : ILOAD) : void
+		stack().push(Type.INT);
+!!!3940635.java!!!	visitIMUL(inout o : IMUL) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3940763.java!!!	visitINEG(inout o : INEG) : void
+		stack().pop();
+		stack().push(Type.INT);
+!!!3940891.java!!!	visitINSTANCEOF(inout o : INSTANCEOF) : void
+		stack().pop();
+		stack().push(Type.INT);
+!!!3941019.java!!!	visitINVOKEINTERFACE(inout o : INVOKEINTERFACE) : void
+		stack().pop();	//objectref
+		for (int i=0; i<o.getArgumentTypes(cpg).length; i++){
+			stack().pop();
+		}
+		// We are sure the invoked method will xRETURN eventually
+		// We simulate xRETURNs functionality here because we
+		// don't really "jump into" and simulate the invoked
+		// method.
+		if (o.getReturnType(cpg) != Type.VOID){
+			Type t = o.getReturnType(cpg);
+			if (	t.equals(Type.BOOLEAN)	||
+						t.equals(Type.CHAR)			||
+						t.equals(Type.BYTE) 		||
+						t.equals(Type.SHORT)		)
+				t = Type.INT;
+			stack().push(t);
+		}
+!!!3941147.java!!!	visitINVOKESPECIAL(inout o : INVOKESPECIAL) : void
+		if (o.getMethodName(cpg).equals(Constants.CONSTRUCTOR_NAME)){
+			UninitializedObjectType t = (UninitializedObjectType) stack().peek(o.getArgumentTypes(cpg).length);
+			if (t == frame._this){	
+				frame._this = null;
+			}
+			stack().initializeObject(t);
+			locals().initializeObject(t);
+		}
+		stack().pop();	//objectref
+		for (int i=0; i<o.getArgumentTypes(cpg).length; i++){
+			stack().pop();
+		}
+		// We are sure the invoked method will xRETURN eventually
+		// We simulate xRETURNs functionality here because we
+		// don't really "jump into" and simulate the invoked
+		// method.
+		if (o.getReturnType(cpg) != Type.VOID){
+			Type t = o.getReturnType(cpg);
+			if (	t.equals(Type.BOOLEAN)	||
+						t.equals(Type.CHAR)			||
+						t.equals(Type.BYTE) 		||
+						t.equals(Type.SHORT)		)
+				t = Type.INT;
+			stack().push(t);
+		}
+!!!3941275.java!!!	visitINVOKESTATIC(inout o : INVOKESTATIC) : void
+		for (int i=0; i<o.getArgumentTypes(cpg).length; i++){
+			stack().pop();
+		}
+		// We are sure the invoked method will xRETURN eventually
+		// We simulate xRETURNs functionality here because we
+		// don't really "jump into" and simulate the invoked
+		// method.
+		if (o.getReturnType(cpg) != Type.VOID){
+			Type t = o.getReturnType(cpg);
+			if (	t.equals(Type.BOOLEAN)	||
+						t.equals(Type.CHAR)			||
+						t.equals(Type.BYTE) 		||
+						t.equals(Type.SHORT)		)
+				t = Type.INT;
+			stack().push(t);
+		}
+!!!3941403.java!!!	visitINVOKEVIRTUAL(inout o : INVOKEVIRTUAL) : void
+		stack().pop(); //objectref
+		for (int i=0; i<o.getArgumentTypes(cpg).length; i++){
+			stack().pop();
+		}
+		// We are sure the invoked method will xRETURN eventually
+		// We simulate xRETURNs functionality here because we
+		// don't really "jump into" and simulate the invoked
+		// method.
+		if (o.getReturnType(cpg) != Type.VOID){
+			Type t = o.getReturnType(cpg);
+			if (	t.equals(Type.BOOLEAN)	||
+						t.equals(Type.CHAR)			||
+						t.equals(Type.BYTE) 		||
+						t.equals(Type.SHORT)		)
+				t = Type.INT;
+			stack().push(t);
+		}
+!!!3941531.java!!!	visitIOR(inout o : IOR) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3941659.java!!!	visitIREM(inout o : IREM) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3941787.java!!!	visitIRETURN(inout o : IRETURN) : void
+		stack().pop();
+!!!3941915.java!!!	visitISHL(inout o : ISHL) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3942043.java!!!	visitISHR(inout o : ISHR) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3942171.java!!!	visitISTORE(inout o : ISTORE) : void
+		locals().set(o.getIndex(), stack().pop());
+!!!3942299.java!!!	visitISUB(inout o : ISUB) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3942427.java!!!	visitIUSHR(inout o : IUSHR) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3942555.java!!!	visitIXOR(inout o : IXOR) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3942683.java!!!	visitJSR(inout o : JSR) : void
+		stack().push(new ReturnaddressType(o.physicalSuccessor()));
+//System.err.println("TODO-----------:"+o.physicalSuccessor());
+!!!3942811.java!!!	visitJSR_W(inout o : JSR_W) : void
+		stack().push(new ReturnaddressType(o.physicalSuccessor()));
+!!!3942939.java!!!	visitL2D(inout o : L2D) : void
+		stack().pop();
+		stack().push(Type.DOUBLE);
+!!!3943067.java!!!	visitL2F(inout o : L2F) : void
+		stack().pop();
+		stack().push(Type.FLOAT);
+!!!3943195.java!!!	visitL2I(inout o : L2I) : void
+		stack().pop();
+		stack().push(Type.INT);
+!!!3943323.java!!!	visitLADD(inout o : LADD) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3943451.java!!!	visitLALOAD(inout o : LALOAD) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3943579.java!!!	visitLAND(inout o : LAND) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3943707.java!!!	visitLASTORE(inout o : LASTORE) : void
+		stack().pop();
+		stack().pop();
+		stack().pop();
+!!!3943835.java!!!	visitLCMP(inout o : LCMP) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3943963.java!!!	visitLCONST(inout o : LCONST) : void
+		stack().push(Type.LONG);
+!!!3944091.java!!!	visitLDC(inout o : LDC) : void
+		Constant c = cpg.getConstant(o.getIndex());
+		if (c instanceof ConstantInteger){
+			stack().push(Type.INT);
+		}
+		if (c instanceof ConstantFloat){
+			stack().push(Type.FLOAT);
+		}
+		if (c instanceof ConstantString){
+			stack().push(Type.STRING);
+		}
+!!!3944219.java!!!	visitLDC_W(inout o : LDC_W) : void
+		Constant c = cpg.getConstant(o.getIndex());
+		if (c instanceof ConstantInteger){
+			stack().push(Type.INT);
+		}
+		if (c instanceof ConstantFloat){
+			stack().push(Type.FLOAT);
+		}
+		if (c instanceof ConstantString){
+			stack().push(Type.STRING);
+		}
+!!!3944347.java!!!	visitLDC2_W(inout o : LDC2_W) : void
+		Constant c = cpg.getConstant(o.getIndex());
+		if (c instanceof ConstantLong){
+			stack().push(Type.LONG);
+		}
+		if (c instanceof ConstantDouble){
+			stack().push(Type.DOUBLE);
+		}
+!!!3944475.java!!!	visitLDIV(inout o : LDIV) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3944603.java!!!	visitLLOAD(inout o : LLOAD) : void
+		stack().push(locals().get(o.getIndex()));
+!!!3944731.java!!!	visitLMUL(inout o : LMUL) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3944859.java!!!	visitLNEG(inout o : LNEG) : void
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3944987.java!!!	visitLOOKUPSWITCH(inout o : LOOKUPSWITCH) : void
+		stack().pop(); //key
+!!!3945115.java!!!	visitLOR(inout o : LOR) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3945243.java!!!	visitLREM(inout o : LREM) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3945371.java!!!	visitLRETURN(inout o : LRETURN) : void
+		stack().pop();
+!!!3945499.java!!!	visitLSHL(inout o : LSHL) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3945627.java!!!	visitLSHR(inout o : LSHR) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3945755.java!!!	visitLSTORE(inout o : LSTORE) : void
+		locals().set(o.getIndex(), stack().pop());
+		locals().set(o.getIndex()+1, Type.UNKNOWN);		
+!!!3945883.java!!!	visitLSUB(inout o : LSUB) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3946011.java!!!	visitLUSHR(inout o : LUSHR) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3946139.java!!!	visitLXOR(inout o : LXOR) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.LONG);
+!!!3946267.java!!!	visitMONITORENTER(inout o : MONITORENTER) : void
+		stack().pop();
+!!!3946395.java!!!	visitMONITOREXIT(inout o : MONITOREXIT) : void
+		stack().pop();
+!!!3946523.java!!!	visitMULTIANEWARRAY(inout o : MULTIANEWARRAY) : void
+		for (int i=0; i<o.getDimensions(); i++){
+			stack().pop();
+		}
+		stack().push(o.getType(cpg));
+!!!3946651.java!!!	visitNEW(inout o : NEW) : void
+		stack().push(new UninitializedObjectType((ObjectType) (o.getType(cpg))));
+!!!3946779.java!!!	visitNEWARRAY(inout o : NEWARRAY) : void
+		stack().pop();
+		stack().push(o.getType());
+!!!3947035.java!!!	visitPOP(inout o : POP) : void
+		stack().pop();
+!!!3947163.java!!!	visitPOP2(inout o : POP2) : void
+		Type t = stack().pop();
+		if (t.getSize() == 1){
+			stack().pop();
+		}		
+!!!3947291.java!!!	visitPUTFIELD(inout o : PUTFIELD) : void
+		stack().pop();
+		stack().pop();
+!!!3947419.java!!!	visitPUTSTATIC(inout o : PUTSTATIC) : void
+		stack().pop();
+!!!3947547.java!!!	visitRET(inout o : RET) : void
+		// do nothing, return address
+		// is in in the local variables.
+!!!3947675.java!!!	visitRETURN(inout o : RETURN) : void
+		// do nothing.
+!!!3947803.java!!!	visitSALOAD(inout o : SALOAD) : void
+		stack().pop();
+		stack().pop();
+		stack().push(Type.INT);
+!!!3947931.java!!!	visitSASTORE(inout o : SASTORE) : void
+		stack().pop();
+		stack().pop();
+		stack().pop();
+!!!3948059.java!!!	visitSIPUSH(inout o : SIPUSH) : void
+		stack().push(Type.INT);
+!!!3948187.java!!!	visitSWAP(inout o : SWAP) : void
+		Type t = stack().pop();
+		Type u = stack().pop();
+		stack().push(t);
+		stack().push(u);
+!!!3948315.java!!!	visitTABLESWITCH(inout o : TABLESWITCH) : void
+		stack().pop();

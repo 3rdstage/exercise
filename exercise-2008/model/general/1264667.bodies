@@ -1,0 +1,684 @@
+class CSSTokenizer
+!!!10474395.java!!!	setInitialState(in state : int) : void
+		fInitialState = state;
+!!!10474523.java!!!	setInitialBufferSize(in size : int) : void
+		fInitialBufferSize = size;
+!!!10474651.java!!!	getNextToken() : ITextRegion
+		String context;
+		String nextTokenType;
+		boolean spaceFollows;
+//		StringBuffer text;
+		int start;
+		int textLength;
+		int length;
+		if (fBufferedContext != null) {
+			context = fBufferedContext;
+//			text = fBufferedText;
+			start = fBufferedStart;
+			textLength = length = fBufferedLength;
+
+			fBufferedContext = null;
+		} else {
+			context = primGetNextToken();
+//			text = new StringBuffer(yytext());
+			start = yychar;
+			textLength = length = yylength();
+		}
+
+		if (context != null) {
+			if (context == UNDEFINED) {
+				// undef -> concatenate undef's
+				nextTokenType = primGetNextToken();
+				while (nextTokenType == UNDEFINED) {
+//					text.append(yytext());
+					textLength += yylength();
+					length = textLength;
+					nextTokenType = primGetNextToken();
+				}
+				fBufferedContext = nextTokenType;
+//				fBufferedText = new StringBuffer(yytext());
+				fBufferedStart = yychar;
+				fBufferedLength = yylength();
+			} else {
+				nextTokenType = null;
+				spaceFollows = false;
+				if (CSSRegionUtil.isDeclarationValueType(context)) { // declaration value can contain VALUE_S
+					nextTokenType = primGetNextToken();
+					spaceFollows = (nextTokenType == CSS_DECLARATION_VALUE_S);
+				} else if (canContainSpace(context)) {
+					nextTokenType = primGetNextToken();
+					spaceFollows = (nextTokenType == CSS_S);
+				}
+				if (nextTokenType != null) { // nextToken is retrieved
+					if (spaceFollows) {
+						// next is space -> append
+//						text.append(yytext());
+						length += yylength();
+					} else {
+						// next is NOT space -> push this for next time, return itself
+						fBufferedContext = nextTokenType;
+//						fBufferedText = new StringBuffer(yytext());
+						fBufferedStart = yychar;
+						fBufferedLength = yylength();
+					}
+				}
+			}
+		}
+
+		if (context != null) {
+			if (context == UNDEFINED) {
+				context = CSS_UNKNOWN;
+			}
+			return fRegionFactory.createRegion(context, start, textLength, length);
+		} else {
+			return null;
+		}
+!!!10474779.java!!!	parseText() : List
+  		List tokens = new ArrayList();
+
+  		CSSTextToken token;
+		for (String kind = primGetNextToken(); kind != null; kind = primGetNextToken()) {
+			token = new CSSTextToken();
+			token.kind = kind;  				
+			token.start = yychar;
+			token.length = yylength();
+			token.image = yytext();
+			tokens.add(token);
+		}
+
+  		return tokens;
+!!!10474907.java!!!	canContainSpace(in type : String) : boolean
+  		if (type == CSS_DELIMITER || type == CSS_RBRACE || type == CSS_DECLARATION_DELIMITER) {
+  			return false;
+  		} else {
+  			return true;
+  		}
+!!!10475035.java!!!	getOffset() : int
+		return yychar;
+!!!10475163.java!!!	isEOF() : boolean
+		return yy_atEOF;
+!!!10475291.java!!!	reset(in charArray : char) : void
+		reset(new CharArrayReader(charArray), 0);
+!!!10475419.java!!!	reset(inout in : Reader, in newOffset : int) : void
+		/** the input device */
+		yy_reader = in;
+
+		/** the current state of the DFA */
+		yy_state = 0;
+
+		/** the current lexical state */
+		yy_lexical_state = fInitialState; //YYINITIAL;
+
+		/** this buffer contains the current text to be matched and is
+			the source of the yytext() string */
+		if (yy_buffer.length != fInitialBufferSize) {
+			yy_buffer = new char[fInitialBufferSize];
+		}
+		java.util.Arrays.fill(yy_buffer, (char)0);
+
+		/** the textposition at the last accepting state */
+		yy_markedPos = 0;
+
+		/** the textposition at the last state to be included in yytext */
+		yy_pushbackPos = 0;
+
+		/** the current text position in the buffer */
+		yy_currentPos = 0;
+
+		/** startRead marks the beginning of the yytext() string in the buffer */
+		yy_startRead = 0;
+
+		/** endRead marks the last character in the buffer, that has been read
+			from input */
+		yy_endRead = 0;
+
+		/** number of newlines encountered up to the start of the matched text */
+		yyline = 0;
+
+		/** the number of characters up to the start of the matched text */
+		yychar = 0;
+
+		/**
+		 * the number of characters from the last newline up to the start of the 
+		 * matched text
+		 */
+		yycolumn = 0; 
+
+		/** 
+		 * yy_atBOL == true <=> the scanner is currently at the beginning of a line
+		 */
+		yy_atBOL = false;
+		
+		/** yy_atEOF == true <=> the scanner has returned a value for EOF */
+		yy_atEOF = false;
+
+		/* user variables */
+		//		fUndefined.delete(0, fUndefined.length());
+!!!10475547.java!!!	CSSTokenizer()
+		super();
+!!!10475675.java!!!	CSSTokenizer(inout in : Reader)
+    this.yy_reader = in;
+!!!10475803.java!!!	CSSTokenizer(inout in : InputStream)
+    this(new java.io.InputStreamReader(in));
+!!!10475931.java!!!	yy_unpack(in packed : String) : int
+    int [] trans = new int[21004];
+    int i = 0;  /* index in packed string  */
+    int j = 0;  /* index in unpacked array */
+    while (i < 13906) {
+      int count = packed.charAt(i++);
+      int value = packed.charAt(i++);
+      value--;
+      do trans[j++] = value; while (--count > 0);
+    }
+    return trans;
+!!!10476059.java!!!	yy_unpack_cmap(in packed : String) : char
+    char [] map = new char[0x10000];
+    int i = 0;  /* index in packed string  */
+    int j = 0;  /* index in unpacked array */
+    while (i < 170) {
+      int  count = packed.charAt(i++);
+      char value = packed.charAt(i++);
+      do map[j++] = value; while (--count > 0);
+    }
+    return map;
+!!!10476187.java!!!	yy_advance() : int
+
+    /* standard case */
+    if (yy_currentPos < yy_endRead) return yy_buffer[yy_currentPos++];
+
+    /* if the eof is reached, we don't need to work hard */ 
+    if (yy_atEOF) return YYEOF;
+
+    /* otherwise: need to refill the buffer */
+
+    /* first: make room (if you can) */
+    if (yy_startRead > 0) {
+      System.arraycopy(yy_buffer, yy_startRead, 
+                       yy_buffer, 0, 
+                       yy_endRead-yy_startRead);
+
+      /* translate stored positions */
+      yy_endRead-= yy_startRead;
+      yy_currentPos-= yy_startRead;
+      yy_markedPos-= yy_startRead;
+      yy_pushbackPos-= yy_startRead;
+      yy_startRead = 0;
+    }
+
+    /* is the buffer big enough? */
+    if (yy_currentPos >= yy_buffer.length) {
+      /* if not: blow it up */
+      char newBuffer[] = new char[yy_currentPos*2];
+      System.arraycopy(yy_buffer, 0, newBuffer, 0, yy_buffer.length);
+      yy_buffer = newBuffer;
+    }
+
+    /* finally: fill the buffer with new input */
+    int numRead = yy_reader.read(yy_buffer, yy_endRead, 
+                                            yy_buffer.length-yy_endRead);
+
+    if ( numRead == -1 ) return YYEOF;
+
+    yy_endRead+= numRead;
+
+    return yy_buffer[yy_currentPos++];
+!!!10476315.java!!!	yyclose() : void
+    yy_atEOF = true;            /* indicate end of file */
+    yy_endRead = yy_startRead;  /* invalidate buffer    */
+    yy_reader.close();
+!!!10476443.java!!!	yystate() : int
+    return yy_lexical_state;
+!!!10476571.java!!!	yybegin(in newState : int) : void
+    yy_lexical_state = newState;
+!!!10476699.java!!!	yytext() : String
+    return new String( yy_buffer, yy_startRead, yy_markedPos-yy_startRead );
+!!!10476827.java!!!	yylength() : int
+    return yy_markedPos-yy_startRead;
+!!!10476955.java!!!	yy_ScanError(in errorCode : int) : void
+    try {
+      System.out.println(YY_ERROR_MSG[errorCode]);
+    }
+    catch (ArrayIndexOutOfBoundsException e) {
+      System.out.println(YY_ERROR_MSG[YY_UNKNOWN_ERROR]);
+    }
+
+    System.exit(1);
+!!!10477083.java!!!	yypushback(in number : int) : void
+    if ( number > yylength() )
+      yy_ScanError(YY_PUSHBACK_2BIG);
+
+    yy_markedPos -= number;
+!!!10477211.java!!!	primGetNextToken() : String
+    int yy_input;
+    int yy_action;
+
+    yy_pushbackPos = -1;
+    boolean yy_was_pushback;
+
+    while (true) {
+
+      yychar+= yylength();
+
+      boolean yy_counted = false;
+      for (yy_currentPos = yy_startRead; yy_currentPos < yy_markedPos;
+                                                      yy_currentPos++) {
+        switch (yy_buffer[yy_currentPos]) {
+        case '\r':
+          yyline++;
+          yy_counted = true;
+          break;
+        case '\n':
+          if (yy_counted)
+            yy_counted = false;
+          else {
+            yyline++;
+          }
+          break;
+        default:
+          yy_counted = false;
+        }
+      }
+
+      if (yy_counted) {
+        if ( yy_advance() == '\n' ) yyline--;
+        if ( !yy_atEOF ) yy_currentPos--;
+      }
+
+      yy_action = -1;
+
+      yy_currentPos = yy_startRead = yy_markedPos;
+
+      yy_state = yy_lexical_state;
+
+      yy_was_pushback = false;
+
+      yy_forAction: {
+        while (true) {
+
+          yy_input = yy_advance();
+
+          if ( yy_input == YYEOF ) break yy_forAction;
+
+          int yy_next = yytrans[ yy_rowMap[yy_state] + yycmap[yy_input] ];
+          if (yy_next == -1) break yy_forAction;
+          yy_state = yy_next;
+
+          int yy_attributes = YY_ATTRIBUTE[yy_state];
+          if ( (yy_attributes & 2) > 0 )
+            yy_pushbackPos = yy_currentPos;
+
+          if ( (yy_attributes & 1) > 0 ) {
+            yy_was_pushback = (yy_attributes & 4) > 0;
+            yy_action = yy_state; 
+            yy_markedPos = yy_currentPos; 
+            if ( (yy_attributes & 8) > 0 ) break yy_forAction;
+          }
+
+        }
+      }
+
+      if (yy_was_pushback)
+        yy_markedPos = yy_pushbackPos;
+
+      switch (yy_action) {    
+
+        case 421: 
+          {  yybegin(ST_DECLARATION_VALUE); return CSS_DECLARATION_VALUE_IMPORTANT;  }
+        case 433: break;
+        case 412: 
+          {  yybegin(ST_FONT_FACE_DELIMITER); return CSS_FONT_FACE;  }
+        case 434: break;
+        case 375: 
+          {  yybegin(ST_CHARSET_NAME); return CSS_CHARSET;  }
+        case 435: break;
+        case 335: 
+          {  yybegin(ST_IMPORT_URI); return CSS_IMPORT;  }
+        case 436: break;
+        case 297: 
+          {  yybegin(ST_MEDIA_MEDIUM); return CSS_MEDIA;  }
+        case 437: break;
+        case 290: 
+        case 327: 
+        case 398: 
+        case 400: 
+          {  yybegin(ST_DECLARATION_VALUE); return CSS_DECLARATION_VALUE_URI;  }
+        case 438: break;
+        case 269: 
+        case 307: 
+        case 385: 
+        case 387: 
+          {  yybegin(ST_IMPORT_MEDIUM); return CSS_URI;  }
+        case 439: break;
+        case 255: 
+          {  yybegin(ST_PAGE_PSEUDO_PAGE); return CSS_PAGE;  }
+        case 440: break;
+        case 218: 
+          {  return CSS_COMMENT;  }
+        case 441: break;
+        case 217: 
+          {  return CSS_CDO;  }
+        case 442: break;
+        case 211: 
+        case 245: 
+        case 283: 
+        case 284: 
+        case 323: 
+        case 324: 
+        case 363: 
+        case 364: 
+        case 394: 
+        case 395: 
+        case 407: 
+        case 417: 
+          {  yybegin(ST_DECLARATION_VALUE); return CSS_DECLARATION_VALUE_UNICODE_RANGE;  }
+        case 443: break;
+        case 165: 
+          {  return CSS_CDC;  }
+        case 444: break;
+        case 162: 
+          {  return CSS_DECLARATION_VALUE_S;  }
+        case 445: break;
+        case 156: 
+        case 210: 
+        case 244: 
+        case 282: 
+        case 322: 
+        case 362: 
+        case 393: 
+          {  yybegin(ST_DECLARATION_VALUE); return CSS_DECLARATION_VALUE_HASH;  }
+        case 446: break;
+        case 150: 
+        case 205: 
+        case 208: 
+          {  yybegin(ST_DECLARATION_VALUE); return CSS_DECLARATION_VALUE_STRING;  }
+        case 447: break;
+        case 57: 
+        case 59: 
+        case 128: 
+        case 129: 
+        case 193: 
+        case 235: 
+        case 273: 
+        case 313: 
+        case 353: 
+          {  yybegin(ST_SELECTOR_ATTRIBUTE_OPERATOR); return CSS_SELECTOR_ATTRIBUTE_NAME;  }
+        case 448: break;
+        case 56: 
+          {  yybegin(ST_SELECTOR); return CSS_SELECTOR_SEPARATOR;  }
+        case 449: break;
+        case 55: 
+        case 125: 
+          {  yybegin(ST_SELECTOR); return CSS_SELECTOR_COMBINATOR;  }
+        case 450: break;
+        case 52: 
+          {  yybegin(ST_DECLARATION); return CSS_LBRACE;  }
+        case 451: break;
+        case 49: 
+        case 51: 
+        case 123: 
+        case 124: 
+        case 192: 
+        case 234: 
+        case 272: 
+        case 312: 
+        case 352: 
+          {  yybegin(ST_PAGE_DELIMITER); return CSS_PAGE_SELECTOR;  }
+        case 452: break;
+        case 48: 
+          {  yybegin(YYINITIAL); return CSS_LBRACE;  }
+        case 453: break;
+        case 47: 
+          {  yybegin(ST_MEDIA_MEDIUM); return CSS_MEDIA_SEPARATOR;  }
+        case 454: break;
+        case 44: 
+        case 46: 
+        case 120: 
+        case 121: 
+        case 191: 
+        case 233: 
+        case 271: 
+        case 311: 
+        case 351: 
+          {  yybegin(ST_MEDIA_DELIMITER); return CSS_MEDIUM;  }
+        case 455: break;
+        case 43: 
+          {  yybegin(ST_IMPORT_MEDIUM); return CSS_MEDIA_SEPARATOR;  }
+        case 456: break;
+        case 20: 
+        case 23: 
+        case 89: 
+        case 90: 
+        case 164: 
+        case 214: 
+        case 249: 
+        case 292: 
+        case 331: 
+          {  yybegin(ST_SELECTOR_MODIFIER); return CSS_SELECTOR_ELEMENT_NAME;  }
+        case 457: break;
+        case 22: 
+        case 54: 
+        case 87: 
+        case 126: 
+        case 163: 
+          {  return CSS_S;  }
+        case 458: break;
+        case 27: 
+          {  yybegin(YYINITIAL); return CSS_RBRACE;  }
+        case 459: break;
+        case 29: 
+          {  yybegin(ST_SELECTOR_MODIFIER); return CSS_SELECTOR_UNIVERSAL;  }
+        case 460: break;
+        case 32: 
+          {  yybegin(ST_SELECTOR_ATTRIBUTE_NAME); return CSS_SELECTOR_ATTRIBUTE_START;  }
+        case 461: break;
+        case 36: 
+          {  yybegin(YYINITIAL); return CSS_DELIMITER;  }
+        case 462: break;
+        case 40: 
+        case 42: 
+        case 117: 
+        case 118: 
+        case 190: 
+        case 232: 
+        case 270: 
+        case 310: 
+        case 350: 
+          {  yybegin(ST_IMPORT_DELIMITER); return CSS_MEDIUM;  }
+        case 463: break;
+        case 60: 
+          {  yybegin(ST_SELECTOR_ATTRIBUTE_VALUE); return CSS_SELECTOR_ATTRIBUTE_OPERATOR;  }
+        case 464: break;
+        case 62: 
+          {  yybegin(ST_SELECTOR_MODIFIER); return CSS_SELECTOR_ATTRIBUTE_END;  }
+        case 465: break;
+        case 63: 
+        case 67: 
+        case 131: 
+        case 134: 
+        case 137: 
+        case 194: 
+        case 196: 
+        case 199: 
+        case 236: 
+        case 274: 
+        case 314: 
+        case 354: 
+          {  yybegin(ST_SELECTOR_ATTRIBUTE_END); return CSS_SELECTOR_ATTRIBUTE_VALUE;  }
+        case 466: break;
+        case 68: 
+        case 70: 
+        case 139: 
+        case 140: 
+        case 201: 
+        case 239: 
+        case 277: 
+        case 317: 
+        case 357: 
+          {  yybegin(ST_DECLARATION_SEPARATOR); return CSS_DECLARATION_PROPERTY;  }
+        case 467: break;
+        case 71: 
+          {  yybegin(ST_DECLARATION); return CSS_DECLARATION_DELIMITER;  }
+        case 468: break;
+        case 72: 
+          {  yybegin(ST_DECLARATION_PRE_VALUE); return CSS_DECLARATION_SEPARATOR;  }
+        case 469: break;
+        case 73: 
+        case 155: 
+          {  yybegin(ST_DECLARATION_VALUE); return CSS_DECLARATION_VALUE_NUMBER;  }
+        case 470: break;
+        case 74: 
+        case 79: 
+        case 83: 
+        case 147: 
+        case 153: 
+        case 154: 
+        case 159: 
+        case 203: 
+        case 212: 
+        case 241: 
+        case 279: 
+        case 319: 
+        case 359: 
+          {  yybegin(ST_DECLARATION_VALUE); return CSS_DECLARATION_VALUE_IDENT;  }
+        case 471: break;
+        case 78: 
+          {  yybegin(ST_DECLARATION_VALUE); return CSS_DECLARATION_VALUE_PARENTHESIS_CLOSE;  }
+        case 472: break;
+        case 85: 
+        case 86: 
+          {  yybegin(ST_DECLARATION_VALUE); return CSS_DECLARATION_VALUE_OPERATOR;  }
+        case 473: break;
+        case 91: 
+        case 166: 
+        case 215: 
+        case 250: 
+        case 293: 
+        case 332: 
+        case 373: 
+          {  yybegin(ST_SELECTOR_MODIFIER); return CSS_SELECTOR_CLASS;  }
+        case 474: break;
+        case 93: 
+        case 167: 
+        case 216: 
+        case 251: 
+        case 294: 
+        case 333: 
+        case 374: 
+          {  yybegin(ST_SELECTOR_MODIFIER); return CSS_SELECTOR_ID;  }
+        case 475: break;
+        case 102: 
+        case 176: 
+        case 226: 
+        case 258: 
+        case 260: 
+        case 300: 
+        case 338: 
+        case 378: 
+          {  yybegin(ST_SELECTOR_MODIFIER); return CSS_SELECTOR_PSEUDO;  }
+        case 476: break;
+        case 106: 
+        case 178: 
+        case 181: 
+          {  yybegin(ST_CHARSET_DELIMITER); return CSS_STRING;  }
+        case 477: break;
+        case 112: 
+        case 184: 
+        case 187: 
+          {  yybegin(ST_IMPORT_MEDIUM); return CSS_STRING;  }
+        case 478: break;
+        case 141: 
+        case 202: 
+        case 240: 
+        case 278: 
+        case 318: 
+        case 358: 
+        case 390: 
+          {  yybegin(ST_DECLARATION_VALUE); return CSS_DECLARATION_VALUE_DIMENSION;  }
+        case 479: break;
+        case 144: 
+          {  yybegin(ST_DECLARATION_VALUE); return CSS_DECLARATION_VALUE_PERCENTAGE;  }
+        case 480: break;
+        case 146: 
+        case 247: 
+          {  yybegin(ST_DECLARATION_VALUE); return CSS_DECLARATION_VALUE_FUNCTION;  }
+        case 481: break;
+        case 19: 
+        case 21: 
+        case 24: 
+        case 25: 
+        case 26: 
+        case 28: 
+        case 30: 
+        case 31: 
+        case 33: 
+        case 34: 
+        case 35: 
+        case 37: 
+        case 38: 
+        case 39: 
+        case 41: 
+        case 45: 
+        case 50: 
+        case 53: 
+        case 58: 
+        case 61: 
+        case 64: 
+        case 65: 
+        case 66: 
+        case 69: 
+        case 75: 
+        case 76: 
+        case 77: 
+        case 80: 
+        case 81: 
+        case 82: 
+        case 84: 
+          { 
+	return UNDEFINED;
+ }
+        case 482: break;
+        default: 
+          if (yy_input == YYEOF && yy_startRead == yy_currentPos) {
+            yy_atEOF = true;
+              return null;
+          } 
+          else {
+            yy_ScanError(YY_NO_MATCH);
+          }
+      }
+    }
+!!!10477339.java!!!	main(in argv : String) : void
+    for (int i = 0; i < argv.length; i++) {
+      CSSTokenizer scanner = null;
+      try {
+        scanner = new CSSTokenizer( new java.io.FileReader(argv[i]) );
+      }
+      catch (java.io.FileNotFoundException e) {
+        System.out.println("File not found : \""+argv[i]+"\"");
+        System.exit(1);
+      }
+      catch (java.io.IOException e) {
+        System.out.println("Error opening file \""+argv[i]+"\"");
+        System.exit(1);
+      }
+      catch (ArrayIndexOutOfBoundsException e) {
+        System.out.println("Usage : java CSSTokenizer <inputfile>");
+        System.exit(1);
+      }
+
+      try {
+        do {
+          System.out.println(scanner.primGetNextToken());
+        } while (!scanner.yy_atEOF);
+
+      }
+      catch (java.io.IOException e) {
+        System.out.println("An I/O error occured while scanning :");
+        System.out.println(e);
+        System.exit(1);
+      }
+      catch (Exception e) {
+        e.printStackTrace();
+        System.exit(1);
+      }
+    }

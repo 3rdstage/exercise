@@ -1,0 +1,57 @@
+class JPEGImageWriterSpi
+!!!2007963.java!!!	JPEGImageWriterSpi()
+        super(JPEG.vendor,
+              JPEG.version,
+              JPEG.names,
+              JPEG.suffixes,
+              JPEG.MIMETypes,
+              "com.sun.imageio.plugins.jpeg.JPEGImageWriter",
+              STANDARD_OUTPUT_TYPE,
+              readerSpiNames,
+              true,
+              JPEG.nativeStreamMetadataFormatName,
+              JPEG.nativeStreamMetadataFormatClassName,
+              null, null,
+              true,
+              JPEG.nativeImageMetadataFormatName,
+              JPEG.nativeImageMetadataFormatClassName,
+              null, null
+              );
+!!!2008091.java!!!	getDescription(inout locale : Locale) : String
+        return "Standard JPEG Image Writer";
+!!!2008219.java!!!	onRegistration(inout registry : ServiceRegistry, inout category : Class) : void
+        if (registered) {
+            return;
+        }
+        try {
+            java.security.AccessController.doPrivileged(
+                new sun.security.action.LoadLibraryAction("jpeg"));
+        } catch (Throwable e) { // Fail on any Throwable
+            // if it can't be loaded, deregister and return
+            registry.deregisterServiceProvider(this);
+            return;
+        }
+
+        registered = true;
+!!!2008347.java!!!	isFormatLossless() : boolean
+        return false;
+!!!2008475.java!!!	canEncodeImage(inout type : ImageTypeSpecifier) : boolean
+        SampleModel sampleModel = type.getSampleModel();
+
+        // Find the maximum bit depth across all channels
+        int[] sampleSize = sampleModel.getSampleSize();
+        int bitDepth = sampleSize[0];
+        for (int i = 1; i < sampleSize.length; i++) {
+            if (sampleSize[i] > bitDepth) {
+                bitDepth = sampleSize[i];
+            }
+        }
+
+        // 4450894: Ensure bitDepth is between 1 and 8
+        if (bitDepth < 1 || bitDepth > 8) {
+            return false;
+        }
+
+        return true;
+!!!2008603.java!!!	createWriterInstance(inout extension : Object) : ImageWriter
+        return new JPEGImageWriter(this);

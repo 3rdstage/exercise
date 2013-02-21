@@ -1,0 +1,101 @@
+class BasicDirectoryModel
+!!!2239003.java!!!	BasicDirectoryModel(inout filechooser : JFileChooser)
+	this.filechooser = filechooser;
+	validateFileCache();
+!!!2239131.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+	String prop = e.getPropertyName();
+	if(prop == JFileChooser.DIRECTORY_CHANGED_PROPERTY ||
+	   prop == JFileChooser.FILE_VIEW_CHANGED_PROPERTY ||
+	   prop == JFileChooser.FILE_FILTER_CHANGED_PROPERTY ||
+	   prop == JFileChooser.FILE_HIDING_CHANGED_PROPERTY ||
+	   prop == JFileChooser.FILE_SELECTION_MODE_CHANGED_PROPERTY) {
+	    validateFileCache();
+	} else if ("UI".equals(prop)) {
+	    Object old = e.getOldValue();
+	    if (old instanceof BasicFileChooserUI) {
+		BasicFileChooserUI ui = (BasicFileChooserUI) old;
+		BasicDirectoryModel model = ui.getModel();
+		if (model != null) {
+		    model.invalidateFileCache();
+		}
+	    }
+	} else if ("JFileChooserDialogIsClosingProperty".equals(prop)) {
+	    invalidateFileCache();
+	}
+!!!2239259.java!!!	invalidateFileCache() : void
+	if (loadThread != null) {
+	    loadThread.interrupt();
+	    loadThread.cancelRunnables();
+	    loadThread = null;
+	}
+!!!2239387.java!!!	getDirectories() : Vector
+	synchronized(fileCache) {
+	    if (directories != null) {
+		return directories;
+	    }
+	    Vector fls = getFiles();
+	    return directories;
+	}
+!!!2239515.java!!!	getFiles() : Vector
+	synchronized(fileCache) {
+	    if (files != null) {
+		return files;
+	    }
+	    files = new Vector();
+	    directories = new Vector();
+	    directories.addElement(filechooser.getFileSystemView().createFileObject(
+		filechooser.getCurrentDirectory(), "..")
+	    );
+
+	    for (int i = 0; i < getSize(); i++) {
+		File f = (File)fileCache.get(i);
+		if (filechooser.isTraversable(f)) {
+		    directories.add(f);
+		} else {
+		    files.add(f);
+		}
+	    }
+	    return files;
+	}
+!!!2239643.java!!!	validateFileCache() : void
+	File currentDirectory = filechooser.getCurrentDirectory();
+	if (currentDirectory == null) {
+	    return;
+	}
+	if (loadThread != null) {
+	    loadThread.interrupt();
+            loadThread.cancelRunnables();
+	}
+	fetchID++;
+	loadThread = new LoadFilesThread(currentDirectory, fetchID);
+	loadThread.start();
+!!!2239771.java!!!	renameFile(inout oldFile : File, inout newFile : File) : boolean
+	synchronized(fileCache) {
+	    if (oldFile.renameTo(newFile)) {
+		validateFileCache();
+		return true;
+	    }
+	    return false;
+	}
+!!!2239899.java!!!	fireContentsChanged() : void
+	// System.out.println("BasicDirectoryModel: firecontentschanged");
+	fireContentsChanged(this, 0, getSize()-1);
+!!!2240027.java!!!	getSize() : int
+	return fileCache.size();
+!!!2240155.java!!!	contains(inout o : Object) : boolean
+	return fileCache.contains(o);
+!!!2240283.java!!!	indexOf(inout o : Object) : int
+	return fileCache.indexOf(o);
+!!!2240411.java!!!	getElementAt(in index : int) : Object
+	return fileCache.get(index);
+!!!2240795.java!!!	sort(inout v : Vector) : void
+	ShellFolder.sortFiles(v);
+!!!2240923.java!!!	lt(inout a : File, inout b : File) : boolean
+	// First ignore case when comparing
+	int diff = a.getName().toLowerCase().compareTo(b.getName().toLowerCase());
+	if (diff != 0) {
+	    return diff < 0;
+	} else {
+	    // May differ in case (e.g. "mail" vs. "Mail")
+	    return a.getName().compareTo(b.getName()) < 0;
+	}

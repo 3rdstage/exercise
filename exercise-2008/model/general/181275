@@ -1,0 +1,507 @@
+format 66
+"dgc" // src::java::rmi::dgc
+  revision 3
+  modified_by 27 "3rdstage"
+  // class settings
+  //class diagram settings
+  draw_all_relations default hide_attributes default hide_operations default show_members_full_definition default show_members_visibility default show_members_stereotype default show_members_multiplicity default show_members_initialization default show_attribute_modifiers default member_max_width 0 show_parameter_dir default show_parameter_name default package_name_in_tab default class_drawing_mode default drawing_language default show_context_mode default auto_label_position default show_relation_modifiers default show_infonote default shadow default show_stereotype_properties default
+  //use case diagram settings
+  package_name_in_tab default show_context default auto_label_position default draw_all_relations default class_drawing_mode default shadow default show_stereotype_properties default
+  //sequence diagram settings
+  show_full_operations_definition default write_horizontally default class_drawing_mode default drawing_language default draw_all_relations default shadow default show_stereotype_properties default
+  //collaboration diagram settings
+  show_full_operations_definition default show_hierarchical_rank default write_horizontally default drawing_language default package_name_in_tab default show_context default draw_all_relations default shadow default show_stereotype_properties default
+  //object diagram settings
+   write_horizontally default package_name_in_tab default show_context default auto_label_position default draw_all_relations default shadow default show_stereotype_properties default
+  //component diagram settings
+  package_name_in_tab default show_context default auto_label_position default draw_all_relations default shadow default
+  draw_component_as_icon default show_component_req_prov default show_component_rea default show_stereotype_properties default
+  //deployment diagram settings
+  package_name_in_tab default show_context default write_horizontally default auto_label_position default draw_all_relations default shadow default
+  draw_component_as_icon default show_component_req_prov default show_component_rea default show_stereotype_properties default
+  //state diagram settings
+  package_name_in_tab default show_context default auto_label_position default write_trans_label_horizontally default show_trans_definition default draw_all_relations default shadow default
+  show_activities default region_horizontally default drawing_language default show_stereotype_properties default
+  //activity diagram settings
+  package_name_in_tab default show_context default show_opaque_action_definition default auto_label_position default write_flow_label_horizontally default draw_all_relations default shadow default
+  show_infonote default drawing_language default show_stereotype_properties default
+  
+  java_dir "java/rmi/dgc"
+  java_package "java.rmi.dgc"
+  classview 176027 "dgc"
+    //class diagram settings
+    draw_all_relations default hide_attributes default hide_operations default show_members_full_definition default show_members_visibility default show_members_stereotype default show_members_multiplicity default show_members_initialization default show_attribute_modifiers default member_max_width 0 show_parameter_dir default show_parameter_name default package_name_in_tab default class_drawing_mode default drawing_language default show_context_mode default auto_label_position default show_relation_modifiers default show_infonote default shadow default show_stereotype_properties default
+    //collaboration diagram settings
+    show_full_operations_definition default show_hierarchical_rank default write_horizontally default drawing_language default package_name_in_tab default show_context default draw_all_relations default shadow default show_stereotype_properties default
+    //object diagram settings
+     write_horizontally default package_name_in_tab default show_context default auto_label_position default draw_all_relations default shadow default show_stereotype_properties default
+    //sequence diagram settings
+    show_full_operations_definition default write_horizontally default class_drawing_mode default drawing_language default draw_all_relations default shadow default show_stereotype_properties default
+    //state diagram settings
+    package_name_in_tab default show_context default auto_label_position default write_trans_label_horizontally default show_trans_definition default draw_all_relations default shadow default
+    show_activities default region_horizontally default drawing_language default show_stereotype_properties default
+    //class settings
+    //activity diagram settings
+    package_name_in_tab default show_context default show_opaque_action_definition default auto_label_position default write_flow_label_horizontally default draw_all_relations default shadow default
+    show_infonote default drawing_language default show_stereotype_properties default
+    class 956059 "DGC"
+      visibility public stereotype "interface"
+      cpp_decl ""
+      java_decl "${comment}${@}${visibility}interface ${name}${extends} {
+${members}}
+"
+      php_decl ""
+      python_2_2 python_decl ""
+      idl_decl ""
+      explicit_switch_type ""
+      
+      comment "The DGC abstraction is used for the server side of the distributed
+garbage collection algorithm. This interface contains the two
+methods: dirty and clean. A dirty call is made when a remote
+reference is unmarshaled in a client (the client is indicated by
+its VMID). A corresponding clean call is made when no more
+references to the remote reference exist in the client. A failed
+dirty call must schedule a strong clean call so that the call's
+sequence number can be retained in order to detect future calls
+received out of order by the distributed garbage collector.
+
+A reference to a remote object is leased for a period of time by
+the client holding the reference. The lease period starts when the
+dirty call is received. It is the client's responsibility to renew
+the leases, by making additional dirty calls, on the remote
+references it holds before such leases expire. If the client does
+not renew the lease before it expires, the distributed garbage
+collector assumes that the remote object is no longer referenced by
+that client.
+
+@author Ann Wollrath"
+      classrelation 1859611 // <generalisation>
+	relation 1859611 ---|>
+	  a public
+	    java "${type}"
+	    classrelation_ref 1859611 // <generalisation>
+	  b parent class_ref 233371 // Remote
+      end
+
+      operation 7534619 "dirty"
+	public return_type class_ref 956187 // Lease
+	nparams 3
+	  param inout name "ids" type class_ref 956315 // ObjID
+	  param in name "sequenceNum" explicit_type "long"
+	  param inout name "lease" type class_ref 956187 // Lease
+	nexceptions 1
+	  exception class_ref 233499 // RemoteException
+	
+	java_def "  ${comment}${@}${visibility}${final}${static}${abstract}${synchronized}${type} ${name}${(}${t0}[] ${p0}, ${t1} ${p1}, ${t2} ${p2}${)}${throws}${staticnl}{
+  ${body}}
+"
+	
+	
+	
+	comment "The dirty call requests leases for the remote object references
+associated with the object identifiers contained in the array
+'ids'. The 'lease' contains a client's unique VM identifier (VMID)
+and a requested lease period. For each remote object exported
+in the local VM, the garbage collector maintains a reference
+list-a list of clients that hold references to it. If the lease
+is granted, the garbage collector adds the client's VMID to the
+reference list for each remote object indicated in 'ids'. The
+'sequenceNum' parameter is a sequence number that is used to
+detect and discard late calls to the garbage collector. The
+sequence number should always increase for each subsequent call
+to the garbage collector.
+
+Some clients are unable to generate a VMID, since a VMID is a
+universally unique identifier that contains a host address
+which some clients are unable to obtain due to security
+restrictions. In this case, a client can use a VMID of null,
+and the distributed garbage collector will assign a VMID for
+the client.
+
+The dirty call returns a Lease object that contains the VMID
+used and the lease period granted for the remote references (a
+server may decide to grant a smaller lease period than the
+client requests). A client must use the VMID the garbage
+collector uses in order to make corresponding clean calls when
+the client drops remote object references.
+
+A client VM need only make one initial dirty call for each
+remote reference referenced in the VM (even if it has multiple
+references to the same remote object). The client must also
+make a dirty call to renew leases on remote references before
+such leases expire. When the client no longer has any
+references to a specific remote object, it must schedule a
+clean call for the object ID associated with the reference.
+
+@param ids IDs of objects to mark as referenced by calling client
+@param sequenceNum sequence number
+@param lease requested lease
+@return granted lease
+@throws RemoteException if dirty call fails"
+      end
+
+      operation 7534747 "clean"
+	public explicit_return_type "void"
+	nparams 4
+	  param inout name "ids" type class_ref 956315 // ObjID
+	  param in name "sequenceNum" explicit_type "long"
+	  param inout name "vmid" type class_ref 956443 // VMID
+	  param inout name "strong" explicit_type "boolean"
+	nexceptions 1
+	  exception class_ref 233499 // RemoteException
+	
+	java_def "  ${comment}${@}${visibility}${final}${static}${abstract}${synchronized}${type} ${name}${(}${t0}[] ${p0}, ${t1} ${p1}, ${t2} ${p2}, ${t3} ${p3}${)}${throws}${staticnl}{
+  ${body}}
+"
+	
+	
+	
+	comment "The clean call removes the 'vmid' from the reference list of
+each remote object indicated in 'id's.  The sequence number is
+used to detect late clean calls.  If the argument 'strong' is
+true, then the clean call is a result of a failed dirty call,
+thus the sequence number for the client 'vmid' needs to be
+remembered.
+
+@param ids IDs of objects to mark as unreferenced by calling client
+@param sequenceNum sequence number
+@param vmid client VMID
+@param strong make 'strong' clean call
+@throws RemoteException if clean call fails"
+      end
+    end
+
+    class 956187 "Lease"
+      visibility public 
+      cpp_decl ""
+      final java_decl "${comment}${@}${visibility}${final}${abstract}class ${name}${extends}${implements} {
+${members}}
+"
+      php_decl ""
+      python_2_2 python_decl ""
+      idl_decl ""
+      explicit_switch_type ""
+      
+      comment "A lease contains a unique VM identifier and a lease duration. A
+Lease object is used to request and grant leases to remote object
+references."
+      classrelation 1859739 // <realization>
+	relation 1859739 -_-|>
+	  a public
+	    java "${type}"
+	    classrelation_ref 1859739 // <realization>
+	  b parent class_ref 137883 // Serializable
+      end
+
+      classrelation 1859867 // vmid (<unidirectional association>)
+	relation 1859867 --->
+	  a role_name "vmid" private
+	    comment "
+@serial Virtual Machine ID with which this Lease is associated.
+@see #getVMID
+
+"
+	    java "  ${comment}${@}${visibility}${static}${final}${transient}${volatile}${type} ${name}${value};
+"
+	    classrelation_ref 1859867 // vmid (<unidirectional association>)
+	  b parent class_ref 956443 // VMID
+      end
+
+      attribute 2830619 "value"
+	private explicit_type "long"
+	cpp_decl ""
+	java_decl "  ${comment}${@}${visibility}${static}${final}${transient}${volatile}${type} ${name}${value};
+"
+	php_decl ""
+	python_decl ""
+	idl_decl ""
+	comment "@serial Duration of this lease.
+@see #getValue
+"
+      end
+
+      attribute 2830747 "serialVersionUID"
+	class_attribute const_attribute private explicit_type "long"
+	init_value "=  -5713411624328831948L"
+	cpp_decl ""
+	java_decl "  ${comment}${@}${visibility}${static}${final}${transient}${volatile}${type} ${name}${value};
+"
+	php_decl ""
+	python_decl ""
+	idl_decl ""
+	comment " indicate compatibility with JDK 1.1.x version of class "
+      end
+
+      operation 7534875 "Lease"
+	public explicit_return_type ""
+	nparams 2
+	  param inout name "id" type class_ref 956443 // VMID
+	  param in name "duration" explicit_type "long"
+	
+	preserve_java_body_indent java_def "  ${comment}${@}${visibility}${synchronized}${name}${(}${t0} ${p0}, ${t1} ${p1}${)}${throws}${staticnl}{
+  ${body}}
+"
+	
+	
+	
+	comment "Constructs a lease with a specific VMID and lease duration. The
+vmid may be null.
+@param id VMID associated with this lease
+@param duration lease duration"
+      end
+
+      operation 7535003 "getVMID"
+	public return_type class_ref 956443 // VMID
+	nparams 0
+	
+	preserve_java_body_indent java_def "  ${comment}${@}${visibility}${final}${static}${abstract}${synchronized}${type} ${name}${(}${)}${throws}${staticnl}{
+  ${body}}
+"
+	
+	
+	
+	comment "Returns the client VMID associated with the lease.
+@return client VMID"
+      end
+
+      operation 7535131 "getValue"
+	public explicit_return_type "long"
+	nparams 0
+	
+	preserve_java_body_indent java_def "  ${comment}${@}${visibility}${final}${static}${abstract}${synchronized}${type} ${name}${(}${)}${throws}${staticnl}{
+  ${body}}
+"
+	
+	
+	
+	comment "Returns the lease duration.
+@return lease duration"
+      end
+    end
+
+    class 956443 "VMID"
+      visibility public 
+      cpp_decl ""
+      final java_decl "${comment}${@}${visibility}${final}${abstract}class ${name}${extends}${implements} {
+${members}}
+"
+      php_decl ""
+      python_2_2 python_decl ""
+      idl_decl ""
+      explicit_switch_type ""
+      
+      comment "A VMID is a identifier that is unique across all Java virtual
+machines.  VMIDs are used by the distributed garbage collector
+to identify client VMs.
+
+@version	1.20, 05/18/04
+@author	Ann Wollrath
+@author	Peter Jones"
+      classrelation 1859995 // <realization>
+	relation 1859995 -_-|>
+	  a public
+	    java "${type}"
+	    classrelation_ref 1859995 // <realization>
+	  b parent class_ref 137883 // Serializable
+      end
+
+      attribute 2830875 "localAddr"
+	class_attribute private explicit_type "byte"
+	multiplicity "[]"
+	init_value "=  computeAddressHash()"
+	cpp_decl ""
+	java_decl "  ${comment}${@}${visibility}${static}${final}${transient}${volatile}${type}${multiplicity} ${name}${value};
+"
+	php_decl ""
+	python_decl ""
+	idl_decl ""
+	comment " array of bytes uniquely identifying this host "
+      end
+
+      attribute 2831003 "addr"
+	private explicit_type "byte"
+	multiplicity "[]"
+	cpp_decl ""
+	java_decl "  ${comment}${@}${visibility}${static}${final}${transient}${volatile}${type}${multiplicity} ${name}${value};
+"
+	php_decl ""
+	python_decl ""
+	idl_decl ""
+	comment "@serial array of bytes uniquely identifying host created on
+"
+      end
+
+      classrelation 1860123 // uid (<unidirectional association>)
+	relation 1860123 --->
+	  a role_name "uid" private
+	    comment "
+@serial unique identifier with respect to host created on
+
+"
+	    java "  ${comment}${@}${visibility}${static}${final}${transient}${volatile}${type} ${name}${value};
+"
+	    classrelation_ref 1860123 // uid (<unidirectional association>)
+	  b parent class_ref 955803 // UID
+      end
+
+      attribute 2831131 "serialVersionUID"
+	class_attribute const_attribute private explicit_type "long"
+	init_value "=  -538642295484486218L"
+	cpp_decl ""
+	java_decl "  ${comment}${@}${visibility}${static}${final}${transient}${volatile}${type} ${name}${value};
+"
+	php_decl ""
+	python_decl ""
+	idl_decl ""
+	comment " indicate compatibility with JDK 1.1.x version of class "
+      end
+
+      operation 7535259 "VMID"
+	public explicit_return_type ""
+	nparams 0
+	
+	preserve_java_body_indent java_def "  ${comment}${@}${visibility}${synchronized}${name}${(}${)}${throws}${staticnl}{
+  ${body}}
+"
+	
+	
+	
+	comment "Create a new VMID.  Each new VMID returned from this constructor
+is unique for all Java virtual machines under the following
+conditions: a) the conditions for uniqueness for objects of
+the class <code>java.rmi.server.UID</code> are satisfied, and b) an
+address can be obtained for this host that is unique and constant
+for the lifetime of this object.  <p>"
+      end
+
+      operation 7535387 "isUnique"
+	class_operation public explicit_return_type "boolean"
+	nparams 0
+	
+	preserve_java_body_indent java_def "  ${comment}${@}${visibility}${final}${static}${abstract}${synchronized}${type} ${name}${(}${)}${throws}${staticnl}{
+  ${body}}
+"
+	java_annotation "@Deprecated
+"
+	
+	
+	
+	comment "Return true if an accurate address can be determined for this
+host.  If false, reliable VMID cannot be generated from this host
+@return true if host address can be determined, false otherwise
+@deprecated"
+      end
+
+      operation 7535515 "hashCode"
+	public explicit_return_type "int"
+	nparams 0
+	
+	preserve_java_body_indent java_def "  ${comment}${@}${visibility}${final}${static}${abstract}${synchronized}${type} ${name}${(}${)}${throws}${staticnl}{
+  ${body}}
+"
+	
+	
+	
+	comment "Compute hash code for this VMID."
+      end
+
+      operation 7535643 "equals"
+	public explicit_return_type "boolean"
+	nparams 1
+	  param inout name "obj" explicit_type "Object"
+	
+	preserve_java_body_indent java_def "  ${comment}${@}${visibility}${final}${static}${abstract}${synchronized}${type} ${name}${(}${t0} ${p0}${)}${throws}${staticnl}{
+  ${body}}
+"
+	
+	
+	
+	comment "Compare this VMID to another, and return true if they are the
+same identifier."
+      end
+
+      operation 7535771 "toString"
+	public explicit_return_type "String"
+	nparams 0
+	
+	preserve_java_body_indent java_def "  ${comment}${@}${visibility}${final}${static}${abstract}${synchronized}${type} ${name}${(}${)}${throws}${staticnl}{
+  ${body}}
+"
+	
+	
+	
+	comment "Return string representation of this VMID."
+      end
+
+      operation 7535899 "computeAddressHash"
+	class_operation private explicit_return_type "byte"
+	nparams 0
+	
+	preserve_java_body_indent java_def "  ${comment}${@}${visibility}${final}${static}${abstract}${synchronized}${type}[] ${name}${(}${)}${throws}${staticnl}{
+  ${body}}
+"
+	
+	
+	
+	comment "Compute the hash an IP address.  The hash is the first 8 bytes
+of the SHA digest of the IP address."
+      end
+    end
+  end
+
+  deploymentview 168091 "dgc"
+    //deployment diagram settings
+    package_name_in_tab default show_context default write_horizontally default auto_label_position default draw_all_relations default shadow default
+    draw_component_as_icon default show_component_req_prov default show_component_rea default show_stereotype_properties default
+    artifact 727067 "DGC"
+      stereotype "source"
+      java_src "${comment}
+${package}
+${imports}
+import java.rmi.*;
+import java.rmi.server.ObjID;
+${definition}"
+      associated_classes
+	class_ref 956059 // DGC
+      end
+      comment "@(#)DGC.java	1.15 03/12/19
+
+Copyright 2004 Sun Microsystems, Inc. All rights reserved.
+SUN PROPRIETARY/CONFIDENTIAL. Use is subject to license terms."
+    end
+
+    artifact 727195 "Lease"
+      stereotype "source"
+      java_src "${comment}
+${package}
+${imports}
+${definition}"
+      associated_classes
+	class_ref 956187 // Lease
+      end
+      comment "@(#)Lease.java	1.13 03/12/19
+
+Copyright 2004 Sun Microsystems, Inc. All rights reserved.
+SUN PROPRIETARY/CONFIDENTIAL. Use is subject to license terms."
+    end
+
+    artifact 727323 "VMID"
+      stereotype "source"
+      java_src "${comment}
+${package}
+${imports}
+import java.io.*;
+import java.net.*;
+import java.rmi.server.UID;
+import java.security.*;
+${definition}"
+      associated_classes
+	class_ref 956443 // VMID
+      end
+      comment "@(#)VMID.java	1.20 04/05/18
+
+Copyright 2004 Sun Microsystems, Inc. All rights reserved.
+SUN PROPRIETARY/CONFIDENTIAL. Use is subject to license terms."
+    end
+  end
+end

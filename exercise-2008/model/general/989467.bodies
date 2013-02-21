@@ -1,0 +1,56 @@
+class Itr
+!!!7877019.java!!!	Itr()
+            lastRet = -1;
+            if (count == 0)
+                nextIndex = -1;
+            else {
+                nextIndex = takeIndex;
+                nextItem = items[takeIndex];
+            }
+!!!7877147.java!!!	hasNext() : boolean
+            /*
+             * No sync. We can return true by mistake here
+             * only if this iterator passed across threads,
+             * which we don't support anyway.
+             */
+            return nextIndex >= 0;
+!!!7877275.java!!!	checkNext() : void
+            if (nextIndex == putIndex) {
+                nextIndex = -1;
+                nextItem = null;
+            } else {
+                nextItem = items[nextIndex];
+                if (nextItem == null)
+                    nextIndex = -1;
+            }
+!!!7877403.java!!!	next() : E
+            final ReentrantLock lock = ArrayBlockingQueue.this.lock;
+            lock.lock();
+            try {
+                if (nextIndex < 0)
+                    throw new NoSuchElementException();
+                lastRet = nextIndex;
+                E x = nextItem;
+                nextIndex = inc(nextIndex);
+                checkNext();
+                return x;
+            } finally {
+                lock.unlock();
+            }
+!!!7877531.java!!!	remove() : void
+            final ReentrantLock lock = ArrayBlockingQueue.this.lock;
+            lock.lock();
+            try {
+                int i = lastRet;
+                if (i == -1)
+                    throw new IllegalStateException();
+                lastRet = -1;
+
+                int ti = takeIndex;
+                removeAt(i);
+                // back up cursor (reset to front if was first element)
+                nextIndex = (i == ti) ? takeIndex : i;
+                checkNext();
+            } finally {
+                lock.unlock();
+            }

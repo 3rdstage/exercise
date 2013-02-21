@@ -1,0 +1,77 @@
+class SynthPopupMenuUI
+!!!9712283.java!!!	createUI(inout x : JComponent) : ComponentUI
+	return new SynthPopupMenuUI();
+!!!9712411.java!!!	installDefaults() : void
+	if (popupMenu.getLayout() == null ||
+	    popupMenu.getLayout() instanceof UIResource) {
+	    popupMenu.setLayout(new DefaultMenuLayout(
+                                    popupMenu, BoxLayout.Y_AXIS));
+        }
+        updateStyle(popupMenu);
+!!!9712539.java!!!	updateStyle(inout c : JComponent) : void
+        SynthContext context = getContext(c, ENABLED);
+        SynthStyle oldStyle = style;
+        style = SynthLookAndFeel.updateStyle(context, this);
+        if (style != oldStyle) {
+            if (oldStyle != null) {
+                uninstallKeyboardActions();
+                installKeyboardActions();
+            }
+        }
+        context.dispose();
+!!!9712667.java!!!	installListeners() : void
+        super.installListeners();
+        popupMenu.addPropertyChangeListener(this);
+!!!9712795.java!!!	uninstallDefaults() : void
+        SynthContext context = getContext(popupMenu, ENABLED);
+
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+
+        if (popupMenu.getLayout() instanceof UIResource) {
+            popupMenu.setLayout(null);
+        }
+!!!9712923.java!!!	uninstallListeners() : void
+        super.uninstallListeners();
+        popupMenu.removePropertyChangeListener(this);
+!!!9713051.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9713179.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c,
+                    SynthLookAndFeel.getRegion(c), style, state);
+!!!9713307.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9713435.java!!!	getComponentState(inout c : JComponent) : int
+        return SynthLookAndFeel.getComponentState(c);
+!!!9713563.java!!!	resetAcceleratorWidths() : void
+        maxTextWidth = maxAcceleratorWidth = 0;
+!!!9713691.java!!!	adjustTextWidth(in width : int) : int
+        maxTextWidth = Math.max(maxTextWidth, width);
+        return maxTextWidth;
+!!!9713819.java!!!	adjustAcceleratorWidth(in width : int) : int
+        maxAcceleratorWidth = Math.max(maxAcceleratorWidth, width);
+        return maxAcceleratorWidth;
+!!!9713947.java!!!	getMaxTextWidth() : int
+        return maxTextWidth;
+!!!9714075.java!!!	getMaxAcceleratorWidth() : int
+        return maxAcceleratorWidth;
+!!!9714203.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintPopupMenuBackground(context,
+                          g, 0, 0, c.getWidth(), c.getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9714331.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9714587.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        context.getPainter().paintPopupMenuBorder(context, g, x, y, w, h);
+!!!9714715.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+        if (SynthLookAndFeel.shouldUpdateStyle(e)) {
+            updateStyle(popupMenu);
+        }

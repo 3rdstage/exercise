@@ -1,0 +1,82 @@
+class FlipBufferStrategy
+!!!2133147.java!!!	FlipBufferStrategy(in numBuffers : int, inout caps : BufferCapabilities)
+            if (!(Component.this instanceof Window) &&
+                !(Component.this instanceof Canvas)) {
+                throw new ClassCastException(
+                                             "Component must be a Canvas or Window");
+            }
+            this.numBuffers = numBuffers;
+            this.caps = caps;
+            createBuffers(numBuffers, caps);
+!!!2133275.java!!!	createBuffers(in numBuffers : int, inout caps : BufferCapabilities) : void
+            if (numBuffers < 2) {
+                throw new IllegalArgumentException(
+                                                   "Number of buffers cannot be less than two");
+            } else if (peer == null) {
+                throw new IllegalStateException(
+                                                "Component must have a valid peer");
+            } else if (caps == null || !caps.isPageFlipping()) {
+                throw new IllegalArgumentException(
+                                                   "Page flipping capabilities must be specified");
+            } else {
+                peer.createBuffers(numBuffers, caps);
+            }
+!!!2133403.java!!!	getBackBuffer() : Image
+            if (peer != null) {
+                Image drawBuffer = peer.getBackBuffer();
+                if (drawBuffer instanceof VolatileImage) {
+                    drawVBuffer = (VolatileImage)drawBuffer;
+                }
+                revalidate();
+                return drawBuffer;
+            } else {
+                throw new IllegalStateException(
+                                                "Component must have a valid peer");
+            }
+!!!2133531.java!!!	flip(inout flipAction : FlipContents) : void
+            if (peer != null) {
+                peer.flip(flipAction);
+            } else {
+                throw new IllegalStateException(
+                                                "Component must have a valid peer");
+            }
+!!!2133659.java!!!	destroyBuffers() : void
+            if (peer != null) {
+                peer.destroyBuffers();
+            } else {
+                throw new IllegalStateException(
+                                                "Component must have a valid peer");
+            }
+!!!2133787.java!!!	getCapabilities() : BufferCapabilities
+            return caps;
+!!!2133915.java!!!	getDrawGraphics() : Graphics
+            if (drawBuffer == null) {
+                // Set up drawing buffer
+                drawBuffer = getBackBuffer();
+                if (drawBuffer instanceof VolatileImage) {
+                    drawVBuffer = (VolatileImage)drawBuffer;
+                }
+            }
+            revalidate();
+            return drawBuffer.getGraphics();
+!!!2134043.java!!!	revalidate() : void
+            // REMIND: this whole validation mechanism needs to be re-examined
+            // for correctness.  Currently, the value of validatedContents
+            // may be changed and overwritten before the user has a chance to
+            // see that there was any restoration to the surface.  Also, we
+            // need to handle the IMAGE_INCOMPATIBLE case.
+            if (drawVBuffer != null) {
+                validatedContents = (drawVBuffer.validate(
+                                                          getGraphicsConfiguration()) == VolatileImage.IMAGE_RESTORED);
+            } else {
+                validatedContents = false;
+            }
+!!!2134171.java!!!	contentsLost() : boolean
+            if (drawVBuffer == null) {
+                return false;
+            }
+            return drawVBuffer.contentsLost();
+!!!2134299.java!!!	contentsRestored() : boolean
+            return validatedContents;
+!!!2134427.java!!!	show() : void
+            flip(caps.getFlipContents());

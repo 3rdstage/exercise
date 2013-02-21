@@ -1,0 +1,54 @@
+class MouseInputHandler
+!!!2908187.java!!!	MouseInputHandler(inout source : Component, inout destination : Component, inout event : MouseEvent)
+	    this(source, destination, event, null);
+!!!2908315.java!!!	MouseInputHandler(inout source : Component, inout destination : Component, inout event : MouseEvent, inout focusComponent : Component)
+	    this.source = source;
+	    this.destination = destination;
+	    this.source.addMouseListener(this);
+	    this.source.addMouseMotionListener(this);
+
+            SwingUtilities2.setSkipClickCount(destination,
+                                              event.getClickCount() - 1);
+
+	    /* Dispatch the editing event! */
+	    destination.dispatchEvent(SwingUtilities.convertMouseEvent
+					  (source, event, destination));
+	    this.focusComponent = focusComponent;
+!!!2908443.java!!!	mouseClicked(inout e : MouseEvent) : void
+	    if(destination != null) {
+		dispatchedEvent = true;
+		destination.dispatchEvent(SwingUtilities.convertMouseEvent
+					  (source, e, destination));
+	    }
+!!!2908699.java!!!	mouseReleased(inout e : MouseEvent) : void
+	    if(destination != null)
+		destination.dispatchEvent(SwingUtilities.convertMouseEvent
+					  (source, e, destination));
+	    removeFromSource();
+!!!2908827.java!!!	mouseEntered(inout e : MouseEvent) : void
+	    if (!SwingUtilities.isLeftMouseButton(e)) {
+		removeFromSource();
+	    }
+!!!2908955.java!!!	mouseExited(inout e : MouseEvent) : void
+	    if (!SwingUtilities.isLeftMouseButton(e)) {
+		removeFromSource();
+	    }
+!!!2909083.java!!!	mouseDragged(inout e : MouseEvent) : void
+	    if(destination != null) {
+		dispatchedEvent = true;
+		destination.dispatchEvent(SwingUtilities.convertMouseEvent
+					  (source, e, destination));
+	    }
+!!!2909211.java!!!	mouseMoved(inout e : MouseEvent) : void
+	    removeFromSource();
+!!!2909339.java!!!	removeFromSource() : void
+	    if(source != null) {
+		source.removeMouseListener(this);
+		source.removeMouseMotionListener(this);
+		if (focusComponent != null &&
+		      focusComponent == destination && !dispatchedEvent &&
+		      (focusComponent instanceof JTextField)) {
+		     ((JTextField)focusComponent).selectAll();
+		}
+	    }
+	    source = destination = null;

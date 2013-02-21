@@ -1,0 +1,203 @@
+class JToolBar
+!!!9170075.java!!!	JToolBar()
+        this( HORIZONTAL );
+!!!9170203.java!!!	JToolBar(in orientation : int)
+	this(null, orientation);
+!!!9170331.java!!!	JToolBar(in name : String)
+	this(name, HORIZONTAL);
+!!!9170459.java!!!	JToolBar(in name : String, in orientation : int)
+	setName(name);
+        checkOrientation( orientation );
+
+	this.orientation = orientation;
+	DefaultToolBarLayout layout =  new DefaultToolBarLayout( orientation );
+	setLayout( layout );
+
+        addPropertyChangeListener( layout );
+
+        updateUI();
+!!!9170587.java!!!	getUI() : ToolBarUI
+        return (ToolBarUI)ui;
+!!!9170715.java!!!	setUI(inout ui : ToolBarUI) : void
+        super.setUI(ui);
+!!!9170843.java!!!	updateUI() : void
+        setUI((ToolBarUI)UIManager.getUI(this));
+        // GTKLookAndFeel installs a different LayoutManager, and sets it
+        // to null after changing the look and feel, so, install the default
+        // if the LayoutManager is null.
+        if (getLayout() == null) {
+            setLayout(new DefaultToolBarLayout(getOrientation()));
+        }
+        invalidate();
+!!!9170971.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!9171099.java!!!	getComponentIndex(inout c : Component) : int
+        int ncomponents = this.getComponentCount();
+        Component[] component = this.getComponents();
+        for (int i = 0 ; i < ncomponents ; i++) {
+            Component comp = component[i];
+            if (comp == c)
+                return i;
+        }
+        return -1;
+!!!9171227.java!!!	getComponentAtIndex(in i : int) : Component
+        int ncomponents = this.getComponentCount();
+        if ( i >= 0 && i < ncomponents) {
+            Component[] component = this.getComponents();
+            return component[i];
+        }
+        return null;
+!!!9171355.java!!!	setMargin(inout m : Insets) : void
+         Insets old = margin;
+         margin = m;
+         firePropertyChange("margin", old, m);
+	 revalidate();
+	 repaint();
+!!!9171483.java!!!	getMargin() : Insets
+         if(margin == null) {
+             return new Insets(0,0,0,0);
+         } else {
+             return margin;
+         }
+!!!9171611.java!!!	isBorderPainted() : boolean
+         return paintBorder;
+!!!9171739.java!!!	setBorderPainted(inout b : boolean) : void
+         if ( paintBorder != b )
+         {
+	     boolean old = paintBorder;
+	     paintBorder = b;
+	     firePropertyChange("borderPainted", old, b);
+	     revalidate();
+	     repaint();
+	 }
+!!!9171867.java!!!	paintBorder(inout g : Graphics) : void
+         if (isBorderPainted())
+	 {
+             super.paintBorder(g);
+         }
+!!!9171995.java!!!	isFloatable() : boolean
+        return floatable;
+!!!9172123.java!!!	setFloatable(inout b : boolean) : void
+        if ( floatable != b )
+	{
+            boolean old = floatable;
+	    floatable = b;
+
+	    firePropertyChange("floatable", old, b);
+	    revalidate();
+	    repaint();
+        }
+!!!9172251.java!!!	getOrientation() : int
+        return this.orientation;
+!!!9172379.java!!!	setOrientation(in o : int) : void
+        checkOrientation( o );
+
+	if ( orientation != o )
+	{
+	    int old = orientation;
+	    orientation = o;
+
+	    firePropertyChange("orientation", old, o);
+	    revalidate();
+	    repaint();
+	}
+!!!9172507.java!!!	setRollover(inout rollover : boolean) : void
+	putClientProperty("JToolBar.isRollover",
+			  rollover ? Boolean.TRUE : Boolean.FALSE);
+!!!9172635.java!!!	isRollover() : boolean
+	Boolean rollover = (Boolean)getClientProperty("JToolBar.isRollover");
+	if (rollover != null) {
+	    return rollover.booleanValue();
+	}
+	return false;
+!!!9172763.java!!!	checkOrientation(in orientation : int) : void
+        switch ( orientation )
+	{
+            case VERTICAL:
+            case HORIZONTAL:
+                break;
+            default:
+                throw new IllegalArgumentException( "orientation must be one of: VERTICAL, HORIZONTAL" );
+        }
+!!!9172891.java!!!	addSeparator() : void
+	addSeparator(null);
+!!!9173019.java!!!	addSeparator(inout size : Dimension) : void
+        JToolBar.Separator s = new JToolBar.Separator( size );
+        add(s);
+!!!9173147.java!!!	add(inout a : Action) : JButton
+	JButton b = createActionComponent(a);
+	b.setAction(a);
+        add(b);
+        return b;
+!!!9173275.java!!!	createActionComponent(inout a : Action) : JButton
+	String text = a!=null? (String)a.getValue(Action.NAME) : null;
+	Icon icon   = a!=null? (Icon)a.getValue(Action.SMALL_ICON) : null;
+        boolean enabled = a!=null? a.isEnabled() : true;
+        String tooltip = a!=null?
+            (String)a.getValue(Action.SHORT_DESCRIPTION) : null;
+        JButton b = new JButton(text, icon) {
+	    protected PropertyChangeListener createActionPropertyChangeListener(Action a) {
+		PropertyChangeListener pcl = createActionChangeListener(this);
+		if (pcl==null) {
+		    pcl = super.createActionPropertyChangeListener(a);
+		}
+		return pcl;
+	    }
+	};
+	if (icon !=null) {
+	    b.putClientProperty("hideActionText", Boolean.TRUE);
+	}
+	b.setHorizontalTextPosition(JButton.CENTER);
+	b.setVerticalTextPosition(JButton.BOTTOM);
+	b.setEnabled(enabled);
+	b.setToolTipText(tooltip);
+	return b;
+!!!9173403.java!!!	createActionChangeListener(inout b : JButton) : PropertyChangeListener
+	return null;
+!!!9173531.java!!!	addImpl(inout comp : Component, inout constraints : Object, in index : int) : void
+        if (comp instanceof Separator) {
+            if (getOrientation() == VERTICAL) {
+                ( (Separator)comp ).setOrientation(JSeparator.HORIZONTAL);
+            } else {
+                ( (Separator)comp ).setOrientation(JSeparator.VERTICAL);
+            }
+        }
+        super.addImpl(comp, constraints, index);
+        if (comp instanceof JButton) {
+            ((JButton)comp).setDefaultCapable(false);
+        }
+!!!9174683.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!9174811.java!!!	paramString() : String
+        String paintBorderString = (paintBorder ?
+				    "true" : "false");
+        String marginString = (margin != null ?
+			       margin.toString() : "");
+        String floatableString = (floatable ?
+				  "true" : "false");
+        String orientationString = (orientation == HORIZONTAL ?
+                                    "HORIZONTAL" : "VERTICAL");
+
+        return super.paramString() +
+        ",floatable=" + floatableString +
+        ",margin=" + marginString +
+        ",orientation=" + orientationString +
+        ",paintBorder=" + paintBorderString;
+!!!9176475.java!!!	setLayout(inout mgr : LayoutManager) : void
+	LayoutManager oldMgr = getLayout();
+	if (oldMgr instanceof PropertyChangeListener) {
+	    removePropertyChangeListener((PropertyChangeListener)oldMgr);
+	}
+	super.setLayout(mgr);
+!!!9176603.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleJToolBar();
+        }
+        return accessibleContext;

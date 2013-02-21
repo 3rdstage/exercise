@@ -1,0 +1,107 @@
+class SynthLabelUI
+!!!9690523.java!!!	createUI(inout c : JComponent) : ComponentUI
+        return new SynthLabelUI();
+!!!9690651.java!!!	installDefaults(inout c : JLabel) : void
+        updateStyle(c);
+!!!9690779.java!!!	updateStyle(inout c : JLabel) : void
+        SynthContext context = getContext(c, ENABLED);
+        style = SynthLookAndFeel.updateStyle(context, this);
+        context.dispose();
+!!!9690907.java!!!	uninstallDefaults(inout c : JLabel) : void
+        SynthContext context = getContext(c, ENABLED);
+
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+!!!9691035.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9691163.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c,
+                    SynthLookAndFeel.getRegion(c), style, state);
+!!!9691291.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9691419.java!!!	getComponentState(inout c : JComponent) : int
+        int state = SynthLookAndFeel.getComponentState(c);
+        if (SynthLookAndFeel.selectedUI == this &&
+                        state == SynthConstants.ENABLED) {
+            state = SynthLookAndFeel.selectedUIState | SynthConstants.ENABLED;
+        }
+        return state;
+!!!9691547.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintLabelBackground(context,
+                          g, 0, 0, c.getWidth(), c.getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9691675.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9691803.java!!!	paint(inout context : SynthContext, inout g : Graphics) : void
+        JLabel label = (JLabel)context.getComponent();
+        Icon icon = (label.isEnabled()) ? label.getIcon() :
+                                          label.getDisabledIcon();
+
+        g.setColor(context.getStyle().getColor(context,
+                                               ColorType.TEXT_FOREGROUND));
+        g.setFont(style.getFont(context));
+        context.getStyle().getGraphicsUtils(context).paintText(
+            context, g, label.getText(), icon,
+            label.getHorizontalAlignment(), label.getVerticalAlignment(),
+            label.getHorizontalTextPosition(), label.getVerticalTextPosition(),
+            label.getIconTextGap(), label.getDisplayedMnemonicIndex(), 0);
+!!!9691931.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        context.getPainter().paintLabelBorder(context, g, x, y, w, h);
+!!!9692059.java!!!	getPreferredSize(inout c : JComponent) : Dimension
+        JLabel label = (JLabel)c;
+        Icon icon = (label.isEnabled()) ? label.getIcon() :
+                                          label.getDisabledIcon();
+        SynthContext context = getContext(c);
+        Dimension size = context.getStyle().getGraphicsUtils(context).
+            getPreferredSize(
+               context, context.getStyle().getFont(context), label.getText(),
+               icon, label.getHorizontalAlignment(),
+               label.getVerticalAlignment(), label.getHorizontalTextPosition(),
+               label.getVerticalTextPosition(), label.getIconTextGap(),
+               label.getDisplayedMnemonicIndex());
+
+        context.dispose();
+        return size;
+!!!9692187.java!!!	getMinimumSize(inout c : JComponent) : Dimension
+        JLabel label = (JLabel)c;
+        Icon icon = (label.isEnabled()) ? label.getIcon() :
+                                          label.getDisabledIcon();
+        SynthContext context = getContext(c);
+        Dimension size = context.getStyle().getGraphicsUtils(context).
+            getMinimumSize(
+               context, context.getStyle().getFont(context), label.getText(),
+               icon, label.getHorizontalAlignment(),
+               label.getVerticalAlignment(), label.getHorizontalTextPosition(),
+               label.getVerticalTextPosition(), label.getIconTextGap(),
+               label.getDisplayedMnemonicIndex());
+
+        context.dispose();
+        return size;
+!!!9692315.java!!!	getMaximumSize(inout c : JComponent) : Dimension
+        JLabel label = (JLabel)c;
+        Icon icon = (label.isEnabled()) ? label.getIcon() :
+                                          label.getDisabledIcon();
+        SynthContext context = getContext(c);
+        Dimension size = context.getStyle().getGraphicsUtils(context).
+               getMaximumSize(
+               context, context.getStyle().getFont(context), label.getText(),
+               icon, label.getHorizontalAlignment(),
+               label.getVerticalAlignment(), label.getHorizontalTextPosition(),
+               label.getVerticalTextPosition(), label.getIconTextGap(),
+               label.getDisplayedMnemonicIndex());
+
+        context.dispose();
+        return size;
+!!!9692443.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+        super.propertyChange(e);
+        if (SynthLookAndFeel.shouldUpdateStyle(e)) {
+            updateStyle((JLabel)e.getSource());
+        }

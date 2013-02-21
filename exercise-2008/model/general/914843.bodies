@@ -1,0 +1,74 @@
+class ProcessEnvironment
+!!!7021979.java!!!	validateName(in name : String) : String
+	// An initial `=' indicates a magic Windows variable name -- OK
+	if (name.indexOf('=', 1)   != -1 ||
+	    name.indexOf('\u0000') != -1)
+	    throw new IllegalArgumentException
+		("Invalid environment variable name: \"" + name + "\"");
+	return name;
+!!!7022107.java!!!	validateValue(in value : String) : String
+	if (value.indexOf('\u0000') != -1)
+	    throw new IllegalArgumentException
+		("Invalid environment variable value: \"" + value + "\"");
+	return value;
+!!!7022235.java!!!	nonNullString(inout o : Object) : String
+	if (o == null)
+	    throw new NullPointerException();
+	return (String) o;
+!!!7022363.java!!!	put(in key : String, in value : String) : String
+	return super.put(validateName(key), validateValue(value));
+!!!7022491.java!!!	get(inout key : Object) : String
+	return super.get(nonNullString(key));
+!!!7022619.java!!!	containsKey(inout key : Object) : boolean
+	return super.containsKey(nonNullString(key));
+!!!7022747.java!!!	containsValue(inout value : Object) : boolean
+	return super.containsValue(nonNullString(value));
+!!!7022875.java!!!	remove(inout key : Object) : String
+	return super.remove(nonNullString(key));
+!!!7026715.java!!!	keySet() : Set
+	return new CheckedKeySet(super.keySet());
+!!!7026843.java!!!	values() : Collection
+	return new CheckedValues(super.values());
+!!!7026971.java!!!	entrySet() : Set
+	return new CheckedEntrySet(super.entrySet());
+!!!7027355.java!!!	ProcessEnvironment()
+	super();
+!!!7027483.java!!!	ProcessEnvironment(in capacity : int)
+	super(capacity);
+!!!7027611.java!!!	getenv(in name : String) : String
+	// The original implementation used a native call to _wgetenv,
+	// but it turns out that _wgetenv is only consistent with
+	// GetEnvironmentStringsW (for non-ASCII) if `wmain' is used
+	// instead of `main', even in a process created using
+	// CREATE_UNICODE_ENVIRONMENT.  Instead we perform the
+	// case-insensitive comparison ourselves.  At least this
+	// guarantees that System.getenv().get(String) will be
+	// consistent with System.getenv(String).
+	return theCaseInsensitiveEnvironment.get(name);
+!!!7027739.java!!!	getenv() : Map
+	return theUnmodifiableEnvironment;
+!!!7027867.java!!!	environment() : Map
+	return (Map<String,String>) theEnvironment.clone();
+!!!7027995.java!!!	emptyEnvironment(in capacity : int) : Map
+	return new ProcessEnvironment(capacity);
+!!!7028251.java!!!	toEnvironmentBlock() : String
+	// Sort Unicode-case-insensitively by name
+	List<Map.Entry<String,String>> list
+	    = new ArrayList<Map.Entry<String,String>>(entrySet());
+	Collections.sort(list, entryComparator);
+
+	StringBuilder sb = new StringBuilder(size()*30);
+	for (Map.Entry<String,String> e : list)
+	    sb.append(e.getKey())
+	      .append('=')
+	      .append(e.getValue())
+	      .append('\u0000');
+	// Ensure double NUL termination,
+	// even if environment is empty.
+	if (sb.length() == 0)
+	    sb.append('\u0000');
+	sb.append('\u0000');
+	return sb.toString();
+!!!7028379.java!!!	toEnvironmentBlock(inout map : Map) : String
+	return map == null ? null :
+	    ((ProcessEnvironment)map).toEnvironmentBlock();

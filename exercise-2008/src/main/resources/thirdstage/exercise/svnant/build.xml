@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="thirdstage.exercise.svnant" basedir="." default="env.echo"
+	xmlns:artifact="antlib:org.apache.maven.artifact.ant"
+	xmlns:svnant="svnantlib:org.tigris.subversion.svnant"
+	xmlns:antelope="antlib:ise.antelope.tasks"
+	xmlns:antcontrib="antlib:net.sf.antcontrib">
+
+	<target name="env.echo">
+		<property environment='env'/>
+		<echoproperties/>
+	</target>
+
+	<property name="project.home" value="../../../../../.."/>
+	
+	<path id="svnant.classpath">
+		<pathelement location="${project.home}/lib/svnant.jar"/>
+		<pathelement location="${project.home}/lib/svnClientAdapter.jar"/>
+	</path>
+		
+	<typedef resource="org/apache/maven/artifact/ant/antlib.xml"
+	         uri="antlib:org.apache.maven.artifact.ant"
+	         classpath="${project.home}/lib/maven-ant-tasks-2.1.3.jar" />
+	
+	<typedef resource="org/tigris/subversion/svnant/svnantlib.xml"
+		uri="svnantlib:org.tigris.subversion.svnant"
+		classpathref="svnant.classpath"/>
+	
+	<taskdef resource="ise/antelope/tasks/antlib.xml"
+		uri="antlib:ise.antelope.tasks"
+	    classpath="${project.home}/lib/ant-antelope-tasks-3.5.0.jar"/>
+
+	<taskdef resource="net/sf/antcontrib/antlib.xml"
+		uri="antlib:net.sf.antcontrib"
+		classpath="${project.home}/lib/ant-contrib-1.0b3.jar"/>
+
+	<svnant:svnSetting javahl="false" svnkit="false" username="OhSangMoon" password="201202svn" id="svn.setting"/>
+	
+	<target name="svn.list.non-java.under.main-java">
+		<svnant:svn refid="svn.setting">
+			<list property="svn.list" 
+				delimiter="${line.separator}"
+				recurse="true"
+				listDirs="false"
+				url="http://203.235.212.49/svn2/framework-j2ee-6/main/trunk/nexcore.framework.core/src/test/java"
+			/>
+		</svnant:svn>
+		
+		<echo>All files</echo>
+		<echo>${svn.list}</echo>
+		
+		<antcontrib:propertyregex property="svn.list.non-java"
+			input="${svn.list}" regexp=".*\.java" replace="a"/>
+		
+		<echo>${line.separator}${line.separator}</echo>
+		<echo>Non Java files</echo>
+		<echo>${svn.list.non-java}</echo>
+
+		<antelope:grep property="svn.list.java"
+			in="${svn.list}" regex=".*\.java" allmatches="yes" canoneq="yes"/>
+		
+		<echo>${line.separator}${line.separator}</echo>
+		<echo>Java files</echo>
+		<echo>${svn.list.java}</echo>
+
+		
+	</target>
+
+</project>

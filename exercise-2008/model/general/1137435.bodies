@@ -1,0 +1,109 @@
+class HSBImage
+!!!9339547.java!!!	HSBImage(in type : int, in width : int, in height : int, in h : float, in s : float, in b : float)
+            super(width, height);
+            setValues(type, h, s, b);
+!!!9339675.java!!!	setValues(in type : int, in h : float, in s : float, in b : float) : void
+            this.type = type;
+            cachedY = -1;
+            cachedColor = 0;
+            setHue( h );
+            setSaturation( s );
+            setBrightness( b );
+!!!9339803.java!!!	setHue(in hue : float) : void
+            h = hue;
+!!!9339931.java!!!	setSaturation(in saturation : float) : void
+            s = saturation;
+!!!9340059.java!!!	setBrightness(in brightness : float) : void
+            b = brightness;
+!!!9340187.java!!!	getHue() : float
+            return h;
+!!!9340315.java!!!	getSaturation() : float
+            return s;
+!!!9340443.java!!!	getBrightness() : float
+            return b;
+!!!9340571.java!!!	isStatic() : boolean
+            return false;
+!!!9340699.java!!!	nextFrame() : void
+            isDirty = true;
+            notifyAll();
+!!!9340827.java!!!	addConsumer(inout ic : ImageConsumer) : void
+            isDirty = true;
+            super.addConsumer(ic);
+!!!9340955.java!!!	getRGBForLocation(in x : int, in y : int) : int
+            if (type >= HSLIDER && y == cachedY) {
+                return cachedColor;
+            }
+
+            getHSBForLocation( x, y, hsb );
+            cachedY = y;
+            cachedColor = Color.HSBtoRGB( hsb[0], hsb[1], hsb[2] );
+
+            return cachedColor;
+!!!9341083.java!!!	getHSBForLocation(in x : int, in y : int, in hsbArray : float) : void
+            switch (type) {
+                case HSQUARE: {
+                    float saturationStep = ((float)x) / width;
+                    float brightnessStep = ((float)y) / height;
+                    hsbArray[0] = h;
+                    hsbArray[1] = s - saturationStep; 
+                    hsbArray[2] = b - brightnessStep;
+                    break;
+                }
+                case SSQUARE: {
+                    float brightnessStep = ((float)y) / height;
+                    float step = 1.0f / ((float)width);
+                    hsbArray[0] = x * step;
+                    hsbArray[1] = s;
+                    hsbArray[2] = 1.0f - brightnessStep;
+                    break;
+                }
+                case BSQUARE: {
+                    float saturationStep = ((float)y) / height;
+                    float step = 1.0f / ((float)width);
+                    hsbArray[0] = x * step;
+                    hsbArray[1] = 1.0f - saturationStep;
+                    hsbArray[2] = b;
+                    break;
+                }
+                case HSLIDER: {
+                    float step = 1.0f / ((float)height);
+                    hsbArray[0] = y * step;
+                    hsbArray[1] = s;
+                    hsbArray[2] = b;
+                    break;
+                }
+                case SSLIDER: {
+                    float saturationStep = ((float)y) / height;
+                    hsbArray[0] = h;
+                    hsbArray[1] = s - saturationStep;
+                    hsbArray[2] = b;
+                    break;
+                }
+                case BSLIDER: {
+                    float brightnessStep = ((float)y) / height;
+                    hsbArray[0] = h;
+                    hsbArray[1] = s;
+                    hsbArray[2] = b - brightnessStep;
+                    break;
+                }
+            }
+!!!9341211.java!!!	computeRow(in y : int, in row : int) : void
+            if ( y == 0 ) {
+                synchronized ( this ) {
+                    try {
+                        while ( !isDirty ) {
+                            wait();
+                        }
+                    } catch (InterruptedException ie) {
+                    }
+                    isDirty = false;
+                }
+            }
+
+            if (aborted) {
+                return;
+            }
+
+            for ( int i = 0; i < row.length; ++i ) {
+                row[i] = getRGBForLocation( i, y );
+            }  

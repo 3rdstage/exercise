@@ -1,0 +1,84 @@
+class LineNumberReader
+!!!6865179.java!!!	LineNumberReader(inout in : Reader)
+	super(in);
+!!!6865307.java!!!	LineNumberReader(inout in : Reader, in sz : int)
+	super(in, sz);
+!!!6865435.java!!!	setLineNumber(in lineNumber : int) : void
+	this.lineNumber = lineNumber;
+!!!6865563.java!!!	getLineNumber() : int
+	return lineNumber;
+!!!6865691.java!!!	read() : int
+	synchronized (lock) {
+	    int c = super.read();
+	    if (skipLF) {
+		if (c == '\n')
+		    c = super.read();
+		skipLF = false;
+	    }
+	    switch (c) {
+	    case '\r':
+		skipLF = true;
+	    case '\n':		/* Fall through */
+		lineNumber++;
+		return '\n';
+	    }
+	    return c;
+	}
+!!!6865819.java!!!	read(in cbuf : char, in off : int, in len : int) : int
+	synchronized (lock) {
+	    int n = super.read(cbuf, off, len);
+
+	    for (int i = off; i < off + n; i++) {
+		int c = cbuf[i];
+		if (skipLF) {
+		    skipLF = false;
+		    if (c == '\n')
+			continue;
+		}
+		switch (c) {
+		case '\r':
+		    skipLF = true;
+		case '\n':	/* Fall through */
+		    lineNumber++;
+		    break;
+		}
+	    }
+
+	    return n;
+	}
+!!!6865947.java!!!	readLine() : String
+	synchronized (lock) {
+	    String l = super.readLine(skipLF);
+            skipLF = false;
+	    if (l != null)
+		lineNumber++;
+	    return l;
+	}
+!!!6866075.java!!!	skip(in n : long) : long
+	if (n < 0) 
+	    throw new IllegalArgumentException("skip() value is negative");
+	int nn = (int) Math.min(n, maxSkipBufferSize);
+	synchronized (lock) {
+	    if ((skipBuffer == null) || (skipBuffer.length < nn))
+		skipBuffer = new char[nn];
+	    long r = n;
+	    while (r > 0) {
+		int nc = read(skipBuffer, 0, (int) Math.min(r, nn));
+		if (nc == -1)
+		    break;
+		r -= nc;
+	    }
+	    return n - r;
+	}
+!!!6866203.java!!!	mark(in readAheadLimit : int) : void
+	synchronized (lock) {
+	    super.mark(readAheadLimit);
+	    markedLineNumber = lineNumber;
+            markedSkipLF     = skipLF;
+	}
+!!!6866331.java!!!	reset() : void
+	synchronized (lock) {
+	    super.reset();
+	    lineNumber = markedLineNumber;
+            skipLF     = markedSkipLF;
+	}

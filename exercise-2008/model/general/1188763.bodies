@@ -1,0 +1,71 @@
+class SynthViewportUI
+!!!9773083.java!!!	createUI(inout c : JComponent) : ComponentUI
+        return new SynthViewportUI();
+!!!9773211.java!!!	installUI(inout c : JComponent) : void
+        super.installUI(c);
+        installDefaults(c);
+        installListeners(c);
+!!!9773339.java!!!	uninstallUI(inout c : JComponent) : void
+        super.uninstallUI(c);
+        uninstallListeners(c);
+        uninstallDefaults(c);
+!!!9773467.java!!!	installDefaults(inout c : JComponent) : void
+        updateStyle(c);
+!!!9773595.java!!!	updateStyle(inout c : JComponent) : void
+        SynthContext context = getContext(c, ENABLED);
+
+        // Note: JViewport is special cased as it does not allow for
+        // a border to be set. JViewport.setBorder is overriden to throw
+        // an IllegalArgumentException. Refer to SynthScrollPaneUI for
+        // details of this.
+        SynthStyle newStyle = SynthLookAndFeel.getStyle(context.getComponent(),
+                                                        context.getRegion());
+        SynthStyle oldStyle = context.getStyle();
+
+        if (newStyle != oldStyle) {
+            if (oldStyle != null) {
+                oldStyle.uninstallDefaults(context);
+            }
+            context.setStyle(newStyle);
+            newStyle.installDefaults(context);
+        }
+        this.style = newStyle;
+        context.dispose();
+!!!9773723.java!!!	installListeners(inout c : JComponent) : void
+        c.addPropertyChangeListener(this);
+!!!9773851.java!!!	uninstallListeners(inout c : JComponent) : void
+        c.removePropertyChangeListener(this);
+!!!9773979.java!!!	uninstallDefaults(inout c : JComponent) : void
+        SynthContext context = getContext(c, ENABLED);
+        style.uninstallDefaults(context);
+        context.dispose();
+        style = null;
+!!!9774107.java!!!	getContext(inout c : JComponent) : SynthContext
+        return getContext(c, getComponentState(c));
+!!!9774235.java!!!	getContext(inout c : JComponent, in state : int) : SynthContext
+        return SynthContext.getContext(SynthContext.class, c,
+                                       getRegion(c), style, state);
+!!!9774363.java!!!	getRegion(inout c : JComponent) : Region
+        return SynthLookAndFeel.getRegion(c);
+!!!9774491.java!!!	getComponentState(inout c : JComponent) : int
+        return SynthLookAndFeel.getComponentState(c);
+!!!9774619.java!!!	update(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        SynthLookAndFeel.update(context, g);
+        context.getPainter().paintViewportBackground(context,
+                          g, 0, 0, c.getWidth(), c.getHeight());
+        paint(context, g);
+        context.dispose();
+!!!9774747.java!!!	paintBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        // This does nothing on purpose, JViewport doesn't allow a border
+        // and therefor this will NEVER be called.
+!!!9774875.java!!!	paint(inout g : Graphics, inout c : JComponent) : void
+        SynthContext context = getContext(c);
+
+        paint(context, g);
+        context.dispose();
+!!!9775131.java!!!	propertyChange(inout e : PropertyChangeEvent) : void
+        if (SynthLookAndFeel.shouldUpdateStyle(e)) {
+            updateStyle((JComponent)e.getSource());
+        }

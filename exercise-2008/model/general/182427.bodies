@@ -1,0 +1,139 @@
+class ByteBuffer
+!!!7303707.java!!!	ByteBuffer(in mark : int, in pos : int, in lim : int, in cap : int, in hb : byte, in offset : int)
+
+	super(mark, pos, lim, cap);
+	this.hb = hb;
+	this.offset = offset;
+!!!7303835.java!!!	ByteBuffer(in mark : int, in pos : int, in lim : int, in cap : int)
+	// package-private
+	this(mark, pos, lim, cap, null, 0);
+!!!7303963.java!!!	allocateDirect(in capacity : int) : ByteBuffer
+
+        return new DirectByteBuffer(capacity);
+!!!7304091.java!!!	allocate(in capacity : int) : ByteBuffer
+
+	if (capacity < 0)
+	    throw new IllegalArgumentException();
+	return new HeapByteBuffer(capacity, capacity);
+!!!7304219.java!!!	wrap(in array : byte, in offset : int, in length : int) : ByteBuffer
+
+	try {
+	    return new HeapByteBuffer(array, offset, length);
+	} catch (IllegalArgumentException x) {
+	    throw new IndexOutOfBoundsException();
+	}
+!!!7304347.java!!!	wrap(in array : byte) : ByteBuffer
+
+	return wrap(array, 0, array.length);
+!!!7305371.java!!!	get(in dst : byte, in offset : int, in length : int) : ByteBuffer
+
+	checkBounds(offset, length, dst.length);
+	if (length > remaining())
+	    throw new BufferUnderflowException();
+	int end = offset + length;
+	for (int i = offset; i < end; i++)
+	    dst[i] = get();
+	return this;
+!!!7305499.java!!!	get(in dst : byte) : ByteBuffer
+
+	return get(dst, 0, dst.length);
+!!!7305627.java!!!	put(inout src : ByteBuffer) : ByteBuffer
+
+	if (src == this)
+	    throw new IllegalArgumentException();
+	int n = src.remaining();
+	if (n > remaining())
+	    throw new BufferOverflowException();
+	for (int i = 0; i < n; i++)
+	    put(src.get());
+	return this;
+!!!7305755.java!!!	put(in src : byte, in offset : int, in length : int) : ByteBuffer
+
+	checkBounds(offset, length, src.length);
+	if (length > remaining())
+	    throw new BufferOverflowException();
+	int end = offset + length;
+	for (int i = offset; i < end; i++)
+	    this.put(src[i]);
+	return this;
+!!!7305883.java!!!	put(in src : byte) : ByteBuffer
+
+	return put(src, 0, src.length);
+!!!7306011.java!!!	hasArray() : boolean
+
+	return (hb != null) && !isReadOnly;
+!!!7306139.java!!!	array() : byte
+
+	if (hb == null)
+	    throw new UnsupportedOperationException();
+	if (isReadOnly)
+	    throw new ReadOnlyBufferException();
+	return hb;
+!!!7306267.java!!!	arrayOffset() : int
+
+	if (hb == null)
+	    throw new UnsupportedOperationException();
+	if (isReadOnly)
+	    throw new ReadOnlyBufferException();
+	return offset;
+!!!7306651.java!!!	toString() : String
+
+	StringBuffer sb = new StringBuffer();
+	sb.append(getClass().getName());
+	sb.append("[pos=");
+	sb.append(position());
+	sb.append(" lim=");
+	sb.append(limit());
+	sb.append(" cap=");
+	sb.append(capacity());
+	sb.append("]");
+	return sb.toString();
+!!!7306779.java!!!	hashCode() : int
+
+	int h = 1;
+	int p = position();
+	for (int i = limit() - 1; i >= p; i--)
+	    h = 31 * h + (int)get(i);
+	return h;
+!!!7306907.java!!!	equals(inout ob : Object) : boolean
+
+	if (!(ob instanceof ByteBuffer))
+	    return false;
+	ByteBuffer that = (ByteBuffer)ob;
+	if (this.remaining() != that.remaining())
+	    return false;
+	int p = this.position();
+	for (int i = this.limit() - 1, j = that.limit() - 1; i >= p; i--, j--) {
+	    byte v1 = this.get(i);
+	    byte v2 = that.get(j);
+	    if (v1 != v2) {
+		if ((v1 != v1) && (v2 != v2))	// For float and double
+		    continue;
+		return false;
+	    }
+	}
+	return true;
+!!!7307035.java!!!	compareTo(inout that : ByteBuffer) : int
+
+	int n = this.position() + Math.min(this.remaining(), that.remaining());
+	for (int i = this.position(), j = that.position(); i < n; i++, j++) {
+	    byte v1 = this.get(i);
+	    byte v2 = that.get(j);
+	    if (v1 == v2)
+		continue;
+	    if ((v1 != v1) && (v2 != v2)) 	// For float and double
+		continue;
+	    if (v1 < v2)
+		return -1;
+	    return +1;
+	}
+	return this.remaining() - that.remaining();
+!!!7307163.java!!!	order() : ByteOrder
+
+	return bigEndian ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
+!!!7307291.java!!!	order(inout bo : ByteOrder) : ByteBuffer
+
+	bigEndian = (bo == ByteOrder.BIG_ENDIAN);
+	nativeByteOrder =
+	    (bigEndian == (Bits.byteOrder() == ByteOrder.BIG_ENDIAN));
+	return this;

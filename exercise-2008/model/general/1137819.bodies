@@ -1,0 +1,52 @@
+class SyntheticImageGenerator
+!!!9339163.java!!!	SyntheticImageGenerator(inout ic : ImageConsumer, inout next : SyntheticImageGenerator, inout parent : SyntheticImage)
+        super("SyntheticImageGenerator");
+        this.ic = ic;
+        this.next = next;
+        this.parent = parent;
+        useful = true;
+        setDaemon(true);
+!!!9339291.java!!!	run() : void
+        ImageConsumer ic = this.ic;
+        int w = parent.width;
+        int h = parent.height;
+        int hints = ic.SINGLEPASS|ic.COMPLETESCANLINES|ic.TOPDOWNLEFTRIGHT;
+        if (parent.isStatic()) 
+	    hints |= ic.SINGLEFRAME;
+        ic.setHints(hints);
+        ic.setDimensions(w, h);
+        ic.setProperties(null);
+        ic.setColorModel(parent.cm);
+
+        if (useful) {
+            int[] row=new int[w];
+	    doPrivileged( new Runnable() {
+	        public void run() {
+		    Thread.currentThread().setPriority(Thread.MIN_PRIORITY);
+		} 
+	    });
+
+            do {
+                for (int y = 0; y<h && useful; y++) {
+                    parent.computeRow(y,row);
+
+                    if (parent.aborted) {
+                        ic.imageComplete(ic.IMAGEABORTED);
+                        return;
+                    }
+
+                    ic.setPixels(0, y, w, 1, parent.cm, row, 0, w);
+                }
+                ic.imageComplete(parent.isStatic() ? ic.STATICIMAGEDONE
+                                            : ic.SINGLEFRAMEDONE );
+            } while(!parent.isStatic() && useful);
+        }
+!!!9339419.java!!!	doPrivileged(in doRun : Runnable) : void
+        java.security.AccessController.doPrivileged(
+            new java.security.PrivilegedAction() {
+                public Object run() {
+                  doRun.run();
+                  return null;
+                }
+            }
+        );

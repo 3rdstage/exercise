@@ -1,0 +1,98 @@
+class Random
+!!!336795.java!!!	Random()
+ this(++seedUniquifier + System.nanoTime());
+!!!336923.java!!!	Random(in seed : long)
+        this.seed = new AtomicLong(0L);
+        setSeed(seed);
+!!!337051.java!!!	setSeed(in seed : long) : void
+        seed = (seed ^ multiplier) & mask;
+        this.seed.set(seed);
+    	haveNextNextGaussian = false;
+!!!337179.java!!!	next(in bits : int) : int
+        long oldseed, nextseed;
+        AtomicLong seed = this.seed;
+        do {
+	    oldseed = seed.get();
+	    nextseed = (oldseed * multiplier + addend) & mask;
+        } while (!seed.compareAndSet(oldseed, nextseed));
+        return (int)(nextseed >>> (48 - bits));
+!!!337307.java!!!	nextBytes(in bytes : byte) : void
+	int numRequested = bytes.length;
+
+	int numGot = 0, rnd = 0;
+
+	while (true) {
+	    for (int i = 0; i < BYTES_PER_INT; i++) {
+		if (numGot == numRequested)
+		    return;
+
+		rnd = (i==0 ? next(BITS_PER_BYTE * BYTES_PER_INT)
+		            : rnd >> BITS_PER_BYTE);
+		bytes[numGot++] = (byte)rnd;
+	    }
+	}
+!!!337435.java!!!	nextInt() : int
+  return next(32);
+!!!337563.java!!!	nextInt(in n : int) : int
+        if (n<=0)
+            throw new IllegalArgumentException("n must be positive");
+
+        if ((n & -n) == n)  // i.e., n is a power of 2
+            return (int)((n * (long)next(31)) >> 31);
+
+        int bits, val;
+        do {
+            bits = next(31);
+            val = bits % n;
+        } while(bits - val + (n-1) < 0);
+        return val;
+!!!337691.java!!!	nextLong() : long
+        // it's okay that the bottom word remains signed.
+        return ((long)(next(32)) << 32) + next(32);
+!!!337819.java!!!	nextBoolean() : boolean
+return next(1) != 0;
+!!!337947.java!!!	nextFloat() : float
+        int i = next(24);
+        return i / ((float)(1 << 24));
+!!!338075.java!!!	nextDouble() : double
+        long l = ((long)(next(26)) << 27) + next(27);
+        return l / (double)(1L << 53);
+!!!338203.java!!!	nextGaussian() : double
+        // See Knuth, ACP, Section 3.4.1 Algorithm C.
+        if (haveNextNextGaussian) {
+    	    haveNextNextGaussian = false;
+    	    return nextNextGaussian;
+    	} else {
+            double v1, v2, s;
+    	    do { 
+                v1 = 2 * nextDouble() - 1; // between -1 and 1
+            	v2 = 2 * nextDouble() - 1; // between -1 and 1 
+                s = v1 * v1 + v2 * v2;
+    	    } while (s >= 1 || s == 0);
+    	    double multiplier = Math.sqrt(-2 * Math.log(s)/s);
+    	    nextNextGaussian = v2 * multiplier;
+    	    haveNextNextGaussian = true;
+    	    return v1 * multiplier;
+        }
+!!!338331.java!!!	readObject(inout s : java.io.ObjectInputStream) : void
+
+        ObjectInputStream.GetField fields = s.readFields();
+        long seedVal;
+
+        seedVal = (long) fields.get("seed", -1L);
+        if (seedVal < 0)
+          throw new java.io.StreamCorruptedException(
+                              "Random: invalid seed");
+        seed = new AtomicLong(seedVal);
+        nextNextGaussian = fields.get("nextNextGaussian", 0.0);
+        haveNextNextGaussian = fields.get("haveNextNextGaussian", false);
+!!!338459.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        // set the values of the Serializable fields
+        ObjectOutputStream.PutField fields = s.putFields();
+        fields.put("seed", seed.get());
+        fields.put("nextNextGaussian", nextNextGaussian);
+        fields.put("haveNextNextGaussian", haveNextNextGaussian);
+
+        // save them
+        s.writeFields();
+

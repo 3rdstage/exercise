@@ -1,0 +1,82 @@
+class Handler
+!!!9379483.java!!!	stateChanged(inout evt : ChangeEvent) : void
+            ColorSelectionModel model = (ColorSelectionModel)evt.getSource();
+            if (previewPanel != null) {
+                previewPanel.setForeground(model.getSelectedColor());
+                previewPanel.repaint();
+            }
+!!!9379611.java!!!	mousePressed(inout evt : MouseEvent) : void
+            if (chooser.getDragEnabled()) {
+                TransferHandler th = chooser.getTransferHandler();
+                th.exportAsDrag(chooser, evt, TransferHandler.COPY);
+            }
+!!!9380251.java!!!	propertyChange(inout evt : PropertyChangeEvent) : void
+            String prop = evt.getPropertyName();
+
+            if (prop == JColorChooser.CHOOSER_PANELS_PROPERTY) {
+                AbstractColorChooserPanel[] oldPanels =
+                    (AbstractColorChooserPanel[])evt.getOldValue();
+                AbstractColorChooserPanel[] newPanels =
+                    (AbstractColorChooserPanel[])evt.getNewValue();
+
+                for (int i = 0; i < oldPanels.length; i++) {  // remove old panels                  
+                   Container wrapper = oldPanels[i].getParent();
+                    if (wrapper != null) {
+                      Container parent = wrapper.getParent();
+                      if (parent != null)
+                          parent.remove(wrapper);  // remove from hierarchy
+                      oldPanels[i].uninstallChooserPanel(chooser); // uninstall
+                    }
+                }
+
+                int numNewPanels = newPanels.length;
+                if (numNewPanels == 0) {  // removed all panels and added none
+                    chooser.remove(tabbedPane);
+                    return;
+                } 
+                else if (numNewPanels == 1) {  // one panel case
+                    chooser.remove(tabbedPane);
+                    JPanel centerWrapper = new JPanel( new CenterLayout() );
+                    centerWrapper.add(newPanels[0]);
+                    singlePanel.add(centerWrapper, BorderLayout.CENTER);
+                    chooser.add(singlePanel);
+                }
+                else {   // multi-panel case
+                    if ( oldPanels.length < 2 ) {// moving from single to multiple
+                        chooser.remove(singlePanel);
+                        chooser.add(tabbedPane, BorderLayout.CENTER);
+                    }
+
+                    for (int i = 0; i < newPanels.length; i++) {            
+                        JPanel centerWrapper = new JPanel( new CenterLayout() );
+                        String name = newPanels[i].getDisplayName();
+                        int mnemonic = newPanels[i].getMnemonic();
+                        centerWrapper.add(newPanels[i]);
+                        tabbedPane.addTab(name, centerWrapper);
+                        if (mnemonic > 0) {
+                            tabbedPane.setMnemonicAt(i, mnemonic);
+                            tabbedPane.setDisplayedMnemonicIndexAt(
+                                  i, newPanels[i].getDisplayedMnemonicIndex());
+                        }
+                    }
+                }
+                chooser.applyComponentOrientation(chooser.getComponentOrientation());
+                for (int i = 0; i < newPanels.length; i++) {
+                    newPanels[i].installChooserPanel(chooser);
+                }
+            }
+
+            if (prop == JColorChooser.PREVIEW_PANEL_PROPERTY) {
+                if (evt.getNewValue() != previewPanel) {
+                    installPreviewPanel();
+                }
+            }
+            if (prop == "componentOrientation") {
+                ComponentOrientation o =
+                    (ComponentOrientation)evt.getNewValue();
+                JColorChooser cc = (JColorChooser)evt.getSource();
+                if (o != (ComponentOrientation)evt.getOldValue()) {
+                    cc.applyComponentOrientation(o);
+                    cc.updateUI();
+                }
+            }

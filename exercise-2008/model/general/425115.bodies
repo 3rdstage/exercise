@@ -1,0 +1,70 @@
+class DragGestureEvent
+!!!6424987.java!!!	DragGestureEvent(inout dgr : DragGestureRecognizer, in act : int, inout ori : Point, inout evs : List)
+	super(dgr);
+
+	if ((component = dgr.getComponent()) == null)
+	    throw new IllegalArgumentException("null component");
+	if ((dragSource = dgr.getDragSource()) == null)
+	    throw new IllegalArgumentException("null DragSource");
+
+	if (evs == null || evs.isEmpty())
+	    throw new IllegalArgumentException("null or empty list of events");
+
+	if (act != DnDConstants.ACTION_COPY &&
+	    act != DnDConstants.ACTION_MOVE &&
+	    act != DnDConstants.ACTION_LINK)
+	    throw new IllegalArgumentException("bad action");
+
+	if (ori == null) throw new IllegalArgumentException("null origin");
+
+	events     = evs;
+	action     = act;
+	origin     = ori;
+!!!6425115.java!!!	getSourceAsDragGestureRecognizer() : DragGestureRecognizer
+	return (DragGestureRecognizer)getSource();
+!!!6425243.java!!!	getComponent() : Component
+ return component;
+!!!6425371.java!!!	getDragSource() : DragSource
+ return dragSource;
+!!!6425499.java!!!	getDragOrigin() : Point
+	return origin;
+!!!6425627.java!!!	iterator() : Iterator
+ return events.iterator();
+!!!6425755.java!!!	toArray() : Object
+ return events.toArray();
+!!!6425883.java!!!	toArray(inout array : Object) : Object
+ return events.toArray(array);
+!!!6426011.java!!!	getDragAction() : int
+ return action;
+!!!6426139.java!!!	getTriggerEvent() : InputEvent
+	return getSourceAsDragGestureRecognizer().getTriggerEvent();
+!!!6426267.java!!!	startDrag(inout dragCursor : Cursor, inout transferable : Transferable) : void
+        dragSource.startDrag(this, dragCursor, transferable, null);
+!!!6426395.java!!!	startDrag(inout dragCursor : Cursor, inout transferable : Transferable, inout dsl : DragSourceListener) : void
+	dragSource.startDrag(this, dragCursor, transferable, dsl);
+!!!6426523.java!!!	startDrag(inout dragCursor : Cursor, inout dragImage : Image, inout imageOffset : Point, inout transferable : Transferable, inout dsl : DragSourceListener) : void
+	dragSource.startDrag(this,  dragCursor, dragImage, imageOffset, transferable, dsl);
+!!!6426651.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+
+        s.writeObject(SerializationTester.test(events) ? events : null);
+!!!6426779.java!!!	readObject(inout s : ObjectInputStream) : void
+        ObjectInputStream.GetField f = s.readFields();
+
+        dragSource = (DragSource)f.get("dragSource", null);
+        component = (Component)f.get("component", null);
+        origin = (Point)f.get("origin", null);
+        action = f.get("action", 0);
+
+        // Pre-1.4 support. 'events' was previously non-transient
+        try {
+            events = (List)f.get("events", null);
+        } catch (IllegalArgumentException e) {
+            // 1.4-compatible byte stream. 'events' was written explicitly
+            events = (List)s.readObject();
+        }
+
+        // Implementation assumes 'events' is never null.
+        if (events == null) {
+            events = Collections.EMPTY_LIST;
+        }

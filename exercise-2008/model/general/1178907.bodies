@@ -1,0 +1,372 @@
+class ImagePainter
+!!!9621659.java!!!	ImagePainter(inout tiles : boolean, inout paintCenter : boolean, inout renderingHint : Object, inout sourceInsets : Insets, inout destinationInsets : Insets)
+        this.sInsets = (Insets)sourceInsets.clone();
+        if (destinationInsets == null) {
+            dInsets = sInsets;
+        }
+        else {
+            this.dInsets = (Insets)destinationInsets.clone();
+        }
+        this.tiles = tiles;
+        this.paintCenter = paintCenter;
+        this.renderingHint = renderingHint;
+!!!9621787.java!!!	ImagePainter(inout tiles : boolean, inout paintCenter : boolean, inout renderingHint : Object, inout sourceInsets : Insets, inout destinationInsets : Insets, inout image : Image)
+        this(tiles, paintCenter, renderingHint, sourceInsets,
+             destinationInsets);
+        this.image = image;
+!!!9621915.java!!!	ImagePainter(inout tiles : boolean, inout paintCenter : boolean, inout renderingHint : Object, inout sourceInsets : Insets, inout destinationInsets : Insets, inout path : URL)
+        this(tiles, paintCenter, renderingHint, sourceInsets,
+             destinationInsets);
+        this.path = path;
+!!!9622043.java!!!	getTiles() : boolean
+        return tiles;
+!!!9622171.java!!!	getPaintsCenter() : boolean
+        return paintCenter;
+!!!9622299.java!!!	getRenderingHint() : Object
+        return renderingHint;
+!!!9622427.java!!!	getInsets(inout insets : Insets) : Insets
+        if (insets == null) {
+            return (Insets)this.dInsets.clone();
+        }
+        insets.left = this.dInsets.left;
+        insets.right = this.dInsets.right;
+        insets.top = this.dInsets.top;
+        insets.bottom = this.dInsets.bottom;
+        return insets;
+!!!9622555.java!!!	getImage() : Image
+        if (image == null) {
+            image = new ImageIcon(path, null).getImage();
+        }
+        return image;
+!!!9622683.java!!!	paint(inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        Image image;
+        Object lastHint;
+        Object renderingHint = getRenderingHint();
+
+        if (renderingHint != null) {
+            Graphics2D g2 = (Graphics2D)g;
+
+            lastHint = g2.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
+            if (lastHint == null) {
+                lastHint = RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
+            }
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                                renderingHint);
+        }
+        else {
+            lastHint = null;
+        }
+
+        if ((image = getImage()) != null) {
+            Insets sInsets = this.sInsets;
+            Insets dInsets = this.dInsets;
+            int iw = image.getWidth(null);
+            int ih = image.getHeight(null);
+
+            boolean stretch = !getTiles();
+
+            // top left
+            g.drawImage(image, x, y, x + dInsets.left, y + dInsets.top,
+                            0, 0, sInsets.left, sInsets.top, null);
+            // top
+            drawChunk(image, g, stretch, x + dInsets.left, y,
+                      x + w - dInsets.right, y + dInsets.top, sInsets.left, 0,
+                          iw - sInsets.right, sInsets.top, true);
+            // top right
+            g.drawImage(image, x + w - dInsets.right, y, x + w,
+                        y + dInsets.top, iw - sInsets.right, 0, iw,
+                        sInsets.top, null);
+            // right
+            drawChunk(image, g, stretch, x + w - dInsets.right,
+                      y + dInsets.top, x + w, y + h - dInsets.bottom,
+                      iw - sInsets.right, sInsets.top, iw,
+                      ih - sInsets.bottom, false);
+            // bottom right
+            g.drawImage(image, x + w - dInsets.right,
+                        y + h - dInsets.bottom, x + w, y + h,
+                        iw - sInsets.right, ih - sInsets.bottom, iw, ih,
+                        null);
+            // bottom
+            drawChunk(image, g, stretch, x + dInsets.left,
+                      y + h - dInsets.bottom, x + w - dInsets.right,
+                      y + h, sInsets.left, ih - sInsets.bottom,
+                      iw - sInsets.right, ih, true);
+            // bottom left
+            g.drawImage(image, x, y + h - dInsets.bottom, x + dInsets.left,
+                        y + h, 0, ih - sInsets.bottom, sInsets.left, ih,
+                        null);
+            // left
+
+            drawChunk(image, g, stretch, x, y + dInsets.top,
+                      x + dInsets.left, y + h - dInsets.bottom,
+                      0, sInsets.top, sInsets.left, ih - sInsets.bottom,
+                      false);
+
+            // center
+            if (getPaintsCenter()) {
+                g.drawImage(image, x + dInsets.left, y + dInsets.top,
+                            x + w - dInsets.right, y + h - dInsets.bottom,
+                            sInsets.left, sInsets.top, iw - sInsets.right,
+                            ih - sInsets.bottom, null);
+            }
+        }
+
+        if (renderingHint != null) {
+            ((Graphics2D)g).setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                                             lastHint);
+        }
+!!!9622811.java!!!	drawChunk(inout image : Image, inout g : Graphics, inout stretch : boolean, in dx1 : int, in dy1 : int, in dx2 : int, in dy2 : int, in sx1 : int, in sy1 : int, in sx2 : int, in sy2 : int, inout xDirection : boolean) : void
+        if (stretch) {
+            g.drawImage(image, dx1, dy1, dx2, dy2, sx1, sy1, sx2, sy2, null);
+        }
+        else {
+            int xSize = sx2 - sx1;
+            int ySize = sy2 - sy1;
+            int deltaX;
+            int deltaY;
+
+            if (xDirection) {
+                deltaX = xSize;
+                deltaY = 0;
+            }
+            else {
+                deltaX = 0;
+                deltaY = ySize;
+            }
+            while (dx1 < dx2 && dy1 < dy2) {
+                int newDX2 = Math.min(dx2, dx1 + xSize);
+                int newDY2 = Math.min(dy2, dy1 + ySize);
+
+                g.drawImage(image, dx1, dy1, newDX2, newDY2,
+                            sx1, sy1, sx1 + newDX2 - dx1,
+                            sy1 + newDY2 - dy1, null);
+                dx1 += deltaX;
+                dy1 += deltaY;
+            }
+        }
+!!!9622939.java!!!	paintArrowButtonBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9623067.java!!!	paintArrowButtonBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9623195.java!!!	paintArrowButtonForeground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int, in direction : int) : void
+        paint(g, x, y, w, h);
+!!!9623323.java!!!	paintButtonBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9623451.java!!!	paintButtonBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9623579.java!!!	paintCheckBoxMenuItemBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9623707.java!!!	paintCheckBoxMenuItemBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9623835.java!!!	paintCheckBoxBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9623963.java!!!	paintCheckBoxBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9624091.java!!!	paintColorChooserBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9624219.java!!!	paintColorChooserBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9624347.java!!!	paintComboBoxBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9624475.java!!!	paintComboBoxBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9624603.java!!!	paintDesktopIconBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9624731.java!!!	paintDesktopIconBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9624859.java!!!	paintDesktopPaneBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9624987.java!!!	paintDesktopPaneBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9625115.java!!!	paintEditorPaneBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9625243.java!!!	paintEditorPaneBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9625371.java!!!	paintFileChooserBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9625499.java!!!	paintFileChooserBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9625627.java!!!	paintFormattedTextFieldBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9625755.java!!!	paintFormattedTextFieldBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9625883.java!!!	paintInternalFrameTitlePaneBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9626011.java!!!	paintInternalFrameTitlePaneBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9626139.java!!!	paintInternalFrameBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9626267.java!!!	paintInternalFrameBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9626395.java!!!	paintLabelBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9626523.java!!!	paintLabelBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9626651.java!!!	paintListBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9626779.java!!!	paintListBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9626907.java!!!	paintMenuBarBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9627035.java!!!	paintMenuBarBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9627163.java!!!	paintMenuItemBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9627291.java!!!	paintMenuItemBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9627419.java!!!	paintMenuBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9627547.java!!!	paintMenuBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9627675.java!!!	paintOptionPaneBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9627803.java!!!	paintOptionPaneBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9627931.java!!!	paintPanelBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9628059.java!!!	paintPanelBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9628187.java!!!	paintPasswordFieldBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9628315.java!!!	paintPasswordFieldBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9628443.java!!!	paintPopupMenuBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9628571.java!!!	paintPopupMenuBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9628699.java!!!	paintProgressBarBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9628827.java!!!	paintProgressBarBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9628955.java!!!	paintProgressBarForeground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int, in orientation : int) : void
+        paint(g, x, y, w, h);
+!!!9629083.java!!!	paintRadioButtonMenuItemBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9629211.java!!!	paintRadioButtonMenuItemBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9629339.java!!!	paintRadioButtonBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9629467.java!!!	paintRadioButtonBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9629595.java!!!	paintRootPaneBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9629723.java!!!	paintRootPaneBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9629851.java!!!	paintScrollBarBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9629979.java!!!	paintScrollBarBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9630107.java!!!	paintScrollBarThumbBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int, in orientation : int) : void
+        paint(g, x, y, w, h);
+!!!9630235.java!!!	paintScrollBarThumbBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int, in orientation : int) : void
+        paint(g, x, y, w, h);
+!!!9630363.java!!!	paintScrollBarTrackBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9630491.java!!!	paintScrollBarTrackBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9630619.java!!!	paintScrollPaneBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9630747.java!!!	paintScrollPaneBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9630875.java!!!	paintSeparatorBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9631003.java!!!	paintSeparatorBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9631131.java!!!	paintSeparatorForeground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int, in orientation : int) : void
+        paint(g, x, y, w, h);
+!!!9631259.java!!!	paintSliderBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9631387.java!!!	paintSliderBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9631515.java!!!	paintSliderThumbBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int, in orientation : int) : void
+        paint(g, x, y, w, h);
+!!!9631643.java!!!	paintSliderThumbBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int, in orientation : int) : void
+        paint(g, x, y, w, h);
+!!!9631771.java!!!	paintSliderTrackBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9631899.java!!!	paintSliderTrackBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9632027.java!!!	paintSpinnerBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9632155.java!!!	paintSpinnerBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9632283.java!!!	paintSplitPaneDividerBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9632411.java!!!	paintSplitPaneDividerForeground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int, in orientation : int) : void
+        paint(g, x, y, w, h);
+!!!9632539.java!!!	paintSplitPaneDragDivider(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int, in orientation : int) : void
+        paint(g, x, y, w, h);
+!!!9632667.java!!!	paintSplitPaneBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9632795.java!!!	paintSplitPaneBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9632923.java!!!	paintTabbedPaneBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9633051.java!!!	paintTabbedPaneBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9633179.java!!!	paintTabbedPaneTabAreaBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9633307.java!!!	paintTabbedPaneTabAreaBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9633435.java!!!	paintTabbedPaneTabBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int, in tabIndex : int) : void
+        paint(g, x, y, w, h);
+!!!9633563.java!!!	paintTabbedPaneTabBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int, in tabIndex : int) : void
+        paint(g, x, y, w, h);
+!!!9633691.java!!!	paintTabbedPaneContentBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9633819.java!!!	paintTabbedPaneContentBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9633947.java!!!	paintTableHeaderBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9634075.java!!!	paintTableHeaderBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9634203.java!!!	paintTableBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9634331.java!!!	paintTableBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9634459.java!!!	paintTextAreaBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9634587.java!!!	paintTextAreaBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9634715.java!!!	paintTextPaneBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9634843.java!!!	paintTextPaneBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9634971.java!!!	paintTextFieldBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9635099.java!!!	paintTextFieldBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9635227.java!!!	paintToggleButtonBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9635355.java!!!	paintToggleButtonBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9635483.java!!!	paintToolBarBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9635611.java!!!	paintToolBarBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9635739.java!!!	paintToolBarContentBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9635867.java!!!	paintToolBarContentBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9635995.java!!!	paintToolBarDragWindowBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9636123.java!!!	paintToolBarDragWindowBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9636251.java!!!	paintToolTipBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9636379.java!!!	paintToolTipBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9636507.java!!!	paintTreeBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9636635.java!!!	paintTreeBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9636763.java!!!	paintTreeCellBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9636891.java!!!	paintTreeCellBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9637019.java!!!	paintTreeCellFocus(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9637147.java!!!	paintViewportBackground(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);
+!!!9637275.java!!!	paintViewportBorder(inout context : SynthContext, inout g : Graphics, in x : int, in y : int, in w : int, in h : int) : void
+        paint(g, x, y, w, h);

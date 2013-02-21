@@ -1,0 +1,59 @@
+class JDesktopIcon
+!!!8981019.java!!!	JDesktopIcon(inout f : JInternalFrame)
+	    setVisible(false);
+            setInternalFrame(f);
+            updateUI();
+!!!8981147.java!!!	getUI() : DesktopIconUI
+            return (DesktopIconUI)ui;
+!!!8981275.java!!!	setUI(inout ui : DesktopIconUI) : void
+            super.setUI(ui);
+!!!8981403.java!!!	getInternalFrame() : JInternalFrame
+            return internalFrame;
+!!!8981531.java!!!	setInternalFrame(inout f : JInternalFrame) : void
+            internalFrame = f;
+!!!8981659.java!!!	getDesktopPane() : JDesktopPane
+            if(getInternalFrame() != null)
+                return getInternalFrame().getDesktopPane();
+            return null;
+!!!8981787.java!!!	updateUI() : void
+            boolean hadUI = (ui != null);
+            setUI((DesktopIconUI)UIManager.getUI(this));
+            invalidate();
+
+            Dimension r = getPreferredSize();
+            setSize(r.width, r.height);
+            
+
+            if (internalFrame != null && internalFrame.getUI() != null) {  // don't do this if UI not created yet
+                SwingUtilities.updateComponentTreeUI(internalFrame);
+            }
+!!!8981915.java!!!	updateUIWhenHidden() : void
+            /* Update this UI and any associated internal frame */
+            setUI((DesktopIconUI)UIManager.getUI(this));
+
+            Dimension r = getPreferredSize();
+            setSize(r.width, r.height);
+            
+            invalidate();
+            Component[] children = getComponents();
+            if (children != null) {
+                for(int i = 0; i < children.length; i++) {
+                    SwingUtilities.updateComponentTreeUI(children[i]);
+                }
+            }
+!!!8982043.java!!!	getUIClassID() : String
+            return "DesktopIconUI";
+!!!8982171.java!!!	writeObject(inout s : ObjectOutputStream) : void
+            s.defaultWriteObject();
+            if (getUIClassID().equals("DesktopIconUI")) {
+                byte count = JComponent.getWriteObjCounter(this);
+                JComponent.setWriteObjCounter(this, --count);
+                if (count == 0 && ui != null) {
+                    ui.installUI(this);
+                }
+            }
+!!!8982299.java!!!	getAccessibleContext() : AccessibleContext
+            if (accessibleContext == null) {
+                accessibleContext = new AccessibleJDesktopIcon();
+            }
+            return accessibleContext;

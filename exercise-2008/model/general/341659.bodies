@@ -1,0 +1,146 @@
+class ImageTypeSpecifier
+!!!8181403.java!!!	ImageTypeSpecifier(inout colorModel : ColorModel, inout sampleModel : SampleModel)
+        if (colorModel == null) {
+            throw new IllegalArgumentException("colorModel == null!");
+        }
+        if (sampleModel == null) {
+            throw new IllegalArgumentException("sampleModel == null!");
+        }
+        if (!colorModel.isCompatibleSampleModel(sampleModel)) {
+            throw new IllegalArgumentException
+                ("sampleModel is incompatible with colorModel!");
+        }
+        this.colorModel = colorModel;
+        this.sampleModel = sampleModel;
+!!!8181531.java!!!	ImageTypeSpecifier(inout image : RenderedImage)
+        if (image == null) {
+            throw new IllegalArgumentException("image == null!");
+        }
+        colorModel = image.getColorModel();
+        sampleModel = image.getSampleModel();
+!!!8181787.java!!!	createPacked(inout colorSpace : ColorSpace, in redMask : int, in greenMask : int, in blueMask : int, in alphaMask : int, in transferType : int, inout isAlphaPremultiplied : boolean) : ImageTypeSpecifier
+        return new ImageTypeSpecifier.Packed(colorSpace,
+                                             redMask,
+                                             greenMask,
+                                             blueMask,
+                                             alphaMask, // 0 if no alpha
+                                             transferType,
+                                             isAlphaPremultiplied);
+!!!8181915.java!!!	createComponentCM(inout colorSpace : ColorSpace, in numBands : int, in dataType : int, inout hasAlpha : boolean, inout isAlphaPremultiplied : boolean) : ColorModel
+        int transparency =
+            hasAlpha ? Transparency.TRANSLUCENT : Transparency.OPAQUE;
+        
+        int[] numBits = new int[numBands];
+        int bits = DataBuffer.getDataTypeSize(dataType);
+
+        for (int i = 0; i < numBands; i++) {
+            numBits[i] = bits;
+        }
+        
+        return new ComponentColorModel(colorSpace,
+                                       numBits,
+                                       hasAlpha,
+                                       isAlphaPremultiplied,
+                                       transparency,
+                                       dataType);
+!!!8182427.java!!!	createInterleaved(inout colorSpace : ColorSpace, in bandOffsets : int, in dataType : int, inout hasAlpha : boolean, inout isAlphaPremultiplied : boolean) : ImageTypeSpecifier
+        return new ImageTypeSpecifier.Interleaved(colorSpace,
+                                                  bandOffsets,
+                                                  dataType,
+                                                  hasAlpha,
+                                                  isAlphaPremultiplied);
+!!!8182939.java!!!	createBanded(inout colorSpace : ColorSpace, in bankIndices : int, in bandOffsets : int, in dataType : int, inout hasAlpha : boolean, inout isAlphaPremultiplied : boolean) : ImageTypeSpecifier
+        return new ImageTypeSpecifier.Banded(colorSpace,
+                                             bankIndices,
+                                             bandOffsets,
+                                             dataType,
+                                             hasAlpha,
+                                             isAlphaPremultiplied);
+!!!8183195.java!!!	createGrayscale(in bits : int, in dataType : int, inout isSigned : boolean) : ImageTypeSpecifier
+        return new ImageTypeSpecifier.Grayscale(bits,
+                                                dataType,
+                                                isSigned,
+                                                false,
+                                                false);
+!!!8183323.java!!!	createGrayscale(in bits : int, in dataType : int, inout isSigned : boolean, inout isAlphaPremultiplied : boolean) : ImageTypeSpecifier
+        return new ImageTypeSpecifier.Grayscale(bits,
+                                                dataType,
+                                                isSigned,
+                                                true,
+                                                isAlphaPremultiplied);
+!!!8183579.java!!!	createIndexed(in redLUT : byte, in greenLUT : byte, in blueLUT : byte, in alphaLUT : byte, in bits : int, in dataType : int) : ImageTypeSpecifier
+        return new ImageTypeSpecifier.Indexed(redLUT,
+                                              greenLUT,
+                                              blueLUT,
+                                              alphaLUT,
+                                              bits,
+                                              dataType);
+!!!8183707.java!!!	createFromBufferedImageType(in bufferedImageType : int) : ImageTypeSpecifier
+        if (bufferedImageType >= BufferedImage.TYPE_INT_RGB &&
+            bufferedImageType <= BufferedImage.TYPE_BYTE_INDEXED) {
+            return BISpecifier[bufferedImageType];
+        } else if (bufferedImageType == BufferedImage.TYPE_CUSTOM) {
+            throw new IllegalArgumentException("Cannot create from TYPE_CUSTOM!");
+        } else {
+            throw new IllegalArgumentException("Invalid BufferedImage type!");
+        }
+!!!8183835.java!!!	createFromRenderedImage(inout image : RenderedImage) : ImageTypeSpecifier
+        if (image == null) {
+            throw new IllegalArgumentException("image == null!");
+        }
+
+        if (image instanceof BufferedImage) {
+            int bufferedImageType = ((BufferedImage)image).getType();
+            if (bufferedImageType != BufferedImage.TYPE_CUSTOM) {
+                return BISpecifier[bufferedImageType];
+            }
+        }
+        
+        return new ImageTypeSpecifier(image);
+!!!8183963.java!!!	getBufferedImageType() : int
+        BufferedImage bi = createBufferedImage(1, 1);
+        return bi.getType();
+!!!8184091.java!!!	getNumComponents() : int
+        return colorModel.getNumComponents();
+!!!8184219.java!!!	getNumBands() : int
+        return sampleModel.getNumBands();
+!!!8184347.java!!!	getBitsPerBand(in band : int) : int
+        if (band < 0 | band >= getNumBands()) {
+            throw new IllegalArgumentException("band out of range!");
+        }
+        return sampleModel.getSampleSize(band);
+!!!8184475.java!!!	getSampleModel() : SampleModel
+        return sampleModel;
+!!!8184603.java!!!	getSampleModel(in width : int, in height : int) : SampleModel
+        if ((long)width*height > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException
+                ("width*height > Integer.MAX_VALUE!");
+        }
+        return sampleModel.createCompatibleSampleModel(width, height);
+!!!8184731.java!!!	getColorModel() : ColorModel
+        return colorModel;
+!!!8184859.java!!!	createBufferedImage(in width : int, in height : int) : BufferedImage
+ 
+        try {
+            SampleModel sampleModel = getSampleModel(width, height);
+            WritableRaster raster =
+                Raster.createWritableRaster(sampleModel,
+                                            new Point(0, 0));
+            return new BufferedImage(colorModel, raster,
+                                     colorModel.isAlphaPremultiplied(),
+                                     new Hashtable());
+        } catch (NegativeArraySizeException e) {
+            // Exception most likely thrown from a DataBuffer constructor
+            throw new IllegalArgumentException
+                ("Array size > Integer.MAX_VALUE!");
+        }
+!!!8184987.java!!!	equals(inout o : Object) : boolean
+        if ((o == null) || !(o instanceof ImageTypeSpecifier)) {
+            return false;
+        }
+
+        ImageTypeSpecifier that = (ImageTypeSpecifier)o;
+        return (colorModel.equals(that.colorModel)) &&
+            (sampleModel.equals(that.sampleModel));
+!!!8185115.java!!!	hashCode() : int
+        return (9 * colorModel.hashCode()) + (14 * sampleModel.hashCode());

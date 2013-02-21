@@ -1,0 +1,411 @@
+class SyntaxTreeNode
+!!!4338971.java!!!	SyntaxTreeNode()
+	_line = 0;
+	_qname = null;
+!!!4339099.java!!!	SyntaxTreeNode(in line : int)
+	_line = line;
+	_qname = null;
+!!!4339227.java!!!	SyntaxTreeNode(in uri : String, in prefix : String, in local : String)
+	_line = 0;
+	setQName(uri, prefix, local);
+!!!4339355.java!!!	setLineNumber(in line : int) : void
+	_line = line;
+!!!4339483.java!!!	getLineNumber() : int
+        if (_line > 0) return _line;
+        SyntaxTreeNode parent = getParent();
+        return (parent != null) ? parent.getLineNumber() : 0;
+!!!4339611.java!!!	setQName(inout qname : QName) : void
+	_qname = qname;
+!!!4339739.java!!!	setQName(in uri : String, in prefix : String, in localname : String) : void
+	_qname = new QName(uri, prefix, localname);
+!!!4339867.java!!!	getQName() : QName
+	return(_qname);
+!!!4339995.java!!!	setAttributes(inout attributes : AttributeList) : void
+	_attributes = attributes;
+!!!4340123.java!!!	getAttribute(in qname : String) : String
+	if (_attributes == null) {
+	    return EMPTYSTRING;
+	}
+	final String value = _attributes.getValue(qname);
+	return (value == null || value.equals(EMPTYSTRING)) ? 
+	    EMPTYSTRING : value;
+!!!4340251.java!!!	getAttribute(in prefix : String, in localName : String) : String
+        return getAttribute(prefix + ':' + localName);
+!!!4340379.java!!!	hasAttribute(in qname : String) : boolean
+	return (_attributes != null && _attributes.getValue(qname) != null);
+!!!4340507.java!!!	addAttribute(in qname : String, in value : String) : void
+        _attributes.add(qname, value);
+!!!4340635.java!!!	getAttributes() : Attributes
+	return(_attributes);
+!!!4340763.java!!!	setPrefixMapping(inout mapping : Hashtable) : void
+	_prefixMapping = mapping;
+!!!4340891.java!!!	getPrefixMapping() : Hashtable
+	return _prefixMapping;
+!!!4341019.java!!!	addPrefixMapping(in prefix : String, in uri : String) : void
+	if (_prefixMapping == null)
+	    _prefixMapping = new Hashtable();
+	_prefixMapping.put(prefix, uri);
+!!!4341147.java!!!	lookupNamespace(in prefix : String) : String
+	// Initialise the output (default is 'null' for undefined)
+	String uri = null;
+
+	// First look up the prefix/uri mapping in our own hashtable...
+	if (_prefixMapping != null)
+	    uri = (String)_prefixMapping.get(prefix);
+	// ... but if we can't find it there we ask our parent for the mapping
+	if ((uri == null) && (_parent != null)) {
+	    uri = _parent.lookupNamespace(prefix);
+	    if ((prefix == Constants.EMPTYSTRING) && (uri == null))
+		uri = Constants.EMPTYSTRING;
+	}
+	// ... and then we return whatever URI we've got.
+	return(uri);
+!!!4341275.java!!!	lookupPrefix(in uri : String) : String
+	// Initialise the output (default is 'null' for undefined)
+	String prefix = null;
+
+	// First look up the prefix/uri mapping in our own hashtable...
+	if ((_prefixMapping != null) &&
+	    (_prefixMapping.contains(uri))) {
+	    Enumeration prefixes = _prefixMapping.keys();
+	    while (prefixes.hasMoreElements()) {
+		prefix = (String)prefixes.nextElement();
+		String mapsTo = (String)_prefixMapping.get(prefix);
+		if (mapsTo.equals(uri)) return(prefix);
+	    }
+	}
+	// ... but if we can't find it there we ask our parent for the mapping
+	else if (_parent != null) {
+	    prefix = _parent.lookupPrefix(uri);
+	    if ((uri == Constants.EMPTYSTRING) && (prefix == null))
+		prefix = Constants.EMPTYSTRING;
+	}
+	return(prefix);
+!!!4341403.java!!!	setParser(inout parser : Parser) : void
+	_parser = parser;
+!!!4341531.java!!!	getParser() : Parser
+	return _parser;
+!!!4341659.java!!!	setParent(inout parent : SyntaxTreeNode) : void
+	if (_parent == null)
+	    _parent = parent;
+!!!4341787.java!!!	getParent() : SyntaxTreeNode
+	return _parent;
+!!!4341915.java!!!	isDummy() : boolean
+        return this == Dummy;
+!!!4342043.java!!!	getImportPrecedence() : int
+	Stylesheet stylesheet = getStylesheet();
+	if (stylesheet == null) return Integer.MIN_VALUE;
+	return stylesheet.getImportPrecedence();
+!!!4342171.java!!!	getStylesheet() : Stylesheet
+	if (_stylesheet == null) {
+	    SyntaxTreeNode parent = this;
+	    while (parent != null) {
+		if (parent instanceof Stylesheet)
+		    return((Stylesheet)parent);
+		parent = parent.getParent();
+	    }
+	    _stylesheet = (Stylesheet)parent;
+	}
+	return(_stylesheet);
+!!!4342299.java!!!	getTemplate() : Template
+	if (_template == null) {
+	    SyntaxTreeNode parent = this;
+	    while ((parent != null) && (!(parent instanceof Template)))
+		parent = parent.getParent();
+	    _template = (Template)parent;
+	}
+	return(_template);
+!!!4342427.java!!!	getXSLTC() : XSLTC
+	return _parser.getXSLTC();
+!!!4342555.java!!!	getSymbolTable() : SymbolTable
+	return (_parser == null) ? null : _parser.getSymbolTable();
+!!!4342683.java!!!	parseContents(inout parser : Parser) : void
+	parseChildren(parser);
+!!!4342811.java!!!	parseChildren(inout parser : Parser) : void
+
+	Vector locals = null;	// only create when needed
+	
+	final int count = _contents.size();
+	for (int i=0; i<count; i++) {
+	    SyntaxTreeNode child = (SyntaxTreeNode)_contents.elementAt(i);
+	    parser.getSymbolTable().setCurrentNode(child);
+	    child.parseContents(parser);
+	    // if variable or parameter, add it to scope
+	    final QName varOrParamName = updateScope(parser, child);
+	    if (varOrParamName != null) {
+		if (locals == null) {
+		    locals = new Vector(2);
+		}
+		locals.addElement(varOrParamName);
+	    }
+	}
+
+	parser.getSymbolTable().setCurrentNode(this);
+
+	// after the last element, remove any locals from scope
+	if (locals != null) {
+	    final int nLocals = locals.size();
+	    for (int i = 0; i < nLocals; i++) {
+		parser.removeVariable((QName)locals.elementAt(i));
+	    }
+	}
+!!!4342939.java!!!	updateScope(inout parser : Parser, inout node : SyntaxTreeNode) : QName
+	if (node instanceof Variable) {
+	    final Variable var = (Variable)node;
+	    parser.addVariable(var);
+	    return var.getName();
+	}
+	else if (node instanceof Param) {
+	    final Param param = (Param)node;
+	    parser.addParameter(param);
+	    return param.getName();
+	}
+	else {
+	    return null;
+	}
+!!!4343195.java!!!	typeCheckContents(inout stable : SymbolTable) : Type
+	final int n = elementCount();
+	for (int i = 0; i < n; i++) {
+	    SyntaxTreeNode item = (SyntaxTreeNode)_contents.elementAt(i);
+	    item.typeCheck(stable);
+	}
+	return Type.Void;
+!!!4343451.java!!!	translateContents(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	// Call translate() on all child nodes
+	final int n = elementCount();
+	for (int i = 0; i < n; i++) {
+	    final SyntaxTreeNode item = (SyntaxTreeNode)_contents.elementAt(i);
+	    item.translate(classGen, methodGen);
+	}
+
+	// After translation, unmap any registers for any variables/parameters
+	// that were declared in this scope. Performing this unmapping in the
+	// same AST scope as the declaration deals with the problems of
+	// references falling out-of-scope inside the for-each element.
+	// (the cause of which being 'lazy' register allocation for references)
+	for (int i = 0; i < n; i++) {
+	    if( _contents.elementAt(i) instanceof VariableBase) {
+		final VariableBase var = (VariableBase)_contents.elementAt(i);
+		var.unmapRegister(methodGen);
+	    }
+	}
+!!!4343579.java!!!	isSimpleRTF(inout node : SyntaxTreeNode) : boolean
+        
+        Vector contents = node.getContents();
+        for (int i = 0; i < contents.size(); i++) {
+            SyntaxTreeNode item = (SyntaxTreeNode)contents.elementAt(i);
+            if (!isTextElement(item, false))
+                return false;
+        }
+        
+        return true;
+!!!4343707.java!!!	isAdaptiveRTF(inout node : SyntaxTreeNode) : boolean
+        
+        Vector contents = node.getContents();
+        for (int i = 0; i < contents.size(); i++) {
+            SyntaxTreeNode item = (SyntaxTreeNode)contents.elementAt(i);
+            if (!isTextElement(item, true))
+                return false;
+        }
+        
+        return true;
+!!!4343835.java!!!	isTextElement(inout node : SyntaxTreeNode, inout doExtendedCheck : boolean) : boolean
+        if (node instanceof ValueOf || node instanceof Number
+            || node instanceof Text)
+        {
+            return true;
+        }
+        else if (node instanceof If) {
+            return doExtendedCheck ? isAdaptiveRTF(node) : isSimpleRTF(node);
+        }
+        else if (node instanceof Choose) {
+            Vector contents = node.getContents();
+            for (int i = 0; i < contents.size(); i++) {
+                SyntaxTreeNode item = (SyntaxTreeNode)contents.elementAt(i);
+                if (item instanceof Text || 
+                     ((item instanceof When || item instanceof Otherwise)
+                     && ((doExtendedCheck && isAdaptiveRTF(item))
+                         || (!doExtendedCheck && isSimpleRTF(item)))))
+                    continue;
+                else
+                    return false;
+            }
+            return true;
+        }
+        else if (doExtendedCheck && 
+                  (node instanceof CallTemplate
+                   || node instanceof ApplyTemplates))
+            return true;
+        else
+            return false;
+!!!4343963.java!!!	compileResultTree(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	final ConstantPoolGen cpg = classGen.getConstantPool();
+	final InstructionList il = methodGen.getInstructionList();
+	final Stylesheet stylesheet = classGen.getStylesheet();
+
+	boolean isSimple = isSimpleRTF(this);
+	boolean isAdaptive = false;
+	if (!isSimple) {
+	    isAdaptive = isAdaptiveRTF(this);
+	}
+	
+	int rtfType = isSimple ? DOM.SIMPLE_RTF
+	                       : (isAdaptive ? DOM.ADAPTIVE_RTF : DOM.TREE_RTF);
+	
+	// Save the current handler base on the stack
+	il.append(methodGen.loadHandler());
+
+	final String DOM_CLASS = classGen.getDOMClass();
+
+	// Create new instance of DOM class (with RTF_INITIAL_SIZE nodes)
+	//int index = cpg.addMethodref(DOM_IMPL, "<init>", "(I)V");
+	//il.append(new NEW(cpg.addClass(DOM_IMPL)));
+	
+	il.append(methodGen.loadDOM());
+	int index = cpg.addInterfaceMethodref(DOM_INTF,
+				 "getResultTreeFrag",
+				 "(IIZ)" + DOM_INTF_SIG);
+	il.append(new PUSH(cpg, RTF_INITIAL_SIZE));
+	il.append(new PUSH(cpg, rtfType));
+	il.append(new PUSH(cpg, stylesheet.callsNodeset()));
+	il.append(new INVOKEINTERFACE(index,4));
+	
+	il.append(DUP);
+
+	// Overwrite old handler with DOM handler
+	index = cpg.addInterfaceMethodref(DOM_INTF,
+				 "getOutputDomBuilder",
+				 "()" + TRANSLET_OUTPUT_SIG);
+
+	il.append(new INVOKEINTERFACE(index,1));
+	il.append(DUP);
+	il.append(methodGen.storeHandler());
+
+	// Call startDocument on the new handler
+	il.append(methodGen.startDocument());
+
+	// Instantiate result tree fragment
+	translateContents(classGen, methodGen);
+
+	// Call endDocument on the new handler
+	il.append(methodGen.loadHandler());
+	il.append(methodGen.endDocument());
+
+	// Check if we need to wrap the DOMImpl object in a DOMAdapter object.
+	// DOMAdapter is not needed if the RTF is a simple RTF and the nodeset()
+	// function is not used.
+	if (stylesheet.callsNodeset()
+	    && !DOM_CLASS.equals(DOM_IMPL_CLASS)) {
+	    // new com.sun.org.apache.xalan.internal.xsltc.dom.DOMAdapter(DOMImpl,String[]);
+	    index = cpg.addMethodref(DOM_ADAPTER_CLASS,
+				     "<init>",
+				     "("+DOM_INTF_SIG+
+				     "["+STRING_SIG+
+				     "["+STRING_SIG+
+				     "[I"+
+				     "["+STRING_SIG+")V");
+	    il.append(new NEW(cpg.addClass(DOM_ADAPTER_CLASS)));
+	    il.append(new DUP_X1());
+	    il.append(SWAP);
+
+	    /*
+	     * Give the DOM adapter an empty type mapping if the nodeset
+	     * extension function is never called.
+	     */
+	    if (!stylesheet.callsNodeset()) {
+		il.append(new ICONST(0));
+		il.append(new ANEWARRAY(cpg.addClass(STRING)));
+		il.append(DUP);
+		il.append(DUP);
+		il.append(new ICONST(0));
+		il.append(new NEWARRAY(BasicType.INT));
+		il.append(SWAP);
+		il.append(new INVOKESPECIAL(index));
+	    }
+	    else {
+		// Push name arrays on the stack
+		il.append(ALOAD_0);
+		il.append(new GETFIELD(cpg.addFieldref(TRANSLET_CLASS,
+					   NAMES_INDEX,
+					   NAMES_INDEX_SIG))); 
+		il.append(ALOAD_0);
+		il.append(new GETFIELD(cpg.addFieldref(TRANSLET_CLASS,
+					   URIS_INDEX,
+					   URIS_INDEX_SIG))); 
+		il.append(ALOAD_0);
+		il.append(new GETFIELD(cpg.addFieldref(TRANSLET_CLASS,
+					   TYPES_INDEX,
+					   TYPES_INDEX_SIG))); 
+		il.append(ALOAD_0);
+		il.append(new GETFIELD(cpg.addFieldref(TRANSLET_CLASS,
+					   NAMESPACE_INDEX,
+					   NAMESPACE_INDEX_SIG)));
+
+		// Initialized DOM adapter
+		il.append(new INVOKESPECIAL(index));
+
+		// Add DOM adapter to MultiDOM class by calling addDOMAdapter()
+		il.append(DUP);
+		il.append(methodGen.loadDOM());
+		il.append(new CHECKCAST(cpg.addClass(classGen.getDOMClass())));
+		il.append(SWAP);
+		index = cpg.addMethodref(MULTI_DOM_CLASS,
+					 "addDOMAdapter",
+					 "(" + DOM_ADAPTER_SIG + ")I");
+		il.append(new INVOKEVIRTUAL(index));
+		il.append(POP);		// ignore mask returned by addDOMAdapter
+	    }
+	}
+
+	// Restore old handler base from stack
+	il.append(SWAP);
+	il.append(methodGen.storeHandler());
+!!!4344091.java!!!	contextDependent() : boolean
+	return true;
+!!!4344219.java!!!	dependentContents() : boolean
+	final int n = elementCount();
+	for (int i = 0; i < n; i++) {
+	    final SyntaxTreeNode item = (SyntaxTreeNode)_contents.elementAt(i);
+	    if (item.contextDependent()) {
+		return true;
+	    }
+	}
+	return false;
+!!!4344347.java!!!	addElement(inout element : SyntaxTreeNode) : void
+	_contents.addElement(element);
+	element.setParent(this);
+!!!4344475.java!!!	setFirstElement(inout element : SyntaxTreeNode) : void
+	_contents.insertElementAt(element,0);
+	element.setParent(this);
+!!!4344603.java!!!	removeElement(inout element : SyntaxTreeNode) : void
+	_contents.remove(element);
+	element.setParent(null);
+!!!4344731.java!!!	getContents() : Vector
+	return _contents;
+!!!4344859.java!!!	hasContents() : boolean
+	return elementCount() > 0;
+!!!4344987.java!!!	elementCount() : int
+	return _contents.size();
+!!!4345115.java!!!	elements() : Enumeration
+	return _contents.elements();
+!!!4345243.java!!!	elementAt(in pos : int) : Object
+	return _contents.elementAt(pos);
+!!!4345371.java!!!	lastChild() : SyntaxTreeNode
+	if (_contents.size() == 0) return null;
+	return (SyntaxTreeNode)_contents.lastElement();
+!!!4345499.java!!!	display(in indent : int) : void
+	displayContents(indent);
+!!!4345627.java!!!	displayContents(in indent : int) : void
+	final int n = elementCount();
+	for (int i = 0; i < n; i++) {
+	    SyntaxTreeNode item = (SyntaxTreeNode)_contents.elementAt(i);
+	    item.display(indent);
+	}
+!!!4345755.java!!!	indent(in indent : int) : void
+	System.out.print(new String(_spaces, 0, indent));
+!!!4345883.java!!!	reportError(inout element : SyntaxTreeNode, inout parser : Parser, in errorCode : String, in message : String) : void
+	final ErrorMsg error = new ErrorMsg(errorCode, message, element);
+        parser.reportError(Constants.ERROR, error);
+!!!4346011.java!!!	reportWarning(inout element : SyntaxTreeNode, inout parser : Parser, in errorCode : String, in message : String) : void
+	final ErrorMsg error = new ErrorMsg(errorCode, message, element);
+        parser.reportError(Constants.WARNING, error);

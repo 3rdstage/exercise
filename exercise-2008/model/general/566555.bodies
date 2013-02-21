@@ -1,0 +1,275 @@
+class JavaClass
+!!!3640475.java!!!	JavaClass(in class_name_index : int, in superclass_name_index : int, in file_name : String, in major : int, in minor : int, in access_flags : int, inout constant_pool : ConstantPool, in interfaces : int, inout fields : Field, inout methods : Method, inout attributes : Attribute, in source : byte)
+    if(interfaces == null) // Allowed for backward compatibility
+      interfaces = new int[0];
+    if(attributes == null)
+      this.attributes = new Attribute[0];
+    if(fields == null)
+      fields = new Field[0];
+    if(methods == null)
+      methods = new Method[0];
+
+    this.class_name_index      = class_name_index;
+    this.superclass_name_index = superclass_name_index;
+    this.file_name             = file_name;
+    this.major                 = major;
+    this.minor                 = minor;
+    this.access_flags          = access_flags;
+    this.constant_pool         = constant_pool;
+    this.interfaces            = interfaces;
+    this.fields                = fields;
+    this.methods               = methods;
+    this.attributes            = attributes;
+    this.source                = source;
+
+    // Get source file name if available
+    for(int i=0; i < attributes.length; i++) {
+      if(attributes[i] instanceof SourceFile) {
+	source_file_name = ((SourceFile)attributes[i]).getSourceFileName();
+	break;
+      }
+    }
+	
+    // Get class name and superclass name
+    ConstantUtf8  name;
+
+    /* According to the specification the following entries must be of type
+     * `ConstantClass' but we check that anyway via the 
+     * `ConstPool.getConstant' method.
+     */
+    class_name = constant_pool.getConstantString(class_name_index, 
+						 Constants.CONSTANT_Class);
+    class_name = Utility.compactClassName(class_name, false);
+
+    int index = class_name.lastIndexOf('.');
+    if(index < 0)
+      package_name = "";
+    else
+      package_name = class_name.substring(0, index);
+
+    if(superclass_name_index > 0) { // May be zero -> class is java.lang.Object
+      superclass_name = constant_pool.getConstantString(superclass_name_index,
+							Constants.CONSTANT_Class);
+      superclass_name = Utility.compactClassName(superclass_name, false);
+    }
+    else
+      superclass_name = "java.lang.Object";    
+
+    interface_names = new String[interfaces.length];
+    for(int i=0; i < interfaces.length; i++) {
+      String str = constant_pool.getConstantString(interfaces[i], Constants.CONSTANT_Class);
+      interface_names[i] = Utility.compactClassName(str, false);
+    }
+!!!3640603.java!!!	JavaClass(in class_name_index : int, in superclass_name_index : int, in file_name : String, in major : int, in minor : int, in access_flags : int, inout constant_pool : ConstantPool, in interfaces : int, inout fields : Field, inout methods : Method, inout attributes : Attribute)
+    this(class_name_index, superclass_name_index, file_name, major, minor, access_flags,
+	 constant_pool, interfaces, fields, methods, attributes, HEAP);
+!!!3640731.java!!!	accept(inout v : Visitor) : void
+    v.visitJavaClass(this);
+!!!3640859.java!!!	Debug(in str : String) : void
+    if(debug)
+      System.out.println(str);
+!!!3640987.java!!!	dump(inout file : File) : void
+    String parent = file.getParent();
+
+    if(parent != null) {
+      File dir = new File(parent);
+      
+      if(dir != null)
+	dir.mkdirs();
+    }
+
+    dump(new DataOutputStream(new FileOutputStream(file)));
+!!!3641115.java!!!	dump(in file_name : String) : void
+    dump(new File(file_name));
+!!!3641243.java!!!	getBytes() : byte
+    ByteArrayOutputStream s  = new ByteArrayOutputStream();
+    DataOutputStream      ds = new DataOutputStream(s);
+
+    try {
+      dump(ds);
+      ds.close();
+    } catch(IOException e) { e.printStackTrace(); }
+
+    return s.toByteArray();
+!!!3641371.java!!!	dump(inout file : OutputStream) : void
+    dump(new DataOutputStream(file));
+!!!3641499.java!!!	dump(inout file : DataOutputStream) : void
+    file.writeInt(0xcafebabe);
+    file.writeShort(minor);
+    file.writeShort(major);
+
+    constant_pool.dump(file);
+	
+    file.writeShort(access_flags);
+    file.writeShort(class_name_index);
+    file.writeShort(superclass_name_index);
+
+    file.writeShort(interfaces.length);
+    for(int i=0; i < interfaces.length; i++)
+      file.writeShort(interfaces[i]);
+
+    file.writeShort(fields.length);
+    for(int i=0; i < fields.length; i++)
+      fields[i].dump(file);
+
+    file.writeShort(methods.length);
+    for(int i=0; i < methods.length; i++)
+      methods[i].dump(file);
+
+    if(attributes != null) {
+      file.writeShort(attributes.length);
+      for(int i=0; i < attributes.length; i++)
+	attributes[i].dump(file);
+    }
+    else
+      file.writeShort(0);
+
+    file.close();
+!!!3641627.java!!!	getAttributes() : Attribute
+ return attributes;
+!!!3641755.java!!!	getClassName() : String
+ return class_name;
+!!!3641883.java!!!	getPackageName() : String
+ return package_name;
+!!!3642011.java!!!	getClassNameIndex() : int
+ return class_name_index;
+!!!3642139.java!!!	getConstantPool() : ConstantPool
+ return constant_pool;
+!!!3642267.java!!!	getFields() : Field
+ return fields;
+!!!3642395.java!!!	getFileName() : String
+ return file_name;
+!!!3642523.java!!!	getInterfaceNames() : String
+ return interface_names;
+!!!3642651.java!!!	getInterfaces() : int
+ return interfaces;
+!!!3642779.java!!!	getMajor() : int
+ return major;
+!!!3642907.java!!!	getMethods() : Method
+ return methods;
+!!!3643035.java!!!	getMinor() : int
+ return minor;
+!!!3643163.java!!!	getSourceFileName() : String
+ return source_file_name;
+!!!3643291.java!!!	getSuperclassName() : String
+ return superclass_name;
+!!!3643419.java!!!	getSuperclassNameIndex() : int
+ return superclass_name_index;
+!!!3643547.java!!!	setAttributes(inout attributes : Attribute) : void
+    this.attributes = attributes;
+!!!3643675.java!!!	setClassName(in class_name : String) : void
+    this.class_name = class_name;
+!!!3643803.java!!!	setClassNameIndex(in class_name_index : int) : void
+    this.class_name_index = class_name_index;
+!!!3643931.java!!!	setConstantPool(inout constant_pool : ConstantPool) : void
+    this.constant_pool = constant_pool;
+!!!3644059.java!!!	setFields(inout fields : Field) : void
+    this.fields = fields;
+!!!3644187.java!!!	setFileName(in file_name : String) : void
+    this.file_name = file_name;
+!!!3644315.java!!!	setInterfaceNames(in interface_names : String) : void
+    this.interface_names = interface_names;
+!!!3644443.java!!!	setInterfaces(in interfaces : int) : void
+    this.interfaces = interfaces;
+!!!3644571.java!!!	setMajor(in major : int) : void
+    this.major = major;
+!!!3644699.java!!!	setMethods(inout methods : Method) : void
+    this.methods = methods;
+!!!3644827.java!!!	setMinor(in minor : int) : void
+    this.minor = minor;
+!!!3644955.java!!!	setSourceFileName(in source_file_name : String) : void
+    this.source_file_name = source_file_name;
+!!!3645083.java!!!	setSuperclassName(in superclass_name : String) : void
+    this.superclass_name = superclass_name;
+!!!3645211.java!!!	setSuperclassNameIndex(in superclass_name_index : int) : void
+    this.superclass_name_index = superclass_name_index;
+!!!3645339.java!!!	toString() : String
+    String access = Utility.accessToString(access_flags, true);
+    access = access.equals("")? "" : (access + " ");
+
+    StringBuffer buf = new StringBuffer(access +
+					Utility.classOrInterface(access_flags) + 
+					" " +
+					class_name + " extends " +
+					Utility.compactClassName(superclass_name,
+								 false) + '\n');
+    int size = interfaces.length;
+
+    if(size > 0) {
+      buf.append("implements\t\t");
+
+      for(int i=0; i < size; i++) {
+	buf.append(interface_names[i]);
+	if(i < size - 1)
+	  buf.append(", ");
+      }
+
+      buf.append('\n');
+    }
+
+    buf.append("filename\t\t" + file_name + '\n');
+    buf.append("compiled from\t\t" + source_file_name + '\n');
+    buf.append("compiler version\t" + major + "." + minor + '\n');
+    buf.append("access flags\t\t" + access_flags + '\n');
+    buf.append("constant pool\t\t" + constant_pool.getLength() + " entries\n");
+    buf.append("ACC_SUPER flag\t\t" + isSuper() + "\n");
+
+    if(attributes.length > 0) {
+      buf.append("\nAttribute(s):\n");
+      for(int i=0; i < attributes.length; i++)
+	buf.append(indent(attributes[i]));
+    }
+
+    if(fields.length > 0) {
+      buf.append("\n" + fields.length + " fields:\n");
+      for(int i=0; i < fields.length; i++)
+	buf.append("\t" + fields[i] + '\n');
+    }
+
+    if(methods.length > 0) {
+      buf.append("\n" + methods.length + " methods:\n");
+      for(int i=0; i < methods.length; i++)
+	buf.append("\t" + methods[i] + '\n');
+    }
+
+    return buf.toString();
+!!!3645467.java!!!	indent(inout obj : Object) : String
+    StringTokenizer tok = new StringTokenizer(obj.toString(), "\n");
+    StringBuffer buf = new StringBuffer();
+
+    while(tok.hasMoreTokens())
+      buf.append("\t" + tok.nextToken() + "\n");
+
+    return buf.toString();
+!!!3645595.java!!!	copy() : JavaClass
+    JavaClass c = null;
+
+    try {
+      c = (JavaClass)clone();
+    } catch(CloneNotSupportedException e) {}
+
+    c.constant_pool   = constant_pool.copy();
+    c.interfaces      = (int[])interfaces.clone();
+    c.interface_names = (String[])interface_names.clone();
+
+    c.fields = new Field[fields.length];
+    for(int i=0; i < fields.length; i++)
+      c.fields[i] = fields[i].copy(c.constant_pool);
+
+    c.methods = new Method[methods.length];
+    for(int i=0; i < methods.length; i++)
+      c.methods[i] = methods[i].copy(c.constant_pool);
+
+    c.attributes = new Attribute[attributes.length];
+    for(int i=0; i < attributes.length; i++)
+      c.attributes[i] = attributes[i].copy(c.constant_pool);
+
+    return c;
+!!!3645723.java!!!	instanceOf(inout super_class : JavaClass) : boolean
+    return Repository.instanceOf(this, super_class);
+!!!3645851.java!!!	isSuper() : boolean
+    return (access_flags & Constants.ACC_SUPER) != 0;
+!!!3645979.java!!!	isClass() : boolean
+    return (access_flags & Constants.ACC_INTERFACE) == 0;
+!!!3646107.java!!!	getSource() : byte
+    return source;

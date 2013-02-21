@@ -1,0 +1,39 @@
+class AlternativePattern
+!!!4352155.java!!!	AlternativePattern(inout left : Pattern, inout right : Pattern)
+	_left = left;
+	_right = right;
+!!!4352283.java!!!	setParser(inout parser : Parser) : void
+	super.setParser(parser);
+	_left.setParser(parser);
+	_right.setParser(parser);
+!!!4352411.java!!!	getLeft() : Pattern
+	return _left;
+!!!4352539.java!!!	getRight() : Pattern
+	return _right;
+!!!4352667.java!!!	typeCheck(inout stable : SymbolTable) : Type
+	_left.typeCheck(stable);
+	_right.typeCheck(stable);
+	return null;
+!!!4352795.java!!!	getPriority() : double
+	double left = _left.getPriority();
+	double right = _right.getPriority();
+	
+	if (left < right)
+	    return(left);
+	else
+	    return(right);
+!!!4352923.java!!!	toString() : String
+	return "alternative(" + _left + ", " + _right + ')';
+!!!4353051.java!!!	translate(inout classGen : ClassGenerator, inout methodGen : MethodGenerator) : void
+	final InstructionList il = methodGen.getInstructionList();
+
+	_left.translate(classGen, methodGen);
+	final InstructionHandle gotot = il.append(new GOTO(null));
+	il.append(methodGen.loadContextNode());
+	_right.translate(classGen, methodGen);
+
+	_left._trueList.backPatch(gotot);
+	_left._falseList.backPatch(gotot.getNext());
+
+	_trueList.append(_right._trueList.add(gotot));
+	_falseList.append(_right._falseList);

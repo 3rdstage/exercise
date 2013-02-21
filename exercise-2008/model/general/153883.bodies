@@ -1,0 +1,287 @@
+class Vector
+!!!362395.java!!!	Vector(in initialCapacity : int, in capacityIncrement : int)
+	super();
+        if (initialCapacity < 0)
+            throw new IllegalArgumentException("Illegal Capacity: "+
+                                               initialCapacity);
+	this.elementData = new Object[initialCapacity];
+	this.capacityIncrement = capacityIncrement;
+!!!362523.java!!!	Vector(in initialCapacity : int)
+	this(initialCapacity, 0);
+!!!362651.java!!!	Vector()
+	this(10);
+!!!362779.java!!!	Vector(inout c : Collection)
+        elementCount = c.size();
+        // 10% for growth
+        elementData = new Object[
+                      (int)Math.min((elementCount*110L)/100,Integer.MAX_VALUE)]; 
+        c.toArray(elementData);
+!!!362907.java!!!	copyInto(inout anArray : Object) : void
+	System.arraycopy(elementData, 0, anArray, 0, elementCount);
+!!!363035.java!!!	trimToSize() : void
+	modCount++;
+	int oldCapacity = elementData.length;
+	if (elementCount < oldCapacity) {
+	    Object oldData[] = elementData;
+	    elementData = new Object[elementCount];
+	    System.arraycopy(oldData, 0, elementData, 0, elementCount);
+	}
+!!!363163.java!!!	ensureCapacity(in minCapacity : int) : void
+	modCount++;
+	ensureCapacityHelper(minCapacity);
+!!!363291.java!!!	ensureCapacityHelper(in minCapacity : int) : void
+	int oldCapacity = elementData.length;
+	if (minCapacity > oldCapacity) {
+	    Object[] oldData = elementData;
+	    int newCapacity = (capacityIncrement > 0) ?
+		(oldCapacity + capacityIncrement) : (oldCapacity * 2);
+    	    if (newCapacity < minCapacity) {
+		newCapacity = minCapacity;
+	    }
+	    elementData = new Object[newCapacity];
+	    System.arraycopy(oldData, 0, elementData, 0, elementCount);
+	}
+!!!363419.java!!!	setSize(in newSize : int) : void
+	modCount++;
+	if (newSize > elementCount) {
+	    ensureCapacityHelper(newSize);
+	} else {
+	    for (int i = newSize ; i < elementCount ; i++) {
+		elementData[i] = null;
+	    }
+	}
+	elementCount = newSize;
+!!!363547.java!!!	capacity() : int
+	return elementData.length;
+!!!363675.java!!!	size() : int
+	return elementCount;
+!!!363803.java!!!	isEmpty() : boolean
+	return elementCount == 0;
+!!!363931.java!!!	elements() : Enumeration
+	return new Enumeration<E>() {
+	    int count = 0;
+
+	    public boolean hasMoreElements() {
+		return count < elementCount;
+	    }
+
+	    public E nextElement() {
+		synchronized (Vector.this) {
+		    if (count < elementCount) {
+			return (E)elementData[count++];
+		    }
+		}
+		throw new NoSuchElementException("Vector Enumeration");
+	    }
+	};
+!!!364059.java!!!	contains(inout elem : Object) : boolean
+	return indexOf(elem, 0) >= 0;
+!!!364187.java!!!	indexOf(inout elem : Object) : int
+	return indexOf(elem, 0);
+!!!364315.java!!!	indexOf(inout elem : Object, in index : int) : int
+	if (elem == null) {
+	    for (int i = index ; i < elementCount ; i++)
+		if (elementData[i]==null)
+		    return i;
+	} else {
+	    for (int i = index ; i < elementCount ; i++)
+		if (elem.equals(elementData[i]))
+		    return i;
+	}
+	return -1;
+!!!364443.java!!!	lastIndexOf(inout elem : Object) : int
+	return lastIndexOf(elem, elementCount-1);
+!!!364571.java!!!	lastIndexOf(inout elem : Object, in index : int) : int
+        if (index >= elementCount)
+            throw new IndexOutOfBoundsException(index + " >= "+ elementCount);
+
+	if (elem == null) {
+	    for (int i = index; i >= 0; i--)
+		if (elementData[i]==null)
+		    return i;
+	} else {
+	    for (int i = index; i >= 0; i--)
+		if (elem.equals(elementData[i]))
+		    return i;
+	}
+	return -1;
+!!!364699.java!!!	elementAt(in index : int) : E
+	if (index >= elementCount) {
+	    throw new ArrayIndexOutOfBoundsException(index + " >= " + elementCount);
+	}
+
+        return (E)elementData[index];
+!!!364827.java!!!	firstElement() : E
+	if (elementCount == 0) {
+	    throw new NoSuchElementException();
+	}
+	return (E)elementData[0];
+!!!364955.java!!!	lastElement() : E
+	if (elementCount == 0) {
+	    throw new NoSuchElementException();
+	}
+	return (E)elementData[elementCount - 1];
+!!!365083.java!!!	setElementAt(inout obj : E, in index : int) : void
+	if (index >= elementCount) {
+	    throw new ArrayIndexOutOfBoundsException(index + " >= " + 
+						     elementCount);
+	}
+	elementData[index] = obj;
+!!!365211.java!!!	removeElementAt(in index : int) : void
+	modCount++;
+	if (index >= elementCount) {
+	    throw new ArrayIndexOutOfBoundsException(index + " >= " + 
+						     elementCount);
+	}
+	else if (index < 0) {
+	    throw new ArrayIndexOutOfBoundsException(index);
+	}
+	int j = elementCount - index - 1;
+	if (j > 0) {
+	    System.arraycopy(elementData, index + 1, elementData, index, j);
+	}
+	elementCount--;
+	elementData[elementCount] = null; /* to let gc do its work */
+!!!365339.java!!!	insertElementAt(inout obj : E, in index : int) : void
+	modCount++;
+	if (index > elementCount) {
+	    throw new ArrayIndexOutOfBoundsException(index
+						     + " > " + elementCount);
+	}
+	ensureCapacityHelper(elementCount + 1);
+	System.arraycopy(elementData, index, elementData, index + 1, elementCount - index);
+	elementData[index] = obj;
+	elementCount++;
+!!!365467.java!!!	addElement(inout obj : E) : void
+	modCount++;
+	ensureCapacityHelper(elementCount + 1);
+	elementData[elementCount++] = obj;
+!!!365595.java!!!	removeElement(inout obj : Object) : boolean
+	modCount++;
+	int i = indexOf(obj);
+	if (i >= 0) {
+	    removeElementAt(i);
+	    return true;
+	}
+	return false;
+!!!365723.java!!!	removeAllElements() : void
+        modCount++;
+	// Let gc do its work
+	for (int i = 0; i < elementCount; i++)
+	    elementData[i] = null;
+
+	elementCount = 0;
+!!!365851.java!!!	clone() : Object
+	try {
+	    Vector<E> v = (Vector<E>) super.clone();
+	    v.elementData = new Object[elementCount];
+	    System.arraycopy(elementData, 0, v.elementData, 0, elementCount);
+	    v.modCount = 0;
+	    return v;
+	} catch (CloneNotSupportedException e) { 
+	    // this shouldn't happen, since we are Cloneable
+	    throw new InternalError();
+	}
+!!!365979.java!!!	toArray() : Object
+	Object[] result = new Object[elementCount];
+	System.arraycopy(elementData, 0, result, 0, elementCount);
+	return result;
+!!!366107.java!!!	toArray(inout a : T) : T
+        if (a.length < elementCount)
+            a = (T[])java.lang.reflect.Array.newInstance(
+                                a.getClass().getComponentType(), elementCount);
+
+	System.arraycopy(elementData, 0, a, 0, elementCount);
+
+        if (a.length > elementCount)
+            a[elementCount] = null;
+
+        return a;
+!!!366235.java!!!	get(in index : int) : E
+	if (index >= elementCount)
+	    throw new ArrayIndexOutOfBoundsException(index);
+
+	return (E)elementData[index];
+!!!366363.java!!!	set(in index : int, inout element : E) : E
+	if (index >= elementCount)
+	    throw new ArrayIndexOutOfBoundsException(index);
+
+	Object oldValue = elementData[index];
+	elementData[index] = element;
+	return (E)oldValue;
+!!!366491.java!!!	add(inout o : E) : boolean
+	modCount++;
+	ensureCapacityHelper(elementCount + 1);
+	elementData[elementCount++] = o;
+        return true;
+!!!366619.java!!!	remove(inout o : Object) : boolean
+        return removeElement(o);
+!!!366747.java!!!	add(in index : int, inout element : E) : void
+        insertElementAt(element, index);
+!!!366875.java!!!	remove(in index : int) : E
+	modCount++;
+	if (index >= elementCount)
+	    throw new ArrayIndexOutOfBoundsException(index);
+	Object oldValue = elementData[index];
+
+	int numMoved = elementCount - index - 1;
+	if (numMoved > 0)
+	    System.arraycopy(elementData, index+1, elementData, index,
+			     numMoved);
+	elementData[--elementCount] = null; // Let gc do its work
+
+	return (E)oldValue;
+!!!367003.java!!!	clear() : void
+        removeAllElements();
+!!!367131.java!!!	containsAll(inout c : Collection) : boolean
+        return super.containsAll(c);
+!!!367259.java!!!	addAll(inout c : Collection) : boolean
+	modCount++;
+        Object[] a = c.toArray();
+        int numNew = a.length;
+	ensureCapacityHelper(elementCount + numNew);
+        System.arraycopy(a, 0, elementData, elementCount, numNew);
+        elementCount += numNew;
+	return numNew != 0;
+!!!367387.java!!!	removeAll(inout c : Collection) : boolean
+        return super.removeAll(c);
+!!!367515.java!!!	retainAll(inout c : Collection) : boolean
+        return super.retainAll(c);
+!!!367643.java!!!	addAll(in index : int, inout c : Collection) : boolean
+	modCount++;
+	if (index < 0 || index > elementCount)
+	    throw new ArrayIndexOutOfBoundsException(index);
+
+        Object[] a = c.toArray();
+	int numNew = a.length;
+	ensureCapacityHelper(elementCount + numNew);
+
+	int numMoved = elementCount - index;
+	if (numMoved > 0)
+	    System.arraycopy(elementData, index, elementData, index + numNew,
+			     numMoved);
+
+        System.arraycopy(a, 0, elementData, index, numNew);
+	elementCount += numNew;
+	return numNew != 0;
+!!!367771.java!!!	equals(inout o : Object) : boolean
+        return super.equals(o);
+!!!367899.java!!!	hashCode() : int
+        return super.hashCode();
+!!!368027.java!!!	toString() : String
+        return super.toString();
+!!!368155.java!!!	subList(in fromIndex : int, in toIndex : int) : List
+        return Collections.synchronizedList(super.subList(fromIndex, toIndex),
+                                            this);
+!!!368283.java!!!	removeRange(in fromIndex : int, in toIndex : int) : void
+	modCount++;
+	int numMoved = elementCount - toIndex;
+        System.arraycopy(elementData, toIndex, elementData, fromIndex,
+                         numMoved);
+
+	// Let gc do its work
+	int newElementCount = elementCount - (toIndex-fromIndex);
+	while (elementCount != newElementCount)
+	    elementData[--elementCount] = null;
+!!!368411.java!!!	writeObject(inout s : java.io.ObjectOutputStream) : void
+	s.defaultWriteObject();

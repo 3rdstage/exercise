@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="Deploy EJB Archive : Order" default="deploy" basedir="." 
+	xmlns:artifact="antlib:org.apache.maven.artifact.ant">
+
+
+	<property name="project.home" value="G:/eclipse-projects/exercise-2008"/>
+	<property name="appl.package" value="thirdstage/exercise/ejb2/case11"/>
+	<property name="jboss.home" value="C:/servers/jboss-4.2.3.GA" />
+	<property name="jboss.server" value="thirdstage" />
+	<artifact:pom id="project.pom" file="${project.home}/pom.xml" />
+	<artifact:dependencies pomRefid="project.pom" pathid="dependency.classpath" />
+
+	<echoproperties />
+	
+	<target name="deploy" depends="deploy-order-bean,deploy-web"/>
+
+	<target name="deploy-order-bean">
+		<javac destdir="${project.home}/target/main">
+			<src>
+				<pathelement path="${project.home}/src/main/java/${appl.package}/order" />
+				<pathelement path="${project.home}/src/main/java/${appl.package}" />
+			</src>
+			<classpath>
+				<path refid="dependency.classpath" />
+			</classpath>
+		</javac>
+
+		<jar destfile="${project.home}/target/Order.jar">
+			<fileset dir="${project.home}/target/main">
+				<include name="${appl.package}/*Value.class" />
+				<include name="${appl.package}/order/*.class" />
+			</fileset>
+			<metainf dir="${project.home}/src/main/resources/${appl.package}/order">
+				<include name="*.xml" />
+			</metainf>
+		</jar>
+
+		<move file="${project.home}/target/Order.jar" 
+			todir="${jboss.home}/server/${jboss.server}/deploy" />
+	</target>
+	
+	<target name="deploy-web">
+		<javac destdir="${project.home}/target/main">
+			<src>
+				<pathelement path="${project.home}/src/main/java/${appl.package}" />
+			</src>
+			<classpath>
+				<path refid="dependency.classpath" />
+			</classpath>
+		</javac>
+		
+		<war destfile="${project.home}/target/order.war">
+			<fileset dir="${project.home}/src/main/resources/${appl.package}">
+				<include name="*.jsp"/>
+			</fileset>
+			<webinf dir="${project.home}/src/main/resources/${appl.package}">
+				<include name="web.xml"/>
+				<include name="context.xml"/>
+				<include name="jboss-web.xml"/>
+				<exclude name="build.xml"/>
+			</webinf>
+			<classes dir="${project.home}/target/main">
+				<include name="${appl.package}/*.class"/>
+				<exclude name="${appl.package}/*Value.class"/>
+			</classes>
+		</war>
+		
+		<move file="${project.home}/target/order.war" 
+			todir="${jboss.home}/server/${jboss.server}/deploy" />			
+	</target>
+	
+
+</project>

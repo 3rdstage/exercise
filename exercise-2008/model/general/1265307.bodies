@@ -1,0 +1,1098 @@
+class XMLTokenizer
+!!!10484891.java!!!	addBlockMarker(inout marker : BlockMarker) : void
+	if(containsTagName(marker.getTagName()))
+		return;
+	fBlockMarkers.add(marker);
+!!!10485019.java!!!	removeBlockMarker(inout marker : BlockMarker) : void
+	fBlockMarkers.remove(marker);
+!!!10485147.java!!!	removeBlockMarker(in tagname : String) : void
+	if (fBlockMarkers != null) {
+		Iterator blocks = fBlockMarkers.iterator();
+		while (blocks.hasNext()) {
+			if (((BlockMarker) blocks.next()).getTagName().equals(tagname))
+				blocks.remove();
+		}
+	}
+!!!10485275.java!!!	isCaseSensitiveBlocking() : boolean
+	return fIsCaseSensitiveBlocking;
+!!!10485403.java!!!	setCaseSensitiveBlocking(inout newValue : boolean) : void
+	fIsCaseSensitiveBlocking = newValue;
+!!!10485531.java!!!	getBlockMarkerCaseSensitivity() : boolean
+        return getBlockMarkerCaseSensitivity(fCurrentTagName);
+!!!10485659.java!!!	getBlockMarkerCaseSensitivity(in name : String) : boolean
+	Iterator iterator = fBlockMarkers.iterator();
+	while(iterator.hasNext()) {
+		BlockMarker marker = (BlockMarker)iterator.next();
+		boolean casesensitive = marker.isCaseSensitive();
+		if(casesensitive && marker.getTagName().equals(name))
+			return casesensitive;
+		else if(!casesensitive && marker.getTagName().equalsIgnoreCase(name))
+			return casesensitive;
+	}
+	return true;
+!!!10485787.java!!!	getBlockMarkerContext() : String
+	return getBlockMarkerContext(fCurrentTagName);
+!!!10485915.java!!!	getBlockMarkerContext(in name : String) : String
+	Iterator iterator = fBlockMarkers.iterator();
+	while(iterator.hasNext()) {
+		BlockMarker marker = (BlockMarker)iterator.next();
+		if(marker.getTagName().equals(name))
+			return marker.getContext();
+	}
+	return BLOCK_TEXT;
+!!!10486043.java!!!	getBlockMarkers() : List
+	return fBlockMarkers;
+!!!10486171.java!!!	getOffset() : int
+	return fOffset + yychar;
+!!!10486299.java!!!	isBlockMarker() : boolean
+	return isBlockMarker(fCurrentTagName);
+!!!10486427.java!!!	isBlockMarker(in tagName : String) : boolean
+	if (!fIsBlockingEnabled)
+		return false;
+	return containsTagName(tagName);
+!!!10486555.java!!!	beginBlockTagScan(in newTagName : String) : void
+	beginBlockMarkerScan(newTagName, BLOCK_TEXT);
+!!!10486683.java!!!	beginBlockMarkerScan(in newTagName : String, in blockcontext : String) : void
+	yybegin(ST_BLOCK_TAG_SCAN);
+	fCurrentTagName = newTagName;
+!!!10486811.java!!!	doScan(in searchString : String, inout requireTailSeparator : boolean, in searchContext : String, in exitState : int, in immediateFallbackState : int) : String
+	boolean stillSearching = true;
+	// Disable further block (probably)
+	fIsBlockingEnabled = false;
+	int searchStringLength = searchString.length();
+	int n = 0;
+	char lastCheckChar;
+	int i;
+	boolean same = false;
+	while (stillSearching) {
+		n = 0;
+		// Ensure that enough data from the input exists to compare against the search String.
+		n = yy_advance();
+		while(n != YYEOF && yy_currentPos < searchStringLength)
+			n = yy_advance();
+		// If the input was too short or we've exhausted the input, stop immediately.
+		if (n == YYEOF) {
+			stillSearching = false;
+		}
+		else {
+			same = true;
+			// Ensure that we've not encountered a complete block (<%%>) that was *shorter* than the closeTagString and
+			// thus found twice at current-targetLength [since the first scan would have come out this far anyway].
+			// Check the characters in the target versus the last targetLength characters read from the buffer
+			// and see if it matches
+			
+			// safety check for array accesses (yy_currentPos is the *last* character we can check against)
+			if(yy_currentPos >= searchStringLength && yy_currentPos <= yy_buffer.length) {
+				for(i = 0; i < searchStringLength; i++) {
+					if(same && fIsCaseSensitiveBlocking)
+						same = yy_buffer[i + yy_currentPos - searchStringLength] == searchString.charAt(i);
+					else if(same && !fIsCaseSensitiveBlocking)
+						same = Character.toLowerCase(yy_buffer[i + yy_currentPos - searchStringLength]) == Character.toLowerCase(searchString.charAt(i));
+				}
+			}
+			// safety check failed; no match is possible right now
+			else {
+				same = false;
+			}
+			if (same && requireTailSeparator && yy_currentPos < yy_buffer.length) {
+				// Additional check for close tags to ensure that targetString="</script" doesn't match
+				// "</scriptS"
+				lastCheckChar = yy_buffer[yy_currentPos];
+				// Succeed on "</script>" and "</script "
+				if(lastCheckChar == '>' || Character.isWhitespace(lastCheckChar))
+					stillSearching = false;
+			}
+			else {
+				stillSearching = !same || (yy_currentPos < yy_startRead + searchStringLength);
+			}
+		}
+	}
+	if (n != YYEOF || same) {
+		// We've stopped short of the end or definitely found a match
+		yy_markedPos = yy_currentPos - searchStringLength;
+		yy_currentPos = yy_markedPos + 1;
+		// If the searchString occurs at the very beginning of what would have
+		// been a Block, resume scanning normally immediately
+		if (yy_markedPos == yy_startRead) {
+			yybegin(immediateFallbackState);
+			return primGetNextToken();
+		}
+	}
+	else {
+		// We ran through the rest of the input
+		yy_markedPos = yy_currentPos;
+		yy_currentPos++;
+	}
+	yybegin(exitState);
+	// If the ending occurs at the very beginning of what would have
+	// been a Block, resume scanning normally immediately
+	if(yy_markedPos == yy_startRead)
+		return primGetNextToken();
+	return searchContext;
+!!!10486939.java!!!	doBlockScan(in target : String, in targetContext : String, in immediateFallbackState : int) : String
+	return doScan(target, false, targetContext, immediateFallbackState, immediateFallbackState);
+!!!10487067.java!!!	doBlockTagScan() : String
+        fIsCaseSensitiveBlocking = getBlockMarkerCaseSensitivity();
+	return doScan("</" + fCurrentTagName, true, getBlockMarkerContext(fCurrentTagName), YYINITIAL, YYINITIAL);
+!!!10487195.java!!!	getNextToken() : ITextRegion
+	// load the starting non-whitespace token (assume that it is so)
+	if (fShouldLoadBuffered) {
+		context = fBufferedContext;
+		start = fBufferedStart;
+		textLength = length = fBufferedLength;
+		fShouldLoadBuffered = false;
+	}
+	else {
+		context = primGetNextToken();
+		if (context == XML_TAG_NAME) {
+			if(containsTagName(yy_buffer, yy_startRead, yy_markedPos-yy_startRead))
+				fCurrentTagName = yytext();
+			else
+				fCurrentTagName = null;
+		}
+		else if (context == XML_TAG_OPEN) {
+			fIsBlockingEnabled = true;
+		}
+		else if (context == XML_END_TAG_OPEN) {
+			fIsBlockingEnabled = false;
+		}
+		start = yychar;
+		textLength = length = yylength();
+		if (yy_atEOF) {
+			fTokenCount++;
+			return null;
+		}
+	}
+	// store the next token
+	f_context = primGetNextToken();
+	if (f_context == XML_TAG_NAME) {
+		if(containsTagName(yy_buffer, yy_startRead, yy_markedPos-yy_startRead))
+			fCurrentTagName = yytext();
+		else
+			fCurrentTagName = null;
+	}
+	else if (f_context == XML_TAG_OPEN) {
+		fIsBlockingEnabled = true;
+	}
+	else if (f_context == XML_END_TAG_OPEN) {
+		fIsBlockingEnabled = false;
+	}
+	fBufferedContext = f_context;
+	fBufferedStart = yychar;
+	fBufferedLength = yylength();
+	fShouldLoadBuffered = true;
+	if (fBufferedContext == WHITE_SPACE) {
+		fShouldLoadBuffered = false;
+		length += fBufferedLength;
+	}
+	if (context == null) {
+		// EOF
+		if (Debug.debugTokenizer) {
+			System.out.println(getClass().getName() + " discovered " + fTokenCount + " tokens."); //$NON-NLS-2$//$NON-NLS-1$
+		}
+		return null;
+	}
+	fTokenCount++;
+	return fRegionFactory.createToken(context, start, textLength, length, null, fCurrentTagName);
+!!!10487323.java!!!	XMLTokenizer()
+	super();
+!!!10487451.java!!!	XMLTokenizer(in charArray : char)
+		this(new CharArrayReader(charArray));
+!!!10487579.java!!!	reset(in charArray : char) : void
+	reset(new CharArrayReader(charArray), 0);
+!!!10487707.java!!!	reset(in charArray : char, in newOffset : int) : void
+	reset(new CharArrayReader(charArray), newOffset);
+!!!10487835.java!!!	reset(inout in : InputStream) : void
+	reset(new java.io.InputStreamReader(in), 0);
+!!!10487963.java!!!	reset(inout in : InputStream, in newOffset : int) : void
+	reset(new java.io.InputStreamReader(in), newOffset);
+!!!10488091.java!!!	reset(inout in : Reader) : void
+	reset(in, 0);
+!!!10488219.java!!!	reset(inout in : Reader, in newOffset : int) : void
+	if (Debug.debugTokenizer) {
+		System.out.println("resetting tokenizer");//$NON-NLS-1$
+	}
+	fOffset = newOffset;
+
+	/* the input device */
+	yy_reader = in;
+
+	/* the current state of the DFA */
+	yy_state = 0;
+
+	/* the current lexical state */
+	yy_lexical_state = YYINITIAL;
+
+	/* this buffer contains the current text to be matched and is
+	the source of the yytext() string */
+	java.util.Arrays.fill(yy_buffer, (char)0);
+
+	/* the textposition at the last accepting state */
+	yy_markedPos = 0;
+
+	/* the textposition at the last state to be included in yytext */
+	yy_pushbackPos = 0;
+
+	/* the current text position in the buffer */
+	yy_currentPos = 0;
+
+	/* startRead marks the beginning of the yytext() string in the buffer */
+	yy_startRead = 0;
+
+	/** 
+	 * endRead marks the last character in the buffer, that has been read
+	 * from input 
+	 */
+	yy_endRead = 0;
+
+	/* number of newlines encountered up to the start of the matched text */
+	yyline = 0;
+
+	/* the number of characters up to the start of the matched text */
+	yychar = 0;
+
+	/* yy_atEOF == true <=> the scanner has returned a value for EOF */
+	yy_atEOF = false;
+
+	/* denotes if the user-EOF-code has already been executed */
+	yy_eof_done = false;
+
+
+	/* user vars: */
+	fTokenCount = 0;
+ 
+	fShouldLoadBuffered = false;
+	fBufferedContext = null;
+	fBufferedStart = 1;
+	fBufferedLength = 0;
+	fStateStack = new IntStack();
+
+	context = null;
+	start = 0;
+	textLength = 0;
+	length = 0;
+!!!10488347.java!!!	newInstance() : BlockTokenizer
+		XMLTokenizer newInstance = new XMLTokenizer();
+		// global tagmarkers can be shared; they have no state and 
+		// are never destroyed (e.g. 'release')
+		for(int i = 0; i < fBlockMarkers.size(); i++) {
+			BlockMarker blockMarker = (BlockMarker) fBlockMarkers.get(i);
+			if(blockMarker.isGlobal())
+				newInstance.addBlockMarker(blockMarker);
+		}
+		return newInstance;
+!!!10488475.java!!!	scanXMLCommentText() : String
+	// Scan for '-->' and return the text up to that point as
+	//   XML_COMMENT_TEXT unless the string occurs IMMEDIATELY, in which
+	//  case change to the ST_XML_COMMENT_END state and return the next
+	//  context as usual.
+	return doScan("-->", false, XML_COMMENT_TEXT, ST_XML_COMMENT_END, ST_XML_COMMENT_END);
+!!!10488603.java!!!	XMLTokenizer(inout in : Reader)
+    this.yy_reader = in;
+!!!10488731.java!!!	XMLTokenizer(inout in : InputStream)
+    this(new java.io.InputStreamReader(in));
+!!!10488859.java!!!	yy_unpack(in packed : String) : int
+    int [] trans = new int[9212];
+    int i = 0;  /* index in packed string  */
+    int j = 0;  /* index in unpacked array */
+    while (i < 3220) {
+      int count = packed.charAt(i++);
+      int value = packed.charAt(i++);
+      value--;
+      do trans[j++] = value; while (--count > 0);
+    }
+    return trans;
+!!!10488987.java!!!	yy_unpack_cmap(in packed : String) : char
+    char [] map = new char[0x10000];
+    int i = 0;  /* index in packed string  */
+    int j = 0;  /* index in unpacked array */
+    while (i < 1372) {
+      int  count = packed.charAt(i++);
+      char value = packed.charAt(i++);
+      do map[j++] = value; while (--count > 0);
+    }
+    return map;
+!!!10489115.java!!!	yy_advance() : int
+
+    /* standard case */
+    if (yy_currentPos < yy_endRead) return yy_buffer[yy_currentPos++];
+
+    /* if the eof is reached, we don't need to work hard */ 
+    if (yy_atEOF) return YYEOF;
+
+    /* otherwise: need to refill the buffer */
+
+    /* first: make room (if you can) */
+    if (yy_startRead > 0) {
+      System.arraycopy(yy_buffer, yy_startRead, 
+                       yy_buffer, 0, 
+                       yy_endRead-yy_startRead);
+
+      /* translate stored positions */
+      yy_endRead-= yy_startRead;
+      yy_currentPos-= yy_startRead;
+      yy_markedPos-= yy_startRead;
+      yy_pushbackPos-= yy_startRead;
+      yy_startRead = 0;
+    }
+
+    /* is the buffer big enough? */
+    if (yy_currentPos >= yy_buffer.length) {
+      /* if not: blow it up */
+      char newBuffer[] = new char[yy_currentPos*2];
+      System.arraycopy(yy_buffer, 0, newBuffer, 0, yy_buffer.length);
+      yy_buffer = newBuffer;
+    }
+
+    /* finally: fill the buffer with new input */
+    int numRead = yy_reader.read(yy_buffer, yy_endRead, 
+                                            yy_buffer.length-yy_endRead);
+
+    if ( numRead == -1 ) return YYEOF;
+
+    yy_endRead+= numRead;
+
+    return yy_buffer[yy_currentPos++];
+!!!10489243.java!!!	yyclose() : void
+    yy_atEOF = true;            /* indicate end of file */
+    yy_endRead = yy_startRead;  /* invalidate buffer    */
+    yy_reader.close();
+!!!10489371.java!!!	yystate() : int
+    return yy_lexical_state;
+!!!10489499.java!!!	yybegin(in newState : int) : void
+    yy_lexical_state = newState;
+!!!10489627.java!!!	yytext() : String
+    return new String( yy_buffer, yy_startRead, yy_markedPos-yy_startRead );
+!!!10489755.java!!!	yylength() : int
+    return yy_markedPos-yy_startRead;
+!!!10489883.java!!!	yy_ScanError(in errorCode : int) : void
+    try {
+      Logger.log(Logger.ERROR, YY_ERROR_MSG[errorCode]);
+    }
+    catch (ArrayIndexOutOfBoundsException e) {
+      Logger.log(Logger.ERROR, YY_ERROR_MSG[YY_UNKNOWN_ERROR]);
+    }
+    // DO NOT EXIT the VM on an error
+    // System.exit(1);
+!!!10490011.java!!!	yypushback(in number : int) : void
+    if ( number > yylength() )
+      yy_ScanError(YY_PUSHBACK_2BIG);
+
+    yy_markedPos -= number;
+!!!10490139.java!!!	containsTagName(in markerTagName : char, in offset : int, in tagnameLength : int) : boolean
+		for(int j = 0; j < fBlockMarkers.size(); j++) {
+			BlockMarker marker = (BlockMarker)fBlockMarkers.get(j);
+			if(marker.getTagName().length() == tagnameLength) {
+				boolean matchesSoFar = true;
+				for(int i = 0; i < tagnameLength && matchesSoFar; i++) {
+					if(marker.isCaseSensitive()) {
+						if(marker.getTagName().charAt(i) != markerTagName[i + offset])
+							matchesSoFar = false;
+					}
+					else {
+						if(Character.toLowerCase(marker.getTagName().charAt(i)) != Character.toLowerCase(markerTagName[i + offset]))
+							matchesSoFar = false;
+					}
+				}
+				if(matchesSoFar)
+					return true;
+			}
+		}
+		return false;
+!!!10490267.java!!!	getRegions() : List
+		List tokens = new ArrayList();
+		ITextRegion region = null;
+		try {
+			region = getNextToken();
+			while(region != null) {
+				if (region != null) {
+					tokens.add(region);
+				}
+				region = getNextToken();
+			}
+		}
+		catch (StackOverflowError e) {
+			Logger.logException(getClass().getName()+": input could not be tokenized correctly at position " + getOffset(), e);//$NON-NLS-1$
+			throw e;
+		}
+		catch (Exception e) {
+			// Since this is convenience method and NOT the recommended 
+			// way of getting tokens, many errors are simply hidden
+			Logger.logException("Exception not handled retrieving regions: " + e.getLocalizedMessage(), e);//$NON-NLS-1$
+		}
+		return tokens;
+!!!10490395.java!!!	dump(in s : String) : void
+		if (Debug.debugTokenizer) {
+			System.out.println(s + " (" + yychar + "-" + //$NON-NLS-2$//$NON-NLS-1$
+				(yylength() + yychar) + "):\'" +//$NON-NLS-1$
+					StringUtils.escape(yytext()) + "\'");//$NON-NLS-1$
+		}
+!!!10490523.java!!!	isEOF() : boolean
+		return yy_atEOF;
+!!!10490651.java!!!	containsTagName(in markerTagName : String) : boolean
+	Iterator blocks = fBlockMarkers.iterator();
+	while(blocks.hasNext()) {
+		BlockMarker marker = (BlockMarker)blocks.next();
+		if(marker.isCaseSensitive()) {
+			if(marker.getTagName().equals(markerTagName))
+				return true;
+		}
+		else {
+			if(marker.getTagName().equalsIgnoreCase(markerTagName))
+				return true;
+		}
+	}
+	return false;
+!!!10490779.java!!!	yy_do_eof() : void
+    if (!yy_eof_done) {
+      yy_eof_done = true;
+    // do nothing, this is the downstream parser's job
+
+    }
+!!!10490907.java!!!	primGetNextToken() : String
+    int yy_input;
+    int yy_action;
+
+
+    while (true) {
+
+      yychar+= yylength();
+
+      boolean yy_counted = false;
+      for (yy_currentPos = yy_startRead; yy_currentPos < yy_markedPos;
+                                                      yy_currentPos++) {
+        switch (yy_buffer[yy_currentPos]) {
+        case '\r':
+          yyline++;
+          yy_counted = true;
+          break;
+        case '\n':
+          if (yy_counted)
+            yy_counted = false;
+          else {
+            yyline++;
+          }
+          break;
+        default:
+          yy_counted = false;
+        }
+      }
+
+      if (yy_counted) {
+        if ( yy_advance() == '\n' ) yyline--;
+        if ( !yy_atEOF ) yy_currentPos--;
+      }
+
+      yy_action = -1;
+
+      yy_currentPos = yy_startRead = yy_markedPos;
+
+      yy_state = yy_lexical_state;
+
+
+      yy_forAction: {
+        while (true) {
+    
+          yy_input = yy_advance();
+
+          if ( yy_input == YYEOF ) break yy_forAction;
+
+          int yy_next = yytrans[ yy_rowMap[yy_state] + yycmap[yy_input] ];
+          if (yy_next == -1) break yy_forAction;
+          yy_state = yy_next;
+
+          int yy_attributes = YY_ATTRIBUTE[yy_state];
+          if ( (yy_attributes & 1) > 0 ) {
+            yy_action = yy_state; 
+            yy_markedPos = yy_currentPos; 
+            if ( (yy_attributes & 8) > 0 ) break yy_forAction;
+          }
+
+        }
+      }
+
+
+      switch (yy_action) {    
+
+        case 275: 
+        case 276: 
+        case 277: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nCDATA start");//$NON-NLS-1$
+	fStateStack.push(yystate());
+	yybegin(ST_CDATA_TEXT);
+	return XML_CDATA_OPEN;
+ }
+        case 279: break;
+        case 269: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("element");//$NON-NLS-1$
+	yybegin(ST_XML_ELEMENT_DECLARATION);
+	return XML_ELEMENT_DECLARATION;
+ }
+        case 280: break;
+        case 268: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("attlist");//$NON-NLS-1$
+	yybegin(ST_XML_ATTLIST_DECLARATION);
+	return XML_ATTLIST_DECLARATION;
+ }
+        case 281: break;
+        case 267: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("doctype");//$NON-NLS-1$
+	yybegin(ST_XML_DOCTYPE_DECLARATION);
+	return XML_DOCTYPE_DECLARATION;
+ }
+        case 282: break;
+        case 262: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("doctype external id");//$NON-NLS-1$
+	yybegin(ST_XML_DOCTYPE_ID_PUBLIC);
+	return XML_DOCTYPE_EXTERNAL_ID_PUBLIC;
+ }
+        case 283: break;
+        case 261: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("doctype external id");//$NON-NLS-1$
+	yybegin(ST_XML_DOCTYPE_ID_SYSTEM);
+	return XML_DOCTYPE_EXTERNAL_ID_SYSTEM;
+ }
+        case 284: break;
+        case 257: 
+        case 266: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("DHTML processing instruction target");//$NON-NLS-1$
+        yybegin(ST_DHTML_ATTRIBUTE_NAME);
+        return XML_TAG_NAME;
+ }
+        case 285: break;
+        case 234: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nCharRef");//$NON-NLS-1$
+	return XML_CHAR_REFERENCE;
+ }
+        case 286: break;
+        case 231: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\ncomment start");//$NON-NLS-1$
+	yybegin(ST_XML_COMMENT);
+	return XML_COMMENT_OPEN;
+ }
+        case 287: break;
+        case 213: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("XML processing instruction target");//$NON-NLS-1$
+        yybegin(ST_XML_PI_ATTRIBUTE_NAME);
+        return XML_TAG_NAME;
+ }
+        case 288: break;
+        case 212: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("comment end");//$NON-NLS-1$
+	yybegin(YYINITIAL);
+	return XML_COMMENT_CLOSE;
+ }
+        case 289: break;
+        case 211: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("CDATA end");//$NON-NLS-1$
+	yybegin(fStateStack.pop());
+	return XML_CDATA_CLOSE;
+ }
+        case 290: break;
+        case 210: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nPEReference");//$NON-NLS-1$
+	return XML_PE_REFERENCE;
+ }
+        case 291: break;
+        case 207: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nEntityRef");//$NON-NLS-1$
+	return XML_ENTITY_REFERENCE;
+ }
+        case 292: break;
+        case 158: 
+        case 172: 
+        case 180: 
+          { 
+	return XML_DOCTYPE_INTERNAL_SUBSET;
+ }
+        case 293: break;
+        case 146: 
+          { 
+        yybegin(YYINITIAL);
+	if(Debug.debugTokenizer)
+		dump("empty tag close");//$NON-NLS-1$
+        return XML_EMPTY_TAG_CLOSE;
+ }
+        case 294: break;
+        case 131: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("XML processing instruction end");//$NON-NLS-1$
+        yybegin(YYINITIAL);
+        return XML_PI_CLOSE;
+ }
+        case 295: break;
+        case 130: 
+          { 
+		// ended with nothing inside
+        yybegin(YYINITIAL);
+        return XML_PI_CLOSE;
+ }
+        case 296: break;
+        case 127: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("processing instruction end");//$NON-NLS-1$
+        yybegin(YYINITIAL);
+        return XML_PI_CLOSE;
+ }
+        case 297: break;
+        case 119: 
+          { 
+	fStateStack.push(yystate());
+	if(Debug.debugTokenizer)
+		dump("\ndeclaration start");//$NON-NLS-1$
+        yybegin(ST_XML_DECLARATION);
+	return XML_DECLARATION_OPEN;
+ }
+        case 298: break;
+        case 118: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nprocessing instruction start");//$NON-NLS-1$
+	yybegin(ST_PI);
+        return XML_PI_OPEN;
+ }
+        case 299: break;
+        case 62: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("DHTML processing instruction end");//$NON-NLS-1$
+        yybegin(YYINITIAL);
+        return XML_PI_CLOSE;
+ }
+        case 300: break;
+        case 56: 
+        case 58: 
+        case 59: 
+        case 60: 
+        case 135: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("XML processing instruction attribute value");//$NON-NLS-1$
+        yybegin(ST_XML_PI_ATTRIBUTE_NAME);
+        return XML_TAG_ATTRIBUTE_VALUE;
+ }
+        case 301: break;
+        case 55: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("XML processing instruction '='");//$NON-NLS-1$
+        yybegin(ST_XML_PI_ATTRIBUTE_VALUE);
+        return XML_TAG_ATTRIBUTE_EQUALS;
+ }
+        case 302: break;
+        case 54: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("XML processing instruction attribute name");//$NON-NLS-1$
+        yybegin(ST_XML_PI_EQUALS);
+        return XML_TAG_ATTRIBUTE_NAME;
+ }
+        case 303: break;
+        case 50: 
+        case 51: 
+        case 52: 
+          { 
+	// block scan until close is found
+	return doScan("?>", false, XML_PI_CONTENT, ST_XML_PI_TAG_CLOSE, ST_XML_PI_TAG_CLOSE);
+ }
+        case 304: break;
+        case 49: 
+          { 
+        yybegin(ST_PI_CONTENT);
+        return WHITE_SPACE;
+ }
+        case 305: break;
+        case 46: 
+        case 47: 
+        case 48: 
+        case 128: 
+        case 129: 
+        case 214: 
+        case 236: 
+        case 248: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("processing instruction target");//$NON-NLS-1$
+        yybegin(ST_PI_WS);
+        return XML_TAG_NAME;
+ }
+        case 306: break;
+        case 41: 
+        case 42: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("comment content");//$NON-NLS-1$
+	return scanXMLCommentText();
+ }
+        case 307: break;
+        case 40: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("LINE FEED");//$NON-NLS-1$
+	return WHITE_SPACE;
+ }
+        case 308: break;
+        case 0: 
+        case 31: 
+        case 121: 
+        case 123: 
+        case 205: 
+        case 206: 
+        case 233: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nXML content");//$NON-NLS-1$
+	return XML_CONTENT;
+ }
+        case 309: break;
+        case 5: 
+        case 8: 
+        case 9: 
+        case 10: 
+        case 12: 
+        case 13: 
+        case 14: 
+        case 15: 
+        case 17: 
+        case 18: 
+        case 19: 
+        case 20: 
+        case 21: 
+        case 22: 
+        case 23: 
+        case 24: 
+        case 25: 
+        case 26: 
+        case 28: 
+        case 45: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("white space");//$NON-NLS-1$
+        return WHITE_SPACE;
+ }
+        case 310: break;
+        case 16: 
+        case 70: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("inappropriate tag name");//$NON-NLS-1$
+	yybegin(YYINITIAL);
+        return XML_CONTENT;
+ }
+        case 311: break;
+        case 27: 
+        case 105: 
+        case 106: 
+        case 191: 
+        case 226: 
+        case 244: 
+        case 254: 
+        case 263: 
+        case 270: 
+        case 273: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("elementdecl contentspec");//$NON-NLS-1$
+	return XML_ELEMENT_DECL_CONTENT;
+ }
+        case 312: break;
+        case 29: 
+        case 112: 
+        case 113: 
+        case 202: 
+        case 230: 
+        case 246: 
+        case 255: 
+        case 264: 
+        case 271: 
+        case 274: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("attlist contentspec");//$NON-NLS-1$
+	return XML_ATTLIST_DECL_CONTENT;
+ }
+        case 313: break;
+        case 32: 
+        case 71: 
+        case 82: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nstart tag open");//$NON-NLS-1$
+        yybegin(ST_XML_TAG_NAME);
+        return XML_TAG_OPEN;
+ }
+        case 314: break;
+        case 33: 
+        case 34: 
+        case 37: 
+        case 38: 
+        case 39: 
+        case 43: 
+        case 44: 
+        case 53: 
+        case 57: 
+        case 61: 
+        case 63: 
+        case 67: 
+        case 73: 
+        case 79: 
+        case 84: 
+        case 85: 
+        case 86: 
+        case 87: 
+        case 89: 
+        case 90: 
+        case 92: 
+        case 97: 
+        case 102: 
+        case 109: 
+          { 
+	if (Debug.debugTokenizer)
+		System.out.println("!!!unexpected!!!: \"" + yytext() + "\":" + //$NON-NLS-2$//$NON-NLS-1$
+			yychar + "-" + (yychar + yylength()));//$NON-NLS-1$
+	return UNDEFINED;
+ }
+        case 315: break;
+        case 35: 
+        case 36: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("CDATA text");//$NON-NLS-1$
+	String blockContext = doBlockScan("]]>", XML_CDATA_TEXT, ST_CDATA_END);//$NON-NLS-1$
+	if(blockContext == XML_CDATA_TEXT)
+		yybegin(ST_CDATA_END);
+	return blockContext;
+ }
+        case 316: break;
+        case 64: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("DHTML processing instruction attribute name");//$NON-NLS-1$
+        yybegin(ST_DHTML_EQUALS);
+        return XML_TAG_ATTRIBUTE_NAME;
+ }
+        case 317: break;
+        case 65: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("DHTML processing instruction '='");//$NON-NLS-1$
+        yybegin(ST_DHTML_ATTRIBUTE_VALUE);
+        return XML_TAG_ATTRIBUTE_EQUALS;
+ }
+        case 318: break;
+        case 66: 
+        case 68: 
+        case 69: 
+        case 143: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("DHTML processing instruction attribute value");//$NON-NLS-1$
+        yybegin(ST_DHTML_ATTRIBUTE_NAME);
+        return XML_TAG_ATTRIBUTE_VALUE;
+ }
+        case 319: break;
+        case 72: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("tag close");//$NON-NLS-1$
+	if(isBlockMarker()) {
+        	yybegin(ST_BLOCK_TAG_SCAN);
+	}
+	else
+        	yybegin(YYINITIAL);
+        return XML_TAG_CLOSE;
+ }
+        case 320: break;
+        case 74: 
+        case 75: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("tag name");//$NON-NLS-1$
+        yybegin(ST_XML_ATTRIBUTE_NAME);
+        return XML_TAG_NAME;
+ }
+        case 321: break;
+        case 76: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("attr name");//$NON-NLS-1$
+        yybegin(ST_XML_EQUALS);
+        return XML_TAG_ATTRIBUTE_NAME;
+ }
+        case 322: break;
+        case 77: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("equals");//$NON-NLS-1$
+        yybegin(ST_XML_ATTRIBUTE_VALUE);
+        return XML_TAG_ATTRIBUTE_EQUALS;
+ }
+        case 323: break;
+        case 78: 
+        case 80: 
+        case 81: 
+        case 150: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("attr value");//$NON-NLS-1$
+        yybegin(ST_XML_ATTRIBUTE_NAME);
+        return XML_TAG_ATTRIBUTE_VALUE;
+ }
+        case 324: break;
+        case 83: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("declaration end");//$NON-NLS-1$
+	if (Debug.debugTokenizer) {
+		if(fStateStack.peek()!=YYINITIAL)
+			System.out.println("end embedded region");//$NON-NLS-1$
+	}
+	yybegin(fStateStack.pop());
+	return XML_DECLARATION_CLOSE;
+ }
+        case 325: break;
+        case 88: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("doctype type");//$NON-NLS-1$
+	yybegin(ST_XML_DOCTYPE_EXTERNAL_ID);
+	return XML_DOCTYPE_NAME;
+ }
+        case 326: break;
+        case 91: 
+        case 93: 
+        case 94: 
+        case 95: 
+        case 164: 
+        case 165: 
+        case 168: 
+        case 169: 
+        case 221: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("doctype public reference");//$NON-NLS-1$
+	yybegin(ST_XML_DOCTYPE_ID_SYSTEM);
+	return XML_DOCTYPE_EXTERNAL_ID_PUBREF;
+ }
+        case 327: break;
+        case 96: 
+        case 98: 
+        case 99: 
+        case 100: 
+        case 176: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("doctype system reference");//$NON-NLS-1$
+	yybegin(ST_XML_DECLARATION_CLOSE);
+	return XML_DOCTYPE_EXTERNAL_ID_SYSREF;
+ }
+        case 328: break;
+        case 101: 
+        case 103: 
+        case 104: 
+        case 184: 
+        case 185: 
+        case 188: 
+        case 189: 
+        case 224: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("elementdecl name");//$NON-NLS-1$
+	yybegin(ST_XML_ELEMENT_DECLARATION_CONTENT);
+	return XML_ELEMENT_DECL_NAME;
+ }
+        case 329: break;
+        case 107: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("elementdecl close");//$NON-NLS-1$
+	if (Debug.debugTokenizer) {
+		if(fStateStack.peek()!=YYINITIAL)
+			System.out.println("end embedded region");//$NON-NLS-1$
+	}
+	yybegin(fStateStack.pop());
+	return XML_DECLARATION_CLOSE;
+ }
+        case 330: break;
+        case 108: 
+        case 110: 
+        case 111: 
+        case 195: 
+        case 196: 
+        case 199: 
+        case 200: 
+        case 228: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("attlist name");//$NON-NLS-1$
+	yybegin(ST_XML_ATTLIST_DECLARATION_CONTENT);
+	return XML_ATTLIST_DECL_NAME;
+ }
+        case 331: break;
+        case 114: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("attlist close");//$NON-NLS-1$
+	if (Debug.debugTokenizer) {
+		if(fStateStack.peek()!=YYINITIAL)
+			System.out.println("end embedded region");//$NON-NLS-1$
+	}
+	yybegin(fStateStack.pop());
+	return XML_DECLARATION_CLOSE;
+ }
+        case 332: break;
+        case 117: 
+          { 
+	if(Debug.debugTokenizer)
+		dump("\nend tag open");//$NON-NLS-1$
+        yybegin(ST_XML_TAG_NAME);
+        return XML_END_TAG_OPEN;
+ }
+        case 333: break;
+        case 115: 
+        case 116: 
+          { 
+		return doBlockTagScan();
+	 }
+        case 334: break;
+        default: 
+          if (yy_input == YYEOF && yy_startRead == yy_currentPos) {
+            yy_atEOF = true;
+            yy_do_eof();
+              return null;
+          } 
+          else {
+            yy_ScanError(YY_NO_MATCH);
+          }
+      }
+    }

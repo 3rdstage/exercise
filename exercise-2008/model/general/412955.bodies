@@ -1,0 +1,119 @@
+class MotifInternalFrameTitlePane
+!!!2654619.java!!!	MotifInternalFrameTitlePane(inout frame : JInternalFrame)
+        super(frame);
+!!!2654747.java!!!	installDefaults() : void
+        setFont(UIManager.getFont("InternalFrame.titleFont"));
+	setPreferredSize(new Dimension(100, BUTTON_SIZE));
+!!!2654875.java!!!	uninstallListeners() : void
+        // Get around protected method in superclass
+        super.uninstallListeners();
+!!!2655003.java!!!	createPropertyChangeListener() : PropertyChangeListener
+        return this;
+!!!2655131.java!!!	createLayout() : LayoutManager
+        return this;
+!!!2655259.java!!!	getSystemMenu() : JPopupMenu
+        return systemMenu;
+!!!2655387.java!!!	assembleSystemMenu() : void
+	systemMenu = new JPopupMenu();
+	JMenuItem mi = (JMenuItem)systemMenu.add(new JMenuItem(restoreAction));
+        mi.setMnemonic('R');
+	mi = (JMenuItem) systemMenu.add(new JMenuItem(moveAction));
+        mi.setMnemonic('M');
+	mi = (JMenuItem) systemMenu.add(new JMenuItem(sizeAction));
+        mi.setMnemonic('S');
+	mi = (JMenuItem) systemMenu.add(new JMenuItem(iconifyAction));
+        mi.setMnemonic('n');
+	mi = (JMenuItem) systemMenu.add(new JMenuItem(maximizeAction));
+        mi.setMnemonic('x');
+	systemMenu.add(new JSeparator());
+	mi = (JMenuItem) systemMenu.add(new JMenuItem(closeAction));
+        mi.setMnemonic('C');
+	
+        systemButton = new SystemButton();
+	systemButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                systemMenu.show(systemButton, 0, BUTTON_SIZE);
+            }
+        });
+
+        systemButton.addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent evt) {
+                if ((evt.getClickCount() == 2)) {
+                    closeAction.actionPerformed(new
+                        ActionEvent(evt.getSource(),
+                            ActionEvent.ACTION_PERFORMED,
+                            null, evt.getWhen(), 0));
+                    systemMenu.setVisible(false);
+                }
+            }
+        });
+!!!2655515.java!!!	createButtons() : void
+	minimizeButton = new MinimizeButton();
+	minimizeButton.addActionListener(iconifyAction);
+
+	maximizeButton = new MaximizeButton();
+	maximizeButton.addActionListener(maximizeAction);
+!!!2655643.java!!!	addSubComponents() : void
+        title = new Title(frame.getTitle());
+        title.setFont(getFont());
+
+	add(systemButton);
+        add(title);
+	add(minimizeButton);
+	add(maximizeButton);
+!!!2655899.java!!!	setColors(inout c : Color, inout h : Color, inout s : Color) : void
+        color = c;
+        highlight = h;
+        shadow = s;
+!!!2656155.java!!!	propertyChange(inout evt : PropertyChangeEvent) : void
+	String prop = (String)evt.getPropertyName();
+	JInternalFrame f = (JInternalFrame)evt.getSource();
+	boolean value = false;
+	if (JInternalFrame.IS_SELECTED_PROPERTY.equals(prop)) {
+	    repaint();
+        } else if (prop.equals("maximizable")) {
+            if ((Boolean)evt.getNewValue() == Boolean.TRUE)
+                add(maximizeButton);
+            else
+                remove(maximizeButton);
+            revalidate();
+            repaint();
+        } else if (prop.equals("iconable")) {
+            if ((Boolean)evt.getNewValue() == Boolean.TRUE)
+                add(minimizeButton);
+            else
+                remove(minimizeButton);
+            revalidate();
+            repaint();
+        } else if (prop.equals(JInternalFrame.TITLE_PROPERTY)) {
+            repaint();
+        }
+        enableActions();
+!!!2656539.java!!!	preferredLayoutSize(inout c : Container) : Dimension
+        return minimumLayoutSize(c);
+!!!2656667.java!!!	minimumLayoutSize(inout c : Container) : Dimension
+	return new Dimension(100, BUTTON_SIZE);
+!!!2656795.java!!!	layoutContainer(inout c : Container) : void
+	int w = getWidth();
+	systemButton.setBounds(0, 0, BUTTON_SIZE, BUTTON_SIZE);
+	int x = w - BUTTON_SIZE;
+
+	if(frame.isMaximizable()) {
+	    maximizeButton.setBounds(x, 0, BUTTON_SIZE, BUTTON_SIZE);
+	    x -= BUTTON_SIZE;
+	} else if(maximizeButton.getParent() != null) {
+	    maximizeButton.getParent().remove(maximizeButton);
+	}
+        
+	if(frame.isIconifiable()) {
+	    minimizeButton.setBounds(x, 0, BUTTON_SIZE, BUTTON_SIZE);
+	    x -= BUTTON_SIZE;
+	} else if(minimizeButton.getParent() != null) {
+	    minimizeButton.getParent().remove(minimizeButton);
+	}
+
+        title.setBounds(BUTTON_SIZE, 0, x, BUTTON_SIZE);
+!!!2656923.java!!!	showSystemMenu() : void
+      systemMenu.show(systemButton, 0, BUTTON_SIZE);
+!!!2657051.java!!!	hideSystemMenu() : void
+      systemMenu.setVisible(false);

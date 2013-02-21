@@ -1,0 +1,165 @@
+class NumberFormat
+!!!7804059.java!!!	format(inout number : Object, inout toAppendTo : StringBuffer, inout pos : FieldPosition) : StringBuffer
+        if (number instanceof Long || number instanceof Integer ||
+            number instanceof Short || number instanceof Byte ||
+            (number instanceof BigInteger &&
+             ((BigInteger)number).bitLength() < 64)) {
+            return format(((Number)number).longValue(), toAppendTo, pos);
+        } else if (number instanceof Number) {
+            return format(((Number)number).doubleValue(), toAppendTo, pos);
+        } else {
+            throw new IllegalArgumentException("Cannot format given Object as a Number");
+        }
+!!!7804187.java!!!	parseObject(in source : String, inout pos : ParsePosition) : Object
+        return parse(source, pos);
+!!!7804315.java!!!	format(in number : double) : String
+        return format(number, new StringBuffer(),
+                      DontCareFieldPosition.INSTANCE).toString();
+!!!7804443.java!!!	format(in number : long) : String
+        return format(number, new StringBuffer(),
+                      DontCareFieldPosition.INSTANCE).toString();
+!!!7804955.java!!!	parse(in source : String) : Number
+        ParsePosition parsePosition = new ParsePosition(0);
+        Number result = parse(source, parsePosition);
+        if (parsePosition.index == 0) {
+            throw new ParseException("Unparseable number: \"" + source + "\"",
+                                     parsePosition.errorIndex);
+        }
+        return result;
+!!!7805083.java!!!	isParseIntegerOnly() : boolean
+        return parseIntegerOnly;
+!!!7805211.java!!!	setParseIntegerOnly(inout value : boolean) : void
+        parseIntegerOnly = value;
+!!!7805339.java!!!	getInstance() : NumberFormat
+        return getInstance(Locale.getDefault(), NUMBERSTYLE);
+!!!7805467.java!!!	getInstance(inout inLocale : Locale) : NumberFormat
+        return getInstance(inLocale, NUMBERSTYLE);
+!!!7805595.java!!!	getNumberInstance() : NumberFormat
+        return getInstance(Locale.getDefault(), NUMBERSTYLE);
+!!!7805723.java!!!	getNumberInstance(inout inLocale : Locale) : NumberFormat
+        return getInstance(inLocale, NUMBERSTYLE);
+!!!7805851.java!!!	getIntegerInstance() : NumberFormat
+        return getInstance(Locale.getDefault(), INTEGERSTYLE);
+!!!7805979.java!!!	getIntegerInstance(inout inLocale : Locale) : NumberFormat
+        return getInstance(inLocale, INTEGERSTYLE);
+!!!7806107.java!!!	getCurrencyInstance() : NumberFormat
+        return getInstance(Locale.getDefault(), CURRENCYSTYLE);
+!!!7806235.java!!!	getCurrencyInstance(inout inLocale : Locale) : NumberFormat
+        return getInstance(inLocale, CURRENCYSTYLE);
+!!!7806363.java!!!	getPercentInstance() : NumberFormat
+        return getInstance(Locale.getDefault(), PERCENTSTYLE);
+!!!7806491.java!!!	getPercentInstance(inout inLocale : Locale) : NumberFormat
+        return getInstance(inLocale, PERCENTSTYLE);
+!!!7806619.java!!!	getScientificInstance() : NumberFormat
+        return getInstance(Locale.getDefault(), SCIENTIFICSTYLE);
+!!!7806747.java!!!	getScientificInstance(inout inLocale : Locale) : NumberFormat
+        return getInstance(inLocale, SCIENTIFICSTYLE);
+!!!7806875.java!!!	getAvailableLocales() : Locale
+        return LocaleData.getAvailableLocales("NumberPatterns");
+!!!7807003.java!!!	hashCode() : int
+        return maximumIntegerDigits * 37 + maxFractionDigits;
+        // just enough fields for a reasonable distribution
+!!!7807131.java!!!	equals(inout obj : Object) : boolean
+        if (obj == null) {
+            return false;
+        }
+        if (this == obj) {
+            return true;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        NumberFormat other = (NumberFormat) obj;
+        return (maximumIntegerDigits == other.maximumIntegerDigits
+            && minimumIntegerDigits == other.minimumIntegerDigits
+            && maximumFractionDigits == other.maximumFractionDigits
+            && minimumFractionDigits == other.minimumFractionDigits
+            && groupingUsed == other.groupingUsed
+            && parseIntegerOnly == other.parseIntegerOnly);
+!!!7807259.java!!!	clone() : Object
+        NumberFormat other = (NumberFormat) super.clone();
+        return other;
+!!!7807387.java!!!	isGroupingUsed() : boolean
+        return groupingUsed;
+!!!7807515.java!!!	setGroupingUsed(inout newValue : boolean) : void
+        groupingUsed = newValue;
+!!!7807643.java!!!	getMaximumIntegerDigits() : int
+        return maximumIntegerDigits;
+!!!7807771.java!!!	setMaximumIntegerDigits(in newValue : int) : void
+        maximumIntegerDigits = Math.max(0,newValue);
+        if (minimumIntegerDigits > maximumIntegerDigits) {
+            minimumIntegerDigits = maximumIntegerDigits;
+        }
+!!!7807899.java!!!	getMinimumIntegerDigits() : int
+        return minimumIntegerDigits;
+!!!7808027.java!!!	setMinimumIntegerDigits(in newValue : int) : void
+        minimumIntegerDigits = Math.max(0,newValue);
+        if (minimumIntegerDigits > maximumIntegerDigits) {
+            maximumIntegerDigits = minimumIntegerDigits;
+        }
+!!!7808155.java!!!	getMaximumFractionDigits() : int
+        return maximumFractionDigits;
+!!!7808283.java!!!	setMaximumFractionDigits(in newValue : int) : void
+        maximumFractionDigits = Math.max(0,newValue);
+        if (maximumFractionDigits < minimumFractionDigits) {
+            minimumFractionDigits = maximumFractionDigits;
+        }
+!!!7808411.java!!!	getMinimumFractionDigits() : int
+        return minimumFractionDigits;
+!!!7808539.java!!!	setMinimumFractionDigits(in newValue : int) : void
+        minimumFractionDigits = Math.max(0,newValue);
+        if (maximumFractionDigits < minimumFractionDigits) {
+            maximumFractionDigits = minimumFractionDigits;
+        }
+!!!7808667.java!!!	getCurrency() : Currency
+        throw new UnsupportedOperationException();
+!!!7808795.java!!!	setCurrency(inout currency : Currency) : void
+        throw new UnsupportedOperationException();
+!!!7808923.java!!!	getInstance(inout desiredLocale : Locale, in choice : int) : NumberFormat
+        /* try the cache first */
+        String[] numberPatterns = (String[])cachedLocaleData.get(desiredLocale);
+        if (numberPatterns == null) { /* cache miss */
+            ResourceBundle resource = LocaleData.getLocaleElements(desiredLocale);
+            numberPatterns = resource.getStringArray("NumberPatterns");
+            /* update cache */
+            cachedLocaleData.put(desiredLocale, numberPatterns);
+        }
+        
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols(desiredLocale);
+        int entry = (choice == INTEGERSTYLE) ? NUMBERSTYLE : choice;
+        DecimalFormat format = new DecimalFormat(numberPatterns[entry], symbols);
+        
+        if (choice == INTEGERSTYLE) {
+            format.setMaximumFractionDigits(0);
+            format.setDecimalSeparatorAlwaysShown(false);
+            format.setParseIntegerOnly(true);
+        } else if (choice == CURRENCYSTYLE) {
+            format.adjustForCurrencyDefaultFractionDigits();
+        }
+
+        return format;
+!!!7809051.java!!!	readObject(inout stream : ObjectInputStream) : void
+        stream.defaultReadObject();
+        if (serialVersionOnStream < 1) {
+            // Didn't have additional int fields, reassign to use them.
+            maximumIntegerDigits = maxIntegerDigits;
+            minimumIntegerDigits = minIntegerDigits;
+            maximumFractionDigits = maxFractionDigits;
+            minimumFractionDigits = minFractionDigits;
+        }
+        if (minimumIntegerDigits > maximumIntegerDigits ||
+            minimumFractionDigits > maximumFractionDigits ||
+            minimumIntegerDigits < 0 || minimumFractionDigits < 0) {
+            throw new InvalidObjectException("Digit count range invalid");
+        }
+        serialVersionOnStream = currentSerialVersion;
+!!!7809179.java!!!	writeObject(inout stream : ObjectOutputStream) : void
+        maxIntegerDigits = (maximumIntegerDigits > Byte.MAX_VALUE) ?
+                           Byte.MAX_VALUE : (byte)maximumIntegerDigits;
+        minIntegerDigits = (minimumIntegerDigits > Byte.MAX_VALUE) ?
+                           Byte.MAX_VALUE : (byte)minimumIntegerDigits;
+        maxFractionDigits = (maximumFractionDigits > Byte.MAX_VALUE) ?
+                            Byte.MAX_VALUE : (byte)maximumFractionDigits;
+        minFractionDigits = (minimumFractionDigits > Byte.MAX_VALUE) ?
+                            Byte.MAX_VALUE : (byte)minimumFractionDigits;
+        stream.defaultWriteObject();

@@ -1,0 +1,24 @@
+class StreamFactory
+!!!838427.java!!!	StreamFactory(in _className : String)
+            className = _className;
+!!!838555.java!!!	run() : Object
+            try {
+                // Note: We must use the system ClassLoader here
+                // since we want to load classes outside of the
+                // core JDK when running J2EE Pure ORB and
+                // talking to Kestrel.
+                ClassLoader cl = Thread.currentThread().getContextClassLoader();
+                if (cl == null)
+                    cl = ClassLoader.getSystemClassLoader();
+
+                Class streamClass = cl.loadClass(className);
+
+                // Since the ClassLoader should cache the class, this isn't
+                // as expensive as it looks.
+                return streamClass.newInstance();
+
+            } catch(Throwable t) {
+                InternalError ie = new InternalError( "Error loading " + className ) ;
+		ie.initCause( t ) ;
+		throw ie ;
+            }

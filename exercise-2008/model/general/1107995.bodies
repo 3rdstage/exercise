@@ -1,0 +1,568 @@
+class JEditorPane
+!!!8930715.java!!!	JEditorPane()
+        super();
+	setFocusCycleRoot(true);
+	setFocusTraversalPolicy(new LayoutFocusTraversalPolicy() {
+		public Component getComponentAfter(Container focusCycleRoot,
+						   Component aComponent) {
+		    if (focusCycleRoot != JEditorPane.this ||
+			(!isEditable() && getComponentCount() > 0)) {
+			return super.getComponentAfter(focusCycleRoot,
+						       aComponent);
+		    } else {
+			Container rootAncestor = getFocusCycleRootAncestor();
+			return (rootAncestor != null)
+			    ? rootAncestor.getFocusTraversalPolicy().
+			          getComponentAfter(rootAncestor,
+						    JEditorPane.this)
+			    : null;
+		    }
+		}
+		public Component getComponentBefore(Container focusCycleRoot,
+						    Component aComponent) {
+		    if (focusCycleRoot != JEditorPane.this ||
+			(!isEditable() && getComponentCount() > 0)) {
+			return super.getComponentBefore(focusCycleRoot,
+							aComponent);
+		    } else {
+			Container rootAncestor = getFocusCycleRootAncestor();
+			return (rootAncestor != null)
+			    ? rootAncestor.getFocusTraversalPolicy().
+			          getComponentBefore(rootAncestor,
+						     JEditorPane.this)
+			    : null;
+		    }
+		}
+		public Component getDefaultComponent(Container focusCycleRoot)
+		{
+		    return (focusCycleRoot != JEditorPane.this ||
+			    (!isEditable() && getComponentCount() > 0))
+			? super.getDefaultComponent(focusCycleRoot)
+			: null;
+		}
+		protected boolean accept(Component aComponent) {
+		    return (aComponent != JEditorPane.this)
+			? super.accept(aComponent)
+			: false;
+		}
+	    });		
+        LookAndFeel.installProperty(this,
+                                    "focusTraversalKeysForward", 
+                                    JComponent.
+                                    getManagingFocusForwardTraversalKeys());
+        LookAndFeel.installProperty(this,
+                                    "focusTraversalKeysBackward", 
+                                    JComponent.
+                                    getManagingFocusBackwardTraversalKeys());
+!!!8930843.java!!!	JEditorPane(inout initialPage : URL)
+        this();
+        setPage(initialPage);
+!!!8930971.java!!!	JEditorPane(in url : String)
+        this();
+        setPage(url);
+!!!8931099.java!!!	JEditorPane(in type : String, in text : String)
+	this();
+	setContentType(type);
+	setText(text);
+!!!8931227.java!!!	addHyperlinkListener(inout listener : HyperlinkListener) : void
+        listenerList.add(HyperlinkListener.class, listener);
+!!!8931355.java!!!	removeHyperlinkListener(inout listener : HyperlinkListener) : void
+        listenerList.remove(HyperlinkListener.class, listener);
+!!!8931483.java!!!	getHyperlinkListeners() : HyperlinkListener
+        return (HyperlinkListener[])listenerList.getListeners(
+                HyperlinkListener.class);
+!!!8931611.java!!!	fireHyperlinkUpdate(inout e : HyperlinkEvent) : void
+        // Guaranteed to return a non-null array
+        Object[] listeners = listenerList.getListenerList();
+        // Process the listeners last to first, notifying
+        // those that are interested in this event
+        for (int i = listeners.length-2; i>=0; i-=2) {
+            if (listeners[i]==HyperlinkListener.class) {
+                ((HyperlinkListener)listeners[i+1]).hyperlinkUpdate(e);
+            }          
+        }
+!!!8931739.java!!!	setPage(inout page : URL) : void
+        if (page == null) {
+            throw new IOException("invalid url");
+        }
+	URL loaded = getPage();
+
+
+	// reset scrollbar
+	if (!page.equals(loaded) && page.getRef() == null) {
+	    scrollRectToVisible(new Rectangle(0,0,1,1));
+	}
+	boolean reloaded = false;
+	if ((loaded == null) || (! loaded.sameFile(page))) {
+
+	    // different url, load the new content
+	    InputStream in = getStream(page);
+	    if (kit != null) {
+		Document doc = kit.createDefaultDocument();
+		if (pageProperties != null) {
+		    // transfer properties discovered in stream to the
+		    // document property collection.
+		    for (Enumeration e = pageProperties.keys(); e.hasMoreElements() ;) {
+			Object key = e.nextElement();
+			doc.putProperty(key, pageProperties.get(key));
+		    }
+		    pageProperties.clear();
+		}
+		if (doc.getProperty(Document.StreamDescriptionProperty) == null) {
+		    doc.putProperty(Document.StreamDescriptionProperty, page);
+		}
+
+		// At this point, one could either load up the model with no
+		// view notifications slowing it down (i.e. best synchronous
+		// behavior) or set the model and start to feed it on a separate
+		// thread (best asynchronous behavior).
+		synchronized(this) {
+		    if (loading != null) {
+			// we are loading asynchronously, so we need to cancel 
+			// the old stream.
+			loading.cancel();
+			loading = null;
+		    }
+		}
+		if (doc instanceof AbstractDocument) {
+		    AbstractDocument adoc = (AbstractDocument) doc;
+		    int p = adoc.getAsynchronousLoadPriority();
+		    if (p >= 0) {
+			// load asynchronously
+			setDocument(doc);
+			synchronized(this) {
+			    loading = new PageStream(in);
+			    Thread pl = new PageLoader(doc, loading, p, loaded, page);
+			    pl.start();
+			}
+			return;
+		    }
+		}
+		read(in, doc);
+		setDocument(doc);  
+		reloaded = true;
+	    }
+	}
+	final String reference = page.getRef();
+	if (reference != null) {
+	    if (!reloaded) {
+		scrollToReference(reference);
+	    }
+	    else {
+		// Have to scroll after painted.
+		SwingUtilities.invokeLater(new Runnable() {
+		    public void run() {
+			scrollToReference(reference);
+		    }
+		});
+	    }
+	    getDocument().putProperty(Document.StreamDescriptionProperty, page);
+	}
+        firePropertyChange("page", loaded, page);
+!!!8931867.java!!!	read(inout in : InputStream, inout desc : Object) : void
+
+	if (desc instanceof HTMLDocument && 
+	    kit instanceof HTMLEditorKit) {
+	    HTMLDocument hdoc = (HTMLDocument) desc;
+	    setDocument(hdoc);
+	    read(in, hdoc);
+	} else {
+	    String charset = (String) getClientProperty("charset");
+	    Reader r = (charset != null) ? new InputStreamReader(in, charset) :
+		new InputStreamReader(in);
+	    super.read(r, desc);
+	}
+!!!8931995.java!!!	read(inout in : InputStream, inout doc : Document) : void
+	try {
+	    String charset = (String) getClientProperty("charset");
+	    Reader r = (charset != null) ? new InputStreamReader(in, charset) :
+		new InputStreamReader(in);
+	    kit.read(r, doc, 0);
+	} catch (BadLocationException e) {
+	    throw new IOException(e.getMessage());
+	} catch (ChangedCharSetException e1) {
+	    String charSetSpec = e1.getCharSetSpec();
+	    if (e1.keyEqualsCharSet()) {
+		putClientProperty("charset", charSetSpec);
+	    } else {
+		setCharsetFromContentTypeParameters(charSetSpec);
+	    }
+	    in.close();
+	    URL url = (URL)doc.getProperty(Document.StreamDescriptionProperty);
+	    URLConnection conn = url.openConnection();
+	    in = conn.getInputStream();
+	    try {
+		doc.remove(0, doc.getLength());
+	    } catch (BadLocationException e) {}
+	    doc.putProperty("IgnoreCharsetDirective", Boolean.valueOf(true));
+	    read(in, doc);
+	}
+!!!8933275.java!!!	getStream(inout page : URL) : InputStream
+	URLConnection conn = page.openConnection();
+	if (conn instanceof HttpURLConnection) {
+	    HttpURLConnection hconn = (HttpURLConnection) conn;
+	    hconn.setInstanceFollowRedirects(false);
+	    int response = hconn.getResponseCode();
+	    boolean redirect = (response >= 300 && response <= 399);
+
+	    /*
+	     * In the case of a redirect, we want to actually change the URL
+	     * that was input to the new, redirected URL
+	     */
+	    if (redirect) {
+		String loc = conn.getHeaderField("Location");
+		if (loc.startsWith("http", 0)) {
+		    page = new URL(loc);
+		} else {
+		    page = new URL(page, loc);
+		}
+		return getStream(page);
+	    }
+	}
+	if (pageProperties == null) {
+	    pageProperties = new Hashtable();
+	}
+	String type = conn.getContentType();
+	if (type != null) {
+	    setContentType(type);
+	    pageProperties.put("content-type", type);
+	}
+	pageProperties.put(Document.StreamDescriptionProperty, page);
+	String enc = conn.getContentEncoding();
+	if (enc != null) {
+	    pageProperties.put("content-encoding", enc);
+	}
+	InputStream in = conn.getInputStream();
+	return in;
+!!!8933403.java!!!	scrollToReference(in reference : String) : void
+	Document d = getDocument();
+	if (d instanceof HTMLDocument) {
+	    HTMLDocument doc = (HTMLDocument) d;
+	    HTMLDocument.Iterator iter = doc.getIterator(HTML.Tag.A);
+	    for (; iter.isValid(); iter.next()) {
+		AttributeSet a = iter.getAttributes();
+		String nm = (String) a.getAttribute(HTML.Attribute.NAME);
+		if ((nm != null) && nm.equals(reference)) {
+		    // found a matching reference in the document.
+		    try {
+			Rectangle r = modelToView(iter.getStartOffset());
+			if (r != null) {
+			    // the view is visible, scroll it to the 
+			    // center of the current visible area.
+			    Rectangle vis = getVisibleRect();
+			    //r.y -= (vis.height / 2);
+			    r.height = vis.height;
+			    scrollRectToVisible(r);
+			}
+		    } catch (BadLocationException ble) {
+		        UIManager.getLookAndFeel().provideErrorFeedback(JEditorPane.this);
+		    }
+		}
+	    }
+	}
+!!!8933531.java!!!	getPage() : URL
+        return (URL) getDocument().getProperty(Document.StreamDescriptionProperty);
+!!!8933659.java!!!	setPage(in url : String) : void
+        if (url == null) {
+            throw new IOException("invalid url");
+        }
+        URL page = new URL(url);
+        setPage(page);
+!!!8933787.java!!!	getUIClassID() : String
+        return uiClassID;
+!!!8933915.java!!!	createDefaultEditorKit() : EditorKit
+        return new PlainEditorKit();
+!!!8934043.java!!!	getEditorKit() : EditorKit
+        if (kit == null) {
+            kit = createDefaultEditorKit();
+        }
+        return kit;
+!!!8934171.java!!!	getContentType() : String
+        return (kit != null) ? kit.getContentType() : null;
+!!!8934299.java!!!	setContentType(in type : String) : void
+	// The type could have optional info is part of it,
+	// for example some charset info.  We need to strip that
+	// of and save it.
+	int parm = type.indexOf(";");
+	if (parm > -1) {
+	    // Save the paramList.
+	    String paramList = type.substring(parm);
+	    // update the content type string.
+	    type = type.substring(0, parm).trim();
+	    if (type.toLowerCase().startsWith("text/")) {
+		setCharsetFromContentTypeParameters(paramList);
+	    }
+	}
+        if ((kit == null) || (! type.equals(kit.getContentType()))) {
+            EditorKit k = getEditorKitForContentType(type);
+            if (k != null) {
+                setEditorKit(k);
+            }
+        }
+!!!8934427.java!!!	setCharsetFromContentTypeParameters(in paramlist : String) : void
+	String charset = null;
+	try {
+	    // paramlist is handed to us with a leading ';', strip it.
+	    int semi = paramlist.indexOf(';');
+	    if (semi > -1 && semi < paramlist.length()-1) {
+		paramlist = paramlist.substring(semi + 1);
+	    }
+
+	    if (paramlist.length() > 0) {
+		// parse the paramlist into attr-value pairs & get the
+		// charset pair's value
+		HeaderParser hdrParser = new HeaderParser(paramlist);
+		charset = hdrParser.findValue("charset");
+		if (charset != null) {
+		    putClientProperty("charset", charset);
+		}
+	    }
+	}
+	catch (IndexOutOfBoundsException e) {
+	    // malformed parameter list, use charset we have
+	}
+	catch (NullPointerException e) {
+	    // malformed parameter list, use charset we have
+	}
+	catch (Exception e) {
+	    // malformed parameter list, use charset we have; but complain
+	    System.err.println("JEditorPane.getCharsetFromContentTypeParameters failed on: " + paramlist);
+	    e.printStackTrace();
+	}
+!!!8934555.java!!!	setEditorKit(inout kit : EditorKit) : void
+        EditorKit old = this.kit;
+        if (old != null) {
+            old.deinstall(this);
+        }
+        this.kit = kit;
+        if (this.kit != null) {
+            this.kit.install(this);
+            setDocument(this.kit.createDefaultDocument());
+        }
+        firePropertyChange("editorKit", old, kit);
+!!!8934683.java!!!	getEditorKitForContentType(in type : String) : EditorKit
+        if (typeHandlers == null) {
+            typeHandlers = new Hashtable(3);
+        }
+        EditorKit k = (EditorKit) typeHandlers.get(type);
+        if (k == null) {
+            k = createEditorKitForContentType(type);
+            if (k != null) {
+                setEditorKitForContentType(type, k);
+            }
+        }
+        if (k == null) {
+            k = createDefaultEditorKit();
+        }
+        return k;
+!!!8934811.java!!!	setEditorKitForContentType(in type : String, inout k : EditorKit) : void
+        if (typeHandlers == null) {
+            typeHandlers = new Hashtable(3);
+        }
+        typeHandlers.put(type, k);
+!!!8934939.java!!!	replaceSelection(in content : String) : void
+        if (! isEditable()) {
+	    UIManager.getLookAndFeel().provideErrorFeedback(JEditorPane.this);
+            return;
+        }
+        EditorKit kit = getEditorKit();
+	if(kit instanceof StyledEditorKit) {
+            try {
+		Document doc = getDocument();
+                Caret caret = getCaret();
+                int p0 = Math.min(caret.getDot(), caret.getMark());
+                int p1 = Math.max(caret.getDot(), caret.getMark());
+                if (doc instanceof AbstractDocument) {
+                    ((AbstractDocument)doc).replace(p0, p1 - p0, content, 
+                              ((StyledEditorKit)kit).getInputAttributes());
+                }
+                else {
+                    if (p0 != p1) {
+                        doc.remove(p0, p1 - p0);
+                    }
+                    if (content != null && content.length() > 0) {
+                        doc.insertString(p0, content, ((StyledEditorKit)kit).
+                                         getInputAttributes());
+                    }
+                }
+            } catch (BadLocationException e) {
+	        UIManager.getLookAndFeel().provideErrorFeedback(JEditorPane.this);
+            }
+        }
+        else {
+	    super.replaceSelection(content);
+	}
+!!!8935067.java!!!	createEditorKitForContentType(in type : String) : EditorKit
+        EditorKit k = null;
+        Hashtable kitRegistry = getKitRegisty();
+	k = (EditorKit) kitRegistry.get(type);
+        if (k == null) {
+            // try to dynamically load the support 
+            String classname = (String) getKitTypeRegistry().get(type);
+	    ClassLoader loader = (ClassLoader) getKitLoaderRegistry().get(type);
+            try {
+		Class c;
+		if (loader != null) {
+		    c = loader.loadClass(classname);
+		} else {
+                    // Will only happen if developer has invoked 
+                    // registerEditorKitForContentType(type, class, null).
+		    c = Class.forName(classname, true, Thread.currentThread().
+                                      getContextClassLoader());
+		}
+                k = (EditorKit) c.newInstance();
+                kitRegistry.put(type, k);
+            } catch (Throwable e) {
+                k = null;
+            }
+        }
+
+        // create a copy of the prototype or null if there
+        // is no prototype.
+        if (k != null) {
+            return (EditorKit) k.clone();
+        }
+        return null;
+!!!8935195.java!!!	registerEditorKitForContentType(in type : String, in classname : String) : void
+        registerEditorKitForContentType(type, classname,Thread.currentThread().
+                                        getContextClassLoader());
+!!!8935323.java!!!	registerEditorKitForContentType(in type : String, in classname : String, inout loader : ClassLoader) : void
+        getKitTypeRegistry().put(type, classname);
+	getKitLoaderRegistry().put(type, loader);
+	getKitRegisty().remove(type);
+!!!8935451.java!!!	getEditorKitClassNameForContentType(in type : String) : String
+	return (String)getKitTypeRegistry().get(type);
+!!!8935579.java!!!	getKitTypeRegistry() : Hashtable
+	loadDefaultKitsIfNecessary();
+	return (Hashtable)SwingUtilities.appContextGet(kitTypeRegistryKey);
+!!!8935707.java!!!	getKitLoaderRegistry() : Hashtable
+	loadDefaultKitsIfNecessary();
+	return (Hashtable)SwingUtilities.appContextGet(kitLoaderRegistryKey);
+!!!8935835.java!!!	getKitRegisty() : Hashtable
+	Hashtable ht = (Hashtable)SwingUtilities.appContextGet(kitRegistryKey);
+	if (ht == null) {
+	    ht = new Hashtable(3);
+	    SwingUtilities.appContextPut(kitRegistryKey, ht);
+	}
+	return ht;
+!!!8935963.java!!!	loadDefaultKitsIfNecessary() : void
+	if (SwingUtilities.appContextGet(kitTypeRegistryKey) == null) {
+	    Hashtable ht = new Hashtable();
+	    SwingUtilities.appContextPut(kitTypeRegistryKey, ht);
+	    ht = new Hashtable();
+	    SwingUtilities.appContextPut(kitLoaderRegistryKey, ht);
+	    registerEditorKitForContentType("text/plain",
+				  "javax.swing.JEditorPane$PlainEditorKit");
+	    registerEditorKitForContentType("text/html",
+				  "javax.swing.text.html.HTMLEditorKit");
+	    registerEditorKitForContentType("text/rtf",
+				  "javax.swing.text.rtf.RTFEditorKit");
+	    registerEditorKitForContentType("application/rtf",
+				  "javax.swing.text.rtf.RTFEditorKit");
+	}
+!!!8936091.java!!!	getPreferredSize() : Dimension
+	Dimension d = super.getPreferredSize();
+	if (getParent() instanceof JViewport) {
+	    JViewport port = (JViewport)getParent();
+	    TextUI ui = getUI();
+            int prefWidth = d.width;
+            int prefHeight = d.height;
+	    if (! getScrollableTracksViewportWidth()) {
+		int w = port.getWidth();
+		Dimension min = ui.getMinimumSize(this);
+		if (w != 0 && w < min.width) {
+                    // Only adjust to min if we have a valid size
+		    prefWidth = min.width;
+		}
+	    }
+	    if (! getScrollableTracksViewportHeight()) {
+		int h = port.getHeight();
+		Dimension min = ui.getMinimumSize(this);
+		if (h != 0 && h < min.height) {
+                    // Only adjust to min if we have a valid size
+		    prefHeight = min.height;
+		}
+	    }
+            if (prefWidth != d.width || prefHeight != d.height) {
+                d = new Dimension(prefWidth, prefHeight);
+            }
+	}
+	return d;
+!!!8936219.java!!!	setText(in t : String) : void
+        try {
+	    Document doc = getDocument();
+	    doc.remove(0, doc.getLength());
+	    if (t == null || t.equals("")) {
+		return;
+	    }
+	    Reader r = new StringReader(t);
+	    EditorKit kit = getEditorKit();
+            kit.read(r, doc, 0);
+        } catch (IOException ioe) {
+	    UIManager.getLookAndFeel().provideErrorFeedback(JEditorPane.this);
+        } catch (BadLocationException ble) {
+	    UIManager.getLookAndFeel().provideErrorFeedback(JEditorPane.this);
+	}
+!!!8936347.java!!!	getText() : String
+	String txt;
+	try {
+	    StringWriter buf = new StringWriter();
+	    write(buf);
+	    txt = buf.toString();
+        } catch (IOException ioe) {
+            txt = null;
+        }
+        return txt;
+!!!8936475.java!!!	getScrollableTracksViewportWidth() : boolean
+	if (getParent() instanceof JViewport) {
+	    JViewport port = (JViewport)getParent();
+	    TextUI ui = getUI();
+	    int w = port.getWidth();
+	    Dimension min = ui.getMinimumSize(this);
+	    Dimension max = ui.getMaximumSize(this);
+	    if ((w >= min.width) && (w <= max.width)) {
+		return true;
+	    }
+	}
+	return false;
+!!!8936603.java!!!	getScrollableTracksViewportHeight() : boolean
+	if (getParent() instanceof JViewport) {
+	    JViewport port = (JViewport)getParent();
+	    TextUI ui = getUI();
+	    int h = port.getHeight();
+	    Dimension min = ui.getMinimumSize(this);
+	    if (h >= min.height) {
+		Dimension max = ui.getMaximumSize(this);
+		if (h <= max.height) {
+		    return true;
+		}
+	    }
+	}
+	return false;
+!!!8936731.java!!!	writeObject(inout s : ObjectOutputStream) : void
+        s.defaultWriteObject();
+        if (getUIClassID().equals(uiClassID)) {
+            byte count = JComponent.getWriteObjCounter(this);
+            JComponent.setWriteObjCounter(this, --count);
+            if (count == 0 && ui != null) {
+                ui.installUI(this);
+            }
+        }
+!!!8936859.java!!!	paramString() : String
+        String kitString = (kit != null ?
+			    kit.toString() : "");
+        String typeHandlersString = (typeHandlers != null ?
+				     typeHandlers.toString() : "");
+
+        return super.paramString() +
+        ",kit=" + kitString +
+        ",typeHandlers=" + typeHandlersString;
+!!!8936987.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+	    if (JEditorPane.this.getEditorKit() instanceof HTMLEditorKit) {
+		accessibleContext = new AccessibleJEditorPaneHTML();
+	    } else {
+                accessibleContext = new AccessibleJEditorPane();
+	    }
+        }
+        return accessibleContext;

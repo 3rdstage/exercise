@@ -1,0 +1,147 @@
+class MBeanInfo
+!!!8237723.java!!!	MBeanInfo(in className : String, in description : String, inout attributes : MBeanAttributeInfo, inout constructors : MBeanConstructorInfo, inout operations : MBeanOperationInfo, inout notifications : MBeanNotificationInfo)
+
+	this.className = className;
+
+	this.description = description;
+
+	if (attributes == null)
+	    attributes = MBeanAttributeInfo.NO_ATTRIBUTES;
+	this.attributes = attributes;
+
+	if (operations == null)
+	    operations = MBeanOperationInfo.NO_OPERATIONS;
+	this.operations = operations;
+
+	if (constructors == null)
+	    constructors = MBeanConstructorInfo.NO_CONSTRUCTORS;
+	this.constructors = constructors;
+
+	if (notifications == null)
+	    notifications = MBeanNotificationInfo.NO_NOTIFICATIONS;
+	this.notifications = notifications;
+
+	this.immutable = isImmutableClass(this.getClass(), MBeanInfo.class);
+!!!8237851.java!!!	clone() : Object
+	 try {
+	     return  super.clone() ;
+	 } catch (CloneNotSupportedException e) {
+	     // should not happen as this class is cloneable
+	     return null;
+	 }
+!!!8237979.java!!!	getClassName() : String
+	return className;
+!!!8238107.java!!!	getDescription() : String
+	return description;
+!!!8238235.java!!!	getAttributes() : MBeanAttributeInfo
+	MBeanAttributeInfo[] as = nonNullAttributes();
+	if (as.length == 0)
+	    return as;
+	else
+	    return (MBeanAttributeInfo[]) as.clone();
+!!!8238363.java!!!	fastGetAttributes() : MBeanAttributeInfo
+	if (immutable)
+	    return nonNullAttributes();
+	else
+	    return getAttributes();
+!!!8238491.java!!!	nonNullAttributes() : MBeanAttributeInfo
+	return (attributes == null) ?
+	    MBeanAttributeInfo.NO_ATTRIBUTES : attributes;
+!!!8238619.java!!!	getOperations() : MBeanOperationInfo
+	MBeanOperationInfo[] os = nonNullOperations();
+	if (os.length == 0)
+	    return os;
+	else
+	    return (MBeanOperationInfo[]) os.clone();
+!!!8238747.java!!!	fastGetOperations() : MBeanOperationInfo
+	if (immutable)
+	    return nonNullOperations();
+	else
+	    return getOperations();
+!!!8238875.java!!!	nonNullOperations() : MBeanOperationInfo
+	return (operations == null) ?
+	    MBeanOperationInfo.NO_OPERATIONS : operations;
+!!!8239003.java!!!	getConstructors() : MBeanConstructorInfo
+	MBeanConstructorInfo[] cs = nonNullConstructors();
+	if (cs.length == 0)
+	    return cs;
+	else
+	    return (MBeanConstructorInfo[]) cs.clone();
+!!!8239131.java!!!	fastGetConstructors() : MBeanConstructorInfo
+	if (immutable)
+	    return nonNullConstructors();
+	else
+	    return getConstructors();
+!!!8239259.java!!!	nonNullConstructors() : MBeanConstructorInfo
+	return (constructors == null) ?
+	    MBeanConstructorInfo.NO_CONSTRUCTORS : constructors;
+!!!8239387.java!!!	getNotifications() : MBeanNotificationInfo
+	MBeanNotificationInfo[] ns = nonNullNotifications();
+	if (ns.length == 0)
+	    return ns;
+	else
+	    return (MBeanNotificationInfo[]) ns.clone();
+!!!8239515.java!!!	fastGetNotifications() : MBeanNotificationInfo
+	if (immutable)
+	    return nonNullNotifications();
+	else
+	    return getNotifications();
+!!!8239643.java!!!	nonNullNotifications() : MBeanNotificationInfo
+	return (notifications == null) ?
+	    MBeanNotificationInfo.NO_NOTIFICATIONS : notifications;
+!!!8239771.java!!!	equals(inout o : Object) : boolean
+	if (o == this)
+	    return true;
+	if (!(o instanceof MBeanInfo))
+	    return false;
+	MBeanInfo p = (MBeanInfo) o;
+	if (!p.getClassName().equals(getClassName()) ||
+	    !p.getDescription().equals(getDescription()))
+	    return false;
+	return
+	    (Arrays.equals(p.fastGetAttributes(), fastGetAttributes()) &&
+	     Arrays.equals(p.fastGetOperations(), fastGetOperations()) &&
+	     Arrays.equals(p.fastGetConstructors(), fastGetConstructors()) &&
+	     Arrays.equals(p.fastGetNotifications(), fastGetNotifications()));
+!!!8239899.java!!!	hashCode() : int
+	/* Since computing the hashCode is quite expensive, we cache it.
+	   If by some terrible misfortune the computed value is 0, the
+	   caching won't work and we will recompute it every time.
+
+	   We don't bother synchronizing, because, at worst, n different
+	   threads will compute the same hashCode at the same time.  */
+	if (hashCode != 0)
+	    return hashCode;
+
+	hashCode =
+	    getClassName().hashCode() ^
+	    arrayHashCode(fastGetAttributes()) ^
+	    arrayHashCode(fastGetOperations()) ^
+	    arrayHashCode(fastGetConstructors()) ^
+	    arrayHashCode(fastGetNotifications());
+
+	return hashCode;
+!!!8240027.java!!!	arrayHashCode(inout array : Object) : int
+	int hash = 0;
+	for (int i = 0; i < array.length; i++)
+	    hash ^= array[i].hashCode();
+	return hash;
+!!!8240155.java!!!	isImmutableClass(inout subclass : Class, inout immutableClass : Class) : boolean
+	if (subclass == immutableClass)
+	    return true;
+	synchronized (immutability) {
+	    Boolean immutable = (Boolean) immutability.get(subclass);
+	    if (immutable == null) {
+		try {
+		    PrivilegedAction immutabilityAction =
+			new ImmutabilityAction(subclass, immutableClass);
+		    immutable = (Boolean)
+			AccessController.doPrivileged(immutabilityAction);
+		} catch (Exception e) { // e.g. SecurityException
+		    /* We don't know, so we assume it isn't.  */
+		    immutable = Boolean.FALSE;
+		}
+		immutability.put(subclass, immutable);
+	    }
+	    return immutable.booleanValue();
+	}

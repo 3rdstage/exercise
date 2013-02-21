@@ -1,0 +1,45 @@
+class NameNodeListImpl
+!!!4202395.java!!!	NameNodeListImpl(inout rootNode : NodeImpl, in tagName : String)
+	super( rootNode, tagName );
+!!!4202523.java!!!	nextMatchingElementAfter(inout current : Node) : Node
+        
+        Node next;
+        while (current != null) {
+            // Look down to first child.
+            if (current.hasChildNodes()) {
+                current = (current.getFirstChild());
+            }
+            
+            // Look right to sibling (but not from root!)
+            else if (current != rootNode && null != (next = current.getNextSibling())) {
+                current = next;
+            }
+            
+            // Look up and right (but not past root!)
+            else {
+                next = null;
+                for (; current != rootNode; // Stop when we return to starting point
+                     current = current.getParentNode()) {
+                    
+                    next = current.getNextSibling();
+                    if (next != null)
+                        break;
+                }
+                current = next;
+            }
+            
+            // Have we found an Element with the right tagName?
+            // ("*" matches anything.)
+            if (current != rootNode && current != null
+                && current.getNodeType() ==  Node.ELEMENT_NODE  ) {
+                String name = ((ElementImpl) current).getAttribute( "name" );
+                if ( name.equals("*") || name.equals(tagName))
+                    return current;
+            }
+            
+            // Otherwise continue walking the tree
+        }
+        
+        // Fell out of tree-walk; no more instances found
+        return null;
+        

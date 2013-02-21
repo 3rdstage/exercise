@@ -1,0 +1,200 @@
+class DirectIntBufferU
+!!!7417115.java!!!	viewedBuffer() : Object
+
+        return viewedBuffer;
+!!!7417243.java!!!	cleaner() : Cleaner
+ return null;
+!!!7417371.java!!!	DirectIntBufferU(inout db : DirectBuffer, in mark : int, in pos : int, in lim : int, in cap : int, in off : int)
+
+
+	super(mark, pos, lim, cap);
+	address = db.address() + off;
+	viewedBuffer = db;
+
+
+
+
+
+
+!!!7417499.java!!!	slice() : IntBuffer
+
+	int pos = this.position();
+	int lim = this.limit();
+	assert (pos <= lim);
+	int rem = (pos <= lim ? lim - pos : 0);
+	int off = (pos << 2);
+        assert (off >= 0);
+	return new DirectIntBufferU(this, -1, 0, rem, rem, off);
+!!!7417627.java!!!	duplicate() : IntBuffer
+
+	return new DirectIntBufferU(this,
+					      this.markValue(),
+					      this.position(),
+					      this.limit(),
+					      this.capacity(),
+					      0);
+!!!7417755.java!!!	asReadOnlyBuffer() : IntBuffer
+
+
+	return new DirectIntBufferRU(this,
+					   this.markValue(),
+					   this.position(),
+					   this.limit(),
+					   this.capacity(),
+					   0);
+
+
+
+!!!7417883.java!!!	address() : long
+
+	return address;
+!!!7418011.java!!!	ix(in i : int) : long
+
+        return address + (i << 2);
+!!!7418139.java!!!	get() : int
+
+	return ((unsafe.getInt(ix(nextGetIndex()))));
+!!!7418267.java!!!	get(in i : int) : int
+
+	return ((unsafe.getInt(ix(checkIndex(i)))));
+!!!7418395.java!!!	get(in dst : int, in offset : int, in length : int) : IntBuffer
+
+
+	if ((length << 2) > Bits.JNI_COPY_TO_ARRAY_THRESHOLD) {
+	    checkBounds(offset, length, dst.length);
+	    int pos = position();
+	    int lim = limit();
+	    assert (pos <= lim);
+	    int rem = (pos <= lim ? lim - pos : 0);
+	    if (length > rem)
+		throw new BufferUnderflowException();
+
+	    if (order() != ByteOrder.nativeOrder())
+		Bits.copyToIntArray(ix(pos), dst,
+					  offset << 2,
+					  length << 2);
+	    else
+		Bits.copyToByteArray(ix(pos), dst,
+				     offset << 2,
+				     length << 2);
+	    position(pos + length);
+	} else {
+	    super.get(dst, offset, length);
+	}
+	return this;
+
+
+
+!!!7418523.java!!!	put(in x : int) : IntBuffer
+
+
+	unsafe.putInt(ix(nextPutIndex()), ((x)));
+	return this;
+
+
+
+!!!7418651.java!!!	put(in i : int, in x : int) : IntBuffer
+
+
+	unsafe.putInt(ix(checkIndex(i)), ((x)));
+	return this;
+
+
+
+!!!7418779.java!!!	put(inout src : IntBuffer) : IntBuffer
+
+
+	if (src instanceof DirectIntBufferU) {
+	    if (src == this)
+		throw new IllegalArgumentException();
+	    DirectIntBufferU sb = (DirectIntBufferU)src;
+
+	    int spos = sb.position();
+	    int slim = sb.limit();
+	    assert (spos <= slim);
+	    int srem = (spos <= slim ? slim - spos : 0);
+
+	    int pos = position();
+	    int lim = limit();
+	    assert (pos <= lim);
+	    int rem = (pos <= lim ? lim - pos : 0);
+
+	    if (srem > rem)
+		throw new BufferOverflowException();
+ 	    unsafe.copyMemory(sb.ix(spos), ix(pos), srem << 2);
+ 	    sb.position(spos + srem);
+ 	    position(pos + srem);
+	} else if (!src.isDirect()) {
+
+	    int spos = src.position();
+	    int slim = src.limit();
+	    assert (spos <= slim);
+	    int srem = (spos <= slim ? slim - spos : 0);
+
+	    put(src.hb, src.offset + spos, srem);
+	    src.position(spos + srem);
+
+	} else {
+	    super.put(src);
+	}
+	return this;
+
+
+
+!!!7418907.java!!!	put(in src : int, in offset : int, in length : int) : IntBuffer
+
+
+	if ((length << 2) > Bits.JNI_COPY_FROM_ARRAY_THRESHOLD) {
+	    checkBounds(offset, length, src.length);
+	    int pos = position();
+	    int lim = limit();
+	    assert (pos <= lim);
+	    int rem = (pos <= lim ? lim - pos : 0);
+	    if (length > rem)
+		throw new BufferOverflowException();
+
+	    if (order() != ByteOrder.nativeOrder()) 
+		Bits.copyFromIntArray(src, offset << 2,
+					    ix(pos), length << 2);
+	    else
+		Bits.copyFromByteArray(src, offset << 2,
+				       ix(pos), length << 2);
+	    position(pos + length);
+	} else {
+	    super.put(src, offset, length);
+	}
+	return this;
+
+
+
+!!!7419035.java!!!	compact() : IntBuffer
+
+
+	int pos = position();
+	int lim = limit();
+	assert (pos <= lim);
+	int rem = (pos <= lim ? lim - pos : 0);
+
+ 	unsafe.copyMemory(ix(pos), ix(0), rem << 2);
+ 	position(rem);
+	limit(capacity());
+	return this;
+
+
+
+!!!7419163.java!!!	isDirect() : boolean
+
+	return true;
+!!!7419291.java!!!	isReadOnly() : boolean
+
+	return false;
+!!!7419419.java!!!	order() : ByteOrder
+
+
+
+
+
+
+	return ((ByteOrder.nativeOrder() != ByteOrder.BIG_ENDIAN)
+		? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN);
+

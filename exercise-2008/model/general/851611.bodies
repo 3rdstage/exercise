@@ -1,0 +1,188 @@
+class Checkbox
+!!!6169371.java!!!	setStateInternal(inout state : boolean) : void
+	this.state = state;
+	CheckboxPeer peer = (CheckboxPeer)this.peer;
+	if (peer != null) {
+	    peer.setState(state);
+	}
+!!!6169499.java!!!	Checkbox()
+        this("", false, null);
+!!!6169627.java!!!	Checkbox(in label : String)
+	this(label, false, null);
+!!!6169755.java!!!	Checkbox(in label : String, inout state : boolean)
+        this(label, state, null);
+!!!6169883.java!!!	Checkbox(in label : String, inout state : boolean, inout group : CheckboxGroup)
+        GraphicsEnvironment.checkHeadless();
+	this.label = label;
+	this.state = state;
+	this.group = group;
+	if (state && (group != null)) {
+	    group.setSelectedCheckbox(this);
+	}
+!!!6170011.java!!!	Checkbox(in label : String, inout group : CheckboxGroup, inout state : boolean)
+    	this(label, state, group);
+!!!6170139.java!!!	constructComponentName() : String
+        synchronized (getClass()) {
+	    return base + nameCounter++;
+	}
+!!!6170267.java!!!	addNotify() : void
+        synchronized (getTreeLock()) {
+	    if (peer == null) 
+	        peer = getToolkit().createCheckbox(this);
+	    super.addNotify();
+	}
+!!!6170395.java!!!	getLabel() : String
+	return label;
+!!!6170523.java!!!	setLabel(in label : String) : void
+        boolean testvalid = false;
+
+	synchronized (this) {
+	    if (label != this.label && (this.label == null ||
+					!this.label.equals(label))) {
+	        this.label = label;
+		CheckboxPeer peer = (CheckboxPeer)this.peer;
+		if (peer != null) {
+		    peer.setLabel(label);
+		}
+		testvalid = true;
+	    }
+	}
+	    
+	// This could change the preferred size of the Component.
+	if (testvalid && valid) {
+	    invalidate();
+	}
+!!!6170651.java!!!	getState() : boolean
+	return state;
+!!!6170779.java!!!	setState(inout state : boolean) : void
+	/* Cannot hold check box lock when calling group.setSelectedCheckbox. */
+    	CheckboxGroup group = this.group;
+	if (group != null) {
+	    if (state) {
+		group.setSelectedCheckbox(this);
+	    } else if (group.getSelectedCheckbox() == this) {
+		state = true;
+	    }
+	}
+	setStateInternal(state);
+!!!6170907.java!!!	getSelectedObjects() : Object
+        if (state) {
+            Object[] items = new Object[1];
+            items[0] = label;
+            return items;
+        }
+        return null;
+!!!6171035.java!!!	getCheckboxGroup() : CheckboxGroup
+	return group;
+!!!6171163.java!!!	setCheckboxGroup(inout g : CheckboxGroup) : void
+        CheckboxGroup oldGroup;
+        boolean oldState;
+
+        /* Do nothing if this check box has already belonged
+         * to the check box group g.
+         */
+        if (this.group == g) {
+            return;
+        }
+
+	synchronized (this) {
+            oldGroup = this.group;
+            oldState = getState();
+
+	    this.group = g;
+	    CheckboxPeer peer = (CheckboxPeer)this.peer;
+	    if (peer != null) {
+		peer.setCheckboxGroup(g);
+	    }
+	    if (this.group != null && getState()) {
+	        if (this.group.getSelectedCheckbox() != null) {
+	            setState(false);
+	        } else {
+	            this.group.setSelectedCheckbox(this);
+	        }
+	    }
+	}
+
+        /* Locking check box below could cause deadlock with
+         * CheckboxGroup's setSelectedCheckbox method.
+         *
+         * Fix for 4726853 by kdm@sparc.spb.su
+         * Here we should check if this check box was selected
+         * in the previous group and set selected check box to
+         * null for that group if so.
+         */
+        if (oldGroup != null && oldState) {
+            oldGroup.setSelectedCheckbox(null);
+        }
+!!!6171291.java!!!	addItemListener(inout l : ItemListener) : void
+	if (l == null) {
+	    return;
+	}
+        itemListener = AWTEventMulticaster.add(itemListener, l);
+        newEventsOnly = true;
+!!!6171419.java!!!	removeItemListener(inout l : ItemListener) : void
+	if (l == null) {
+	    return;
+	}
+        itemListener = AWTEventMulticaster.remove(itemListener, l);
+!!!6171547.java!!!	getItemListeners() : ItemListener
+        return (ItemListener[]) (getListeners(ItemListener.class));
+!!!6171675.java!!!	getListeners(inout listenerType : Class) : T
+	EventListener l = null; 
+	if  (listenerType == ItemListener.class) { 
+	    l = itemListener;
+	} else {
+	    return super.getListeners(listenerType);
+	}
+	return AWTEventMulticaster.getListeners(l, listenerType);
+!!!6171803.java!!!	eventEnabled(inout e : AWTEvent) : boolean
+        if (e.id == ItemEvent.ITEM_STATE_CHANGED) {
+            if ((eventMask & AWTEvent.ITEM_EVENT_MASK) != 0 ||
+                itemListener != null) {
+                return true;
+            }
+            return false;
+        }
+        return super.eventEnabled(e);
+!!!6171931.java!!!	processEvent(inout e : AWTEvent) : void
+        if (e instanceof ItemEvent) {
+            processItemEvent((ItemEvent)e);
+            return;
+        }
+	super.processEvent(e);
+!!!6172059.java!!!	processItemEvent(inout e : ItemEvent) : void
+        ItemListener listener = itemListener;
+        if (listener != null) {
+            listener.itemStateChanged(e);
+        }
+!!!6172187.java!!!	paramString() : String
+	String str = super.paramString();
+	String label = this.label;
+	if (label != null) {
+	    str += ",label=" + label;
+	}
+	return str + ",state=" + state;
+!!!6172315.java!!!	writeObject(inout s : ObjectOutputStream) : void
+      s.defaultWriteObject();
+
+      AWTEventMulticaster.save(s, itemListenerK, itemListener);
+      s.writeObject(null);
+!!!6172443.java!!!	readObject(inout s : ObjectInputStream) : void
+      GraphicsEnvironment.checkHeadless();
+      s.defaultReadObject();
+
+      Object keyOrNull;
+      while(null != (keyOrNull = s.readObject())) {
+	String key = ((String)keyOrNull).intern();
+
+	if (itemListenerK == key)
+	  addItemListener((ItemListener)(s.readObject()));
+
+	else // skip value for unrecognized key
+	  s.readObject();
+      }
+!!!6172699.java!!!	getAccessibleContext() : AccessibleContext
+        if (accessibleContext == null) {
+            accessibleContext = new AccessibleAWTCheckbox();
+        }
+        return accessibleContext;

@@ -1,0 +1,536 @@
+class ImageInputStreamImpl
+!!!1954971.java!!!	checkClosed() : void
+        if (isClosed) {
+            throw new IOException("closed");
+        }
+!!!1955099.java!!!	setByteOrder(inout byteOrder : ByteOrder) : void
+        this.byteOrder = byteOrder;
+!!!1955227.java!!!	getByteOrder() : ByteOrder
+        return byteOrder;
+!!!1955483.java!!!	read(in b : byte) : int
+        return read(b, 0, b.length);
+!!!1955739.java!!!	readBytes(inout buf : IIOByteBuffer, in len : int) : void
+        if (len < 0) {
+            throw new IndexOutOfBoundsException("len < 0!");
+        }
+        if (buf == null) {
+            throw new NullPointerException("buf == null!");
+        }
+
+        byte[] data = new byte[len];
+        len = read(data, 0, len);
+        
+        buf.setData(data);
+        buf.setOffset(0);
+        buf.setLength(len);
+!!!1955867.java!!!	readBoolean() : boolean
+	int ch = this.read();
+	if (ch < 0) {
+	    throw new EOFException();
+        }
+	return (ch != 0);
+!!!1955995.java!!!	readByte() : byte
+	int ch = this.read();
+	if (ch < 0) {
+	    throw new EOFException();
+        }
+	return (byte)ch;
+!!!1956123.java!!!	readUnsignedByte() : int
+        int ch = this.read();
+        if (ch < 0) {
+    	    throw new EOFException();
+        }
+        return ch;
+!!!1956251.java!!!	readShort() : short
+	int ch1 = this.read();
+	int ch2 = this.read();
+	if ((ch1 | ch2) < 0) {
+	    throw new EOFException();
+        }
+
+        if (byteOrder == ByteOrder.BIG_ENDIAN) {
+            return (short)((ch1 << 8) + (ch2 << 0));
+        } else {
+            return (short)((ch2 << 8) + (ch1 << 0));
+        }
+!!!1956379.java!!!	readUnsignedShort() : int
+        return ((int)readShort()) & 0xffff;
+!!!1956507.java!!!	readChar() : char
+        return (char)readShort();
+!!!1956635.java!!!	readInt() : int
+	int ch1 = this.read();
+	int ch2 = this.read();
+	int ch3 = this.read();
+	int ch4 = this.read();
+	if ((ch1 | ch2 | ch3 | ch4) < 0) {
+	    throw new EOFException();
+        }
+
+        if (byteOrder == ByteOrder.BIG_ENDIAN) {
+            return ((ch1 << 24) + (ch2 << 16) + (ch3 << 8) + (ch4 << 0));
+        } else {
+            return ((ch4 << 24) + (ch3 << 16) + (ch2 << 8) + (ch1 << 0));
+        }
+!!!1956763.java!!!	readUnsignedInt() : long
+        return ((long)readInt()) & 0xffffffffL;
+!!!1956891.java!!!	readLong() : long
+        int i1 = readInt();
+        int i2 = readInt();
+
+        if (byteOrder == ByteOrder.BIG_ENDIAN) {
+            return ((long)i1 << 32) + (i2 & 0xFFFFFFFFL);
+        } else {
+            return ((long)i2 << 32) + (i1 & 0xFFFFFFFFL);
+        }
+!!!1957019.java!!!	readFloat() : float
+        return Float.intBitsToFloat(readInt());
+!!!1957147.java!!!	readDouble() : double
+	return Double.longBitsToDouble(readLong());
+!!!1957275.java!!!	readLine() : String
+	StringBuffer input = new StringBuffer();
+	int c = -1;
+	boolean eol = false;
+
+	while (!eol) {
+	    switch (c = read()) {
+	    case -1:
+	    case '\n':
+		eol = true;
+		break;
+	    case '\r':
+		eol = true;
+		long cur = getStreamPosition();
+		if ((read()) != '\n') {
+		    seek(cur);
+		}
+		break;
+	    default:
+		input.append((char)c);
+		break;
+	    }
+	}
+
+	if ((c == -1) && (input.length() == 0)) {
+	    return null;
+	}
+	return input.toString();
+!!!1957403.java!!!	readUTF() : String
+        this.bitOffset = 0;
+        
+        // Fix 4494369: method ImageInputStreamImpl.readUTF()
+        // does not work as specified (it should always assume
+        // network byte order).
+        ByteOrder oldByteOrder = getByteOrder();
+        setByteOrder(ByteOrder.BIG_ENDIAN);
+
+        String ret;
+        try {
+            ret = DataInputStream.readUTF(this);
+        } catch (IOException e) {
+            // Restore the old byte order even if an exception occurs
+            setByteOrder(oldByteOrder);
+            throw e;
+        }
+
+        setByteOrder(oldByteOrder);
+	return ret;
+!!!1957531.java!!!	readFully(in b : byte, in off : int, in len : int) : void
+        // Fix 4430357 - if off + len < 0, overflow occurred
+        if (off < 0 || len < 0 || off + len > b.length || off + len < 0) {
+            throw new IndexOutOfBoundsException
+                ("off < 0 || len < 0 || off + len > b.length!");
+        }
+
+        while (len > 0) {
+            int nbytes = read(b, off, len);
+            if (nbytes == -1) {
+                throw new EOFException();
+            }
+            off += nbytes;
+            len -= nbytes;
+        }
+!!!1957659.java!!!	readFully(in b : byte) : void
+        readFully(b, 0, b.length);
+!!!1957787.java!!!	readFully(in s : short, in off : int, in len : int) : void
+        // Fix 4430357 - if off + len < 0, overflow occurred
+        if (off < 0 || len < 0 || off + len > s.length || off + len < 0) {
+            throw new IndexOutOfBoundsException
+                ("off < 0 || len < 0 || off + len > s.length!");
+        }
+
+        while (len > 0) {
+            int nelts = Math.min(len, byteBuf.length/2);
+            readFully(byteBuf, 0, nelts*2);
+            toShorts(byteBuf, s, off, nelts);
+            off += nelts;
+            len -= nelts;
+        }
+!!!1957915.java!!!	readFully(in c : char, in off : int, in len : int) : void
+        // Fix 4430357 - if off + len < 0, overflow occurred
+        if (off < 0 || len < 0 || off + len > c.length || off + len < 0) {
+            throw new IndexOutOfBoundsException
+                ("off < 0 || len < 0 || off + len > c.length!");
+        }
+
+        while (len > 0) {
+            int nelts = Math.min(len, byteBuf.length/2);
+            readFully(byteBuf, 0, nelts*2);
+            toChars(byteBuf, c, off, nelts);
+            off += nelts;
+            len -= nelts;
+        }
+!!!1958043.java!!!	readFully(in i : int, in off : int, in len : int) : void
+        // Fix 4430357 - if off + len < 0, overflow occurred
+        if (off < 0 || len < 0 || off + len > i.length || off + len < 0) {
+            throw new IndexOutOfBoundsException
+                ("off < 0 || len < 0 || off + len > i.length!");
+        }
+
+        while (len > 0) {
+            int nelts = Math.min(len, byteBuf.length/4);
+            readFully(byteBuf, 0, nelts*4);
+            toInts(byteBuf, i, off, nelts);
+            off += nelts;
+            len -= nelts;
+        }
+!!!1958171.java!!!	readFully(in l : long, in off : int, in len : int) : void
+        // Fix 4430357 - if off + len < 0, overflow occurred
+        if (off < 0 || len < 0 || off + len > l.length || off + len < 0) {
+            throw new IndexOutOfBoundsException
+                ("off < 0 || len < 0 || off + len > l.length!");
+        }
+
+        while (len > 0) {
+            int nelts = Math.min(len, byteBuf.length/8);
+            readFully(byteBuf, 0, nelts*8);
+            toLongs(byteBuf, l, off, nelts);
+            off += nelts;
+            len -= nelts;
+        }
+!!!1958299.java!!!	readFully(in f : float, in off : int, in len : int) : void
+        // Fix 4430357 - if off + len < 0, overflow occurred
+        if (off < 0 || len < 0 || off + len > f.length || off + len < 0) {
+            throw new IndexOutOfBoundsException
+                ("off < 0 || len < 0 || off + len > f.length!");
+        }
+
+        while (len > 0) {
+            int nelts = Math.min(len, byteBuf.length/4);
+            readFully(byteBuf, 0, nelts*4);
+            toFloats(byteBuf, f, off, nelts);
+            off += nelts;
+            len -= nelts;
+        }
+!!!1958427.java!!!	readFully(in d : double, in off : int, in len : int) : void
+        // Fix 4430357 - if off + len < 0, overflow occurred
+        if (off < 0 || len < 0 || off + len > d.length || off + len < 0) {
+            throw new IndexOutOfBoundsException
+                ("off < 0 || len < 0 || off + len > d.length!");
+        }
+
+        while (len > 0) {
+            int nelts = Math.min(len, byteBuf.length/8);
+            readFully(byteBuf, 0, nelts*8);
+            toDoubles(byteBuf, d, off, nelts);
+            off += nelts;
+            len -= nelts;
+        }
+!!!1958555.java!!!	toShorts(in b : byte, in s : short, in off : int, in len : int) : void
+        int boff = 0;
+        if (byteOrder == ByteOrder.BIG_ENDIAN) {
+            for (int j = 0; j < len; j++) {
+                int b0 = b[boff];
+                int b1 = b[boff + 1] & 0xff;
+                s[off + j] = (short)((b0 << 8) | b1);
+                boff += 2;
+            }
+        } else {
+            for (int j = 0; j < len; j++) {
+                int b0 = b[boff + 1];
+                int b1 = b[boff] & 0xff;
+                s[off + j] = (short)((b0 << 8) | b1);
+                boff += 2;
+            }
+        }
+!!!1958683.java!!!	toChars(in b : byte, in c : char, in off : int, in len : int) : void
+        int boff = 0;
+        if (byteOrder == ByteOrder.BIG_ENDIAN) {
+            for (int j = 0; j < len; j++) {
+                int b0 = b[boff];
+                int b1 = b[boff + 1] & 0xff;
+                c[off + j] = (char)((b0 << 8) | b1);
+                boff += 2;
+            }
+        } else {
+            for (int j = 0; j < len; j++) {
+                int b0 = b[boff + 1];
+                int b1 = b[boff] & 0xff;
+                c[off + j] = (char)((b0 << 8) | b1);
+                boff += 2;
+            }
+        }
+!!!1958811.java!!!	toInts(in b : byte, in i : int, in off : int, in len : int) : void
+        int boff = 0;
+        if (byteOrder == ByteOrder.BIG_ENDIAN) {
+            for (int j = 0; j < len; j++) {
+                int b0 = b[boff];
+                int b1 = b[boff + 1] & 0xff;
+                int b2 = b[boff + 2] & 0xff;
+                int b3 = b[boff + 3] & 0xff;
+                i[off + j] = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+                boff += 4;
+            }
+        } else {
+            for (int j = 0; j < len; j++) {
+                int b0 = b[boff + 3];
+                int b1 = b[boff + 2] & 0xff;
+                int b2 = b[boff + 1] & 0xff;
+                int b3 = b[boff] & 0xff;
+                i[off + j] = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+                boff += 4;
+            }
+        }
+!!!1958939.java!!!	toLongs(in b : byte, in l : long, in off : int, in len : int) : void
+        int boff = 0;
+        if (byteOrder == ByteOrder.BIG_ENDIAN) {
+            for (int j = 0; j < len; j++) {
+                int b0 = b[boff];
+                int b1 = b[boff + 1] & 0xff;
+                int b2 = b[boff + 2] & 0xff;
+                int b3 = b[boff + 3] & 0xff;
+                int b4 = b[boff + 4];
+                int b5 = b[boff + 5] & 0xff;
+                int b6 = b[boff + 6] & 0xff;
+                int b7 = b[boff + 7] & 0xff;
+                
+                int i0 = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+                int i1 = (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
+                
+                l[off + j] = ((long)i0 << 32) | (i1 & 0xffffffffL);
+                boff += 8;
+            }
+        } else {
+            for (int j = 0; j < len; j++) {
+                int b0 = b[boff + 7];
+                int b1 = b[boff + 6] & 0xff;
+                int b2 = b[boff + 5] & 0xff;
+                int b3 = b[boff + 4] & 0xff;
+                int b4 = b[boff + 3];
+                int b5 = b[boff + 2] & 0xff;
+                int b6 = b[boff + 1] & 0xff;
+                int b7 = b[boff]     & 0xff;
+                
+                int i0 = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+                int i1 = (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
+                
+                l[off + j] = ((long)i0 << 32) | (i1 & 0xffffffffL);
+                boff += 8;
+            }
+        }
+!!!1959067.java!!!	toFloats(in b : byte, in f : float, in off : int, in len : int) : void
+        int boff = 0;
+        if (byteOrder == ByteOrder.BIG_ENDIAN) {
+            for (int j = 0; j < len; j++) {
+                int b0 = b[boff];
+                int b1 = b[boff + 1] & 0xff;
+                int b2 = b[boff + 2] & 0xff;
+                int b3 = b[boff + 3] & 0xff;
+                int i = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+                f[off + j] = Float.intBitsToFloat(i);
+                boff += 4;
+            }
+        } else {
+            for (int j = 0; j < len; j++) {
+                int b0 = b[boff + 3];
+                int b1 = b[boff + 2] & 0xff;
+                int b2 = b[boff + 1] & 0xff;
+                int b3 = b[boff + 0] & 0xff;
+                int i = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+                f[off + j] = Float.intBitsToFloat(i);
+                boff += 4;
+            }
+        }
+!!!1959195.java!!!	toDoubles(in b : byte, in d : double, in off : int, in len : int) : void
+        int boff = 0;
+        if (byteOrder == ByteOrder.BIG_ENDIAN) {
+            for (int j = 0; j < len; j++) {
+                int b0 = b[boff];
+                int b1 = b[boff + 1] & 0xff;
+                int b2 = b[boff + 2] & 0xff;
+                int b3 = b[boff + 3] & 0xff;
+                int b4 = b[boff + 4];
+                int b5 = b[boff + 5] & 0xff;
+                int b6 = b[boff + 6] & 0xff;
+                int b7 = b[boff + 7] & 0xff;
+                
+                int i0 = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+                int i1 = (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
+                long l = ((long)i0 << 32) | (i1 & 0xffffffffL);
+
+                d[off + j] = Double.longBitsToDouble(l);
+                boff += 8;
+            }
+        } else {
+            for (int j = 0; j < len; j++) {
+                int b0 = b[boff + 7];
+                int b1 = b[boff + 6] & 0xff;
+                int b2 = b[boff + 5] & 0xff;
+                int b3 = b[boff + 4] & 0xff;
+                int b4 = b[boff + 3];
+                int b5 = b[boff + 2] & 0xff;
+                int b6 = b[boff + 1] & 0xff;
+                int b7 = b[boff] & 0xff;
+                
+                int i0 = (b0 << 24) | (b1 << 16) | (b2 << 8) | b3;
+                int i1 = (b4 << 24) | (b5 << 16) | (b6 << 8) | b7;
+                long l = ((long)i0 << 32) | (i1 & 0xffffffffL);
+
+                d[off + j] = Double.longBitsToDouble(l);
+                boff += 8;
+            }
+        }
+!!!1959323.java!!!	getStreamPosition() : long
+        checkClosed();
+        return streamPos;
+!!!1959451.java!!!	getBitOffset() : int
+        checkClosed();
+        return bitOffset;
+!!!1959579.java!!!	setBitOffset(in bitOffset : int) : void
+        checkClosed();
+        if (bitOffset < 0 || bitOffset > 7) {
+            throw new IllegalArgumentException("bitOffset must be betwwen 0 and 7!");
+        }
+        this.bitOffset = bitOffset;
+!!!1959707.java!!!	readBit() : int
+        checkClosed();
+
+        // Compute final bit offset before we call read() and seek()
+        int newBitOffset = (this.bitOffset + 1) & 0x7;
+
+        int val = read();
+        if (val == -1) {
+            throw new EOFException();
+        }
+
+        if (newBitOffset != 0) {
+            // Move byte position back if in the middle of a byte
+            seek(getStreamPosition() - 1);
+            // Shift the bit to be read to the rightmost position
+            val >>= 8 - newBitOffset;
+        }
+        this.bitOffset = newBitOffset;
+
+        return val & 0x1;
+!!!1959835.java!!!	readBits(in numBits : int) : long
+        checkClosed();
+
+        if (numBits < 0 || numBits > 64) {
+            throw new IllegalArgumentException();
+        }
+        if (numBits == 0) {
+            return 0L;
+        }
+
+        // Have to read additional bits on the left equal to the bit offset
+        int bitsToRead = numBits + bitOffset;
+
+        // Compute final bit offset before we call read() and seek()
+        int newBitOffset = (this.bitOffset + numBits) & 0x7;
+        
+        // Read a byte at a time, accumulate
+        long accum = 0L;
+        while (bitsToRead > 0) {
+            int val = read();
+            if (val == -1) {
+                throw new EOFException();
+            }
+
+            accum <<= 8;
+            accum |= val;
+            bitsToRead -= 8;
+        }
+
+        // Move byte position back if in the middle of a byte
+        if (newBitOffset != 0) {
+            seek(getStreamPosition() - 1);
+        }
+        this.bitOffset = newBitOffset;
+
+        // Shift away unwanted bits on the right.
+        accum >>>= (-bitsToRead); // Negative of bitsToRead == extra bits read
+        
+        // Mask out unwanted bits on the left
+        accum &= (-1L >>> (64 - numBits));
+
+        return accum;
+!!!1959963.java!!!	length() : long
+        return -1L;
+!!!1960091.java!!!	skipBytes(in n : int) : int
+        long pos = getStreamPosition();
+        seek(pos + n);
+        return (int)(getStreamPosition() - pos);
+!!!1960219.java!!!	skipBytes(in n : long) : long
+        long pos = getStreamPosition();
+        seek(pos + n);
+        return getStreamPosition() - pos;
+!!!1960347.java!!!	seek(in pos : long) : void
+        checkClosed();
+
+        // This test also covers pos < 0
+        if (pos < flushedPos) {
+            throw new IndexOutOfBoundsException("pos < flushedPos!");
+        }
+
+        this.streamPos = pos;
+        this.bitOffset = 0;
+!!!1960475.java!!!	mark() : void
+        try {
+            markByteStack.push(new Long(getStreamPosition()));
+            markBitStack.push(new Integer(getBitOffset()));
+        } catch (IOException e) {
+        }
+!!!1960603.java!!!	reset() : void
+        if (markByteStack.empty()) {
+            return;
+        }
+
+        long pos = ((Long)markByteStack.pop()).longValue();
+        if (pos < flushedPos) {
+            throw new IIOException
+                ("Previous marked position has been discarded!");
+        }
+        seek(pos);
+
+        int offset = ((Integer)markBitStack.pop()).intValue();
+        setBitOffset(offset);
+!!!1960731.java!!!	flushBefore(in pos : long) : void
+        if (pos < flushedPos) {
+            throw new IndexOutOfBoundsException("pos < flushedPos!");
+        }
+        if (pos > getStreamPosition()) {
+            throw new IndexOutOfBoundsException("pos > getStreamPosition()!");
+        }
+        // Invariant: flushedPos >= 0
+        flushedPos = pos;
+!!!1960859.java!!!	flush() : void
+        flushBefore(getStreamPosition());
+!!!1960987.java!!!	getFlushedPosition() : long
+        return flushedPos;
+!!!1961115.java!!!	isCached() : boolean
+        return false;
+!!!1961243.java!!!	isCachedMemory() : boolean
+        return false;
+!!!1961371.java!!!	isCachedFile() : boolean
+        return false;
+!!!1961499.java!!!	close() : void
+        checkClosed();
+
+        isClosed = true;
+!!!1961627.java!!!	finalize() : void
+        if (!isClosed) {
+            try {
+                close();
+            } catch (IOException e) {
+            }
+        }
+        super.finalize();

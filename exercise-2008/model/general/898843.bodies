@@ -1,0 +1,231 @@
+class ReflectionUtils
+!!!6789275.java!!!	typeToClass(inout type : Class) : Class
+        return type.isPrimitive() ? ObjectHandler.typeNameToClass(type.getName()) : type;
+!!!6789403.java!!!	isPrimitive(inout type : Class) : boolean
+        return primitiveTypeFor(type) != null;
+!!!6789531.java!!!	primitiveTypeFor(inout wrapper : Class) : Class
+        if (wrapper == Boolean.class) return Boolean.TYPE;
+        if (wrapper == Byte.class) return Byte.TYPE;
+        if (wrapper == Character.class) return Character.TYPE;
+        if (wrapper == Short.class) return Short.TYPE;
+        if (wrapper == Integer.class) return Integer.TYPE;
+        if (wrapper == Long.class) return Long.TYPE;
+        if (wrapper == Float.class) return Float.TYPE;
+        if (wrapper == Double.class) return Double.TYPE;
+        if (wrapper == Void.class) return Void.TYPE;
+        return null;
+!!!6789659.java!!!	matchArguments(inout argClasses : Class, inout argTypes : Class) : boolean
+	return matchArguments(argClasses, argTypes, false);
+!!!6789787.java!!!	matchExplicitArguments(inout argClasses : Class, inout argTypes : Class) : boolean
+	return matchArguments(argClasses, argTypes, true);
+!!!6789915.java!!!	matchArguments(inout argClasses : Class, inout argTypes : Class, inout explicit : boolean) : boolean
+	
+        boolean match = (argClasses.length == argTypes.length);
+	for(int j = 0; j < argClasses.length && match; j++) {
+	    Class argType = argTypes[j];
+	    if (argType.isPrimitive()) {
+		argType = typeToClass(argType);
+	    }
+	    if (explicit) {
+		// Test each element for equality
+		if (argClasses[j] != argType) {
+		    match = false;
+		}
+	    } else {
+		// Consider null an instance of all classes.
+		if (argClasses[j] != null && 
+		    !(argType.isAssignableFrom(argClasses[j]))) {
+		    match = false;
+		}
+	    }
+	}
+        return match;
+!!!6790043.java!!!	getPublicMethod(inout declaringClass : Class, in methodName : String, inout argClasses : Class) : Method
+	Method m;
+
+	m = findPublicMethod(declaringClass, methodName, argClasses);
+	if (m == null)
+	    throw new NoSuchMethodException(declaringClass.getName() + "." + methodName);
+	return m;
+!!!6790171.java!!!	findPublicMethod(inout declaringClass : Class, in methodName : String, inout argClasses : Class) : Method
+        // Many methods are "getters" which take no arguments.
+        // This permits the following optimisation which
+        // avoids the expensive call to getMethods().
+        if (argClasses.length == 0) {
+            try {
+                return MethodUtil.getMethod(declaringClass, methodName, argClasses);
+            }
+            catch (NoSuchMethodException e) {
+            	  return null;
+            } catch (SecurityException se) {
+		// fall through
+	    }
+        }
+        Method[] methods = MethodUtil.getPublicMethods(declaringClass);
+	List list = new ArrayList();
+        for(int i = 0; i < methods.length; i++) {
+	    // Collect all the methods which match the signature.
+            Method method = methods[i];
+            if (method.getName().equals(methodName)) {
+                if (matchArguments(argClasses, method.getParameterTypes())) {
+		    list.add(method);
+                }
+            }
+	}
+	if (list.size() > 0) {
+	    if (list.size() == 1) {
+		return (Method)list.get(0);
+	    }
+	    else {
+		ListIterator iterator = list.listIterator();
+		Method method;
+		while (iterator.hasNext()) {
+		    method = (Method)iterator.next();
+		    if (matchExplicitArguments(argClasses, method.getParameterTypes())) {
+			return method;
+		    }
+		}
+		// There are more than one method which matches this signature.
+		// try to return the most specific method.
+		return getMostSpecificMethod(list, argClasses);
+	    }
+	}	    
+        return null;
+!!!6790299.java!!!	getMostSpecificMethod(inout methods : List, inout args : Class) : Method
+	Method method = null;
+	
+	int matches = 0;
+	int lastMatch = matches;
+
+	ListIterator iterator = methods.listIterator();
+	while (iterator.hasNext()) {
+	    Method m = (Method)iterator.next();
+	    Class[] mArgs = m.getParameterTypes();
+	    matches = 0;
+	    for (int i = 0; i < args.length; i++) {
+		Class mArg = mArgs[i];
+		if (mArg.isPrimitive()) {
+		    mArg = typeToClass(mArg);
+		}
+		if (args[i] == mArg) {
+		    matches++;
+		}
+	    }
+	    if (matches == 0 && lastMatch == 0) {
+		if (method == null) {
+		    method = m;
+		} else {
+		    // Test existing method. We already know that the args can 
+		    // be assigned to all the method params. However, if the
+		    // current method parameters is higher in the inheritance 
+		    // hierarchy then replace it.
+		    if (!matchArguments(method.getParameterTypes(), 
+					m.getParameterTypes())) {
+			method = m;
+		    }
+		}
+	    } else if (matches > lastMatch) {
+		lastMatch = matches;
+		method = m;
+	    } else if (matches == lastMatch) {
+		// ambiguous method selection.
+		method = null;
+	    }
+	}
+	return method;
+!!!6790427.java!!!	findMethod(inout targetClass : Class, in methodName : String, inout argClasses : Class) : Method
+        Method m = findPublicMethod(targetClass, methodName, argClasses);
+        if (m != null && Modifier.isPublic(m.getDeclaringClass().getModifiers())) {
+            return m;
+        }
+
+        /*
+        Search the interfaces for a public version of this method.
+
+        Example: the getKeymap() method of a JTextField
+        returns a package private implementation of the
+        of the public Keymap interface. In the Keymap
+        interface there are a number of "properties" one
+        being the "resolveParent" property implied by the
+        getResolveParent() method. This getResolveParent()
+        cannot be called reflectively because the class
+        itself is not public. Instead we search the class's
+        interfaces and find the getResolveParent()
+        method of the Keymap interface - on which invoke
+        may be applied without error.
+
+        So in :-
+
+            JTextField o = new JTextField("Hello, world");
+            Keymap km = o.getKeymap();
+            Method m1 = km.getClass().getMethod("getResolveParent", new Class[0]);
+            Method m2 = Keymap.class.getMethod("getResolveParent", new Class[0]);
+
+        Methods m1 and m2 are different. The invocation of method
+        m1 unconditionally throws an IllegalAccessException where
+        the invocation of m2 will invoke the implementation of the
+        method. Note that (ignoring the overloading of arguments)
+        there is only one implementation of the named method which
+        may be applied to this target.
+        */
+        for(Class type = targetClass; type != null; type = type.getSuperclass()) {
+            Class[] interfaces = type.getInterfaces();
+            for(int i = 0; i < interfaces.length; i++) {
+                m = findPublicMethod(interfaces[i], methodName, argClasses);
+                if (m != null) {
+                    return m;
+                }
+            }
+        }
+        return null;
+!!!6790939.java!!!	getMethod(inout targetClass : Class, in methodName : String, inout argClasses : Class) : Method
+	Object signature = new Signature(targetClass, methodName, argClasses);
+
+	Method method = null;
+	Map methodCache = null;
+	boolean cache = false;
+	if (ReflectUtil.isPackageAccessible(targetClass)) {
+	    cache = true;
+	}
+
+	if (cache && methodCacheRef != null && 
+	    (methodCache = (Map)methodCacheRef.get()) != null) {
+	    method = (Method)methodCache.get(signature);
+	    if (method != null) {
+		return method;
+	    }
+	}
+	method = findMethod(targetClass, methodName, argClasses);
+        if (cache && method != null) {
+	    if (methodCache == null) {
+		methodCache = new HashMap();
+		methodCacheRef = new SoftReference(methodCache);
+	    }
+            methodCache.put(signature, method);
+        }
+        return method;
+!!!6791067.java!!!	getConstructor(inout cls : Class, inout args : Class) : Constructor
+	Constructor constructor = null;
+
+	// PENDING: Implement the resolutuion of ambiguities properly.
+	Constructor[] ctors = ConstructorUtil.getConstructors(cls);
+	for(int i = 0; i < ctors.length; i++) {
+	    if (matchArguments(args, ctors[i].getParameterTypes())) {
+		constructor = ctors[i];
+	    }
+	}
+	return constructor;
+!!!6791195.java!!!	getPrivateField(inout instance : Object, inout cls : Class, in name : String) : Object
+	return getPrivateField(instance, cls, name);
+!!!6791323.java!!!	getPrivateField(inout instance : Object, inout cls : Class, in name : String, inout el : ExceptionListener) : Object
+        try {
+            Field f = cls.getDeclaredField(name);
+            f.setAccessible(true);
+            return f.get(instance);
+        }
+        catch (Exception e) {
+	    if (el != null) {
+		el.exceptionThrown(e);
+	    }
+        }
+        return null;

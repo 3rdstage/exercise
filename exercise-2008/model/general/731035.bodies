@@ -1,0 +1,40 @@
+class NSContentDispatcher
+!!!4990747.java!!!	scanRootElementHook() : boolean
+       
+            if (fExternalSubsetResolver != null && !fSeenDoctypeDecl
+                && !fDisallowDoctype && (fValidation || fLoadExternalDTD)) {
+                scanStartElementName();
+                resolveExternalSubsetAndRead();
+                reconfigurePipeline();
+                if (scanStartElementAfterName()) {
+                    setScannerState(SCANNER_STATE_TRAILING_MISC);
+                    setDispatcher(fTrailingMiscDispatcher);
+                    return true;
+                }
+            }
+            else {
+                reconfigurePipeline();
+                if (scanStartElement()) {
+                    setScannerState(SCANNER_STATE_TRAILING_MISC);
+                    setDispatcher(fTrailingMiscDispatcher);
+                    return true;
+                }
+            }
+            return false;
+
+!!!4990875.java!!!	reconfigurePipeline() : void
+            if (fDTDValidator == null) {
+                fBindNamespaces = true;
+            }
+            else if (!fDTDValidator.hasGrammar()) {
+                fBindNamespaces = true;
+                fPerformValidation = fDTDValidator.validate();
+                // re-configure pipeline
+                XMLDocumentSource source = fDTDValidator.getDocumentSource();
+                XMLDocumentHandler handler = fDTDValidator.getDocumentHandler();
+                source.setDocumentHandler(handler);
+                if (handler != null)
+                    handler.setDocumentSource(source);
+                fDTDValidator.setDocumentSource(null);
+                fDTDValidator.setDocumentHandler(null);
+            }

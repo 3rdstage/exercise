@@ -1,0 +1,110 @@
+class DefaultKeymap
+!!!2720155.java!!!	DefaultKeymap(in nm : String, inout parent : Keymap)
+            this.nm = nm; 
+            this.parent = parent;
+            bindings = new Hashtable();
+!!!2720283.java!!!	getDefaultAction() : Action
+            if (defaultAction != null) {
+                return defaultAction;
+            }
+            return (parent != null) ? parent.getDefaultAction() : null;
+!!!2720411.java!!!	setDefaultAction(inout a : Action) : void
+            defaultAction = a;
+!!!2720539.java!!!	getName() : String
+            return nm;
+!!!2720667.java!!!	getAction(inout key : KeyStroke) : Action
+            Action a = (Action) bindings.get(key);
+            if ((a == null) && (parent != null)) {
+                a = parent.getAction(key);
+            }
+            return a;
+!!!2720795.java!!!	getBoundKeyStrokes() : KeyStroke
+            KeyStroke[] keys = new KeyStroke[bindings.size()];
+            int i = 0;
+            for (Enumeration e = bindings.keys() ; e.hasMoreElements() ;) {
+                keys[i++] = (KeyStroke) e.nextElement();
+            }
+            return keys;
+!!!2720923.java!!!	getBoundActions() : Action
+            Action[] actions = new Action[bindings.size()];
+            int i = 0;
+            for (Enumeration e = bindings.elements() ; e.hasMoreElements() ;) {
+                actions[i++] = (Action) e.nextElement();
+            }
+            return actions;
+!!!2721051.java!!!	getKeyStrokesForAction(inout a : Action) : KeyStroke
+	    if (a == null) {
+		return null;
+	    }
+	    KeyStroke[] retValue = null;
+	    // Determine local bindings first.
+	    Vector keyStrokes = null;
+	    for (Enumeration enum_ = bindings.keys();
+		 enum_.hasMoreElements();) {
+		Object key = enum_.nextElement();
+		if (bindings.get(key) == a) {
+		    if (keyStrokes == null) {
+			keyStrokes = new Vector();
+		    }
+		    keyStrokes.addElement(key);
+		}
+	    }
+	    // See if the parent has any.
+	    if (parent != null) {
+		KeyStroke[] pStrokes = parent.getKeyStrokesForAction(a);
+		if (pStrokes != null) {
+		    // Remove any bindings defined in the parent that
+		    // are locally defined.
+		    int rCount = 0;
+		    for (int counter = pStrokes.length - 1; counter >= 0;
+			 counter--) {
+			if (isLocallyDefined(pStrokes[counter])) {
+			    pStrokes[counter] = null;
+			    rCount++;
+			}
+		    }
+		    if (rCount > 0 && rCount < pStrokes.length) {
+			if (keyStrokes == null) {
+			    keyStrokes = new Vector();
+			}
+			for (int counter = pStrokes.length - 1; counter >= 0;
+			     counter--) {
+			    if (pStrokes[counter] != null) {
+				keyStrokes.addElement(pStrokes[counter]);
+			    }
+			}
+		    }
+		    else if (rCount == 0) {
+			if (keyStrokes == null) {
+			    retValue = pStrokes;
+			}
+			else {
+			    retValue = new KeyStroke[keyStrokes.size() +
+						    pStrokes.length];
+			    keyStrokes.copyInto(retValue);
+			    System.arraycopy(pStrokes, 0, retValue,
+					keyStrokes.size(), pStrokes.length);
+			    keyStrokes = null;
+			}
+		    }
+		}
+	    }
+	    if (keyStrokes != null) {
+		retValue = new KeyStroke[keyStrokes.size()];
+		keyStrokes.copyInto(retValue);
+	    }
+            return retValue;
+!!!2721179.java!!!	isLocallyDefined(inout key : KeyStroke) : boolean
+            return bindings.containsKey(key);
+!!!2721307.java!!!	addActionForKeyStroke(inout key : KeyStroke, inout a : Action) : void
+            bindings.put(key, a);
+!!!2721435.java!!!	removeKeyStrokeBinding(inout key : KeyStroke) : void
+            bindings.remove(key);
+!!!2721563.java!!!	removeBindings() : void
+            bindings.clear();
+!!!2721691.java!!!	getResolveParent() : Keymap
+            return parent;
+!!!2721819.java!!!	setResolveParent(inout parent : Keymap) : void
+            this.parent = parent;
+!!!2721947.java!!!	toString() : String
+            return "Keymap[" + nm + "]" + bindings;

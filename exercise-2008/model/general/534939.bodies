@@ -1,0 +1,76 @@
+class SnmpOidTableSupport
+!!!3313435.java!!!	SnmpOidTableSupport(in name : String)
+	
+        myName=name;
+!!!3313563.java!!!	resolveVarName(in name : String) : SnmpOidRecord
+
+        SnmpOidRecord var  = (SnmpOidRecord)oidStore.get(name) ;	
+        if (var != null) {
+            return var;
+        } else {
+            throw new SnmpStatusException("Variable name <" + name + "> not found in Oid repository") ;
+        }
+!!!3313691.java!!!	resolveVarOid(in oid : String) : SnmpOidRecord
+
+        // Try to see if the variable name is actually an OID to resolve.
+        //
+        int index = oid.indexOf('.') ;
+        if (index < 0) {
+            throw new SnmpStatusException("Variable oid <" + oid + "> not found in Oid repository") ;
+        }
+        if (index == 0) {
+            // The oid starts with a '.' ala CMU.
+            //
+            oid= oid.substring(1, oid.length());
+        }
+      
+        // Go through the oidStore ... Good luck !
+        //
+        for(Enumeration list= oidStore.elements(); list.hasMoreElements(); ) {
+            SnmpOidRecord element= (SnmpOidRecord) list.nextElement();
+            if (element.getOid().equals(oid))
+                return element;
+        }
+
+        throw new SnmpStatusException("Variable oid <" + oid + "> not found in Oid repository") ;
+!!!3313819.java!!!	getAllEntries() : Vector
+
+        Vector elementsVector = new Vector();
+        // get the locally defined elements ...
+        for (Enumeration e = oidStore.elements();
+             e.hasMoreElements(); ) {
+            elementsVector.addElement(e.nextElement());
+        }
+        return elementsVector ;
+!!!3313947.java!!!	loadMib(inout mibs : SnmpOidRecord) : void
+        try {
+            for (int i = 0; ; i++) {
+                SnmpOidRecord s = mibs[i] ;
+                if (isTraceOn()) {
+                    trace("loadMib", "load " + s.getName());
+                }
+                oidStore.put(s.getName(), s) ;
+            }
+        } catch (ArrayIndexOutOfBoundsException e) {
+        }
+!!!3314075.java!!!	equals(inout object : Object) : boolean
+
+        if (!(object instanceof SnmpOidTableSupport)) {
+            return false;
+        }
+        SnmpOidTableSupport val = (SnmpOidTableSupport) object;  
+        return myName.equals(val.getName());     
+!!!3314203.java!!!	getName() : String
+        return myName;
+!!!3314331.java!!!	isTraceOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_TRACE, Trace.INFO_SNMP);
+!!!3314459.java!!!	trace(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_TRACE, Trace.INFO_SNMP, clz, func, info);
+!!!3314587.java!!!	trace(in func : String, in info : String) : void
+        trace(dbgTag, func, info);
+!!!3314715.java!!!	isDebugOn() : boolean
+        return Trace.isSelected(Trace.LEVEL_DEBUG, Trace.INFO_SNMP);
+!!!3314843.java!!!	debug(in clz : String, in func : String, in info : String) : void
+        Trace.send(Trace.LEVEL_DEBUG, Trace.INFO_SNMP, clz, func, info);
+!!!3314971.java!!!	debug(in func : String, in info : String) : void
+        debug(dbgTag, func, info);

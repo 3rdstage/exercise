@@ -1,0 +1,101 @@
+class ZipEntry
+!!!8008859.java!!!	ZipEntry(in name : String)
+	if (name == null) {
+	    throw new NullPointerException();
+	}
+	if (name.length() > 0xFFFF) {
+	    throw new IllegalArgumentException("entry name too long");
+	}
+	this.name = name;
+!!!8008987.java!!!	ZipEntry(inout e : ZipEntry)
+	name = e.name;
+	time = e.time;
+	crc = e.crc;
+	size = e.size;
+	csize = e.csize;
+	method = e.method;
+	extra = e.extra;
+	comment = e.comment;
+!!!8009115.java!!!	ZipEntry(in name : String, in jzentry : long)
+	this.name = name;
+	initFields(jzentry);
+!!!8009371.java!!!	ZipEntry(in jzentry : long)
+	initFields(jzentry);
+!!!8009499.java!!!	getName() : String
+	return name;
+!!!8009627.java!!!	setTime(in time : long) : void
+	this.time = javaToDosTime(time);
+!!!8009755.java!!!	getTime() : long
+	return time != -1 ? dosToJavaTime(time) : -1;
+!!!8009883.java!!!	setSize(in size : long) : void
+	if (size < 0 || size > 0xFFFFFFFFL) {
+	    throw new IllegalArgumentException("invalid entry size");
+	}
+	this.size = size;
+!!!8010011.java!!!	getSize() : long
+	return size;
+!!!8010139.java!!!	getCompressedSize() : long
+	return csize;
+!!!8010267.java!!!	setCompressedSize(in csize : long) : void
+	this.csize = csize;
+!!!8010395.java!!!	setCrc(in crc : long) : void
+	if (crc < 0 || crc > 0xFFFFFFFFL) {
+	    throw new IllegalArgumentException("invalid entry crc-32");
+	}
+	this.crc = crc;
+!!!8010523.java!!!	getCrc() : long
+	return crc;
+!!!8010651.java!!!	setMethod(in method : int) : void
+	if (method != STORED && method != DEFLATED) {
+	    throw new IllegalArgumentException("invalid compression method");
+	}
+	this.method = method;
+!!!8010779.java!!!	getMethod() : int
+	return method;
+!!!8010907.java!!!	setExtra(in extra : byte) : void
+	if (extra != null && extra.length > 0xFFFF) {
+	    throw new IllegalArgumentException("invalid extra field length");
+	}
+	this.extra = extra;
+!!!8011035.java!!!	getExtra() : byte
+	return extra;
+!!!8011163.java!!!	setComment(in comment : String) : void
+	if (comment != null && comment.length() > 0xffff/3 
+                    && ZipOutputStream.getUTF8Length(comment) > 0xffff) {
+	    throw new IllegalArgumentException("invalid entry comment length");
+	}
+	this.comment = comment;
+!!!8011291.java!!!	getComment() : String
+	return comment;
+!!!8011419.java!!!	isDirectory() : boolean
+	return name.endsWith("/");
+!!!8011547.java!!!	toString() : String
+	return getName();
+!!!8011675.java!!!	dosToJavaTime(in dtime : long) : long
+	Date d = new Date((int)(((dtime >> 25) & 0x7f) + 80),
+			  (int)(((dtime >> 21) & 0x0f) - 1),
+			  (int)((dtime >> 16) & 0x1f),
+			  (int)((dtime >> 11) & 0x1f),
+			  (int)((dtime >> 5) & 0x3f),
+			  (int)((dtime << 1) & 0x3e));
+	return d.getTime();
+!!!8011803.java!!!	javaToDosTime(in time : long) : long
+	Date d = new Date(time);
+	int year = d.getYear() + 1900;
+	if (year < 1980) {
+	    return (1 << 21) | (1 << 16);
+	}
+	return (year - 1980) << 25 | (d.getMonth() + 1) << 21 |
+               d.getDate() << 16 | d.getHours() << 11 | d.getMinutes() << 5 |
+               d.getSeconds() >> 1;
+!!!8011931.java!!!	hashCode() : int
+	return name.hashCode();
+!!!8012059.java!!!	clone() : Object
+	try {
+	    ZipEntry e = (ZipEntry)super.clone();
+	    e.extra = (extra == null ? null : (byte[])extra.clone());
+	    return e;
+	} catch (CloneNotSupportedException e) {
+	    // This should never happen, since we are Cloneable
+	    throw new InternalError();
+	}

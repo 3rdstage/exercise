@@ -1,0 +1,34 @@
+class Cache
+!!!9451163.java!!!	Cache(in maxCount : int)
+            this.maxCount = maxCount;
+            entries = new ArrayList<SoftReference<Entry>>(maxCount);
+!!!9451291.java!!!	setMaxCount(in maxCount : int) : void
+            this.maxCount = maxCount;
+!!!9451419.java!!!	getEntry(inout key : Object, inout config : GraphicsConfiguration, in w : int, in h : int, inout args : Object) : Entry
+            synchronized(this) {
+                Entry entry;
+                for (int counter = entries.size() - 1; counter >= 0;counter--){
+                    entry = entries.get(counter).get();
+                    if (entry == null) {
+                        // SoftReference was invalidated, remove the entry
+                        entries.remove(counter);
+                    }
+                    else if (entry.equals(config, w, h, args)) {
+                        // Found the entry, return it.
+                        return entry;
+                    }
+                }
+                // Entry doesn't exist
+                entry = new Entry(config, w, h, args);
+                if (entries.size() == maxCount) {
+                    entries.remove(0);
+                }
+                entries.add(new SoftReference<Entry>(entry));
+                return entry;
+            }
+!!!9451547.java!!!	getImage(inout key : Object, inout config : GraphicsConfiguration, in w : int, in h : int, inout args : Object) : Image
+            Entry entry = getEntry(key, config, w, h, args);
+            return entry.getImage();
+!!!9451675.java!!!	setImage(inout key : Object, inout config : GraphicsConfiguration, in w : int, in h : int, inout args : Object, inout image : Image) : void
+            Entry entry = getEntry(key, config, w, h, args);
+            entry.setImage(image);

@@ -1,0 +1,32 @@
+class AccessController
+!!!7553179.java!!!	getContext() : AccessControlContext
+	AccessControlContext acc = getStackAccessControlContext();
+	if (acc == null) {
+	    // all we had was privileged system code. We don't want
+	    // to return null though, so we construct a real ACC.
+	    return new AccessControlContext(null, true);
+	} else {
+	    return acc.optimize();
+	}
+!!!7553307.java!!!	checkPermission(inout perm : Permission) : void
+	//System.err.println("checkPermission "+perm);
+	//Thread.currentThread().dumpStack();
+
+	AccessControlContext stack = getStackAccessControlContext();
+	// if context is null, we had privileged system code on the stack.
+	if (stack == null) {
+	    Debug debug = AccessControlContext.getDebug();
+	    if (debug != null) {
+		if (Debug.isOn("stack"))
+		    Thread.currentThread().dumpStack();
+		if (Debug.isOn("domain")) {
+		    debug.println("domain (context is null)");
+		}
+		debug.println("access allowed "+perm);
+	    }
+	    return;
+	}
+
+	AccessControlContext acc = stack.optimize();
+	acc.checkPermission(perm);
+

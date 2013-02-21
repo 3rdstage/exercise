@@ -1,0 +1,70 @@
+class TrAXFilter
+!!!4784411.java!!!	TrAXFilter(inout templates : Templates)
+	_templates = templates;
+	_transformer = (TransformerImpl) templates.newTransformer();
+        _transformerHandler = new TransformerHandlerImpl(_transformer);
+!!!4784539.java!!!	getTransformer() : Transformer
+        return _transformer;
+!!!4784667.java!!!	createParent() : void
+	XMLReader parent = null;
+        try {
+            SAXParserFactory pfactory = SAXParserFactory.newInstance();
+            pfactory.setNamespaceAware(true);
+            
+            if (_transformer.isSecureProcessing()) {
+                try {
+                    pfactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+                }
+                catch (SAXException e) {}
+            }
+
+            SAXParser saxparser = pfactory.newSAXParser();
+            parent = saxparser.getXMLReader();
+        }
+        catch (ParserConfigurationException e) {
+            throw new SAXException(e);
+        }
+        catch (FactoryConfigurationError e) {
+            throw new SAXException(e.toString());
+        }
+
+        if (parent == null) {
+            parent = XMLReaderFactory.createXMLReader();
+        }
+
+        // make this XMLReader the parent of this filter
+        setParent(parent);
+!!!4784795.java!!!	parse(inout input : InputSource) : void
+        XMLReader managedReader = null;
+
+        try {
+            if (getParent() == null) {
+                try {
+                    managedReader = XMLReaderManager.getInstance()
+                                                    .getXMLReader();
+                    setParent(managedReader);
+                } catch (SAXException  e) {
+                    throw new SAXException(e.toString());
+                }
+            }
+
+            // call parse on the parent
+            getParent().parse(input);
+        } finally {
+            if (managedReader != null) {
+                XMLReaderManager.getInstance().releaseXMLReader(managedReader);
+            }
+        }
+!!!4784923.java!!!	parse(in systemId : String) : void
+        parse(new InputSource(systemId));
+!!!4785051.java!!!	setContentHandler(inout handler : ContentHandler) : void
+	_transformerHandler.setResult(new SAXResult(handler));
+	if (getParent() == null) {
+                try {
+                    createParent();
+                }
+                catch (SAXException  e) {
+                   return; 
+                }
+	}
+	getParent().setContentHandler(_transformerHandler);
