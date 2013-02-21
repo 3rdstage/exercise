@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="docbook-src-case3" default="build-html" xmlns:artifact="antlib:org.apache.maven.artifact.ant">
+	<description>
+
+	</description>
+	<property name="project.home" value="../../../../../.."/>
+	<property name="docbook.xsl.dir" value="${project.home}/docbook-xsl-1.74.0" />
+	<property name="case" value="case3"/>
+	<property name="target.dir" value="${project.home}/doc/thirdstage/exercise/docbook/${case}" />
+
+	<artifact:pom id="project.pom" file="${project.home}/pom.xml"/>
+	<artifact:dependencies pomRefId="project.pom" pathId="dependency.classpath"/>
+	<artifact:dependencies filesetId="docbook.xsl.fileset">
+		<dependency groupId="net.sf.docbook" artifactId="docbook-xsl" version="1.74.3" 
+		type="zip" classifier="ns-resources"/>
+	</artifact:dependencies>
+	
+	<taskdef name="fop" classname="org.apache.fop.tools.anttasks.Fop">
+		<classpath refid="dependency.classpath"/>
+	</taskdef>
+		
+	<target name="usage" description="Prints the Ant build.xml usage">
+		<echo message="Use -projecthelp to get a list of the available targets." />
+	</target>
+
+	<target name="echo-env">
+		<echoproperties/>
+		<echo>${toString:dependency.classpath}</echo>
+	</target>
+
+	<target name="clean" description="Cleans up generated files.">
+		<delete dir="${target.dir}" />
+	</target>
+
+	<target name="depends">
+		<mkdir dir="${target.dir}" />
+	</target>
+
+	<target name="validate-using-jing">
+		<!-- Task definition for Relax NG validation -->
+		<taskdef name="jing" classname="com.thaiopensource.relaxng.util.JingTask"/>
+		
+		<jing rngfile="http://docbook.org/xml/5.0/rng/docbook.rng">
+			<fileset file="./${case}/article.docbook"/>
+		</jing>
+	</target>
+	
+	
+	<target name="build-html" depends="depends"
+		description="Generates HTML files from DocBook XML">
+		<delete file="${target.dir}/html/article.html"/>
+		<xslt style="${docbook.xsl.dir}/html/docbook.xsl" extension=".html" 
+			basedir="./${case}" destdir="${target.dir}/html">
+			<classpath refid="dependency.classpath" />
+
+			<!-- invokes Xalan to process XSLT -->
+<!--			<factory name="org.apache.xalan.processor.TransformerFactoryImpl"/>-->
+			<!-- invokes Saxon 6 to process XSLT 1.0 -->
+<!--			<factory name="com.icl.saxon.TransformerFactoryImpl"/>-->
+			<!-- invokes Saxon 8 to process XSLT 2.0 -->
+<!--			<factory name="net.sf.saxon.TransformerFactoryImpl"/>-->
+
+			<param name="use.extensions" expression="1"/>
+			<include name="article.docbook"/>
+			<exclude name="section-1.docbook"/>
+		</xslt>
+	</target>
+
+	<!-- The following still doesn't work, Sangmoon Oh, 2009-03-09 -->
+	<target name="build-html-2" depends="depends"
+		description="Generates HTML files from DocBook XML">
+		<delete file="${target.dir}/html/article.html"/>
+		<xslt extension=".html" basedir="./${case}" destdir="${target.dir}/html">
+			<classpath refid="dependency.classpath" />
+
+			<!-- invokes Xalan to process XSLT -->
+			<factory name="org.apache.xalan.processor.TransformerFactoryImpl"/>
+						
+			<!-- invokes Saxon 6 to process XSLT 1.0 -->
+<!--			<factory name="com.icl.saxon.TransformerFactoryImpl"/>-->
+
+			<!-- invokes Saxon 8 to process XSLT 2.0 -->
+<!--			<factory name="net.sf.saxon.TransformerFactoryImpl"/>-->
+			
+			<style>
+				<zipentry name="html/docbook.xsl">
+					<zipfileset refid="docbook.xsl.fileset"/>
+				</zipentry>
+			</style>	
+			<include name="article.docbook"/>
+			<exclude name="section-1.docbook"/>
+		</xslt>
+	</target>
+
+	<target name="build-xhtml" depends="depends"
+		description="Generates XHTML files from DocBook XML">
+		<delete file="${target.dir}/xhtml/article.xhtml"/>
+		<xslt style="${docbook.xsl.dir}/xhtml/docbook.xsl" extension=".xhtml" 
+			basedir="./${case}" destdir="${target.dir}/xhtml">
+			<classpath refid="dependency.classpath" />
+			
+<!--			<factory name="org.apache.xalan.processor.TransformerFactoryImpl"/>-->
+			<!--  for Saxon 6 as a XSLT 1.0 impl. -->
+			<factory name="com.icl.saxon.TransformerFactoryImpl"/> 
+			<!-- for Saxon 8 as a XSLT 2.0 impl. -->
+			<!-- But DocBook 5 dosen't yet support XSLT 2 fully as of Mar. 2009 -->
+<!--			<factory name="net.sf.saxon.TransformerFactoryImpl"/> -->
+			<param name="use.extensions" expression="1"/>
+			<param name="part.autolabel" expression="I"/>
+			<param name="chapter.autolabel" expression="1"/>
+			<param name="section.autolabel" expression="1"/>
+			<param name="section.label.includes.component.label" expression="1"/>
+			<param name="section.autolabel.max.depth" expression="1"/>
+			<param name="appendix.autolabel" expression="A"/>
+			<param name="chunker.output.indent" expression="1"/>
+			<param name="chunker.output.encoding" expression="UTF-8"/>
+			<param name="html.stylesheet" expression="docbook-freebsd.css"/>
+			<param name="generate.id.attributes" expression="1"/>
+			<param name="para.propagates.style" expression="1"/>
+			<param name="entry.propagates.style" expression="1"/>
+			<param name="emphasis.propagates.style" expression="1"/>
+			<param name="phrase.propagates.style" expression="1"/>
+
+			<include name="article.docbook"/>
+			<exclude name="section*.docbook"/>
+		</xslt>
+	</target>
+	
+	<target name="build-htmlhelp" depends="depends"
+		description="Generates HTML Help files from DocBook XML">
+		<delete dir="${target.dir}/htmlhelp" includes="**/*.*"/>
+		<xslt style="${docbook.xsl.dir}/htmlhelp/htmlhelp.xsl" extension=".xml"
+			basedir="./${case}" destdir="${target.dir}/htmlhelp">
+			<classpath refid="dependency.classpath" />
+			<factory name="org.apache.xalan.processor.TransformerFactoryImpl"/>
+			<param name="use.extensions" expression="1"/>
+			<include name="article.docbook"/>
+			<exclude name="section-1.docbook"/>
+		</xslt>
+	</target>
+	
+	<target name="build-javahelp" depends="depends"
+		description="Generates HTML Help files from DocBook XML">
+		<delete dir="${target.dir}/javahelp" includes="**/*.*"/>
+		<xslt style="${docbook.xsl.dir}/javahelp/javahelp.xsl" extension=".xml" 
+			basedir="./${case}" destdir="${target.dir}/javahelp">
+			<classpath refid="dependency.classpath" />
+			<factory name="org.apache.xalan.processor.TransformerFactoryImpl"/>
+			<param name="use.extensions" expression="1"/>
+			<param name="use.id.as.filename" expression="1"/>
+			<include name="article.docbook"/>
+			<exclude name="section-1.docbook"/>
+			<exclude name="section-z.docbook"/>
+		</xslt>
+	</target>
+	
+		
+	<target name="build-pdf" depends="depends"
+		description="Generate PDF files from DocBook XML files">
+		
+		<xslt style="${docbook.xsl.dir}/fo/docbook.xsl" extension=".fo"
+			basedir="./${case}" destdir="${target.dir}/pdf">
+			<classpath refid="dependency.classpath" />
+			<include name="article.docbook"/>
+			<exclude name="section-1.docbook"/>
+		</xslt>
+		
+		<fop format="application/pdf" fofile="${target.dir}/pdf/article.fo"
+			outfile="${target.dir}/pdf/article.pdf"/>
+	</target>	
+	
+	
+	
+	
+</project>

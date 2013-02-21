@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="docbook-src-case1b" default="print-env" basedir="."
+		xmlns:artifact="antlib:org.apache.maven.artifact.ant" 
+		xmlns:selector="antlib:org.apache.tools.ant.types.resources.selectors" 
+		xmlns:comparator="antlib:org.apache.tools.ant.types.resources.comparators">
+
+	<description>
+
+	</description>
+
+	<property name="project.home" value="../../../../../../" />
+	<property name="target.dir" value="${project.home}/doc/thirdstage/exercise/docbook/case1" />
+
+	<artifact:dependencies pathId="dependency.classpath" filesetId="dependency.fileset">
+		<dependency groupId="org.docbook" artifactId="docbook-xml" version="4.4" />
+		<dependency groupId="net.sf.docbook" artifactId="docbook-xsl" version="1.74.3" classifier="resources" type="zip" />
+		<dependency groupId="net.sf.docbook" artifactId="docbook-xsl" version="1.74.3" classifier="ns-resources" type="zip" />
+		<dependency groupId="net.sf.docbook" artifactId="docbook-xsl-xalan" version="1.0.0" />
+		<dependency groupId="net.sf.docbook" artifactId="docbook-xsl-saxon" version="1.0.0" />
+		<dependency groupId="org.apache.xmlgraphics" artifactId="fop" version="0.93"/>
+	</artifact:dependencies>
+
+	<artifact:dependencies filesetId="docbook.xsl.fileset">
+		<dependency groupId="net.sf.docbook" artifactId="docbook-xsl" version="1.74.0" classifier="resources" type="zip" />
+	</artifact:dependencies>
+
+	<taskdef name="fop" classname="org.apache.fop.tools.anttasks.Fop">
+		<classpath refid="dependency.classpath"/>
+	</taskdef>
+
+	<target name="print-env">
+		<property name="user.language" value="en"/>
+		<echoproperties/>
+	</target>
+
+	<target name="usage" description="Prints the Ant build.xml usage">
+		<echo message="Use -projecthelp to get a list of the available targets." />
+	</target>
+
+	<target name="clean" description="Cleans up generated files.">
+		<delete dir="${target.dir}" />
+	</target>
+
+	<target name="depends">
+		<mkdir dir="${target.dir}" />
+	</target>
+
+	<!-- 
+	'build-html-2' wouldn't work correctly because of bug in docbook-xsl-1.72.0 with Apache Xalan
+	Refer 'http://www.nabble.com/problem-with-docbook-xsl-1.72.0-td9552718.html#a9552718' about this.
+	The Maven repository doesn't have docbook-xsl-1.74.0 as of Mar. 2009.
+	So, you should wait until docbook-xsl-1.74.0 is loaded to Maven repository to work with the following target.
+	-->
+	<!-- 2009-10-13, Sangmoon Oh
+	Still doesn't work with docbook-xsl-1.74.0 in zip file.
+	Ant's xslt task counldn't deal with style file and its referenced files in an archive file (*.zip).
+	It seems that the XPath operation outside and relative to the specified style file search the target
+	in basedir instead of the archive file containing the style file. 
+	 -->
+	
+	<target name="build-html-2" depends="depends" description="Generates HTML files from DocBook XML">
+		<delete dir="${target.dir}/html" />
+		<xslt extension=".html" destdir="${target.dir}/html"  
+			reloadstylesheet="false">
+			<style>
+				<zipentry name="html/docbook.xsl">
+					<zipfileset refid="docbook.xsl.fileset"/>
+				</zipentry>
+			</style>
+			<classpath refid="dependency.classpath" />
+			<include name="case1/sample2.docbook"/>
+		</xslt>
+	</target>
+
+	<target name="build-html-3" depends="depends" description="Generates HTML files from DocBook XML">
+		<delete dir="${target.dir}/html" />
+		<xslt extension=".html" basedir="./case1" destdir="${target.dir}/html" >
+			<style>
+				<url url="http://docbook.sourceforge.net/release/xsl/current/html/docbook.xsl" />
+			</style>
+			<classpath refid="dependency.classpath" />
+			<include name="sample2.docbook"/>
+		</xslt>
+	</target>
+
+
+</project>

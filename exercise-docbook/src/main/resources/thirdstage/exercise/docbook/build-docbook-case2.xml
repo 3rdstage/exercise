@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="docbook-src-case2" default="build-html" xmlns:artifact="antlib:org.apache.maven.artifact.ant">
+	<description>
+
+	</description>
+	<property name="project.home" value="../../../../../../"/>
+	<property name="docbook.xsl.dir" value="${project.home}/docbook-xsl-1.74.0" />
+	<property name="html.stylesheet" value="${docbook.xsl.dir}/html/docbook.xsl" />
+	<property name="fo.stylesheet" value="${docbook.xsl.dir}/fo/docbook.xsl" />
+	<property name="case" value="case2"/>
+	<property name="target.dir" value="${project.home}/doc/thirdstage/exercise/docbook/${case}" />
+
+	<artifact:dependencies pathId="dependency.classpath">
+		<dependency groupId="xalan" artifactId="xalan" version="2.7.1" />
+		<dependency groupId="xerces" artifactId="xercesImpl" version="2.9.1" />
+		<dependency groupId="org.docbook" artifactId="docbook-xml" version="4.4" />
+		<dependency groupId="org.docbook" artifactId="docbook-xsl" version="1.72.0" />
+		<dependency groupId="org.apache.xmlgraphics" artifactId="fop" version="0.93"/>
+	</artifact:dependencies>
+
+	<artifact:dependencies filesetId="docbook.xsl.fileset">
+		<dependency groupId="org.docbook" artifactId="docbook-xsl" version="1.72.0" />
+	</artifact:dependencies>
+	
+	<taskdef name="fop" classname="org.apache.fop.tools.anttasks.Fop">
+		<classpath refid="dependency.classpath"/>
+	</taskdef>	
+	
+	<target name="usage" description="Prints the Ant build.xml usage">
+		<echo message="Use -projecthelp to get a list of the available targets." />
+	</target>
+
+	<target name="clean" description="Cleans up generated files.">
+		<delete dir="${target.dir}" />
+	</target>
+
+	<target name="depends"	>
+		<mkdir dir="${target.dir}" />
+	</target>
+
+	<target name="build-html" depends="depends"
+		description="Generates HTML files from DocBook XML">
+<!--		<echoproperties/>-->
+		<xslt style="${html.stylesheet}" extension=".html" 
+			basedir="./${case}" destdir="${target.dir}/html">
+			<classpath refid="dependency.classpath" />
+			<include name="book.docbook"/>
+			<exclude name="chapter1.docbook"/>
+		</xslt>
+	</target>
+	
+	<target name="build-pdf" depends="depends"
+		description="Generate PDF files from DocBook XML files">
+		
+		<xslt style="${docbook.xsl.dir}/fo/docbook.xsl" extension=".fo"
+			basedir="./${case}" destdir="${target.dir}/pdf">
+			<classpath refid="dependency.classpath" />
+			<include name="book.docbook"/>
+			<exclude name="chapter1.docbook"/>
+		</xslt>
+		
+		<fop format="application/pdf" fofile="${target.dir}/pdf/book.fo"
+			outfile="${target.dir}/pdf/book.pdf"/>
+	</target>	
+	
+</project>

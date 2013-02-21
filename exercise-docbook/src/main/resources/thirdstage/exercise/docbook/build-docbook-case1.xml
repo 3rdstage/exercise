@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="docbook-src-case1" default="print-env" basedir="."
+		xmlns:artifact="antlib:org.apache.maven.artifact.ant" 
+		xmlns:selector="antlib:org.apache.tools.ant.types.resources.selectors" 
+		xmlns:comparator="antlib:org.apache.tools.ant.types.resources.comparators">
+
+	<description>
+
+	</description>
+
+	<property name="project.home" value="../../../../../../" />
+	<property name="docbook.xsl.dir" value="${project.home}/docbook-xsl-1.74.0" />
+	<property name="html.stylesheet" value="${docbook.xsl.dir}/html/docbook.xsl" />
+	<property name="target.dir" value="${project.home}/doc/thirdstage/exercise/docbook/case1" />
+
+	<artifact:dependencies pathId="dependency.classpath" filesetId="dependency.fileset">
+<!--		<dependency groupId="xerces" artifactId="xerces" version="2.2.1" />-->
+<!--		<dependency groupId="xerces" artifactId="xercesImpl" version="2.9.1" />-->
+<!--		<dependency groupId="xalan" artifactId="xalan" version="2.7.1" />-->
+<!--		<dependency groupId="xalan" artifactId="serializer" version="2.7.1" />-->
+<!--		<dependency groupId="saxon" artifactId="saxon" version="6.5.3" />-->
+<!--		<dependency groupId="xml-resolver" artifactId="xml-resolver" version="1.2"/>-->
+		<dependency groupId="org.docbook" artifactId="docbook-xml" version="4.4" />
+		<dependency groupId="net.sf.docbook" artifactId="docbook-xsl" version="1.74.3" classifier="resources" type="zip" />
+		<dependency groupId="net.sf.docbook" artifactId="docbook-xsl" version="1.74.3" classifier="ns-resources" type="zip" />
+		<dependency groupId="net.sf.docbook" artifactId="docbook-xsl-xalan" version="1.0.0" />
+		<dependency groupId="net.sf.docbook" artifactId="docbook-xsl-saxon" version="1.0.0" />
+		<dependency groupId="org.apache.xmlgraphics" artifactId="fop" version="0.93"/>
+	</artifact:dependencies>
+
+<!--	<artifact:dependencies filesetId="docbook.xsl.fileset">-->
+<!--		<dependency groupId="org.docbook" artifactId="docbook-xsl" version="1.72.0" />-->
+<!--	</artifact:dependencies>-->
+
+	<artifact:dependencies filesetId="docbook.xsl.fileset">
+		<dependency groupId="net.sf.docbook" artifactId="docbook-xsl" version="1.74.0" classifier="resources" type="zip" />
+	</artifact:dependencies>
+
+
+	<taskdef name="fop" classname="org.apache.fop.tools.anttasks.Fop">
+		<classpath refid="dependency.classpath"/>
+	</taskdef>
+
+	<target name="print-env">
+		<property name="user.language" value="en"/>
+		<echoproperties/>
+	</target>
+
+	<target name="usage" description="Prints the Ant build.xml usage">
+		<echo message="Use -projecthelp to get a list of the available targets." />
+	</target>
+
+	<target name="clean" description="Cleans up generated files.">
+		<delete dir="${target.dir}" />
+	</target>
+
+	<target name="depends">
+		<mkdir dir="${target.dir}" />
+	</target>
+
+	<target name="build-html" depends="clean, depends"
+		description="Generates HTML files from DocBook XML">
+		<delete dir="${target.dir}/html" />
+		<xslt extension=".html" basedir="./case1" destdir="${target.dir}/html"
+		      style="${docbook.xsl.dir}/html/docbook.xsl">
+			<classpath refid="dependency.classpath" />
+			<include name="sample2.docbook"/>
+		</xslt>
+	</target>
+
+	<target name="build-pdf" depends="depends"
+		description="Generate PDF files from DocBook XML files">
+		
+		<echo>${toString:dependency.classpath}</echo>
+		<xslt style="${docbook.xsl.dir}/fo/docbook.xsl" extension=".fo"
+			basedir="./case1" destdir="${target.dir}/pdf">
+			<classpath refid="dependency.classpath" />
+			<include name="sample2.docbook"/>
+		</xslt>
+		
+		<fop format="application/pdf" fofile="${target.dir}/pdf/sample2.fo"
+			outfile="${target.dir}/pdf/sample2.pdf"/>
+	</target>	
+
+</project>
