@@ -14,13 +14,28 @@ options{
 }
 
 @header{
-  package thirdstage.exercise.antlr3;
+	package thirdstage.exercise.antlr3;
 }
 
 @lexer::header{
-  package thirdstage.exercise.antlr3;
+	package thirdstage.exercise.antlr3;
 }
 
+@members{
+	public static class FunctionDecl{
+		public String name;
+		
+		public FunctionDecl(String name){
+			this.name = name;
+		}
+	}
+
+	private List<FunctionDecl> functions = new ArrayList<FunctionDecl>();
+	
+	public List<FunctionDecl> getFunctions(){
+		return this.functions;
+	}
+}
 
 header
   : (preprocessingDirective | functionDeclaration)+ 
@@ -30,11 +45,12 @@ preprocessingDirective
   : NUMBER_SIGN ('if' | 'ifdef' | 'ifndef' | 'elif' | 'else' | 'endif') ID* NEWLINE;
 
 functionDeclaration
-  : 'extern'? returnType functionName LEFT_PAREN parameterList RIGHT_PAREN ';'
-  ;
+	: 'extern'? returnType functionName LEFT_PAREN parameterList? RIGHT_PAREN ';' NEWLINE?
+		{functions.add(new FunctionDecl($functionName.text));}
+	;
 
 returnType
-  : (dataType | ID) ASTERISK?
+  : (dataType | ID) ASTERISK*
   ;
   
 dataType
@@ -46,15 +62,15 @@ functionName
   ;
 
 parameterList
-  : parameter*
+  : parameter (',' parameter)* (',' ELLIPSIS)?
   ;
 
 parameter
-  : parameterType parameterName?
+  : parameterType '__restrict'? parameterName?
   ;
 
 parameterType
-  : 'const'? (DATA_TYPE | ID) ASTERISK?
+  : 'const'? (dataType | ID) ASTERISK*
   ;
 
 parameterName
@@ -71,7 +87,6 @@ INTEGER_TYPE_SPECIFIER
   | 'unsigned short int'  //0 to 65,535
   | 'int'                 //
   ;
-ID : ('a'..'z'|'A'..'Z'|'_')('a'..'z'|'A'..'Z'|'0'..'9'|'_')* ;
 NEWLINE : '\r'? '\n';
 WS : (' '|'\t'|'\n'|'\r'|'\f')+ {$channel=HIDDEN;};
 NUMBER_SIGN : '#';
@@ -82,3 +97,5 @@ RIGHT_PAREN : ')'; //right parentheses
 LT_SIGN : '<'; //less-than sign, left angle bracket, \u003C
 EQ_SIGN : '='; //equals sign, \u003D
 GT_SIGN : '>'; //greater-than sign, right angle bracket, \u003E
+ELLIPSIS : '...';
+ID : ('a'..'z'|'A'..'Z'|'_')('a'..'z'|'A'..'Z'|'0'..'9'|'_')* ;
