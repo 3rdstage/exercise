@@ -6,11 +6,11 @@ options {
 }
 
 @header{
-  package thirdstage.exercise.antlr3;
+  package thirdstage.exercise.antlr3.simple;
 }
 
 @lexer::header{
-  package thirdstage.exercise.antlr3;
+  package thirdstage.exercise.antlr3.simple;
 }
 
 

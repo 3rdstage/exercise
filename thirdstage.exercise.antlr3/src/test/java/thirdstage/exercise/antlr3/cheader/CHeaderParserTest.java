@@ -1,4 +1,4 @@
-package thirdstage.exercise.antlr3;
+package thirdstage.exercise.antlr3.cheader;
 
 import java.util.List;
 
@@ -8,12 +8,13 @@ import org.antlr.runtime.CommonTokenStream;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-public class CHeaderParserTest {
 
+public class CHeaderParserTest {
+ 
   @Test
   public void header() throws Exception{
     
-	String inputFile = ClassLoader.getSystemResource("thirdstage/exercise/antlr3/simple-header1.h").getFile();
+	String inputFile = ClassLoader.getSystemResource("thirdstage/exercise/antlr3/cheader/simple-header1.h").getFile();
     @SuppressWarnings("unused")
 	CharStream input = new ANTLRFileStream(inputFile);
     
@@ -22,7 +23,7 @@ public class CHeaderParserTest {
     CHeaderParser parser = new CHeaderParser(tokens);
     parser.header();
     
-    List<CHeaderParser.FunctionDecl> functions = parser.getFunctions();
+    List<FunctionDecl> functions = parser.getFunctions();
     Assert.assertEquals(3, functions.size());
     
 

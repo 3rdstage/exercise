@@ -10,26 +10,20 @@
 grammar CHeader;
 
 options{
-  language= Java ;
+	//output=AST;
+	language= Java ; 
 }
 
 @header{
-	package thirdstage.exercise.antlr3;
+	package thirdstage.exercise.antlr3.cheader;
 }
 
 @lexer::header{
-	package thirdstage.exercise.antlr3;
+	package thirdstage.exercise.antlr3.cheader;
 }
 
 @members{
-	public static class FunctionDecl{
-		public String name;
-		
-		public FunctionDecl(String name){
-			this.name = name;
-		}
-	}
-
+	
 	private List<FunctionDecl> functions = new ArrayList<FunctionDecl>();
 	
 	public List<FunctionDecl> getFunctions(){
@@ -44,9 +38,11 @@ header
 preprocessingDirective
   : NUMBER_SIGN ('if' | 'ifdef' | 'ifndef' | 'elif' | 'else' | 'endif') ID* NEWLINE;
 
-functionDeclaration
+functionDeclaration returns [String returnType, String name]
 	: 'extern'? returnType functionName LEFT_PAREN parameterList? RIGHT_PAREN ';' NEWLINE?
-		{functions.add(new FunctionDecl($functionName.text));}
+		{
+			functions.add(new FunctionDecl($functionName.text));
+		}
 	;
 
 returnType
@@ -61,12 +57,22 @@ functionName
   : ID
   ;
 
-parameterList
-  : parameter (',' parameter)* (',' ELLIPSIS)?
+parameterList returns [ParameterList paramList]
+@init{ 
+	List<Parameter> params = new ArrayList<Parameter>();
+}
+  : (a=parameter {params.add($a.param);}) (',' (b=parameter {params.add($b.param);}))* (',' (e=ELLIPSIS))?
+  	{
+  		$paramList = new ParameterList(params, $e != null ? true : false);
+  		for(Parameter p : params){ System.out.println(p);}
+  	}
   ;
 
-parameter
-  : parameterType '__restrict'? parameterName?
+parameter returns [Parameter param]
+  : t=parameterType r=('__restrict'?) n=ID
+  	{
+  		$param = new Parameter($t.text, ($n != null) ? $n.text : "", ($r != null) ? true : false);
+  	}
   ;
 
 parameterType
