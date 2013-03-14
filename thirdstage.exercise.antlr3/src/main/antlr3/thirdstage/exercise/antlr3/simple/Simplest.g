@@ -6,11 +6,11 @@ options {
 }
 
 @header{
-  package thirdstage.exercise.antlr3;
+  package thirdstage.exercise.antlr3.simple;
 }
 
 @lexer::header{
-  package thirdstage.exercise.antlr3;
+  package thirdstage.exercise.antlr3.simple;
 }
 
 
@@ -64,7 +64,6 @@ INTEGER_TYPE_SPECIFIER
   | 'unsigned short int'  //0 to 65,535
   | 'int'                 //
   ;
-ID : ('a'..'z'|'A'..'Z'|'_')('a'..'z'|'A'..'Z'|'0'..'9'|'_')* ;
 NEWLINE : '\r'? '\n';
 WS : (' '|'\t'|'\n'|'\r'|'\f')+ {$channel=HIDDEN;};
 NUMBER_SIGN : '#';
@@ -75,6 +74,7 @@ RIGHT_PAREN : ')'; //right parentheses
 LT_SIGN : '<'; //less-than sign, left angle bracket, \u003C
 EQ_SIGN : '='; //equals sign, \u003D
 GT_SIGN : '>'; //greater-than sign, right angle bracket, \u003E
+ID : ('a'..'z'|'A'..'Z'|'_')('a'..'z'|'A'..'Z'|'0'..'9'|'_')* ;
 
 
 

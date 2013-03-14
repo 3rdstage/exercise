@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="thirdstage.exericse.spring3" default="echo.env" basedir="."
+	xmlns:artifact="antlib:org.apache.maven.artifact.ant">
+
+	<property name="maven.home" value="C:/tools/maven-3.0.3"/>
+	
+	<typedef resource="org/apache/maven/artifact/ant/antlib.xml"
+		uri="antlib:org.apache.maven.artifact.ant">
+		<classpath>
+			<pathelement location="lib/maven-ant-tasks-2.1.3.jar"/>
+		</classpath>
+	</typedef>
+
+	<!-- Get Maven Dependency -->
+	<artifact:pom id="pom.this" file="./pom.xml" />
+	<artifact:dependencies pomRefId="pom.this"
+		pathId="dependency.classpath" />
+
+	<macrodef name="maven">
+		<!-- for more on this macro, refer http://maven.apache.org/ant-tasks/examples/mvn.html -->
+		<attribute name="options" default="" />
+		<attribute name="goal" />
+		<attribute name="basedir" />
+		<attribute name="resultproperty" default="maven.result" />
+		<element name="args" implicit="true" optional="true" />
+		<sequential>
+			<java classname="org.codehaus.classworlds.Launcher" fork="true" spawn="false"
+	            dir="@{basedir}" resultproperty="@{resultproperty}">
+				<jvmarg value="-Xmx512m"/>
+				<jvmarg value="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8087"/>
+				<classpath>
+					<fileset dir="${maven.home}/boot">
+						<include name="*.jar" />
+					</fileset>
+					<fileset dir="${maven.home}/lib">
+						<include name="*.jar" />
+					</fileset>
+					<path refId="dependency.classpath"/>
+				</classpath>
+				<sysproperty key="classworlds.conf" value="${maven.home}/bin/m2.conf" />
+				<sysproperty key="maven.home" value="${maven.home}" />
+				<arg line="--batch-mode @{options} @{goal}" />
+			</java>
+		</sequential>
+	</macrodef> 	
+	
+	<target name="echo.env">
+		<echoproperties />
+		<echo>${toString:dependency.classpath}</echo>
+		<echo>${toString:project.home}</echo>
+	</target>
+
+	<target name="jetty.run">
+		<maven basedir="." options="" goal="jetty:run"
+			resultProperty="maven.build.jetty.run.result"/>
+	</target>
+
+	<target name="hsqldb.startup">
+		<description>For more command-line options, 
+			refer http://hsqldb.org/doc/2.0/apidocs/index.html?org/hsqldb/server/Server.html
+		</description>
+		<java classname="org.hsqldb.server.Server" fork="true">
+			<classpath refId="dependency.classpath" />
+			<arg line="--database.0 file:${basedir}/run/data/hsqldb/shop3 --dbname.0 shop3" />
+		</java>
+	</target>
+
+	<target name="hsqldb.gui">
+		<java classname="org.hsqldb.util.DatabaseManagerSwing" fork="true">
+			<classpath refId="dependency.classpath" />
+			<arg line="--user sa --url jdbc:hsqldb:hsql://127.0.0.1:9001/shop3" />
+		</java>
+	</target>
+
+	<target name="hsqldb.shutdown">
+		<sql classpathRef="dependency.classpath" driver="org.hsqldb.jdbc.JDBCDriver"
+			url="jdbc:hsqldb:hsql://127.0.0.1:9001/shop3" userid="sa" password=""
+			autocommit="true">SHUTDOWN</sql>
+	</target>
+	
+	<target name="hsqldb.help">
+		<java classname="org.hsqldb.server.Server" fork="true">
+			<classpath refId="dependency.classpath" />
+			<arg line="--help" />
+		</java>
+	</target>
+	
+</project>

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Configure PUBLIC "-//Mort Bay Consulting//DTD Configure//EN" "http://jetty.mortbay.org/configure.dtd">
+<Configure id="server" class="org.mortbay.jetty.Server">
+	<New class="javax.naming.InitialContext">
+		<Arg>
+			<New class="java.util.Properties">
+				<Call name="setProperty">
+					<Arg>java.naming.factory.initial</Arg>
+					<Arg>org.apache.openejb.client.LocalInitialContextFactory</Arg>
+				</Call>
+				<Call name="setProperty">
+					<Arg>openejb.jndiname.format</Arg>
+					<Arg>ejb/{interfaceType.annotationNameLC}/{ejbName}</Arg>
+				</Call>				
+				<Call name="setProperty">
+					<Arg>openejb.configuration</Arg>
+					<Arg>@project.build.outputDirectory@/thirdstage/exercise/spring3/openejb.xml
+					</Arg>
+				</Call>
+				<Call name="setProperty">
+					<Arg>log4j.rootLogger</Arg>
+					<Arg>DEBUG, C, R</Arg>
+				</Call>
+				<Call name="setProperty">
+					<Arg>log4j.appender.C</Arg>
+					<Arg>org.apache.log4j.ConsoleAppender</Arg>
+				</Call>
+				<Call name="setProperty">
+					<Arg>log4j.appender.C.layout</Arg>
+					<Arg>org.apache.log4j.SimpleLayout</Arg>
+				</Call>
+				<!-- log4j configuration for openEJB -->
+				<Call name="setProperty">
+					<Arg>log4j.appender.R</Arg>
+					<Arg>org.apache.log4j.RollingFileAppender</Arg>
+				</Call>
+				<Call name="setProperty">
+					<Arg>log4j.appender.R.file</Arg>
+					<Arg>@basedir@/run/log/log4j.log</Arg>
+				</Call>
+				<Call name="setProperty">
+					<Arg>log4j.appender.R.maxFileSize</Arg>
+					<Arg>100KB</Arg>
+				</Call>
+				<Call name="setProperty">
+					<Arg>log4j.appender.R.maxBackupIndex</Arg>
+					<Arg>3</Arg>
+				</Call>
+				<Call name="setProperty">
+					<Arg>log4j.appender.R.layout</Arg>
+					<Arg>org.apache.log4j.PatternLayout</Arg>
+				</Call>
+				<Call name="setProperty">
+					<Arg>log4j.appender.R.layout.conversionPattern</Arg>
+					<Arg>%d{yyyy-MM-dd HH:mm:ss} %p %t %c - %m%n</Arg>
+				</Call>
+
+			</New>
+		</Arg>
+		<Call name="lookup" id="tm">
+			<Arg>openejb:TransactionManager</Arg>
+		</Call>
+		<Call name="lookup" id="shopDS">
+			<Arg>openejb:Resource/shopDS</Arg>
+		</Call>
+		<Call name="lookup" id="greetingsService">
+			<Arg>ejb/local/GreetingsService</Arg>
+		</Call>		
+	</New>
+
+	<New class="org.mortbay.jetty.plus.naming.Transaction">
+		<Arg>
+			<New class="org.apache.openejb.core.CoreUserTransaction">
+				<Arg>
+					<Ref id="tm" />
+				</Arg>
+			</New>
+		</Arg>
+	</New>
+
+
+	<New class="org.mortbay.jetty.plus.naming.Resource">
+		<Arg></Arg>
+		<Arg>jdbc/myDS</Arg>
+		<Arg>
+			<Ref id="shopDS" />
+		</Arg>
+	</New>
+	<New class="org.mortbay.jetty.plus.naming.Resource">
+		<Arg></Arg>
+		<Arg>ejb/local/GreetingsService</Arg>
+		<Arg>
+			<Ref id="greetingsService" />
+		</Arg>
+	</New>
+
+</Configure>

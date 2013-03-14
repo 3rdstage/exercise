@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:int="http://www.springframework.org/schema/integration"
+	xmlns:int-ip="http://www.springframework.org/schema/integration/ip"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.0.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.0.xsd
+		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-2.1.xsd
+		http://www.springframework.org/schema/integration/ip http://www.springframework.org/schema/integration/ip/spring-integration-ip-2.1.xsd">
+
+	
+	<util:properties id="logserver" location="classpath:thirdstage/exercise/spring3/aop/case2/logserver.properties"/>
+
+	<bean id="loggerAspect" class="thirdstage.exercise.spring3.aop.case2.ElapsedTimeLoggerAspect"
+		factory-method="aspectOf">
+		<property name="name" value="ElapsedTimeLogger"/>
+		<property name="logHandler" ref="udpHandler"/>
+	</bean>  
+
+	<context:load-time-weaver aspectj-weaving="on"/>
+	
+
+	<bean id="udpHandler" class="thirdstage.exercise.spring3.aop.case2.ElapsedTimeLogUdpHandler">
+		<property name="messageChannel" ref="sendChannel"/>
+	</bean>
+
+	<int:channel id="sendChannel"/>
+
+	<int-ip:udp-outbound-channel-adapter id="updOut"
+		host="#{logserver.host}" port="#{logserver.port}" multicast="false" check-length="false"
+		channel="sendChannel" />
+
+	<bean id="logServer" class="thirdstage.exercise.spring3.aop.case2.LogServer"/>
+	
+	<int-ip:udp-inbound-channel-adapter id="udpIn"
+		port="#{logserver.port}" multicast="false" check-length="false"	channel="receiveChannel"/>
+	
+	<int:service-activator id="logHandler" input-channel="receiveChannel" ref="logServer"/>
+
+
+</beans>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans 
+	default-lazy-init="false"
+	default-autowire="no"
+	xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:int="http://www.springframework.org/schema/integration"
+	xmlns:int-ip="http://www.springframework.org/schema/integration/ip"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.0.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.0.xsd
+		http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration-2.1.xsd
+		http://www.springframework.org/schema/integration/ip http://www.springframework.org/schema/integration/ip/spring-integration-ip-2.1.xsd">
+
+	<util:properties id="baseProps" location="classpath:thirdstage/exercise/spring3/aop/case2/base.properties"/>
+	<util:properties id="logserver" location="classpath:thirdstage/exercise/spring3/aop/case2/logserver.properties"/>
+
+	<bean id="loggerAspect" class="thirdstage.exercise.spring3.aop.case2.ElapsedTimeLoggerAspect"
+		factory-method="aspectOf">
+		<property name="name" value="ElapsedTimeLogger"/>
+		<property name="logHandler" ref="queuingHandler"/>
+	</bean>  
+
+	<context:load-time-weaver aspectj-weaving="on"/>	
+	
+
+	<bean id="queuingHandler" class="thirdstage.exercise.spring3.aop.case2.ElapsedTimeLogQueuingHandler">
+		<property name="logQueue" ref="clientLogQueue"/>
+	</bean>
+	
+	<bean id="clientLogQueue" class="java.util.concurrent.LinkedBlockingQueue"/> 
+
+	<bean id="logSender" class="thirdstage.exercise.spring3.aop.case2.ElapsedTimeLoggerSender">
+		<property name="threadCount" value="20"/>
+		<property name="logQueue" ref="clientLogQueue"/>
+		<property name="taskExecutor" ref="senderTaskExecutor"/>
+	</bean>
+
+	<bean id="senderTaskExecutor" class="org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor">
+		<property name="corePoolSize" value="#{baseProps.senderTaskExecutor.corePoolSize}"/>
+		<property name="maxPoolSize" value="#{baseProps.senderTaskExecutor.maxPoolSize}"/>
+		<property name="queueCapacity" value="#{baseProps.senderTaskExecutor.queueCapacity}"/>
+	</bean>
+
+</beans>
