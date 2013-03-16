@@ -49,7 +49,7 @@ public class SetupInputWindow{
 		
 		//My choices from default fonts of Microsoft Windows XP are
 		//Arial Black/normal, Lucida Grande/normal, Helvetica/bold, Tahoma/bold, Verdana/bold, Geneva/bold
-		Font ft2 = new Font(display, new FontData("Verdana", 10, SWT.BOLD));
+		Font ft2 = new Font(display, new FontData("Verdana", 10, SWT.NORMAL));
 		shell.setFont(ft2);
 		
 		GridLayout gl = new GridLayout(2, false);
