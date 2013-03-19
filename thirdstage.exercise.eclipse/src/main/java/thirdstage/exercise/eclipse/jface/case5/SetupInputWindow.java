@@ -10,6 +10,7 @@ import org.eclipse.jface.viewers.ColumnWeightData;
 import org.eclipse.jface.viewers.TableLayout;
 import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.graphics.Font;
@@ -153,6 +154,15 @@ public class SetupInputWindow{
 		installsJdkCtrl.setSelection(meta.getBoolean("field.installsJdk.default"));
 		installsJdkCtrl.setLayoutData(gdf2.create());
 		installsJdkCtrl.pack();
+
+		SelectionListener installsJdkCtrlListener = new SelectionAdapter(){
+			@Override
+			public void widgetSelected(SelectionEvent ev){
+				jdkTypeCtrl.setEnabled(((Button)ev.getSource()).getSelection());
+			
+			}
+		};
+		installsJdkCtrl.addSelectionListener(installsJdkCtrlListener);
 		//end of install JDK or not field
 		
 		//JDK type field - single combo
@@ -162,7 +172,7 @@ public class SetupInputWindow{
 		jdkTypeLabel.setLayoutData(gdf1.create());
 		jdkTypeLabel.pack();
 
-		jdkTypeCtrl = new Combo(shell, SWT.SINGLE | SWT.BORDER);
+		jdkTypeCtrl = new Combo(shell, SWT.SINGLE | SWT.READ_ONLY | SWT.BORDER);
 		jdkTypeCtrl.setItems(meta.getStringArray("field.jdkType.enumeration"));
 		jdkTypeCtrl.select(0);
 		jdkTypeCtrl.setVisibleItemCount(Math.min(jdkTypeCtrl.getItemCount(), 7));
@@ -170,20 +180,6 @@ public class SetupInputWindow{
 		jdkTypeCtrl.setLayoutData(gdf2.create());
 		jdkTypeCtrl.pack();
 		//end of JDK type
-
-		installsJdkCtrl.addSelectionListener(new SelectionListener(){
-			public void say(){
-				
-			}
-			
-			public void widgetDefaultSelected(SelectionEvent ev){}
-			public void widgetSelected(SelectionEvent ev){
-				if(((Button)ev.getSource()).getSelection()){
-					
-				}
-				
-			}
-		});		
 		
 		//install Eclipse or not field - check box
 		installsEclipseLabel = new Label(shell, SWT.SHADOW_ETCHED_OUT);
