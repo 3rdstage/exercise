@@ -68,7 +68,8 @@ public class SimpleTest2 {
 		
 		public Unit getResult(){
 			
-			return new Unit(this.packageDecl, this.importDecls);
+			return new ClassUnit(this.packageDecl, this.importDecls, 
+					fieldDecls.toArray(new FieldDecl[fieldDecls.size()]), null);
 		}
 
 		public boolean visit(PackageDeclaration pd){
@@ -100,9 +101,15 @@ public class SimpleTest2 {
 			for(VariableDeclarationFragment frgmt : frgmts){
 				names.add(frgmt.getName().toString());
 			}
-			List<String> modifiers = new ArrayList<String>();
+			List mdfrs = fd.modifiers();
+			List<String> modifires = new ArrayList<String>();
+			for(Object mdfr : mdfrs){
+				modifires.add(mdfr.toString());
+			}
 			
-			//this.fieldDecls.add(new FieldDecl(type, names, modifiers, r.getLeft(), r.getRight()));
+			
+			this.fieldDecls.add(new FieldDecl(type, names.toArray(new String[names.size()]), 
+					modifires.toArray(new String[modifires.size()]), r.getLeft(), r.getRight()));
 			
 			return false;
 		}
