@@ -3,29 +3,26 @@ package thirdstage.exercise.eclipse.jface.case5;
 import java.util.ResourceBundle;
 
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.lang.StringUtils;
 import org.eclipse.jface.layout.GridDataFactory;
-import org.eclipse.jface.preference.RadioGroupFieldEditor;
-import org.eclipse.jface.viewers.ColumnLayoutData;
-import org.eclipse.jface.viewers.ColumnWeightData;
-import org.eclipse.jface.viewers.TableLayout;
-import org.eclipse.jface.window.ApplicationWindow;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.DisposeEvent;
+import org.eclipse.swt.events.DisposeListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
-import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.layout.RowLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
-import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.Label;
-import org.eclipse.swt.widgets.List;
+import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 
@@ -41,6 +38,13 @@ public class SetupInputWindow{
 	
 	private ResourceBundle bundle;
 	private PropertiesConfiguration meta;
+	
+	private Display display;
+	private Shell shell;
+	
+	private Font ft1;
+	private Font ft2;
+	private Color red, black;
 	
 	private Label projectCodeLabel;
 	private Text projectCodeCtrl;
@@ -75,12 +79,17 @@ public class SetupInputWindow{
 	
 	private Label includesCryptoLibLabel;
 	private Button includesCryptoLibCtrl;
+	private Label includesCryptoLibDesc;
 	
 	private Label includesXmlParserLabel;
 	private Button includesXmlParserCtrl;
+	private Label includesXmlParserDesc;
 
-	public SetupInputWindow(Shell shell){
-		
+	private Button confirmCtrl;
+	private Button cancelCtrl;
+
+	public SetupInputWindow(Shell sh){
+
 		bundle = ResourceBundle.getBundle("thirdstage.exercise.eclipse.jface.case5.Display");
 		try{
 			meta = new PropertiesConfiguration(ClassLoader.getSystemResource("thirdstage/exercise/eclipse/jface/case5/Meta.properties"));
@@ -88,13 +97,27 @@ public class SetupInputWindow{
 		catch(Exception ex){
 			throw new IllegalStateException("Something is wrong. Examine root cause", ex);
 		}
-		
+
+		this.shell = sh;
+		this.display = shell.getDisplay();
 		shell.setSize(meta.getInt("window.width"), meta.getInt("window.height"));
+		shell.addDisposeListener(new DisposeListener(){
+			
+			@Override public void widgetDisposed(DisposeEvent ev){
+				if(ft1 != null) ft1.dispose();
+				if(ft2 != null) ft2.dispose();
+				if(red != null) red.dispose();
+				if(black != null) black.dispose();
+			}
+		});
 		
 		//My choices from default fonts of Microsoft Windows XP are
 		//Arial Black/normal, Lucida Grande/normal, Helvetica/bold, Tahoma/bold, Verdana/bold, Geneva/bold
-		Font ft2 = new Font(shell.getDisplay(), new FontData("Verdana", 10, SWT.NORMAL));
+		ft2 = new Font(shell.getDisplay(), new FontData("Verdana", 10, SWT.NORMAL));
 		shell.setFont(ft2);
+		
+		red = new Color(display, 255, 0, 0);
+		black = new Color(display, 0, 0, 0);
 		
 		GridLayout gl = new GridLayout(2, false);
 		gl.marginTop = meta.getInt("window.marginTop");
@@ -114,6 +137,7 @@ public class SetupInputWindow{
 				.align(SWT.CENTER, SWT.CENTER).grab(true, false)
 				.hint(shell.getSize().x, SWT.DEFAULT)
 				.span(2, 1);
+		
 		
 
 		//project code field - text input
@@ -136,6 +160,14 @@ public class SetupInputWindow{
 		projectCodeDesc.setFont(ft2);
 		projectCodeDesc.setLayoutData(gdf2.create());
 		projectCodeDesc.pack();
+		
+		projectCodeCtrl.addListener(SWT.Modify, new Listener(){
+			@Override public void handleEvent(Event ev){
+				//System.out.printf("Event occurred : %1$d, %2$s\n", ev.type, ev.text);
+				validateProjectCode(true);
+			}
+		});
+		
 		//end of project code field
 
 		Label hr1 = new Label(shell, SWT.SEPARATOR | SWT.HORIZONTAL);
@@ -156,10 +188,8 @@ public class SetupInputWindow{
 		installsJdkCtrl.pack();
 
 		SelectionListener installsJdkCtrlListener = new SelectionAdapter(){
-			@Override
-			public void widgetSelected(SelectionEvent ev){
+			@Override public void widgetSelected(SelectionEvent ev){
 				jdkTypeCtrl.setEnabled(((Button)ev.getSource()).getSelection());
-			
 			}
 		};
 		installsJdkCtrl.addSelectionListener(installsJdkCtrlListener);
@@ -193,6 +223,13 @@ public class SetupInputWindow{
 		installsEclipseCtrl.setSelection(meta.getBoolean("field.installsEclispe.default"));
 		installsEclipseCtrl.setLayoutData(gdf2.create());
 		installsEclipseCtrl.pack();
+		
+		SelectionListener installsEclipseCtrlListener = new SelectionAdapter(){
+			@Override public void widgetSelected(SelectionEvent ev){
+				eclipseTypeCtrl.setEnabled(((Button)ev.getSource()).getSelection());
+			}
+		};
+		installsEclipseCtrl.addSelectionListener(installsEclipseCtrlListener);
 		//end of install Eclipse or not field
 
 		//Eclipse type field - combo
@@ -301,6 +338,14 @@ public class SetupInputWindow{
 		includesCryptoLibCtrl.setSelection(meta.getBoolean("field.includesCryptoLib.default"));
 		includesCryptoLibCtrl.setLayoutData(gdf2.create());
 		includesCryptoLibCtrl.pack();
+		
+		new Label(shell, SWT.FLAT).pack(); //simple filler
+		
+		includesCryptoLibDesc = new Label(shell, SWT.SHADOW_ETCHED_OUT | SWT.WRAP);
+		includesCryptoLibDesc.setText(bundle.getString("field.includesCryptoLib.desc"));
+		includesCryptoLibDesc.setFont(ft2);
+		includesCryptoLibDesc.setLayoutData(gdf2.create());
+		includesCryptoLibDesc.pack();
 		//end of include crypto library or not
 		
 		
@@ -316,6 +361,14 @@ public class SetupInputWindow{
 		includesXmlParserCtrl.setSelection(meta.getBoolean("field.includesXmlParser.default"));
 		includesXmlParserCtrl.setLayoutData(gdf2.create());
 		includesXmlParserCtrl.pack();
+		
+		new Label(shell, SWT.FLAT).pack(); //simple filler
+		
+		includesXmlParserDesc = new Label(shell, SWT.SHADOW_ETCHED_OUT | SWT.WRAP);
+		includesXmlParserDesc.setText(bundle.getString("field.includesXmlParser.desc"));
+		includesXmlParserDesc.setFont(ft2);
+		includesXmlParserDesc.setLayoutData(gdf2.create());
+		includesXmlParserDesc.pack();
 		//end of include XML parsers or not		
 
 		
@@ -342,22 +395,163 @@ public class SetupInputWindow{
 		avlFontCombo.setFont(ft2);
 		avlFontCombo.pack();
 		//end of available fonts
+
+		Label hrza = new Label(shell, SWT.SEPARATOR | SWT.HORIZONTAL | SWT.SHADOW_ETCHED_OUT);
+		hrza.setLayoutData(gdf3.create());
+		hrza.pack();
+		
+		//confirm, cancel button
+		new Label(shell, SWT.FLAT).pack(); //simple filler
+		
+		Group ctrls = new Group(shell, SWT.SHADOW_ETCHED_IN | SWT.RIGHT);
+		ctrls.setLayoutData(gdf2.create());
+		ctrls.setLayout(new RowLayout());
+		
+		this.confirmCtrl = new Button(ctrls, SWT.PUSH);
+		confirmCtrl.setText(bundle.getString("field.confirm.label"));
+		confirmCtrl.pack();
+		this.cancelCtrl = new Button(ctrls, SWT.PUSH);
+		cancelCtrl.setText(bundle.getString("field.cancel.label"));
+		cancelCtrl.pack();
+		
+		ctrls.pack();
+		
+		//confirm command confirm
+		SelectionListener confirmCtrlListener2 = new SelectionAdapter(){
+			@Override
+			public void widgetSelected(SelectionEvent ev){
+				//System.out.println(ev.toString());
+				
+				if(!validateProjectCode(true)) return;
+				
+				final Shell dialog = new Shell(shell, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL);
+				dialog.setText("Confirm");
+				GridLayout gl = new GridLayout(1, false);
+				dialog.setLayout(gl);
+				
+				Label msg = new Label(dialog, SWT.NONE);
+				msg.setText(bundle.getString("field.confirm.message"));
+				
+				Group grp = new Group(dialog, SWT.NONE | SWT.CENTER);
+				grp.setLayoutData(GridDataFactory.fillDefaults().align(SWT.CENTER, SWT.CENTER).create());
+				grp.setLayout(new RowLayout());
+				
+				Button yes = new Button(grp, SWT.PUSH);
+				yes.setText(bundle.getString("label.yes"));
+				yes.pack();
+				
+				Button no = new Button(grp, SWT.PUSH);
+				no.setText(bundle.getString("label.no"));
+				no.pack();
+
+				//event listeners
+				SelectionListener yesLstn = new SelectionAdapter(){
+					@Override public void widgetSelected(SelectionEvent ev){
+						//@todo save data
+						shell.dispose();
+					}
+				};
+				yes.addSelectionListener(yesLstn);
+				
+				SelectionListener noLstn = new SelectionAdapter(){
+					@Override public void widgetSelected(SelectionEvent ev){
+						dialog.dispose();
+					}
+				};
+				no.addSelectionListener(noLstn);	
+				//end of event listeners
+				
+				grp.pack();
+				dialog.pack();
+				dialog.open();
+			}
+		};
+		confirmCtrl.addSelectionListener(confirmCtrlListener2);
+		
+		//cancel command confirm
+		SelectionListener cancelCtrlListener = new SelectionAdapter(){
+			@Override
+			public void widgetSelected(SelectionEvent ev){
+				System.out.println(ev.toString());
+				
+				final Shell dialog = new Shell(shell, SWT.DIALOG_TRIM | SWT.APPLICATION_MODAL);
+				dialog.setText("Cancel");
+				GridLayout gl = new GridLayout(1, false);
+				dialog.setLayout(gl);
+				
+				Label msg = new Label(dialog, SWT.NONE);
+				msg.setText(bundle.getString("field.cancel.message"));
+				
+				Group grp = new Group(dialog, SWT.NONE | SWT.CENTER);
+				grp.setLayoutData(GridDataFactory.fillDefaults().align(SWT.CENTER, SWT.CENTER).create());
+				grp.setLayout(new RowLayout());
+				
+				Button yes = new Button(grp, SWT.PUSH);
+				yes.setText(bundle.getString("label.yes"));
+				yes.pack();
+				
+				Button no = new Button(grp, SWT.PUSH);
+				no.setText(bundle.getString("label.no"));
+				no.pack();
+
+				//event listeners
+				SelectionListener yesLstn = new SelectionAdapter(){
+					@Override public void widgetSelected(SelectionEvent ev){
+						shell.dispose();
+					}
+				};
+				yes.addSelectionListener(yesLstn);
+				
+				SelectionListener noLstn = new SelectionAdapter(){
+					@Override public void widgetSelected(SelectionEvent ev){
+						dialog.dispose();
+					}
+				};
+				no.addSelectionListener(noLstn);	
+				//end of event listeners
+				
+				grp.pack();
+				dialog.pack();
+				dialog.open();
+			}
+		};
+		cancelCtrl.addSelectionListener(cancelCtrlListener);		
+		
 		
 		shell.pack();
 	}
 	
+	protected boolean validateProjectCode(boolean movesFocus){
+		boolean result = true;
+		
+		//validate project code
+		String code = StringUtils.defaultString(this.projectCodeCtrl.getText());
+		if(!code.matches(meta.getString("field.projectCode.pattern"))){
+			if(movesFocus){
+				display.getCurrent().asyncExec(new Runnable(){
+					public void run(){ projectCodeCtrl.setFocus(); };
+				});
+			}
+			this.projectCodeDesc.setForeground(red);
+			result = false;
+		}else{
+			this.projectCodeDesc.setForeground(black);
+		}
+		return result;
+	}
+	
 	public static void main(String... args){
 		
-		Display display = new Display();
-		Shell shell = new Shell(display);
+		Display dspl = new Display();
+		Shell sh = new Shell(dspl);
 		
-		new SetupInputWindow(shell);
+		SetupInputWindow window = new SetupInputWindow(sh);
 
-		shell.open();
-		while (!shell.isDisposed ()) {
-			if (!display.readAndDispatch ()) display.sleep ();
+		sh.open();
+		while (!sh.isDisposed ()) {
+			if (!dspl.readAndDispatch ()) dspl.sleep ();
 		}
-		display.dispose ();		
+		dspl.dispose ();		
 	}
 	
 
