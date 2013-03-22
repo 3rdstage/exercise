@@ -1,8 +1,10 @@
 package thirdstage.exercise.eclipse.jface.case5;
 
+import java.io.File;
 import java.util.ResourceBundle;
 
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.eclipse.jface.layout.GridDataFactory;
 import org.eclipse.swt.SWT;
@@ -540,7 +542,16 @@ public class SetupInputWindow{
 		return result;
 	}
 	
+	
 	public static void main(String... args){
+		
+		//the first argument should be the path for the file to log the input.
+		if(args.length < 1){
+			throw new IllegalArgumentException("You should specify the path for the file as an fist argument.");
+		}
+		
+		File f = FileUtils.getFile(args[0]);
+		
 		
 		Display dspl = new Display();
 		Shell sh = new Shell(dspl);
