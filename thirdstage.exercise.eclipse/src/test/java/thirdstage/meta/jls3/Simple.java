@@ -7,9 +7,7 @@ public class Simple {
 	
 	private String name = "";
 	
-	private int height = 0;
-	
-	private int width = 0;
+	private int height = 0, width = 0;
 	
 	private Color color;
 	

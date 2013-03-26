@@ -48,8 +48,10 @@ public class SimpleTest2 {
 		@SuppressWarnings("unused") Document document = new Document(srcStr);
 
 		System.out.println("Strike the enter key to end this program : ");
-		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-		br.readLine();
+		//BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+		//br.readLine();
+		
+		while(System.in.available() < 1){ Thread.currentThread().sleep(500); }
 		System.out.println("End of program");
 
 	}
