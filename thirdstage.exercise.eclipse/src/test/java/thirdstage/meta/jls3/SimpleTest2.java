@@ -98,20 +98,19 @@ public class SimpleTest2 {
 			Pair<Integer, Integer> r = this.getLineRange(fd);
 			
 			String type = fd.getType().toString();
+
+			List<String> mdfrs = new ArrayList<String>();
+			for(Object mdfr : fd.modifiers()){
+				mdfrs.add(mdfr.toString());
+			}
+			String[] modifiers = mdfrs.toArray(new String[mdfrs.size()]);
+
 			List<VariableDeclarationFragment> frgmts = fd.fragments();
 			List<String> names = new ArrayList<String>();
 			for(VariableDeclarationFragment frgmt : frgmts){
-				names.add(frgmt.getName().toString());
+				this.fieldDecls.add(new FieldDecl(type, modifiers, 
+						frgmt.getName().toString(), r.getLeft(), r.getRight()));
 			}
-			List mdfrs = fd.modifiers();
-			List<String> modifires = new ArrayList<String>();
-			for(Object mdfr : mdfrs){
-				modifires.add(mdfr.toString());
-			}
-			
-			
-			this.fieldDecls.add(new FieldDecl(type, names.toArray(new String[names.size()]), 
-					modifires.toArray(new String[modifires.size()]), r.getLeft(), r.getRight()));
 			
 			return false;
 		}

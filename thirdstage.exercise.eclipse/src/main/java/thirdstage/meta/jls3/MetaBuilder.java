@@ -13,7 +13,11 @@ import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.Modifier;
+import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
+import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
 public class MetaBuilder {
@@ -41,6 +45,7 @@ public class MetaBuilder {
 		CompilationUnit cu = (CompilationUnit) parser.createAST(null);
 		
 		Visitor vst = new Visitor(cu);
+		cu.accept(vst);
 		
 		return vst.getResult();
 	}
@@ -49,10 +54,13 @@ public class MetaBuilder {
 
 class Visitor extends ASTVisitor{
 	
+	//@todo Using array instead of collection for imports, fields, methods.
+	//the size can be identified in constructor
 	private CompilationUnit source;
 	private PackageDecl packageDecl;
 	private List<ImportDecl> importDecls = new ArrayList<ImportDecl>();
 	private List<FieldDecl> fieldDecls = new ArrayList<FieldDecl>();
+	private List<MethodDecl> methodDecls = new ArrayList<MethodDecl>();
 	
 	public Visitor(CompilationUnit cu){
 		this.source = cu;
@@ -61,7 +69,8 @@ class Visitor extends ASTVisitor{
 	public Unit getResult(){
 		
 		return new ClassUnit(this.packageDecl, this.importDecls, 
-				fieldDecls.toArray(new FieldDecl[fieldDecls.size()]), null);
+				fieldDecls.toArray(new FieldDecl[fieldDecls.size()]), 
+				methodDecls.toArray(new MethodDecl[methodDecls.size()]));
 	}
 
 	public boolean visit(PackageDeclaration pd){
@@ -70,7 +79,7 @@ class Visitor extends ASTVisitor{
 		int startLine = this.source.getLineNumber(start);
 		int endLine = this.source.getLineNumber(end);
 		
-		this.packageDecl = new PackageDecl(pd.getName().toString(), startLine, endLine);
+		this.packageDecl = new PackageDecl(this.getNameOfName(pd.getName()), startLine, endLine);
 		
 		return true;
 	}
@@ -80,30 +89,36 @@ class Visitor extends ASTVisitor{
 		int el = this.source.getLineNumber(id.getStartPosition() + id.getLength());
 		
 		this.importDecls.add(new ImportDecl(id.isStatic(), 
-				id.isOnDemand(), id.getName().toString(), sl, el));
+				id.isOnDemand(), this.getNameOfName(id.getName()), sl, el));
 		return true;
 	}
 	
 	public boolean visit(FieldDeclaration fd){
 		Pair<Integer, Integer> r = this.getLineRange(fd);
 		
-		String type = fd.getType().toString();
+		String type = this.getNameOfType(fd.getType());
+		String[] modifiers = this.getNamesOfModifiers(fd.modifiers());
+
 		List<VariableDeclarationFragment> frgmts = fd.fragments();
 		List<String> names = new ArrayList<String>();
 		for(VariableDeclarationFragment frgmt : frgmts){
-			names.add(frgmt.getName().toString());
+			this.fieldDecls.add(new FieldDecl(type, modifiers, 
+					this.getNameOfName(frgmt.getName()), r.getLeft(), r.getRight()));
 		}
-		List mdfrs = fd.modifiers();
-		List<String> modifires = new ArrayList<String>();
-		for(Object mdfr : mdfrs){
-			modifires.add(mdfr.toString());
-		}
-		
-		
-		this.fieldDecls.add(new FieldDecl(type, names.toArray(new String[names.size()]), 
-				modifires.toArray(new String[modifires.size()]), r.getLeft(), r.getRight()));
 		
 		return false;
+	}
+	
+	public boolean visit(MethodDeclaration md){
+		Pair<Integer, Integer> r = this.getLineRange(md);
+		
+		String rType = this.getNameOfType(md.getReturnType2());
+		String[] mdfrs = this.getNamesOfModifiers(md.modifiers());
+		
+		this.methodDecls.add(new MethodDecl(rType, mdfrs,
+				this.getNameOfName(md.getName()), r.getLeft(), r.getRight()));
+		return true;
+		
 	}
 	
 	protected Pair<Integer, Integer> getLineRange(ASTNode n){
@@ -113,6 +128,26 @@ class Visitor extends ASTVisitor{
 		return Pair.of(sl, el);
 		
 	}
+	
+	protected String getNameOfName(Name n){
+		return (n != null) ? n.toString() : "";
+	}
+
+	protected String getNameOfType(Type t){
+		return (t != null) ? t.toString() : "";
+	}
+	
+	protected String[] getNamesOfModifiers(List<Modifier> modifiers){
+		if(modifiers == null) return new String[0];
+		
+		String[] names = new String[modifiers.size()];
+		for(int i = 0, n = names.length; i < n; i++){
+			names[i] = modifiers.get(i).toString();
+		}
+		
+		return names;
+	}
+	
 }
 
 
