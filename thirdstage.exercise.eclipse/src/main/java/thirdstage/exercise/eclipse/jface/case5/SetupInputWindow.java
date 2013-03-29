@@ -1,6 +1,8 @@
 package thirdstage.exercise.eclipse.jface.case5;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.util.Properties;
 import java.util.ResourceBundle;
 
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -37,6 +39,12 @@ public class SetupInputWindow{
 	//@todo Event listener
 	//@todo data binding ?
 
+	public final static String KEY_PROJECT_CODE = "nexcore.project.code";
+	public final static String KEY_J2EE_VERSION = "nexcore.project.j2ee.version";
+	public final static String KEY_APPLSERVER_PRODUCT = "nexcore.project.applserver.product";
+	public final static String KEY_UI_PRODUCT_NAME = "nexcore.project.ui.product.name";
+	
+	
 	
 	private ResourceBundle bundle;
 	private PropertiesConfiguration meta;
@@ -89,8 +97,10 @@ public class SetupInputWindow{
 
 	private Button confirmCtrl;
 	private Button cancelCtrl;
+	
+	private File inputSaveFile;
 
-	public SetupInputWindow(Shell sh){
+	public SetupInputWindow(Shell sh, File f){
 
 		bundle = ResourceBundle.getBundle("thirdstage.exercise.eclipse.jface.case5.Display");
 		try{
@@ -99,6 +109,8 @@ public class SetupInputWindow{
 		catch(Exception ex){
 			throw new IllegalStateException("Something is wrong. Examine root cause", ex);
 		}
+		
+		this.inputSaveFile = f;
 
 		this.shell = sh;
 		this.display = shell.getDisplay();
@@ -449,7 +461,10 @@ public class SetupInputWindow{
 				//event listeners
 				SelectionListener yesLstn = new SelectionAdapter(){
 					@Override public void widgetSelected(SelectionEvent ev){
-						//@todo save data
+						try{
+							saveInput(inputSaveFile);
+						}catch(Exception ex){}
+						
 						shell.dispose();
 					}
 				};
@@ -523,6 +538,19 @@ public class SetupInputWindow{
 		shell.pack();
 	}
 	
+	
+	protected void saveInput(File f) throws Exception{
+		
+		Properties props = new Properties();
+		
+		props.setProperty(KEY_PROJECT_CODE, this.projectCodeCtrl.getText());
+		props.setProperty(KEY_J2EE_VERSION, this.j2eeVersionCtrl.getText());
+		props.setProperty(KEY_APPLSERVER_PRODUCT, this.applServerProductCtrl.getText());
+		props.setProperty(KEY_UI_PRODUCT_NAME, this.uiProductCtrl.getText());
+		
+		props.store(new FileOutputStream(f), "input values to install");
+	}
+	
 	protected boolean validateProjectCode(boolean movesFocus){
 		boolean result = true;
 		
@@ -543,7 +571,7 @@ public class SetupInputWindow{
 	}
 	
 	
-	public static void main(String... args){
+	public static void exec(String... args){
 		
 		//the first argument should be the path for the file to log the input.
 		if(args.length < 1){
@@ -552,11 +580,12 @@ public class SetupInputWindow{
 		
 		File f = FileUtils.getFile(args[0]);
 		
+		if(f.exists()) f.delete();
 		
 		Display dspl = new Display();
 		Shell sh = new Shell(dspl);
 		
-		SetupInputWindow window = new SetupInputWindow(sh);
+		SetupInputWindow window = new SetupInputWindow(sh, f);
 
 		sh.open();
 		while (!sh.isDisposed ()) {
@@ -565,7 +594,9 @@ public class SetupInputWindow{
 		dspl.dispose ();		
 	}
 	
-
+	public static void main(String... args){
+		exec(args);
+	}
 }
 
  
