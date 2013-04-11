@@ -19,7 +19,6 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
-import org.eclipse.jface.text.Document;
 import org.testng.annotations.Test;
 
 public class SimpleTest2 {
@@ -45,7 +44,7 @@ public class SimpleTest2 {
 
 		System.out.println(cu.toString());
 
-		@SuppressWarnings("unused") Document document = new Document(srcStr);
+		//@SuppressWarnings("unused") Document document = new Document(srcStr);
 
 		System.out.println("Strike the enter key to end this program : ");
 		//BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
