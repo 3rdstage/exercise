@@ -14,11 +14,18 @@ import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.TableViewerColumn;
 import org.eclipse.jface.viewers.TextCellEditor;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.TableEditor;
+import org.eclipse.swt.events.ModifyEvent;
+import org.eclipse.swt.events.ModifyListener;
+import org.eclipse.swt.events.SelectionAdapter;
+import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.layout.GridLayout;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Table;
+import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.swt.widgets.Text;
 
 public class TableViewerSample01 {
@@ -97,27 +104,54 @@ public class TableViewerSample01 {
 			}
 		});
 		
-		Person[] persons = new Person[]{
+		final Person[] persons = new Person[]{
 				new Person("0001", "홍길동", "Manager", "Software Architect"),
 				new Person("0002", "Smith", "Associate", "Software Engineer"),
 				new Person("0003", "Chris", "Associate", "Graphic Designer"),
 				new Person("0010", "Sang", "Associate", "Software Engineer")
 		};
 		
-		CellEditor[] editors = {new TextCellEditor(shell), new TextCellEditor(shell), new TextCellEditor(), new TextCellEditor()};
-		viewer.setCellEditors(editors);
 		viewer.setInput(persons);
 		viewer.getControl().setLayoutData(
 				GridDataFactory.fillDefaults().grab(true, true).
 				align(GridData.FILL, GridData.FILL).span(2, 1).create());
 		
+		final TableEditor te = new TableEditor(table);
+		te.horizontalAlignment = SWT.LEFT;
+		te.grabHorizontal = true;
+		te.minimumWidth = 50;
+		
+
 		
 		final Text txt1 = new Text(shell, SWT.BORDER | SWT.READ_ONLY | SWT.MULTI);
 		txt1.setText(java.util.Arrays.toString(persons));
 		txt1.setLayoutData(
 				GridDataFactory.fillDefaults().grab(true, true).span(2, 1).create());
 		
-		
+		table.addSelectionListener(
+				new SelectionAdapter(){
+					public void widgetSelected(SelectionEvent ev){
+						Control oe = te.getEditor();
+						if(oe != null) oe.dispose();
+						
+						TableItem ti = (TableItem)ev.item;
+						if(ti == null) return;
+						
+						Text ne = new Text(table, SWT.NONE);
+						ne.setText(ti.getText(1));
+						ne.addModifyListener(new ModifyListener(){
+							public void modifyText(ModifyEvent ev){
+								Text text = (Text)te.getEditor();
+								te.getItem().setText(1, text.getText());
+								
+								txt1.setText(java.util.Arrays.toString(persons));
+							}
+						});
+						ne.selectAll();
+						ne.setFocus();
+						te.setEditor(ne, ti, 1);
+					}
+				});		
 		
 		shell.pack();
 		shell.open();
