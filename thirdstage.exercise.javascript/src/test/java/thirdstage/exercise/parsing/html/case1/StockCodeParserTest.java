@@ -3,6 +3,9 @@ package thirdstage.exercise.parsing.html.case1;
 import java.io.File;
 import java.net.URL;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -10,6 +13,8 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -32,6 +37,37 @@ public class StockCodeParserTest {
 		JSONArray codes = StockCodeParser.parseStockCodesIntoJSONArry(new File(url.toURI()), "EUC-KR");
 		System.out.println(codes.toString(2));
 		Assert.assertTrue(codes.length() > 100);
+	}
+	
+	@Test(enabled=true)
+	public void testParseStockCodesIntoFile() throws Exception{
+		URL url = ClassLoader.getSystemResource("thirdstage/exercise/parsing/html/case1/krx-stock-code-20130503.html");
+		String trgPath = System.getProperty("user.dir") + "/target/krx-stock-code-20130503.json"; 
+		
+		StockCodeParser.parseStockCodesIntoFile(new File(url.toURI()), "EUC-KR", trgPath, "UTF-8", true);
+		
+	}
+	
+	@Test
+	public void testSlf4jLogger(){
+		
+		Logger logger = LoggerFactory.getLogger(this.getClass());
+		Logger logger2 = LoggerFactory.getLogger(StockCodeParserTest.class);
+		
+		Assert.assertEquals(logger2, logger);
+		Assert.assertEquals(logger2.hashCode(), logger.hashCode());
+		Assert.assertTrue(logger2 == logger);
+	}
+	
+	@Test
+	public void testSystemVariables(){
+		
+		Properties props = System.getProperties();
+		Set<Map.Entry<Object, Object>> entries = props.entrySet();
+		
+		for(Map.Entry<Object, Object> entry: entries){
+			System.out.printf("%1s = %2s\n", entry.getKey(), entry.getValue());
+		}
 	}
 	
 	@Test

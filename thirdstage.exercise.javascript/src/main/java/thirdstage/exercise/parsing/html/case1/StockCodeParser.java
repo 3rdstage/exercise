@@ -1,6 +1,8 @@
 package thirdstage.exercise.parsing.html.case1;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -10,6 +12,8 @@ import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.*;
 import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 
@@ -22,9 +26,11 @@ import org.jsoup.select.Elements;
  * @since 2013-05-03
  */
 public class StockCodeParser {
+	
+	protected static final Logger logger = LoggerFactory.getLogger(StockCodeParser.class);
 
 	public StockCodeParser(){
-
+		
 
 	}
 
@@ -47,7 +53,7 @@ public class StockCodeParser {
 			);
 		}
 		
-		System.out.printf("%1d codes are found", stocks.size());
+		System.out.printf("%1$d codes are found.\n", stocks.size());
 		
 		return codes;
 	}
@@ -72,18 +78,37 @@ public class StockCodeParser {
 			);
 		}
 		
-		System.out.printf("%1d codes are found", stocks.size());
+		System.out.printf("%1$d codes are found.\n", stocks.size());
 		
 		return codes;		
 	}
 	
 	public static void parseStockCodesIntoFile(File src, String srcCharSet, 
-			String trgPath, String trgCharSet, Boolean foceOverwrite) throws Exception{
+			String trgPath, String trgCharSet, Boolean forceOverwrite) throws Exception{
 		
-		JSONArray codes = parseStockCodesIntoJSONArry(src, srcCharSet);
+		File f = new File(trgPath);
+		if(!forceOverwrite && f.exists()){
+			throw new IllegalStateException("The file specified exist and specified not to overwrite.");
+		}
 		
-		
+		PrintStream ps = null;
+		try{
+			ps = new PrintStream(new FileOutputStream(f), true, trgCharSet);
+			JSONObject codes = new JSONObject();
+			codes.put("stockCodes", parseStockCodesIntoJSONArry(src, srcCharSet));
+			ps.print(codes.toString(2));
+			
+			logger.info("%1$d codes are written into the file %2$s in JSON format.\n", codes.length(), f.getCanonicalPath());
+		}
+		catch(Exception ex){
+			throw ex;
+		}
+		finally{
+			if(ps != null){
+				try{ ps.close(); }
+				catch(Exception ex){}
+			}
+		}
 	}
-
 	
 }
