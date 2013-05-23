@@ -13,10 +13,6 @@ import javax.xml.transform.sax.SAXSource;
 
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.ccil.cowan.tagsoup.Parser;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
 
@@ -93,9 +89,11 @@ public class NaverFinanceParser2 {
 	public DailySummaryByStock parseDailySummaryByStock(String code) throws Exception{
 
 		
-		String url = String.format(this.meta.getString("stock.dailysummary.urlFormat"), code);
+		String url = String.format(this.meta.getString("stock.dailysummary.url"), code);
 		XMLReader xr = new Parser();
-		Source src = new SAXSource(xr, new InputSource(new FileInputStream(new File(url))));
+		InputSource in = new InputSource(new URL(url).openStream());
+		in.setEncoding(this.meta.getString("stock.dailysummary.url.encoding"));
+		Source src = new SAXSource(xr, in);
 		XdmNode doc = this.docBuilder.build(src);
 
 		XQueryEvaluator xqev 
