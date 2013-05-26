@@ -88,6 +88,7 @@ public class NaverFinanceParser2 {
 	 */
 	public DailySummaryByStock parseDailySummaryByStock(String code) throws Exception{
 
+		DailySummaryByStock result = new DailySummaryByStock();
 		
 		String url = String.format(this.meta.getString("stock.dailysummary.url"), code);
 		XMLReader xr = new Parser();
@@ -100,9 +101,9 @@ public class NaverFinanceParser2 {
 			= this.queries.get("stock.dailysummary.xquery.prevClosingPrice").load();
 		xqev.setSource(doc.asSource());
 
-		XdmValue result = xqev.evaluate();
+		result.prevClosingPrice = Double.valueOf(xqev.evaluate().toString());
 		
-		return null;
+		return result;
 	}
 
 }

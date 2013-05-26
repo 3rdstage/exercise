@@ -1,5 +1,6 @@
 package thirdstage.exercise.parsing.html.case1;
 
+import java.util.Currency;
 import java.util.Date;
 
 
@@ -20,6 +21,8 @@ public class DailySummaryByStock {
 	public String stockCode;
 	
 	public Date date;
+	
+	public Currency currency;
 	
 	//daily trading data 
 	public double prevClosingPrice; //전일 종가
@@ -52,6 +55,13 @@ public class DailySummaryByStock {
 	public double foreignerRatio; //외국인 보유율
 	
 	
-	
+	public String toString(){
+		StringBuilder sb = new StringBuilder()
+			.append("Stock code : ").append(this.stockCode).append(", ")
+			.append("Date : ").append(this.date).append(", ")
+			.append("Prev. closing price : ").append(this.prevClosingPrice);
+		
+		return sb.toString();
+	}
 
 }
