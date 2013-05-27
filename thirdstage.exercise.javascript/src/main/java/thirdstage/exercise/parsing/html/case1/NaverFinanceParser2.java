@@ -49,7 +49,7 @@ public class NaverFinanceParser2 {
 	 * XQueryEvaluator is NOT thread-safe.  So, XQueryExecutable intances can 
 	 * be member variable. 
 	 */
-	private Map<String, XQueryExecutable> queries;
+	private Map<String, XQueryExecutable> queryExecutables;
 	
 	
 	public NaverFinanceParser2(File metaFile) throws Exception{
@@ -64,15 +64,22 @@ public class NaverFinanceParser2 {
 		this.meta = new PropertiesConfiguration(metaFile);
 		
 		this.queryKeys = new ArrayList<String>();
-		this.queryKeys.add("stock.dailysummary.xquery.prevClosingPrice");
+		this.queryKeys.add("stock.dailysummary.xquery.prevClosingPrice"); //previous day closing price
+		this.queryKeys.add("stock.dailysummary.xquery.dailyHighPrice"); //daily high price
+		//this.queryKeys.add("stock.dailysummary.xquery.limitUp");
+		this.queryKeys.add("stock.dailysummary.xquery.volume");
+		this.queryKeys.add("stock.dailysummary.xquery.openingPrice");
+		this.queryKeys.add("stock.dailysummary.xquery.dailyLowPrice");
+		//this.queryKeys.add("stock.dailysummary.xquery.limitDown");
+		this.queryKeys.add("sotck.dailysummary.xquery.amountInMillion");
 		
-		this.queries = new HashMap<String, XQueryExecutable>();
+		this.queryExecutables = new HashMap<String, XQueryExecutable>();
 
 		String namespaceDecl = "declare default element namespace \"http://www.w3.org/1999/xhtml\";\n";
 		XQueryCompiler xqc = this.xslProcessor.newXQueryCompiler();
 
 		for(String queryKey : queryKeys){
-			queries.put(queryKey, xqc.compile(namespaceDecl + this.meta.getString(queryKey)));
+			queryExecutables.put(queryKey, xqc.compile(namespaceDecl + this.meta.getString(queryKey)));
 		}
 		
 	}
@@ -98,11 +105,38 @@ public class NaverFinanceParser2 {
 		XdmNode doc = this.docBuilder.build(src);
 
 		XQueryEvaluator xqev 
-			= this.queries.get("stock.dailysummary.xquery.prevClosingPrice").load();
+			= this.queryExecutables.get("stock.dailysummary.xquery.prevClosingPrice").load();
 		xqev.setSource(doc.asSource());
-
 		result.prevClosingPrice = Double.valueOf(xqev.evaluate().toString());
 		
+		xqev = this.queryExecutables.get("stock.dailysummary.xquery.dailyHighPrice").load();
+		xqev.setSource(doc.asSource());
+		result.dailyHighPrice = Double.valueOf(xqev.evaluate().toString());
+
+//		xqev = this.queryExecutables.get("stock.dailysummary.xquery.limitUp").load();
+//		xqev.setSource(doc.asSource());
+//		result.limitUp = Double.valueOf(xqev.evaluate().toString());
+
+		xqev = this.queryExecutables.get("stock.dailysummary.xquery.volume").load();
+		xqev.setSource(doc.asSource());
+		result.volume = Long.valueOf(xqev.evaluate().toString());
+
+		xqev = this.queryExecutables.get("stock.dailysummary.xquery.openingPrice").load();
+		xqev.setSource(doc.asSource());
+		result.openingPrice = Double.valueOf(xqev.evaluate().toString());
+		
+		xqev = this.queryExecutables.get("stock.dailysummary.xquery.dailyLowPrice").load();
+		xqev.setSource(doc.asSource());
+		result.dailyLowPrice = Double.valueOf(xqev.evaluate().toString());
+
+//		xqev = this.queryExecutables.get("stock.dailysummary.xquery.limitDown").load();
+//		xqev.setSource(doc.asSource());
+//		result.limitDown = Double.valueOf(xqev.evaluate().toString());
+		
+		xqev = this.queryExecutables.get("sotck.dailysummary.xquery.amountInMillion").load();
+		xqev.setSource(doc.asSource());
+		
+		result.stockCode = code;
 		return result;
 	}
 
