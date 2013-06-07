@@ -33,7 +33,7 @@ public class NaverFinanceParser2Test {
 	public static Logger logger = LoggerFactory.getLogger(NaverFinanceParser2Test.class);
 
 	@Test
-	public void parseDailySummaryByStock() throws Exception {
+	public void testParseDailySummaryByStock() throws Exception {
 
 		URL url = ClassLoader.getSystemResource("thirdstage/exercise/parsing/html/case1/NaverFinanceMeta2.properties");
 
@@ -44,6 +44,11 @@ public class NaverFinanceParser2Test {
 		logger.info(summary.toString());
 		
 		Assert.assertNotNull(summary.prevClosingPrice);
+	}
+	
+	@Test
+	public void testParseDailySummaryByStock2() throws Exception{
+		
 	}
 
 	@Test
