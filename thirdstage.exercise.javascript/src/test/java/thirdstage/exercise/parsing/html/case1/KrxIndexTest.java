@@ -6,7 +6,10 @@ import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.concurrent.TimeUnit;
 
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.firefox.FirefoxDriver;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -69,6 +72,8 @@ public class KrxIndexTest {
 		Object obj = conn.getContent();
 		
 		ObjectOutputStream oos = null;
-	}	
+	}
+	
+	
 	
 }
