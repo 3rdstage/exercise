@@ -10,6 +10,6 @@ public class Krx100Item {
 	
 	public double weight;
 	
-	public String data;
+	public String date;
 
 }
