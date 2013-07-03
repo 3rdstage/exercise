@@ -7,7 +7,7 @@ import java.util.List;
 import javax.xml.transform.Source;
 import javax.xml.transform.sax.SAXSource;
 
-import net.sf.saxon.Configuration;
+import net.sf.saxon.Configuration; 
 import net.sf.saxon.lib.Validation;
 import net.sf.saxon.s9api.DocumentBuilder;
 import net.sf.saxon.s9api.Processor;
@@ -17,16 +17,19 @@ import net.sf.saxon.s9api.XQueryExecutable;
 import net.sf.saxon.s9api.XdmNode;
 import net.sf.saxon.s9api.XdmValue;
 
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.ContentEncodingHttpClient;
 import org.ccil.cowan.tagsoup.Parser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.InputSource;
 
 /**
- * @author 3rdstage
+ * @author 3rdstage 
  *
  */
-public class Krx100Parser {
+public class Krx100Parser { 
 	
 	
 	protected static final Logger logger = LoggerFactory.getLogger(Krx100Parser.class);
@@ -49,7 +52,7 @@ public class Krx100Parser {
 		this.xqrExe = this.xslProcessor.newXQueryCompiler().compile(declQry + KRX100_LIST_XPATH);
 		
 	}
-	
+
 	
 	/**
 	 * @return
@@ -58,11 +61,14 @@ public class Krx100Parser {
 	 */
 	public List<Krx100Item> getLatestItemsOfKrx100() throws Exception{
 		
-		String url = String.format(KRX100_LIST_URL, "");
+		
+		HttpClient hc = new ContentEncodingHttpClient();
+		HttpGet hg = new HttpGet(String.format(KRX100_LIST_URL, ""));
 		
 		InputStream is = null;
+		
 		try{
-			is = new URL(url).openStream();
+			is = hc.execute(hg).getEntity().getContent();
 			InputSource in = new InputSource(is);
 			in.setEncoding("utf-8");
 			Source src = new SAXSource(in);
@@ -82,7 +88,7 @@ public class Krx100Parser {
 				try{ is.close(); }
 				catch(Exception ex){}
 			}
-			
+			if(hg != null) hg.releaseConnection();
 		}
 
 		return null;

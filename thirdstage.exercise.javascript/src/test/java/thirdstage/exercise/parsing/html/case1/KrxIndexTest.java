@@ -79,6 +79,7 @@ public class KrxIndexTest {
 		ObjectOutputStream oos = null;
 	}
 	
+
 	/**
 	 * Okay. the response is gzipped. So, we need more than java.net.URL 
 	 * 

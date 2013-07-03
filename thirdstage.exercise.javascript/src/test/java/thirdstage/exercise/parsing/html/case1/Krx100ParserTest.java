@@ -47,8 +47,6 @@ public class Krx100ParserTest {
 		
 		URL url = ClassLoader.getSystemResource("thirdstage/exercise/parsing/html/case1/krx-100-list-20130606.xml");
 		XdmNode doc = docBuilder.build(new File(url.toURI()));
-		
-		
-		
+	
 	}
 }
