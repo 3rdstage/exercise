@@ -26,7 +26,7 @@ public class CreativeWork {
 		this.name = name;
 		this.author = author;
 		this.lang = lang;
-		this.dateCreated = createdAt;
+		this.createdAt = createdAt;  
 	}
 	
 }
