@@ -6,6 +6,7 @@ package thirdstage.exercise.dashboard.meta.component;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.List;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
@@ -20,10 +21,13 @@ import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
 
+import junit.framework.Assert;
+
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
+import org.xml.sax.SAXParseException;
 import org.xml.sax.ext.DefaultHandler2;
 import org.xml.sax.ext.Locator2Impl;
 
@@ -50,14 +54,14 @@ public class ComponentMetaSchemaTest {
 		spf.setNamespaceAware(true);
 		spf.setValidating(false);
 		saxParser = spf.newSAXParser();
-		saxParser.getXMLReader().getContentHandler().setDocumentLocator(new Locator2Impl());
+		//saxParser.getXMLReader().getContentHandler().setDocumentLocator(new Locator2Impl());
 		
 		w3cSchemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
 		
 	}
 
 	@Test
-	public void testSimpleValid() throws Exception{
+	public void testSimpleValidDoc() throws Exception{
 		
 		URL url = ClassLoader.getSystemResource("thirdstage/exercise/dashboard/meta/component/component-meta-valid.xml");
 		Document doc = docBuilder.parse(new java.io.File(url.toURI()));
@@ -66,8 +70,18 @@ public class ComponentMetaSchemaTest {
 		URL url2 = ClassLoader.getSystemResource("thirdstage/exercise/dashboard/meta/component/component-meta.xsd");
 		Schema schema = w3cSchemaFactory.newSchema(new StreamSource(new java.io.File(url2.toURI())));
 		Validator validator = schema.newValidator();
-		validator.setErrorHandler(new DefaultHandler2());
+		SimpleCollectiveErrorHandler errHandler = new SimpleCollectiveErrorHandler();
+		validator.setErrorHandler(errHandler);
 		validator.validate(new DOMSource(doc));
+		
+		List<SAXParseException> errors = errHandler.getErrors();
+		
+		System.err.println("There exist " + errors.size() + " errors.");
+		for(SAXParseException error : errors){
+			SimpleCollectiveErrorHandler.printSAXParseException(System.err, error);
+		}
+
+		Assert.assertEquals(0, errors.size());
 		
 	}
 	
@@ -82,7 +96,43 @@ public class ComponentMetaSchemaTest {
 		URL url2 = ClassLoader.getSystemResource("thirdstage/exercise/dashboard/meta/component/component-meta.xsd");
 		Schema schema = w3cSchemaFactory.newSchema(new StreamSource(new java.io.File(url2.toURI())));
 		Validator validator = schema.newValidator();
+	
+		SimpleCollectiveErrorHandler errHandler = new SimpleCollectiveErrorHandler();
+		validator.setErrorHandler(errHandler);
 		validator.validate(new SAXSource(saxParser.getXMLReader(), new InputSource(fis)));
 		
+		List<SAXParseException> errors = errHandler.getErrors();
+		
+		System.err.println("There exist " + errors.size() + " errors.");
+		for(SAXParseException error : errors){
+			SimpleCollectiveErrorHandler.printSAXParseException(System.err, error);
+		}
+
+		Assert.assertEquals(0, errors.size());
+		
+	}
+	
+	@Test
+	public void testSimpleValidDocWithoutExplicitParser() throws Exception{
+
+		URL schUrl = ClassLoader.getSystemResource("thirdstage/exercise/dashboard/meta/component/component-meta.xsd");
+		URL xmlUrl = ClassLoader.getSystemResource("thirdstage/exercise/dashboard/meta/component/component-meta-valid.xml");
+		
+		SchemaFactory sf = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+		Schema sch = sf.newSchema(new java.io.File(schUrl.toURI()));
+		Validator vldt = sch.newValidator(); 
+		
+		SimpleCollectiveErrorHandler errHandler = new SimpleCollectiveErrorHandler();
+		vldt.setErrorHandler(errHandler);
+		vldt.validate(new StreamSource(new java.io.File(xmlUrl.toURI())));
+		
+		List<SAXParseException> errors = errHandler.getErrors();
+		
+		System.err.println("There exist " + errors.size() + " errors.");
+		for(SAXParseException error : errors){
+			SimpleCollectiveErrorHandler.printSAXParseException(System.err, error);
+		}
+
+		Assert.assertEquals(0, errors.size());
 	}
 }
