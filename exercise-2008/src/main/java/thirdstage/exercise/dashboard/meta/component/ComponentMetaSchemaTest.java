@@ -135,4 +135,28 @@ public class ComponentMetaSchemaTest {
 
 		Assert.assertEquals(0, errors.size());
 	}
+	
+	@Test
+	public void testSimpleInvalidDoc2() throws Exception{
+
+		URL schUrl = ClassLoader.getSystemResource("thirdstage/exercise/dashboard/meta/component/component-meta.xsd");
+		URL xmlUrl = ClassLoader.getSystemResource("thirdstage/exercise/dashboard/meta/component/component-meta-invalid-2.xml");
+		
+		SchemaFactory sf = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+		Schema sch = sf.newSchema(new java.io.File(schUrl.toURI()));
+		Validator vldt = sch.newValidator(); 
+		
+		SimpleCollectiveErrorHandler errHandler = new SimpleCollectiveErrorHandler();
+		vldt.setErrorHandler(errHandler);
+		vldt.validate(new StreamSource(new java.io.File(xmlUrl.toURI())));
+		
+		List<SAXParseException> errors = errHandler.getErrors();
+		
+		System.err.println("There exist " + errors.size() + " errors.");
+		for(SAXParseException error : errors){
+			SimpleCollectiveErrorHandler.printSAXParseException(System.err, error);
+		}
+
+		Assert.assertTrue(errors.size() > 0);
+	}	
 }
