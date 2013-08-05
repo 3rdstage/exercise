@@ -7,7 +7,7 @@ package thirdstage.exercise.aspectj.case2;
  * @author 3rdstage
  *
  */
-public aspect SecurityAspect{
+aspect SecurityAspect{
 	private Authenticator authenticator = new Authenticator();
 
 	pointcut secureAccess() : execution(* MessageCommunicator.deliver(..));
