@@ -44,7 +44,7 @@ public class PropertyMetaFactory {
 	 * @return
 	 * @throws IllegalArgumentException when the {@code type} is not supported.
 	 */
-	public <T> PropertyMeta<?> getPropertyMeta(
+	public <T> PropertyMeta<?> createPropertyMeta(
 		@Nonnull String name, @Nonnull PropertyType type,
 		String title, String desc, Boolean required,
 		Double max, Boolean exclusiveMax, Double min, 
