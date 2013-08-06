@@ -90,14 +90,15 @@ public class DefaultPropertyMeta<T> implements PropertyMeta<T> {
 		this.title = title;
 		this.description = desc;
 		this.isRequired = required;
+		this.max = max;
 		this.isExclusiveMax = exclusiveMax;
+		this.min = min;
 		this.isExclusiveMin = exclusiveMin;
 		this.maxLength = maxLen;
 		this.minLength = minLen;
 		this.enums = enums;
 		this.patttern = pattern;
 		this.defaultValue = defaultValue;
-		
 	}
 	
 	

@@ -44,7 +44,7 @@ public class PropertyMetaFactory {
 	 * @return
 	 * @throws IllegalArgumentException when the {@code type} is not supported.
 	 */
-	public <T> PropertyMeta<?> getPropertyMeta(
+	public <T> PropertyMeta<?> createPropertyMeta(
 		@Nonnull String name, @Nonnull PropertyType type,
 		String title, String desc, Boolean required,
 		Double max, Boolean exclusiveMax, Double min, 
@@ -73,11 +73,11 @@ public class PropertyMetaFactory {
 					(String)defaultValue);
 			break;
 		case INTEGER :
-			meta = new DefaultPropertyMeta<Integer>(
+			meta = new DefaultPropertyMeta<Long>(
 					name, PropertyType.INTEGER, title, desc,
 					required, max, exclusiveMax, min, exclusiveMin,
-					maxLen, minLen, (Integer[])enums, pattern,
-					(Integer)defaultValue);
+					maxLen, minLen, (Long[])enums, pattern,
+					(Long)defaultValue);
 			break;
 		case NUMBER :
 			meta = new DefaultPropertyMeta<Double>(
