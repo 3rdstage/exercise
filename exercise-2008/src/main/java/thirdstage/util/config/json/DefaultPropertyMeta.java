@@ -7,7 +7,6 @@ import java.util.List;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.annotation.RegEx;
 
 /**
  * @author 3rdstage
@@ -214,7 +213,6 @@ public class DefaultPropertyMeta<T> implements PropertyMeta<T> {
 	 */
 	@Override
 	@Nullable
-	@RegEx
 	public String getPattern() {
 		return this.patttern;
 	}

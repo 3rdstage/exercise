@@ -88,6 +88,7 @@ public class PropertyMetaFactory {
 			break;	
 		case ANY : 
 			meta = new DefaultPropertyMeta<Object>(
+
 					name, PropertyType.ANY, title, desc,
 					required, max, exclusiveMax, min, exclusiveMin,
 					maxLen, minLen, (Object[])enums, pattern,

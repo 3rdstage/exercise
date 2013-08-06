@@ -5,8 +5,11 @@ package thirdstage.util.config.json;
 
 import java.io.File;
 
+import javax.annotation.Nonnull;
+
 import org.springframework.util.ResourceUtils;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
@@ -41,10 +44,11 @@ public class DefaultConfigurationMetaLoader implements ConfigurationMetaLoader {
 		}
 		
 		File f = ResourceUtils.getFile(path);
-		JsonNode nd = this.jsonMapper.readTree(f);
+		//JsonNode nd = this.jsonMapper.readTree(f);
 		
 		
 		
+
 		return null;
 	}
 

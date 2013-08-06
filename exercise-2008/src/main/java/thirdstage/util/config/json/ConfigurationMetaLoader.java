@@ -13,6 +13,5 @@ import javax.annotation.concurrent.ThreadSafe;
 public interface ConfigurationMetaLoader {
 	
 	public ConfigurationMeta load(String path) throws Exception;
-	
 
 }

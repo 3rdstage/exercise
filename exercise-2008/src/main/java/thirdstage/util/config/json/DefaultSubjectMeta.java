@@ -24,7 +24,7 @@ public class DefaultSubjectMeta implements SubjectMeta {
 	
 	private String description;
 	
-	private final List<PropertyMeta> props = new ArrayList<PropertyMeta>();
+	private final List<PropertyMeta<?>> props = new ArrayList<PropertyMeta<?>>();
 	
 	/**
 	 * @param name
@@ -35,7 +35,7 @@ public class DefaultSubjectMeta implements SubjectMeta {
 	 * 		there's some property metas that have same name in the {@code props}.
 	 */
 	public DefaultSubjectMeta(@Nonnull String name, @Nullable String title,
-		@Nullable String desc, @Nullable @ReadOnly List<PropertyMeta> props){
+		@Nullable String desc, @Nullable @ReadOnly List<PropertyMeta<?>> props){
 		if(name == null) throw new IllegalArgumentException("The name should not be null.");
 		
 		this.name = name;
@@ -88,7 +88,7 @@ public class DefaultSubjectMeta implements SubjectMeta {
 	 */
 	@Override
 	@Nonnull
-	public List<PropertyMeta> getPropertyMetas() {
+	public List<PropertyMeta<?>> getPropertyMetas() {
 		
 		return Collections.unmodifiableList(this.props);
 	}
@@ -98,11 +98,11 @@ public class DefaultSubjectMeta implements SubjectMeta {
 	 */
 	@Override
 	@Nullable
-	public PropertyMeta getPropertyMeta(@Nonnull String prop) {
+	public PropertyMeta<?> getPropertyMeta(@Nonnull String prop) {
 		if(props == null) throw new IllegalArgumentException("The prop shouldn't be null");
 		
-		PropertyMeta meta = null;
-		for(PropertyMeta mt : this.props){
+		PropertyMeta<?> meta = null;
+		for(PropertyMeta<?> mt : this.props){
 			if(prop.equals(mt.getName())){
 				meta = mt;
 				break;
