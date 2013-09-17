@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Countries</title>
+
+<style type='text/css'>
+
+#countries {
+	width:600px;
+	margin-left:20px;
+}
+
+</style>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/knockout/2.3.0/knockout-min.js"></script>
+<script src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.5.1/underscore-min.js"></script>
+<script type="text/javascript" src="../world.js"></script>
+<script type="text/javascript">
+
+/**
+ * @constructor
+ */
+Continent = function(code, name){
+	this.code = code;
+	this.name = name;
+}
+
+/**
+ * @constructor
+ */
+Country = function(code, name){
+	this.code = code;
+	this.name = name;
+}
+
+var viewModel = {
+	continents : ko.observableArray([]),
+	countries : ko.observableArray([]),
+	selectedContinentCode : ko.observable(""),
+	selectedContinentName : ko.observable("")
+}
+
+function pushAllArray(arr1, arr2){
+	$.each(arr2, function(){
+		arr1.push(this);
+	});
+}
+
+function init(){
+	
+	viewModel.continents(world.getContinents());
+	
+	ko.applyBindings(viewModel);
+}
+
+$(document).ready(function(){
+	init();
+	
+	$("#form1").submit(function(){
+		viewModel.selectedContinentName($("#continents option:selected").text());
+		
+		// 1) retrieve data
+		// 2) update viewModel
+		viewModel.countries(world.getCountriesByContinent
+				(viewModel.selectedContinentCode()));
+		return false;
+	});
+
+});
+</script>
+</head>
+<body>
+
+<p>Select the continent.</p>
+
+<form style='margin-left:20px' id='form1' method='post'>
+	<label for='continents'>Continent : </label>
+	<select id='continents' 
+		data-bind="options: continents, optionsValue: 'code', 
+			optionsText: 'name', value: selectedContinentCode">
+	</select>
+	<input type='submit' id='send' value='Send'>
+</form>
+
+<br>
+
+Countries in <strong><span data-bind='text: selectedContinentName'></span></strong>
+<table id='countries' border='1' cellpadding='1' cellspacing='0'>
+<thead>
+<tr>
+	<th>Name</th>
+	<th>Code</th>
+</tr>
+</thead>
+<tbody data-bind='foreach: countries'>
+	<td data-bind='text: name'></td>
+	<td data-bind='text: code'></td>
+</tbody>
+</table>
+
+</body>
+</html>
