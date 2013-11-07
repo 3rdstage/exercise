@@ -24,6 +24,8 @@ import net.sf.saxon.s9api.XdmNode;
 import net.sf.saxon.s9api.XdmSequenceIterator;
 import net.sf.saxon.s9api.XdmValue;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.lang3.math.NumberUtils;
+import org.apache.commons.validator.routines.DoubleValidator;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.ContentEncodingHttpClient;
@@ -67,7 +69,11 @@ public class MessierCatalogPageParser{
 		
 		MessierCatalogPageParser parser = new MessierCatalogPageParser();
 		
-		parser.getMessierCatalog();
+		List<MessierObject> mos = parser.getMessierCatalog();
+		
+		for(MessierObject mo : mos){
+			System.out.println(mo.toString());
+		}
 		
 	}
 	
@@ -86,21 +92,22 @@ public class MessierCatalogPageParser{
 		this.xqrExe = xqc.compile(declQry + MESSIER_CATALOG_XPATH);
 		
 		subXqrExes.put("number", xqc.compile(declQry 
-			+ "for $x in ./td[1]/a[1]/text() return $x"));
+			+ "for $x in ./td[1]/a[1]/string() return $x"));
 		subXqrExes.put("ngcNumber", xqc.compile(declQry 
-			+ "for $x in ./td[2]/text() return $x"));
+			+ "for $x in ./td[2]/string() return $x"));
 		subXqrExes.put("commonName", xqc.compile(declQry 
-			+ "for $x in ./td[3]//text() return $x"));
+			+ "for $x in ./td[3]/string() return $x"));
 		subXqrExes.put("type", xqc.compile(declQry 
-			+ "for $x in ./td[5]//text() return $x"));
+			+ "for $x in ./td[5]/string() return $x"));
 		subXqrExes.put("distance", xqc.compile(declQry 
-			+ "for $x in ./td[6]/text() return $x"));
+			+ "for $x in ./td[6]/string() return $x"));
 		subXqrExes.put("constellation", xqc.compile(declQry 
-			+ "for $x in ./td[7]//text() return $x"));
+			+ "for $x in ./td[7]/string() return $x"));
 		subXqrExes.put("apparentMagnitude", xqc.compile(declQry 
-			+ "for $x in ./td[8]/text() return $x"));
+			+ "for $x in ./td[8]/string() return $x"));
 	}
 	
+	@Nonnull
 	public List<MessierObject> getMessierCatalog() throws Exception{
 		
 		
@@ -120,35 +127,82 @@ public class MessierCatalogPageParser{
 			subXqevs.put(entry.getKey(), entry.getValue().load());
 		}
 		
+		List<MessierObject> result = new ArrayList<MessierObject>(120);
 		XdmSequenceIterator itr = value.iterator();
 		XdmItem item = null;
 		XdmNode node = null;
 		XQueryEvaluator subXqev = null;
+		XdmItem item2 = null;
 		String number = null;
 		String ngcNumber = null;
+		String commonName = null;
+		String type = null;
+		Double distance = null;
+		String constellation = null;
+		Double apparentMagnitude = null;
+		MessierObject mo = null;
 		while(itr.hasNext()){
 			item = itr.next();
 			if(!item.isAtomicValue()){
 				//for number column
 				subXqev = subXqevs.get("number");
 				subXqev.setSource(((XdmNode)item).asSource());
-				this.logger.debug(subXqev.evaluate().toString());
+				item2 = subXqev.evaluateSingle();
+				if(item2 != null && item2.isAtomicValue()) number = item2.getStringValue();
 				
 				//for ngcNumber column
 				subXqev = subXqevs.get("ngcNumber");
 				subXqev.setSource(((XdmNode)item).asSource());
-				this.logger.debug(", " + subXqev.evaluate().toString());
+				item2 = subXqev.evaluateSingle();
+				if(item2 != null && item2.isAtomicValue()) ngcNumber = item2.getStringValue();
 				
 				//for commonName column
 				subXqev = subXqevs.get("commonName");
 				subXqev.setSource(((XdmNode)item).asSource());
-				this.logger.debug(", " + subXqev.evaluate().toString() + "\n");
+				item2 = subXqev.evaluateSingle();
+				if(item2 != null && item2.isAtomicValue()) commonName = item2.getStringValue();
+
+				//for type column
+				subXqev = subXqevs.get("type");
+				subXqev.setSource(((XdmNode)item).asSource());
+				item2 = subXqev.evaluateSingle();
+				if(item2 != null && item2.isAtomicValue()) type = item2.getStringValue();
 				
+				//for distance column
+				subXqev = subXqevs.get("distance");
+				subXqev.setSource(((XdmNode)item).asSource());
+				item2 = subXqev.evaluateSingle();
+				if(item2 != null && item2.isAtomicValue()) distance = DoubleValidator.getInstance().validate(item2.getStringValue(), "#,##0.##");
+				
+				//for constellation column
+				subXqev = subXqevs.get("constellation");
+				subXqev.setSource(((XdmNode)item).asSource());
+				item2 = subXqev.evaluateSingle();
+				if(item2 != null && item2.isAtomicValue()) constellation = item2.getStringValue();
+				
+				//for apparentMagnitude column
+				subXqev = subXqevs.get("apparentMagnitude");
+				subXqev.setSource(((XdmNode)item).asSource());
+				item2 = subXqev.evaluateSingle();
+				if(item2 != null && item2.isAtomicValue()) apparentMagnitude = DoubleValidator.getInstance().validate(item2.getStringValue(), "#,##0.##");
+
+				this.logger.debug("{}, {}, {}, {}, {}, {}, {}", number, ngcNumber, commonName, type, distance, constellation, apparentMagnitude);
+				
+				mo = new MessierObject();
+				mo.setNumber(number);
+				mo.setNgcNumber(ngcNumber);
+				mo.setCommonName(commonName);
+				mo.setType(type);
+				mo.setDistance(distance);
+				mo.setConstellation(constellation);
+				mo.setApparentMagnitude(apparentMagnitude);
+				
+				result.add(mo);
 			}
 			
 		}
 		
-		return null;
+		return result;
 	}
 	
 	
@@ -164,11 +218,11 @@ public class MessierCatalogPageParser{
 		
 		private String type;
 		
-		private double distance;
+		private Double distance;
 		
 		private String constellation;
 		
-		private double apparentMagnitude;
+		private Double apparentMagnitude;
 
 		/**
 		 * @return the number
@@ -229,14 +283,14 @@ public class MessierCatalogPageParser{
 		/**
 		 * @return the distance
 		 */
-		public double getDistance(){
+		public Double getDistance(){
 			return distance;
 		}
 
 		/**
 		 * @param distance the distance to set
 		 */
-		public void setDistance(double distance){
+		public void setDistance(Double distance){
 			this.distance = distance;
 		}
 
@@ -257,15 +311,29 @@ public class MessierCatalogPageParser{
 		/**
 		 * @return the apparentMagnitude
 		 */
-		public double getApparentMagnitude(){
+		public Double getApparentMagnitude(){
 			return apparentMagnitude;
 		}
 
 		/**
 		 * @param apparentMagnitude the apparentMagnitude to set
 		 */
-		public void setApparentMagnitude(double apparentMagnitude){
+		public void setApparentMagnitude(Double apparentMagnitude){
 			this.apparentMagnitude = apparentMagnitude;
+		}
+		
+		
+		@Override
+		public String toString(){
+			
+			StringBuilder sb = new StringBuilder().append(this.number).append(", ")
+					.append(this.ngcNumber).append(", ")
+					.append(this.commonName).append(", ")
+					.append(this.type).append(", ")
+					.append(this.distance).append(", ")
+					.append(this.constellation).append(", ").append(this.apparentMagnitude);
+			
+			return sb.toString();
 		}
 		
 		
