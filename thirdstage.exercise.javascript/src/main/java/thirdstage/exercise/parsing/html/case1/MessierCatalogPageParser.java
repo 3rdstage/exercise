@@ -2,6 +2,8 @@ package thirdstage.exercise.parsing.html.case1;
 
 import java.io.File;
 import java.io.InputStream;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.net.URL;
 import java.util.List;
 import java.util.ArrayList;
@@ -10,6 +12,8 @@ import java.util.HashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlElement;
 import javax.xml.transform.Source;
 import javax.xml.transform.sax.SAXSource;
 import net.sf.saxon.Configuration;
@@ -24,6 +28,7 @@ import net.sf.saxon.s9api.XdmNode;
 import net.sf.saxon.s9api.XdmSequenceIterator;
 import net.sf.saxon.s9api.XdmValue;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.commons.validator.routines.DoubleValidator;
 import org.apache.http.client.HttpClient;
@@ -34,6 +39,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
+import com.fasterxml.jackson.databind.AnnotationIntrospector;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector;
+import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 
 /**
  * Using XQuery
@@ -69,11 +78,8 @@ public class MessierCatalogPageParser{
 		
 		MessierCatalogPageParser parser = new MessierCatalogPageParser();
 		
-		List<MessierObject> mos = parser.getMessierCatalog();
-		
-		for(MessierObject mo : mos){
-			System.out.println(mo.toString());
-		}
+		String jsonStr = parser.getMessierCatalogInJsonString();
+		System.out.println(jsonStr);
 		
 	}
 	
@@ -199,133 +205,98 @@ public class MessierCatalogPageParser{
 				
 				result.add(mo);
 			}
-			
 		}
 		
 		return result;
 	}
 	
-	
-
+	public String getMessierCatalogInJsonString() throws Exception{
+		String result = null;
+		
+		List<MessierObject> mos = this.getMessierCatalog();
+		
+		ObjectMapper jsonMapper = new ObjectMapper();
+		JaxbAnnotationModule md = new JaxbAnnotationModule();
+		jsonMapper.registerModule(md);
+		
+		Writer wr = new StringWriter();
+		jsonMapper.writeValue(wr, mos);
+		
+		return wr.toString();
+	}
 	
 	public static class MessierObject{
 		
+		private static String imageUrlBase = "http://messier.seds.org/Jpg/";
+		
+		private static String descUrlBase = "http://messier.seds.org/m/";
+		
+		public static String getImageUrlBase(){ return imageUrlBase; }
+		public static void setImageUrlBase(String url){ imageUrlBase = url; }
+		
+		public static String getDescUrlBase(){ return descUrlBase; }
+		public static void setDescUrlBase(String url){ descUrlBase = url; }
+		
+		@XmlElement(name="number")
 		private String number;
 		
+		@XmlElement(name="ngc-number")
 		private String ngcNumber;
 		
+		@XmlElement(name="common-name")
 		private String commonName;
 		
+		@XmlElement(name="type")
 		private String type;
 		
+		@XmlElement(name="distance")
 		private Double distance;
 		
+		@XmlElement(name="constellation")
 		private String constellation;
 		
+		@XmlElement(name="apparent-magnitude")
 		private Double apparentMagnitude;
-
-		/**
-		 * @return the number
-		 */
-		public String getNumber(){
-			return number;
-		}
-
-		/**
-		 * @param number the number to set
-		 */
-		public void setNumber(String number){
-			this.number = number;
-		}
-
-		/**
-		 * @return the ngcNumber
-		 */
-		public String getNgcNumber(){
-			return ngcNumber;
-		}
-
-		/**
-		 * @param ngcNumber the ngcNumber to set
-		 */
-		public void setNgcNumber(String ngcNumber){
-			this.ngcNumber = ngcNumber;
-		}
-
-		/**
-		 * @return the commonName
-		 */
-		public String getCommonName(){
-			return commonName;
-		}
-
-		/**
-		 * @param commonName the commonName to set
-		 */
-		public void setCommonName(String commonName){
-			this.commonName = commonName;
-		}
-
-		/**
-		 * @return the type
-		 */
-		public String getType(){
-			return type;
-		}
-
-		/**
-		 * @param type the type to set
-		 */
-		public void setType(String type){
-			this.type = type;
-		}
-
-		/**
-		 * @return the distance
-		 */
-		public Double getDistance(){
-			return distance;
-		}
-
-		/**
-		 * @param distance the distance to set
-		 */
-		public void setDistance(Double distance){
-			this.distance = distance;
-		}
-
-		/**
-		 * @return the constellation
-		 */
-		public String getConstellation(){
-			return constellation;
-		}
-
-		/**
-		 * @param constellation the constellation to set
-		 */
-		public void setConstellation(String constellation){
-			this.constellation = constellation;
-		}
-
-		/**
-		 * @return the apparentMagnitude
-		 */
-		public Double getApparentMagnitude(){
-			return apparentMagnitude;
-		}
-
-		/**
-		 * @param apparentMagnitude the apparentMagnitude to set
-		 */
-		public void setApparentMagnitude(Double apparentMagnitude){
-			this.apparentMagnitude = apparentMagnitude;
-		}
 		
+		@XmlElement(name="image-url")
+		private String imageUrl;
+		
+		@XmlElement(name="desc-url")
+		private String descUrl;
+		
+		public String getNumber(){ return number; }
+		public void setNumber(@Nonnull String number){ 
+			this.number = number;
+			
+			this.imageUrl = imageUrlBase + StringUtils.lowerCase(number) + ".jpg";
+			String str = StringUtils.substring(number, 1);
+			str = StringUtils.leftPad(str, 3, '0');
+			this.descUrl = descUrlBase + "m" + str + ".html";
+		}
+
+		public String getNgcNumber(){ return ngcNumber;}
+		public void setNgcNumber(String ngcNumber){ this.ngcNumber = ngcNumber; }
+
+		public String getCommonName(){ return commonName; }
+		public void setCommonName(String commonName){ this.commonName = commonName; }
+
+		public String getType(){ return type; }
+		public void setType(String type){ this.type = type; }
+
+		public Double getDistance(){ return distance; }
+		public void setDistance(Double distance){ this.distance = distance; }
+
+		public String getConstellation(){ return constellation; }
+		public void setConstellation(String constellation){ this.constellation = constellation; }
+
+		public Double getApparentMagnitude(){ return apparentMagnitude; }
+		public void setApparentMagnitude(Double apparentMagnitude){ this.apparentMagnitude = apparentMagnitude; }
+		
+		public String getImageUrl(){ return this.imageUrl; }
+		public String getDescUrl(){ return this.descUrl; }
 		
 		@Override
 		public String toString(){
-			
 			StringBuilder sb = new StringBuilder().append(this.number).append(", ")
 					.append(this.ngcNumber).append(", ")
 					.append(this.commonName).append(", ")
@@ -335,8 +306,6 @@ public class MessierCatalogPageParser{
 			
 			return sb.toString();
 		}
-		
-		
 	}
 	
 	
