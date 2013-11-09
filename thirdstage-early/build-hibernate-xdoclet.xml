@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+    Document   : build-xdoclet-hibernate.xml
+    Created on : 2005-10-19
+    Author     : 3rdstage
+    Description:
+        Purpose of the document follows.
+-->
+
+<project name="build-hibernate" basedir="..">
+	<target name="init-hibernate" depends="init"
+		     description="define tasks for hibernate">
+
+		<taskdef name="hibernatedoclet" classname="xdoclet.modules.hibernate.HibernateDocletTask">
+			<classpath><fileset dir="${xdoclet.lib.dir}" includes="*.jar"/></classpath>
+		</taskdef>
+		
+		<!-- xdoclet2 task definition -->
+		<taskdef name="xdoclet2" classname="org.xdoclet.ant.XDocletTask">
+			<classpath><fileset dir="${xdoclet2.lib.dir}" includes="*.jar"/></classpath>
+		</taskdef>
+
+		<!-- Hibernate Tools task definition -->
+		<taskdef name="hibernatetool"
+			classname="org.hibernate.tool.ant.HibernateToolTask">
+			<classpath>
+				<fileset dir="${hibernate.lib.dir}" includes="*.jar" excludes="log4j-1.2.11.jar"/>
+				<fileset dir="${hibernate.annotations.lib.dir}" includes="*.jar"/>
+				<fileset dir="${hibernate.tools.dir}" includes="*.jar"/>
+				<fileset file="${hibernate.jdbc.mysql.jar}"/>
+			</classpath>
+		</taskdef>
+		
+		<!-- refer Hibernate Reference ver. 3.1 chapter 20 -->
+		<taskdef name="schemaexport" classname="org.hibernate.tool.hbm2ddl.SchemaExportTask">
+			<classpath>
+				<fileset dir="${hibernate.lib.dir}" includes="*.jar" excludes="log4j-1.2.11.jar"/>
+				<fileset file="${hibernate.jdbc.mysql.jar}"/>
+			</classpath>
+		</taskdef>
+		
+		<taskdef name="schemavalidator" classname="org.hibernate.tool.hbm2ddl.SchemaValidatorTask">
+			<classpath>
+				<fileset dir="${hibernate.lib.dir}" includes="*.jar" excludes="log4j-1.2.11.jar"/>
+				<fileset file="${hibernate.jdbc.mysql.jar}"/>
+			</classpath>
+		</taskdef>
+	</target>
+
+	
+	<target name="hibernate" depends="init-hibernate"
+	        description="generate hibernate class descriptor files, configuration files and schema ddls">
+
+		<!--
+		======================
+		Configuration and Mapping Generation Section
+		======================
+		-->
+		<!-- generates hibernate mappings and config for thirdstage.exercise.hibernate3.case1 package -->
+		<hibernatedoclet destdir="${src.dir}" excludedtags="@author,@todo" force="true" verbose="false">
+			<fileset dir="${src.dir}" includes="thirdstage/exercise/hibernate3/case1/*.java"/>
+			<hibernate version="3.0" xmlencoding="UTF-8" validateXML="true"/>
+			<hibernatecfg version="3.0"
+			              datasource="java:comp/env/jdbc/TestDB"
+			              showsql="true"
+			              useouterjoin="true"
+			              jndiname="java:comp/env/hibernate/TestSessionFactory"
+			              transactionManagerFactory="org.hibernate.transaction.JDBCTransactionFactory"
+			              destdir="${web.docbase.dir}"
+			              destinationfile="WEB-INF/classes/hibernate-exercise-case1.cfg.xml"
+			              dialect="org.hibernate.dialect.MySQLDialect" />
+		</hibernatedoclet>
+		
+		<!-- generates hibernate mappings for thirdstage.exercise.hibernate3.case2 package -->
+		<hibernatedoclet destdir="${src.dir}" excludedtags="@author,@todo" force="true" verbose="false">
+			<fileset dir="${src.dir}" includes="thirdstage/exercise/hibernate3/case2/*.java"/>
+			<hibernate version="3.0" xmlencoding="UTF-8"/>
+		</hibernatedoclet>
+		
+		<!-- generates hibernate mappings for thirdstage.exercise.hibernate3.case3 package -->
+		<hibernatedoclet destdir="${src.dir}" excludedtags="@author,@todo" force="true" verbose="false">
+			<fileset dir="${src.dir}" includes="thirdstage/exercise/hibernate3/case3/*.java"/>
+			<hibernate version="3.0" xmlencoding="UTF-8"/>
+		</hibernatedoclet>
+		
+		<!-- generates hibernate mappings for thirdstage.exercise.hibernate3.case4 package -->
+		<hibernatedoclet destdir="${src.dir}" excludedtags="@author,@todo" force="true" verbose="false">
+			<fileset dir="${src.dir}" includes="thirdstage/exercise/hibernate3/case4/*.java"/>
+			<hibernate version="3.0" xmlencoding="UTF-8"/>
+		</hibernatedoclet>
+		
+		<!-- generates hibernate mappings and config for thirdstage.exercise.hibernate3.case5 package using xdoclet2 -->
+		<xdoclet2>
+			<fileset dir="${src.dir}" includes="thirdstage/exercise/hibernate3/case5/*.java"/>
+		
+			<!-- generate hibernate mapping files (*.hbm.xml) -->
+			<component classname="org.xdoclet.plugin.hibernate.HibernateMappingPlugin"
+			           destdir="${basedir}/${src.dir}" version="3.0"
+			           validate="true" encoding="utf-8"/>
+						  
+			<!-- generate hibernate config file (*.cfg.xml) -->
+			<component classname="org.xdoclet.plugin.hibernate.HibernateConfigPlugin"
+			           destdir="${basedir}/${web.docbase.dir}/WEB-INF/classes"
+			           version="3.0"
+			           filereplace="hibernate-exercise-case5.cfg.xml"
+			           jndidatasource="java:comp/env/jdbc/TestDB"
+			           showsql="true"
+			           useouterjoin="true"
+			           transactionfactory="org.hibernate.transaction.JDBCTransactionFactory"
+			           dialect="org.hibernate.dialect.MySQLDialect"/>
+		</xdoclet2>
+		
+		<!-- generates hibernate config for thirdstage.exercise.hibernate3.case6 package -->
+		<!--
+		/**@TO-DO, 2006-08-04, 3rdstage, Not working as is desired. How can I generate config directly from annotated classes
+		
+		<hibernatedoclet destdir="${src.dir}" excludedtags="@author,@todo" force="true" verbose="false">
+			<fileset dir="${src.dir}" includes="thirdstage/exercise/hibernate3/case6/*.java"/>
+			<hibernatecfg version="3.0"
+			              datasource="java:comp/env/jdbc/TestDB"
+			              showsql="true"
+			              useouterjoin="true"
+			              transactionManagerFactory="org.hibernate.transaction.JDBCTransactionFactory"
+			              destdir="${web.docbase.dir}"
+			              destinationfile="WEB-INF/classes/hibernate-exercise-case6.cfg.xml"
+			              dialect="org.hibernate.dialect.MySQLDialect" />
+		</hibernatedoclet>
+		-->
+		
+		<!-- generates hibernate mappings for thirdstage.exercise.hibernate3.case7 package -->
+		<hibernatedoclet destdir="${src.dir}" excludedtags="@author,@todo" force="true" verbose="false">
+			<fileset dir="${src.dir}" includes="thirdstage/exercise/hibernate3/case7/*.java"/>
+			<hibernate version="3.0" xmlencoding="UTF-8"/>
+		</hibernatedoclet>
+		
+		
+		<!-- generates hibernate mappings for thirdstage.exercise.spring.hibernate3 package -->
+		<hibernatedoclet destdir="${src.dir}" excludedtags="@author,@todo" force="true" verbose="false">
+			<fileset dir="${src.dir}" includes="thirdstage/exercise/spring/hibernate3/**/*.java"/>
+			<hibernate version="3.0" xmlencoding="UTF-8"/>
+		</hibernatedoclet>		
+		
+
+		<!-- generates hibernate mappings for thirdstage.exercise.spring.jsf.case1 package -->
+		<hibernatedoclet destdir="${src.dir}" excludedtags="@author,@todo" force="true" verbose="false">
+			<fileset dir="${src.dir}" includes="thirdstage/exercise/spring/jsf/case1/*.java"/>
+			<hibernate version="3.0" xmlencoding="UTF-8"/>
+		</hibernatedoclet>
+		
+		<!-- generates hibernate mappings and config for thirdstage.sample package -->
+		<hibernatedoclet destdir="${src.dir}" excludedtags="@author,@todo"
+			force="true" verbose="false">
+			<fileset dir="${src.dir}">
+				<include name="thirdstage/sample/**/entities/*.java"/>
+			</fileset>
+			<hibernate version="3.0" xmlencoding="UTF-8"/>
+			
+			<hibernatecfg version="3.0"
+			              datasource="java:comp/env/jdbc/SampleDB"
+			              showsql="true"
+			              useouterjoin="true"
+			              jndiname="java:comp/env/hibernate/SampleSessionFactory"
+			              transactionManagerFactory="org.hibernate.transaction.JDBCTransactionFactory"
+			              destdir="${web.docbase.dir}"
+			              destinationfile="WEB-INF/classes/hibernate-sample.cfg.xml"
+			              dialect="org.hibernate.dialect.MySQLDialect" />
+		</hibernatedoclet>
+
+		<!--
+		======================
+		DDL Script Generation Section
+		======================
+		-->
+		<!-- generates DDL script for thirdstage.exercise.hibernate3.case1 pacjage -->
+		<hibernatetool>
+			<configuration propertyfile="nbproject/hibernate-exercise-mysql.properties">
+				<fileset dir="${src.dir}"><include name="thirdstage/exercise/hibernate3/case1/*.hbm.xml"/></fileset>
+			</configuration>
+			<hbm2ddl export="false" console="true" update="false" drop="false" create="true" format="true"
+			destdir="${web.docbase.dir}/WEB-INF/sqls" outputfilename="exercise.hibernate3.case1-schema-mysql.sql"/>
+		</hibernatetool>
+
+ 		<!-- generates DDL script for thirdstage.exercise.hibernate3.case2 package -->
+		<hibernatetool>
+			<configuration propertyfile="nbproject/hibernate-exercise-mysql.properties">
+				<fileset dir="${src.dir}"><include name="thirdstage/exercise/hibernate3/case2/*.hbm.xml"/></fileset>
+			</configuration>
+			<hbm2ddl export="false" console="true" update="false" drop="false" create="true" format="true"
+			destdir="${web.docbase.dir}/WEB-INF/sqls" outputfilename="exercise.hibernate3.case2-schema-mysql.sql"/>
+		</hibernatetool>
+
+		<!-- generates DDL script for thirdstage.exercise.hibernate3.case3 package -->
+		<hibernatetool>
+			<configuration propertyfile="nbproject/hibernate-exercise-mysql.properties">
+				<fileset dir="${src.dir}"><include name="thirdstage/exercise/hibernate3/case3/*.hbm.xml"/></fileset>
+			</configuration>
+			<hbm2ddl export="false" console="true" update="false" drop="false" create="true" format="true"
+			destdir="${web.docbase.dir}/WEB-INF/sqls" outputfilename="exercise.hibernate3.case3-schema-mysql.sql"/>
+		</hibernatetool>
+
+		<!-- generates DDL script for thirdstage.exercise.hibernate3.case4 package -->
+		<hibernatetool>
+			<configuration propertyfile="nbproject/hibernate-exercise-mysql.properties">
+				<fileset dir="${src.dir}"><include name="thirdstage/exercise/hibernate3/case4/*.hbm.xml"/></fileset>
+			</configuration>
+			<hbm2ddl export="false" console="true" update="false" drop="false" create="true" format="true"
+			destdir="${web.docbase.dir}/WEB-INF/sqls" outputfilename="exercise.hibernate3.case4-schema-mysql.sql"/>
+		</hibernatetool>
+
+		<!-- generates DDL script for thirdstage.exercise.hibernate3.case5 package -->
+		<!--
+		//@TO-DO 2006-08-04, 3rdstage, generate exception 
+		<schemaexport quiet="no"
+			properties="nbproject/hibernate-exercise-mysql.properties"
+			text="yes"
+			drop="no"
+			delimiter=";"
+			output="${web.docbase.dir}/WEB-INF/sqls/exercise.hibernate3.case5-schema-mysql.sql">
+			<fileset dir="${src.dir}">
+				<include name="thirdstage/exercise/hibernate3/case5/**/*.hbm.xml"/>
+			</fileset>			  
+		</schemaexport>
+		-->
+		
+		<!-- generates DDL script for thirdstage.exercise.hibernate3.case6 package -->
+		<!--
+		<hibernatetool>
+			<classpath><pathelement path="${build.classes.dir}"/></classpath>
+			<annotationconfiguration configurationfile="${web.docbase.dir}/WEB-INF/classes/hibernate-exercise-case6.cfg.xml">
+			</annotationconfiguration>
+			<hbm2ddl export="false" console="true" update="false" drop="false" create="true" format="true"
+			destdir="${web.docbase.dir}/WEB-INF/sqls" outputfilename="exercise.hibernate3.case6-schema-mysql.sql"/>
+		</hibernatetool>
+		-->
+		
+		<!-- generates DDL script for thirdstage.exercise.spring.hibernate3.case2 package -->
+		<hibernatetool>
+			<configuration propertyfile="nbproject/hibernate-exercise-mysql.properties">
+				<fileset dir="${src.dir}"><include name="thirdstage/exercise/spring/hibernate3/case2/**/*.hbm.xml"/></fileset>
+			</configuration>
+			<hbm2ddl export="false" console="true" update="false" drop="false" create="true" format="true"
+			destdir="${web.docbase.dir}/WEB-INF/sqls" outputfilename="exercise.spring.hibernate3.case2-schema-mysql.sql"/>
+		</hibernatetool>
+		
+		<!-- generates DDL script for thirdstage.exercise.spring.hibernate3.case5 package -->
+		<hibernatetool>
+			<configuration propertyfile="nbproject/hibernate-exercise-mysql.properties">
+				<fileset dir="${src.dir}"><include name="thirdstage/exercise/spring/hibernate3/case5/**/*.hbm.xml"/></fileset>
+			</configuration>
+			<hbm2ddl export="false" console="true" update="false" drop="false" create="true" format="true"
+			destdir="${web.docbase.dir}/WEB-INF/sqls" outputfilename="exercise.spring.hibernate3.case5-schema-mysql.sql"/>
+		</hibernatetool>
+		
+		<!-- generates DDL script for thirdstage.exercise.spring.hibernate3.case5 package -->
+		<hibernatetool>
+			<configuration propertyfile="nbproject/hibernate-exercise-mysql.properties">
+				<fileset dir="${src.dir}"><include name="thirdstage/exercise/spring/jsf/case1/**/*.hbm.xml"/></fileset>
+			</configuration>
+			<hbm2ddl export="false" console="true" update="false" drop="false" create="true" format="true"
+			destdir="${web.docbase.dir}/WEB-INF/sqls" outputfilename="exercise.spring.jsf.case1-schema-mysql.sql"/>
+		</hibernatetool>
+		
+		<!-- generates DDL for thirdstage.sample package -->
+		<hibernatetool>
+			<configuration propertyfile="nbproject/hibernate-sample-mysql.properties">
+				<fileset dir="${src.dir}"><include name="thirdstage/sample/**/entities/*.hbm.xml"/></fileset>
+			</configuration>
+			<hbm2ddl export="false" console="false" update="false" drop="true" create="true" format="true"
+			destdir="${web.docbase.dir}/WEB-INF/sqls" outputfilename="sample-schema-mysql.sql"/>
+		</hibernatetool>
+		
+	</target>
+
+</project>

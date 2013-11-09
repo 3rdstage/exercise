@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="build-spring-hibernate-project2" basedir="..">
+	<target name="jsf-spring-hibernate-project2" depends="init"
+	        description="generates spring config, hibernate mappings and config for project2">
+		
+		<taskdef name="hibernatedoclet" classname="xdoclet.modules.hibernate.HibernateDocletTask">
+			<classpath><fileset dir="${xdoclet.lib.dir}" includes="*.jar"/></classpath>
+		</taskdef>
+		
+		<taskdef name="xdoclet2" classname="org.xdoclet.ant.XDocletTask">
+			<classpath><fileset dir="${xdoclet2.lib.dir}" includes="*.jar"/></classpath>
+		</taskdef>
+
+		<taskdef name="hibernatetool" classname="org.hibernate.tool.ant.HibernateToolTask">
+			<classpath>
+				<fileset dir="${hibernate.lib.dir}" includes="*.jar" excludes="log4j-1.2.11.jar"/>
+				<fileset dir="${hibernate.annotations.lib.dir}" includes="*.jar"/>
+				<fileset dir="${hibernate.tools.dir}" includes="*.jar"/>
+				<fileset file="${hibernate.jdbc.mysql.jar}"/>
+			</classpath>
+		</taskdef>
+		
+		<taskdef name="schemaexport" classname="org.hibernate.tool.hbm2ddl.SchemaExportTask">
+			<classpath>
+				<fileset dir="${hibernate.lib.dir}" includes="*.jar" excludes="log4j-1.2.11.jar"/>
+				<fileset file="${hibernate.jdbc.mysql.jar}"/>
+			</classpath>
+		</taskdef>
+		
+		<taskdef name="schemavalidator" classname="org.hibernate.tool.hbm2ddl.SchemaValidatorTask">
+			<classpath>
+				<fileset dir="${hibernate.lib.dir}" includes="*.jar" excludes="log4j-1.2.11.jar"/>
+				<fileset file="${hibernate.jdbc.mysql.jar}"/>
+			</classpath>
+		</taskdef>
+		
+		<taskdef	name="webdoclet" classname="xdoclet.modules.web.WebDocletTask">
+			<classpath>
+				<fileset dir="${xdoclet.lib.dir}" includes="*.jar"/>
+				<fileset dir="${xdoclet.dependancy.lib.dir}" includes="*.jar"/>
+			</classpath>
+		</taskdef>
+		
+		<taskdef	name="springdoclet" classname="xdoclet.modules.spring.SpringDocletTask">
+			<classpath>
+				<fileset dir="${xdoclet.lib.dir}" includes="*.jar"/>
+				<fileset dir="${xdoclet.dependancy.lib.dir}" includes="*.jar"/>
+			</classpath>
+		</taskdef>
+
+		<!-- generates hibernate mappings and config for thirdstage.project2 package -->
+		<hibernatedoclet destdir="${src.dir}" excludedtags="@author,@todo" force="true" verbose="false">
+			<fileset dir="${src.dir}">
+				<include name="thirdstage/project2/**/*.java"/>
+			</fileset>
+			<hibernate version="3.0" xmlencoding="UTF-8"/>
+			
+			<!-- hibernate config is included in spring config 
+			<hibernatecfg version="3.0"
+			              datasource="java:comp/env/jdbc/Project2DB"
+			              showsql="true"
+			              useouterjoin="true"
+			              jndiname="java:comp/env/hibernate/Project2SessionFactory"
+			              transactionManagerFactory="org.hibernate.transaction.JDBCTransactionFactory"
+			              destdir="${web.docbase.dir}"
+			              destinationfile="WEB-INF/classes/hibernate-project2.cfg.xml"
+			              dialect="org.hibernate.dialect.MySQLDialect" />
+			-->
+	  </hibernatedoclet>
+
+		<!-- generates DDL for thirdstage.project2 package -->
+		<hibernatetool>
+			<configuration propertyfile="nbproject/hibernate-sample-mysql.properties">
+				<fileset dir="${src.dir}"><include name="thirdstage/project2/**/*.hbm.xml"/></fileset>
+			</configuration>
+			<hbm2ddl export="false" console="false" update="false" drop="true" create="true" format="true"
+			destdir="${web.docbase.dir}/WEB-INF/sqls" outputfilename="project2-schema-mysql.sql"/>
+		</hibernatetool>
+		
+		<!-- generates spring config -->
+		<springdoclet destdir="${web.docbase.dir}/WEB-INF/classes"            
+			           excludedtags="@author,@since,@version" verbose="true">
+			<fileset dir="${src.dir}" includes="thirdstage/project2/**/*.java"/>
+			<springxml destdir="${web.docbase.dir}/WEB-INF/classes"
+			           defaultAutowire="no" defaultDependencyCheck="none"
+						  defaultLazyInit="true"
+						  xmlencoding="UTF-8" validateXML="false"
+			           mergedir="${src.dir}/thirdstage/project2"
+			           destinationfile="spring-project2.xml"/>
+		</springdoclet>
+		
+		<!-- generates jsf config -->
+		<webdoclet destdir="${web.docbase.dir}/WEB-INF" excludedtags="@author" 
+                 verbose="true">
+			<fileset dir="${src.dir}" includes="thirdstage/project2/requirement/*.java"/>
+			<facesconfigxml destdir="${web.docbase.dir}/WEB-INF" version="1.1"
+			                mergedir="${src.dir}/thirdstage/project2"
+			                destinationfile="faces-config-project2.xml"/>
+		</webdoclet>
+	</target>
+</project>

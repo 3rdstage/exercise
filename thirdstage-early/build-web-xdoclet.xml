@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<project name="build-web-xdoclet" basedir="..">
+
+	<target name="init-xdoclet-web" depends="init">
+		<path id="xdoclet.class.path">
+			<fileset dir="${xdoclet.lib.dir}"><include name="*.jar"/></fileset>
+			<fileset dir="${xdoclet.dependancy.lib.dir}"><include name="*.jar"/></fileset>
+		</path> 
+		
+		<tstamp><format property="TODAY" pattern="yyyy-MM-dd"/></tstamp>
+		
+		<taskdef	name="xdoclet"	classname="xdoclet.DocletTask" 
+		         classpathref="xdoclet.class.path"/>
+		<taskdef	name="ejbdoclet" classname="xdoclet.modules.ejb.EjbDocletTask"	
+		         classpathref="xdoclet.class.path"/>
+		<taskdef	name="webdoclet" classname="xdoclet.modules.web.WebDocletTask"
+		         classpathref="xdoclet.class.path"/>
+		<taskdef	name="springdoclet" classname="xdoclet.modules.spring.SpringDocletTask"
+		         classpathref="xdoclet.class.path"/>
+	</target>    
+    
+    
+	<!-- =================================================================== -->
+	<!-- Invoke XDoclet's webdoclet                                          -->
+	<!-- =================================================================== -->
+	<target name="webdoclet" depends="init, init-xdoclet-web" 
+		description="Generate deployment descriptors such as faces-config.xml et al. (run actionform to generate forms first)">
+
+		<echo>+---------------------------------------------------+</echo>
+		<echo>|                                                   |</echo>
+		<echo>| R U N N I N G   W E B D O C L E T                 |</echo>
+		<echo>|                                                   |</echo>
+		<echo>+---------------------------------------------------+</echo>
+
+		<!-- JSF config for thirdstage.project package -->
+		<webdoclet destdir="${web.docbase.dir}/WEB-INF" excludedtags="@author"
+			        addedtags="@xdoclet-generated at ${TODAY},@copyright The XDoclet Team,@author XDoclet"            
+			        verbose="true">
+
+			<fileset dir="${src.dir}">
+				<include name="thirdstage/project/**/*Bean.java"/>
+				<include name="thirdstage/project/**/*PageHelper.java"/>
+			</fileset>
+			<facesconfigxml destdir="${web.docbase.dir}/WEB-INF" version="1.1"
+			                destinationfile="faces-config-project.xml"/>
+			<!-- <jbosswebxml version="4.0"/> -->
+		</webdoclet>
+		
+		<webdoclet destdir="${web.docbase.dir}/WEB-INF" excludedtags="@author" 
+                 verbose="true">
+			<fileset dir="${src.dir}" includes="thirdstage/exercise/spring/jsf/case1/*.java"/>
+			<facesconfigxml destdir="${web.docbase.dir}/WEB-INF" version="1.1"
+			                mergedir="${src.dir}/thirdstage/exercise/spring/jsf/case1"
+			                destinationfile="faces-config-exercise-spring-jsf-case1.xml"/>
+		</webdoclet>
+	</target>
+   
+	<!-- =================================================================== -->
+	<!-- Invoke XDoclet's springdoclet                                          -->
+	<!-- =================================================================== -->
+	<target name="springdoclet" depends="init, init-xdoclet-web" 
+		description="Generate bean configuration file for spring framework">
+		<echo>+---------------------------------------------------+</echo>
+		<echo>|                                                   |</echo>
+		<echo>| R U N N I N G     S P R I N G B D O C L E T       |</echo>
+		<echo>|                                                   |</echo>
+		<echo>+---------------------------------------------------+</echo>
+
+		<springdoclet
+			destdir="${web.docbase.dir}/WEB-INF/classes"            
+			excludedtags="@author,@since,@version"
+			verbose="true"
+			mergedir="${src.dir}/thirdstage/exercise/spring/hibernate3/case5">
+            
+			<!-- for thirdstage.exercise.spring.hibernate3.case5 package -->
+			<!-- use 'spring-test-case5.xml' file -->
+			<fileset dir="${src.dir}">
+				<include name="thirdstage/exercise/spring/hibernate3/case5/*.java"/>
+			</fileset>
+			<springxml destdir="${web.docbase.dir}/WEB-INF/classes"
+			           mergedir="${src.dir}/thirdstage/exercise/spring/hibernate3/case5"
+						  xmlencoding="UTF-8" validateXML="false"
+			           destinationfile="spring-exercise-spring-hibernate3-case5.xml"/>
+		</springdoclet>
+		
+		<springdoclet destdir="${web.docbase.dir}/WEB-INF/classes"            
+			           excludedtags="@author,@since,@version" verbose="true">
+			<fileset dir="${src.dir}" includes="thirdstage/exercise/spring/jsf/case1/*.java"/>
+			<springxml destdir="${web.docbase.dir}/WEB-INF/classes"
+			           defaultAutowire="no" defaultDependencyCheck="none"
+						  defaultLazyInit="true"
+						  xmlencoding="UTF-8" validateXML="false"
+			           mergedir="${src.dir}/thirdstage/exercise/spring/jsf/case1"
+			           destinationfile="spring-exercise-spring-jsf-case1.xml"/>
+		</springdoclet>
+	</target>
+    
+</project>
