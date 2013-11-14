@@ -10,29 +10,21 @@
 	<body>
 
 		<form id="form1">
-			<label>Title : <input type="text" name="title" tabindex="1" value="Laptops"></label>
-			<label>URL : <input type="text" name="url" tabindex="2" value="/computers/laptos"></label>
-			<button name='add'>Add</button>
+			<label>Title :
+				<input type="text" name="title" tabindex="1" value="Laptops">
+			</label>
+			<label>URL :
+				<input type="text" name="url" tabindex="2" value="/computers/laptos">
+			</label>
+			<button name='add'>
+				Add
+			</button>
 		</form>
 
-		<div id='grid1' style="width:600px;height:300px"></div>
-
-		<hr>
-
-		<table width="600" border="1">
-		<thead>
-			<tr>
-				<th>Title</th>
-				<th>Url</th>
-			</tr>
-		</thead>
-		<tbody  data-bind="foreach:categories">
-			<tr>
-				<td data-bind="text:title"></td>
-				<td data-bind="text:url"></td>
-			</tr>
-		</tbody>
-		</table>
+		<h3>Categories</h3>
+		<div id='grid'
+		data-bind="slickGrid: {data : categoryGrid.data, columns : categoryGrid.columns, options : categoryGrid.options}"
+		style="width:600px;height:600px"></div>
 
 		<!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
 		<script src="https://code.jquery.com/jquery-1.8.0.min.js"></script>
@@ -47,41 +39,34 @@
 		<script src="../../js/slick.editors.js"></script>
 		<script src="../../js/slick.grid.js"></script>
 		<script>
-			var grid1;
-
-			var columns1 = [
-				{id : "title", name : "Title", field : "title", width : 300},
-				{id : "url", name : "URL", field : "url", width : 300, editor: Slick.Editors.Text}
-			];
-
-			var data1 = [
-				{title : "TVs", url : "tv/tvs"},
-				{title : "Smart TVs", url : "tv/smart-tvs"},
-				{title : "Projectors", url : "tv/projectors"},
-				{title : "TV Stands, Mounts", url: "tv/tv-stands"},
-				{title : "Blue-ray & DVD Players", url : "tv/blue-ray"},
-				{title : "Sound Bars", url : "tv/sound-bars"},
-				{title : "Home Theater Systems", url : "tv/home-theater-systems"}
-			];
-
-			var viewModel = {
-				categories : ko.observableArray([])
+			//define custom handler for SlickGrid
+			var grid;
+			ko.bindingHandlers.slickGrid = {
+				init : function(element, valueAccessor) {
+					var data = ko.utils.unwrapObservable(valueAccessor().data);
+					var columns = ko.utils.unwrapObservable(valueAccessor().columns);
+					var options = ko.utils.unwrapObservable(valueAccessor().options) || {};
+					grid = new Slick.Grid(element, data, columns, options);
+				},
+				update : function(element, valueAccessor, allBindingAccessor, viewModel) {
+					var data = ko.utils.unwrapObservable(valueAccessor().data);
+					//just for subscription
+					grid.resizeCanvas(); // NB Very important for when a scrollbar appears
+					grid.render();
+				}
 			};
-			ko.applyBindings(viewModel);
 
+			//define view-model and bind it to the context
+			var viewModel = {
+				categoryGrid : {
+					columns : ko.observableArray([]),
+					data : ko.observableArray([]),
+					options : ko.observable({})
+				}
+			};
 
-			for(var i = 0, n1 = data1.length; i < n1; i++) viewModel.categories.push(data1[i]);
-
-			var category1 = new Object();
-			category1.title = "Monitors";
-			category1.url = "/computers/monitors";
-			viewModel.categories.push(category1);
-
-			var title2 = "Printers";
-			var url2 = "/computers/printers";
-			viewModel.categories.push(eval("({title:\"" + title2 + "\", url:\"" + url2 + "\"})"));
-
-			var options1 = {
+			//prepare data
+			var categoryGridOptions = {
 				autoEdit : true,
 				editable : true,
 				enableAddRow : true,
@@ -90,19 +75,73 @@
 				headerRowHeight : 25
 			};
 
-			$(function(){
+			var categoryGridColumns = [{
+				id : "title",
+				name : "Title",
+				field : "title",
+				width : 300
+			}, {
+				id : "url",
+				name : "URL",
+				field : "url",
+				width : 300,
+				editor : Slick.Editors.Text
+			}];
 
-				grid1 = new Slick.Grid("#grid1", viewModel.categories.peek(), columns1, options1);
-			});
+			var categoryData = [{
+				title : "TVs",
+				url : "/tv/tvs"
+			}, {
+				title : "Smart TVs",
+				url : "/tv/smart-tvs"
+			}, {
+				title : "Projectors",
+				url : "/tv/projectors"
+			}, {
+				title : "TV Stands, Mounts",
+				url : "/tv/tv-stands"
+			}, {
+				title : "Blue-ray & DVD Players",
+				url : "/tv/blue-ray"
+			}, {
+				title : "Sound Bars",
+				url : "/tv/sound-bars"
+			}, {
+				title : "Home Theater Systems",
+				url : "/tv/home-theater-systems"
+			}];
 
-			$("#form1 > button[name='add']").click(function(ev){
-				//window.alert($("#form1 input[name='title']").val());
-				var title2 = $("#form1 input[name='title']").val();
-				var url2 = $("#form1 input[name='url']").val()
-				viewModel.categories.push(eval("({title:\"" + title2 + "\", url:\"" + url2 + "\"})"));
+			//push data into view-model
+			for (var i = 0, n = categoryGridColumns.length; i < n; i++) {
+				viewModel.categoryGrid.columns.push(categoryGridColumns[i]);
+			}
 
-				ev.preventDefault();
+			//binding with empty column causes problem
+			ko.applyBindings(viewModel);
 
+			for (var i = 0, n = categoryData.length; i < n; i++) {
+				viewModel.categoryGrid.data.push(categoryData[i]);
+			}
+
+			var extraData1 = new Object();
+			extraData1.title = "Monitors";
+			extraData1.url = "/computers/monitors";
+			viewModel.categoryGrid.data.push(extraData1);
+
+			var title2 = "Printers";
+			var url2 = "/computers/printers";
+			viewModel.categoryGrid.data.push(eval("({title:\"" + title2 + "\", url:\"" + url2 + "\"})"));
+
+			$(document).ready(function() {
+				$("#form1 > button[name='add']").click(function(ev) {
+
+					//The event handler just updates view-model and doesn't directly care the view
+					var title = $("#form1 input[name='title']").val();
+					var url = $("#form1 input[name='url']").val()
+					viewModel.categoryGrid.data.push(eval("({title:\"" + title + "\", url:\"" + url + "\"})"));
+
+					ev.preventDefault();
+				});
 			});
 		</script>
 	</body>
