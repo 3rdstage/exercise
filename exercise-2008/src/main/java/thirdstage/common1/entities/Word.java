@@ -10,9 +10,9 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
+import javax.validation.constraints.NotNull;
+import org.hibernate.validator.constraints.Length;
 
-import org.hibernate.validator.Length;
-import org.hibernate.validator.NotNull;
 
 @Entity
 @Table(name="Word")
@@ -31,7 +31,7 @@ public class Word {
 	
 	@Basic
 	@Column(name="name", unique=false)
-	@Length(max=50) @NotNull
+	@Length(max=50) @NotNull 
 	private String name;
 	
 	

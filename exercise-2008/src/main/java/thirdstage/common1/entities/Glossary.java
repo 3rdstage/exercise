@@ -16,11 +16,11 @@ import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import javax.persistence.OrderBy;
 import javax.persistence.Table;
+import javax.validation.constraints.NotNull;
 
 import org.hibernate.annotations.ForeignKey;
 import org.hibernate.annotations.LazyCollectionOption;
-import org.hibernate.validator.Length;
-import org.hibernate.validator.NotNull;
+import org.hibernate.validator.constraints.Length;
 
 /**
  * @author 3rdstage
