@@ -151,5 +151,86 @@ public class SerializationTest{
 			}
 		}
 	}
+	
+	public class Mark3 implements java.io.Serializable{
+		
+		private int x;
+		private int y;
+		private String name;
+		private boolean visible;
+		
+		public Mark3(){ }
+		
+		public int getX(){ return this.x; }
+		public void setX(int x){ this.x = x; }
+		public int getY(){ return this.y; }
+		public void setY(int y){ this.y = y; }
+		public String getName(){ return this.name; }
+		public void setName(String name){ this.name = name; }
+		public boolean isVisible(){ return this.visible; }
+		public void setVisible(boolean is){ this.visible = is; }
+	}
+	
+	@Test
+	public void testMark3Serialization() throws Exception{
+		
+		Mark3 mark = new Mark3();
+		mark.setX(3);
+		mark.setY(1);
+		mark.setName("TheHospital");
+		mark.setVisible(true);
+		
+		ByteArrayOutputStream baos = null;
+		ObjectOutputStream oos = null;
+		String str = null;
+		byte[] bytes = null;
+		ByteArrayInputStream bais = null;
+		ObjectInputStream ois = null;
+		Mark3 anotherMark = null;
+		
+		try{
+			baos = new ByteArrayOutputStream();
+			oos = new ObjectOutputStream(baos);
+			
+			oos.writeObject(mark);
+			bytes = baos.toByteArray();
+			
+			bais = new ByteArrayInputStream(bytes);
+			ois = new ObjectInputStream(bais);
+			
+			anotherMark = (Mark3)(ois.readObject());
+			
+			Assert.assertTrue(mark != anotherMark);
+			Assert.assertNotEquals(anotherMark.getX(), mark.getX()); // x is not serialized
+			Assert.assertNotEquals(anotherMark.getY(), mark.getY()); // y is not serialized
+			Assert.assertEquals(anotherMark.getName(), mark.getName());
+			Assert.assertEquals(anotherMark.isVisible(), mark.isVisible());
+			
+			
+			
+		}catch(Exception ex){
+			this.logger.error(ex.getMessage(), ex);
+			throw ex;
+			
+		}finally{
+			if(baos != null){ 
+				try{ baos.close(); }
+				catch(Exception ex){}
+			}
+			if(oos != null){
+				try{ oos.close(); }
+				catch(Exception ex){}
+			}
+			if(bais != null){
+				try{ bais.close(); }
+				catch(Exception ex){}
+			}
+			if(ois != null){
+				try{ ois.close(); }
+				catch(Exception ex){}
+			}
+		}
+	}
+	
 
 }

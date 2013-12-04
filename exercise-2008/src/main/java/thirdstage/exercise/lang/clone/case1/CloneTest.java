@@ -23,5 +23,22 @@ public class CloneTest{
 		Assert.assertEquals(anotherPt.getY(), pt.getY());
 		Assert.assertEquals(anotherPt.getColor(), pt.getColor());
 	}
-
+	
+	
+	@Test
+	public void testCloneablePointWithoutCloneMethod(){
+		
+		Point2 pt = new Point2(3, 1, "Purple");
+	}
+	
+	@Test
+	public void testNormalCloneableObject() throws Exception{
+		
+		Point3 pt = new Point3(3, 1, "Purple");
+		Point3 anotherPt = pt.clone();
+		
+		Assert.assertEquals(anotherPt.getX(), pt.getX());
+		Assert.assertEquals(anotherPt.getY(), pt.getY());
+		Assert.assertEquals(anotherPt.getColor(), pt.getColor());
+	}
 }
