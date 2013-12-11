@@ -4,6 +4,9 @@
 <ns prefix="svc" uri="http://www.thirdstage.org/example/ns/service"/>
 <pattern>
 	<rule context="svc:simple[@min-length][@max-length]">
+		<report test="@max-length/string() > @min-length/string()">
+		Teh max-length should be equal or greater than min-length.
+		</report>
 	</rule>
 </pattern>
 </schema>

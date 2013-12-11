@@ -3,6 +3,7 @@
  */
 package thirdstage.exercise.xml.schematron;
 
+import java.io.File;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -14,6 +15,7 @@ import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
+import org.oclc.purl.dsdl.svrl.SchematronOutputType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -21,6 +23,8 @@ import org.testng.annotations.*;
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
 import org.xml.sax.helpers.DefaultHandler;
+import com.phloc.schematron.ISchematronResource;
+import com.phloc.schematron.pure.SchematronResourcePure;
 import thirdstage.exercise.xml.schema.FullCollectiveErrorHandler;
 
 /**
@@ -34,7 +38,9 @@ public class ServiceMetaValidationTest2{
 	
 	public final static String SCHEMA_PATH_IN_CLASSPATH = "thirdstage/exercise/xml/schematron/service.xsd";
 	
-	public final static String XML_PATH_IN_CLASSPATH = "thirdstage/exercise/xml/schematron/make-order-valid.service.xml";
+	public final static String SCHEMATRON_PATH_IN_CLASSPATH = "thirdstage/exercise/xml/schematron/service.sch"; 
+	
+	public final static String XML_PATH_IN_CLASSPATH = "thirdstage/exercise/xml/schematron/make-order-invalid1.service.xml";
 	
 	/**
 	 * @throws java.lang.Exception
@@ -55,31 +61,46 @@ public class ServiceMetaValidationTest2{
 
 
 	@Test
-	public void validateValidServiceMetaWithSchemaOnly() throws Exception{
+	public void validateInvalidServiceMetaWithSchematron() throws Exception{
 		
 		logger.debug("start validateValidServiceMetaWithValidatorAndStreamSource");
 
-		SchemaFactory sf = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
-		Schema schema = sf.newSchema(ClassLoader.getSystemResource(SCHEMA_PATH_IN_CLASSPATH));
-		Validator validator = schema.newValidator();
+		File fSch = new File(ClassLoader.getSystemResource(SCHEMATRON_PATH_IN_CLASSPATH).toURI());
+		File fXml = new File(ClassLoader.getSystemResource(XML_PATH_IN_CLASSPATH).toURI());
 		
-		FullCollectiveErrorHandler errorHandler = new FullCollectiveErrorHandler();
-		validator.setErrorHandler(errorHandler);
+		ISchematronResource sch = SchematronResourcePure.fromFile(fSch);
 		
-		try{
-			validator.validate(new StreamSource(
-				new java.io.File(ClassLoader.getSystemResource(XML_PATH_IN_CLASSPATH).toURI())));
-		}catch(Exception ex){
-			logger.error(ex.getMessage(), ex);
-			
-		}finally{
-			errorHandler.printErrors(System.err);
+		if(!sch.isValidSchematron()){
+			Assert.fail("Invalid schematron : " + fSch.getCanonicalPath());
 		}
 		
-		logger.debug("complete validateValidServiceMetaWithValidatorAndStreamSource");
-		Assert.assertTrue(!errorHandler.hasError());
+		boolean isValid = sch.getSchematronValidity(new StreamSource(fXml)).isValid();
 		
+		Assert.assertTrue(isValid);
 	}	
+	
+	
+	@Test
+	public void validateInvalidServiceMetaWithSchematron2() throws Exception{
 		
+		logger.debug("start validateValidServiceMetaWithValidatorAndStreamSource");
+
+		File fSch = new File(ClassLoader.getSystemResource(SCHEMATRON_PATH_IN_CLASSPATH).toURI());
+		File fXml = new File(ClassLoader.getSystemResource(XML_PATH_IN_CLASSPATH).toURI());
+		
+		ISchematronResource sch = SchematronResourcePure.fromFile(fSch);
+		
+		if(!sch.isValidSchematron()){
+			Assert.fail("Invalid schematron : " + fSch.getCanonicalPath());
+		}
+		
+		SchematronOutputType output = sch.applySchematronValidationToSVRL(new StreamSource(fXml));
+		
+		for(String txt : output.getText()){
+			logger.info(txt);
+			System.err.println(txt);
+		}
+		
+	}
 
 }
