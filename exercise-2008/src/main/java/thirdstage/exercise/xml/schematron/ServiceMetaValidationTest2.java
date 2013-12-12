@@ -4,6 +4,8 @@
 package thirdstage.exercise.xml.schematron;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -15,6 +17,7 @@ import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
+import org.oclc.purl.dsdl.svrl.FailedAssert;
 import org.oclc.purl.dsdl.svrl.SchematronOutputType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,11 +98,20 @@ public class ServiceMetaValidationTest2{
 		}
 		
 		SchematronOutputType output = sch.applySchematronValidationToSVRL(new StreamSource(fXml));
+		List<Object> objs = output.getActivePatternAndFiredRuleAndFailedAssert();
+		List<FailedAssert> faileds = new ArrayList<FailedAssert>();
 		
-		for(String txt : output.getText()){
-			logger.info(txt);
-			System.err.println(txt);
+		for(Object obj : objs){
+			if(obj instanceof FailedAssert) faileds.add((FailedAssert)obj);
 		}
+		
+		for(FailedAssert failed : faileds){
+			System.out.println(failed.toString());
+		}
+		
+		
+		
+		
 		
 	}
 

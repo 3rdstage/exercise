@@ -3,8 +3,8 @@
 <title>Schematron for Service Meta</title>
 <ns prefix="svc" uri="http://www.thirdstage.org/example/ns/service"/>
 <pattern>
-	<rule context="svc:simple[@min-length][@max-length]">
-		<report test="@max-length/string() > @min-length/string()">
+	<rule context="//svc:simple[@min-length] [@max-length]">
+		<report test="@max-length/number() &gt; @min-length/number()">
 		Teh max-length should be equal or greater than min-length.
 		</report>
 	</rule>
