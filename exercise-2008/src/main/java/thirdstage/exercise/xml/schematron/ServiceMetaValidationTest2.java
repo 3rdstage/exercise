@@ -98,21 +98,20 @@ public class ServiceMetaValidationTest2{
 		}
 		
 		SchematronOutputType output = sch.applySchematronValidationToSVRL(new StreamSource(fXml));
-		List<Object> objs = output.getActivePatternAndFiredRuleAndFailedAssert();
-		List<FailedAssert> faileds = new ArrayList<FailedAssert>();
+		if(output != null){
+			List<Object> objs = output.getActivePatternAndFiredRuleAndFailedAssert(); //non-null
+			List<FailedAssert> faileds = new ArrayList<FailedAssert>();
 		
-		for(Object obj : objs){
-			if(obj instanceof FailedAssert) faileds.add((FailedAssert)obj);
+			for(Object obj : objs){
+				if(obj instanceof FailedAssert) faileds.add((FailedAssert)obj);
+			}
+			for(FailedAssert failed : faileds){
+				System.out.println(failed.toString());
+			}
+			Assert.assertTrue(faileds.isEmpty());
+		}else{
+			Assert.assertTrue(true);
 		}
-		
-		for(FailedAssert failed : faileds){
-			System.out.println(failed.toString());
-		}
-		
-		
-		
-		
-		
 	}
 
 }
