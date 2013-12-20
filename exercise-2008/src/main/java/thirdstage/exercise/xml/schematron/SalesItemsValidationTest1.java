@@ -8,6 +8,7 @@ import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
+
 import net.sf.saxon.Configuration;
 import net.sf.saxon.s9api.Processor;
 import net.sf.saxon.s9api.SchemaManager;
@@ -103,6 +104,7 @@ public class SalesItemsValidationTest1 {
 
 		SchemaFactory sf = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
 		Schema schema = sf.newSchema(ClassLoader.getSystemResource(SCHEMA_1_0_PATH_IN_CLASSPATH));
+
 		Validator validator = schema.newValidator();
 		
 		FullCollectiveErrorHandler errorHandler = new FullCollectiveErrorHandler();
