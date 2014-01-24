@@ -53,17 +53,31 @@ public class SvnClientUtilTest {
 	@Test
 	public void testListNonJavaSourceFilesUnderUrl() throws Exception{
 		
-		String url = "http://203.235.212.49/svn2/framework-j2ee-6/main/trunk/nexcore.framework.core/src/main/java";
-		String username = "OhSangMoon";
-		String passwd = "201202svn";
+		String url = "http://jetlang.googlecode.com/svn/trunk/";
+		String username = "guest";
+		String passwd = null;
 		
 		List<String> paths = SvnClientUtil.listNonJavaSourceFilesUnderUrl(url, username, passwd);
 		
 		for(String path : paths){
 			System.out.println(path);
 		}
-		
-		
 	}
 
+	@Test
+	public void testListNonJavaSourceFilesUnderUrl2() throws Exception{
+		
+		//String url = "http://jetlang.googlecode.com/svn/trunk/";
+		String url = "http://javaparser.googlecode.com/svn/trunk/JavaParser/";
+		
+		String username = null;
+		String passwd = null;
+		
+		List<String> paths = SvnClientUtil.listNonJavaSourceFilesUnderUrl2(url, username, passwd);
+		
+		for(String path : paths){
+			System.out.println(path);
+		}
+	}
+	
 }
