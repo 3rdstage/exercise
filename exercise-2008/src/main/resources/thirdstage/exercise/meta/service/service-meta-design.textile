@@ -1,0 +1,97 @@
+h4. Global Best Practice
+
+* 데이터 표현을 위한 메타 문법은 XML Schema, JSON Schema 등의 global standard로 참조할 수 있음.
+* 데티터 표현을 위한 메타 문법 구성 요소
+** 기본 데이터 타입
+** 기본 데이터 constraint 표현
+** 데이터 사이의 관계 표현 : 계층구조, 참조관계, ...
+** 데이터 타입 확장
+* XML Schema와 JSON Schema는 기본 데이터타입에 있어서는 상당한 차이를 보이지만, constraint 표현에서는 거의 동일한 문법을 제공함.
+
+* *기본 데이터 타입 사례*
+** XML Schema  
+*** 매우 풍부한 기본 데이터타입을 제공
+*** string, nomalizedString, token, Name, ID, decimal, integer, long, int, nonPositiveInteger, unsignedLong, boolean, duration, dateTime, date, time, ...
+*** http://www.w3.org/TR/2004/REC-xmlschema-2-20041028/#built-in-datatypes
+** JSON Schema
+*** 가장 간단한 기본 데이터타입을 제공
+*** string, number, integer, boolean, object, array, null, any(draft4에 제외됨)
+*** http://tools.ietf.org/html/draft-zyp-json-schema-03#section-5.1
+
+* *데이터 constraint 사례*
+** XML Schema
+*** constraining facet 으로 정의함.
+*** *@length, minLength, maxLength, pattern, enumeration, whiteSpace, maxInclusive, maxExclusive, minInclusive, minExclusive, totalDigits, fractionDigits@*
+*** http://www.w3.org/TR/2004/REC-xmlschema-2-20041028/#rf-facets
+** JSON Schema
+*** *@minimum, maximum, exclusiveMinimum, exclusiveMaximum, pattern, minLength, maxLength, enum, default, title, description, format@*
+*** *@format@* 은 *@date-time, date, time, regex, color, uri, email, phone@* 등과 같이 매우 규격화된 pattern 으로 기본 데이터타입의 간략함을 보완하는 역할을 함.
+**** @datetime, date, time, uri@ 등은 XMLSchema에서는 기본데이터타입으로 정의되나, JSON Schema에서는 @format@ 을 이용하여 정의할 수 있음.
+*** http://tools.ietf.org/html/draft-zyp-json-schema-03#section-5.9
+
+* +*기본 데이터 타입 권장안*+
+** 개발 언어 중립적이며 직관성이 높은 명칭을 사용
+** *@int8@* : 1 byte unsigned integer, −128 to +127, byte for Java
+** *@int16@* : 2 byte unsigned integer, −32,768 to +32,767, short for Java
+** *@int32@* : 4 byte unsigned integer, −2,147,483,648 to +2,147,483,647, int for Java
+** *@int64@* : 8 byte unsigned integer, −9,223,372,036,854,775,808 to +9,223,372,036,854,775,807, long for Java
+** *@float32@* : single precision(4 byte) binary(2 base) floating point number, defined in IEEE 754,
+** *@float64@* : double precision(8 byte) binary floating point number, defined in IEEE 754
+** *@decimal@* : fixed-point number, BigDecimal for Java
+** *@boolean@* : 0(false) or 1(true), true/false for Java, custom mapping with on/off, On/Off, yes/no, Yes/No et al.
+** *@string@* : 문자열
+** *@binary@* : 그림, 동영상 등과 같은 byte 열
+** *@fixString@* : 
+*** 길이가 정해져 있는 문자열, 
+*** 고정길이전문에서 사용하며, 지정한 길이를 초과하는 문자열은 잘려나가며, 지정한 길이 미만의 문자열은 지정한 padding 문자로 채움.
+*** 6.0에서 사용한 string, varString 보다 string(varString), fixString 이 string에 대한 정의를 일관성 있게 유지하는 측면에서 유리함. : 추가 검토 필요.
+** *@fixBinary@*
+*** 길이가 정해져 있는 문자열
+*** padding 없음.
+
+* +*데이터 constraint 권장안*+
+** 숫자형을 위한 constraint
+*** *@min@* : 최소값, 실수
+*** *@minIncludes@* : 최소값 포함 여부, boolean, 기본값 : true
+*** *@max@* : 최대값, 실수
+*** *@maxIncludes@* : 최대값 포함 여부, boolean, 기본값 : true
+** 실수형을 위한 constraint (추가 검토)
+*** *@totalDigits@* : 전체 숫자 갯수
+*** *@fractionDigits@* : 
+** 문자형을 위한 constraint
+*** *@minLength@* : 최소 길이, 정수(nonNegativeInteger), 기본값 : 0
+*** *@maxLength@* : 최대 길이, 정수(nonNegativeInteger), >= maxLength, 기본값 : Infinite
+*** *@pattern@* : 정규표현식
+**** 개발언어마다 정규표현식 syntax 가 다른 부분에 대한 고려가 필요. 
+**** 정규표현식 minimal set 에 대한 research 필요
+*** *@format@* : 형식
+**** 추가 검토 필요
+** 범용적인 constraint
+*** *@enum@* : 선택값
+**** 데이터타입 또는 다른 constraint들과의 충돌 가능성이 높음
+
+* +*기타 데이터 메타 구성요소*+
+** *@title@* : 표시명, 한글명
+** *@required@* : 필수여부
+** *@default@* : 기본값
+** *@description@* : 설명
+
+* +*데이터 메타 추가 고려 사항*+
+** *다중 Constraint* 충돌(conflict)를 감지하거나 막기 위한 방법은?
+*** 예) pattern = [a-zA-Z]{5} and format = datetime
+** *문자열 길이* 기준 : ASCII or Unicode ?
+*** 문자열 길이 기준을 환경설정값으로 지정하고 dynamic하게 사용하는 방법에 대한 검토 필요
+** *실수의 길이* 표현에서 부호(+, -)와 소수점(period)의 포함 여부
+*** 메타에서는 @totalDigits@, @fractionDigits@ 로 표현한다고 해서, 고정길이전문 변환을 위해서는 길이 표현에 대한 고려가 필요함.
+*** 고정길이전문 표준에 따라서 길이표현이 다를 수 있으므로 환경설정으로 조정하는 것에 대해 검토
+**** boolean @message.fixedlength.stringlength.includesPeriod@
+**** boolean @message.fixedlength.stringlength.includesSign@
+** *암호화* 된 데이터를 데이터타입으로 표현할 것인가? 아니면 별도의 속성으로 정의할 것인가?
+*** 별도의 속성으로 정의할 경우, 데이터타입은 string or binary ?
+** *Validation* 은 어떻게 할 것인가?
+***  성능을 고려하여 refection API를 사용하지 않는 방법에 대한 research가 필요함.
+
+* 참고
+** "Primitive data type":http://en.wikipedia.org/wiki/Primitive_data_type
+** "IEEE 754: floating point in modern computers":http://en.wikipedia.org/wiki/Floating_point#IEEE_754:_floating_point_in_modern_computers
+** .NET BCL : Int16, Int32, Int64 등을 정의함 (http://en.wikipedia.org/wiki/C_Sharp_syntax#Pre-defined_types)
