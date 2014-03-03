@@ -9,6 +9,7 @@
 <script type="text/javascript" src="../../../scripts/jquery/js/jquery-1.8.0.min.js"></script>
 <script type="text/javascript" src="../../../scripts/bootstrap/bootstrap.min.js"></script>
 <script type='text/javascript' src='../../../scripts/d3/d3.min.js'></script>
+<script type='text/javascript' src='../../../scripts/moment/moment-with-langs.js'></script>
 
 
 	<style type="text/css">
@@ -16,16 +17,22 @@
 			margin-left:20px;
 		}
 
-		div .axis path, div .axis line{
+		.chart .axis path, .chart .axis line{
 			fill:none;
 			stroke:black;
 			shape-rendering:crispEdges;
 		}
 
-		div .axis text{
+		.chart .axis text{
 			font-family:sans-serif;
 			font-size:11px;
 		}
+		
+		.chart path{
+			fill:none;
+			stroke:black;
+		}
+		
 	</style>
 </head>
 <body>
@@ -65,21 +72,26 @@
 		y : [0, 100]
 	}
 	var r = 3;
+	var scales = {};
+	var axis = {};
 	var data = [];
+	var line = {};
+	var path = {};
 
 	//create scales
-	var scales = {
+	scales = {
 		x : d3.time.scale().range(area.x).domain(domains.x),
 		y : d3.scale.linear().range(area.y).domain(domains.y)
 	}
 
 	//create pannel
 	d3.select("#chart").insert("svg", "div")
+		.classed("chart", true)
 		.attr("width", dimensions.width)
 		.attr("height", dimensions.height);
 		//.style("background-color", "white");
 
-	var axis = {
+	axis = {
 		x : d3.svg.axis().scale(scales.x).orient("bottom").ticks(10),
 		y : d3.svg.axis().scale(scales.y).orient("left").ticks(10)
 	}
@@ -94,43 +106,51 @@
 		.attr("transform", "translate(" + area.x[0] + ", 0)")
 		.call(axis.y);
 
+	function draw(){
+		initData(data);
+
+		line = d3.svg.line()
+			.interpolate("linear")
+			.x(function(d){ return scales.x(d[0])})
+			.y(function(d){ return scales.y(d[1])});
+
+		path = d3.select("#chart svg").append("path")
+			.classed("path", true)
+			.data([data])
+			.attr("d", line(data));
+	}
+
+	function update(count){
+		if(--count < 0) return; 
+
+		updateData(data, 1);
+		path.transition()
+			.duration(1000).ease("linear")
+			.attr("d", line)
+			.each("end", function(){ update(count); });
+	}
+
+	function initData(data){
+		var times = d3.time.seconds(domains.x[0], new Date(2014,4,1,0,1,0),
+			d3.time.second);
+		var i, n; //variables for loop
+		
+		for(i = 0, n = times.length; i < n; i++){
+			data[i] = [times[i], getY()];
+		}
+	}	
+	
+	function updateData(data, second){
+		var last = data[data.length - 1];
+		data[data.length] = [moment(last[0]).add('second', 1).toDate(), getY()];
+	}
+	
 	function getY(){
 		return Math.round(domains.y[1]/2 + Math.random()*domains.y[1]/2);
 	}
 
-	function draw(){
-		var times = d3.time.seconds(domains.x[0], new Date(2014,4,1,0,1,0),
-			d3.time.second);
-		var i, n; //variables for loop
-
-		for(i = 0, n = times.length; i < n; i++){
-			data[i] = [times[i], getY()];
-		}
-
-		var line = d3.svg.line()
-			.x(function(d){ return scales.x(d[0])})
-			.y(function(d){ return scales.y(d[1])});
-
-		d3.select("#chart svg").append("path")
-			.attr("d", line(data));
-		d3.select("#chart svg path").data()
-
-	}
-
-	function update(){
-		var last = data[data.length - 1];
-
-		data[data.length] = [last[0] + d3.time.second, getY()];
-	}
-
 	draw();
-
-	var cnt = 0;
-	d3.timer(function(){
-		update()
-		if(cnt++ > 9) return true;
-		else return false;
-	}, 1000);
+	update(60);
 
 	</script>
 
