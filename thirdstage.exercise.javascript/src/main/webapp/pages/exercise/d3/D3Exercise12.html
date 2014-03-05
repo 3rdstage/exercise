@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<title>D3.js Exercise</title>
+<title>D3.js Exercise - Real-time line chart</title>
 <link rel="stylesheet" href="../../../styles/bootstrap/bootstrap.min.css">
 <script type="text/javascript" src="../../../scripts/underscore/underscore.js"></script>
 <script type="text/javascript" src="../../../scripts/jquery/js/jquery-1.8.0.min.js"></script>
@@ -27,12 +27,12 @@
 			font-family:sans-serif;
 			font-size:11px;
 		}
-		
+
 		.chart path{
 			fill:none;
 			stroke:black;
 		}
-		
+
 	</style>
 </head>
 <body>
@@ -48,10 +48,7 @@
 				</h4>
 			</div>
 			<div id="chart" class="panel-collapse">
-				<div id="controls" style="margin-top:10px">
-					<button id="controla" type="button">Init</button>
-					<button id="controlb" type="button">Remove right half</button>
-					<button id="controlc" type="button">Remove right half and add double valued</button>
+				<div id="display" style="margin-top:10px">
 				</div>
 			</div>
 		</div>
@@ -61,18 +58,24 @@
 	<script>
 	"use strict";
 
-	var dimensions = {width : 800, height : 400};
-	var paddings = {top : 20, right : 30, bottom : 40, left : 50};
+	/*
+	 * Glossary
+	 * chart, axis, grid, guideline, tick, plot area, axis label, data label, legend, title, source
+	 * path or line, bar, ...
+	 */
+
+	var dimensions = {width : 1000, height : 400};
+	var paddings = {top : 20, right : 30, bottom : 40, left : 250};
 	var area = {
 		x : [paddings.left, dimensions.width - paddings.right],
 		y : [dimensions.height - paddings.bottom, paddings.top]  //large value first !
 	}
+	var interval = 1000;
+	var now = new Date();
 	var domains = {
-		x : [new Date(2014, 4, 1, 0, 0, 0), new Date(2014, 4, 1, 0, 2, 0)],
+		x : [now - 120*interval, now - interval],
 		y : [0, 100]
 	};
-	domains.x[1] = new Date();
-	domains.x[0] = moment(domains.x[1]).subtract('milliseconds', 2*60*1000).toDate();
 	var r = 3;
 	var scales = {};
 	var axis = {};
@@ -101,7 +104,7 @@
 	}
 
 	d3.select("#chart svg").append("g")
-		.classed("axis x", true)
+		.classed("axis x x-axis", true)
 		.attr("transform", "translate(0, " + area.y[0] + ")")
 		.call(axis.x);
 
@@ -110,57 +113,76 @@
 		.attr("transform", "translate(" + area.x[0] + ", 0)")
 		.call(axis.y);
 
+	/*
+	d3.select("#chart svg").append("clipPath")
+		.attr("id", "clip")
+		.append("rect")
+		.attr("width", dimensions.width)
+		.attr("height", dimensions.height);
+	*/
+
 	function draw(){
 		initData(data);
 
 		line = d3.svg.line()
-			.interpolate("linear")
+			.interpolate("basis")
 			.x(function(d){ return scales.x(d[0])})
 			.y(function(d){ return scales.y(d[1])});
 
 		path = d3.select("#chart svg").append("g")
+			.attr("clip-path", "url(#clip)")
 			.append("path")
 			.data([data])
-			.classed("path", true)
+			.classed("path line", true)
 			.attr("d", line);
-		
+
 		lastTimestamp = data[data.length - 1][0];
-		
+
 	};
 
 	function initData(data){
 		var times = d3.time.seconds(domains.x[0], domains.x[1],
 			d3.time.second);
 		var i, n; //variables for loop
-		
+
 		for(i = 0, n = times.length; i < n; i++){
 			data[i] = [times[i], getY()];
 		}
 	};
-	
+
 	function update(count){
-		if(--count < 0) return; 
+		//if(--count < 0) return;
 
 		updateData(data, 1);
 
-		var delta = scales.x(lastTimestamp) - scales.x(data[data.length - 1][0]);
-		path.attr("d", line)
-			.attr("transform", null)
-			.transition()
-			.duration(1000).ease("linear")
-			.attr("transform", "translate(" + delta + ")")
-			.each("end", function(){ update(count); });
-		data.shift();	
+		$("#display").text("interval : " + interval + ", data size : " + data.length);
+
+		now = new Date();
+		domains.x = [now - 120*interval, now - interval];
+		scales.x.domain(domains.x);
+		//scales.x.domain(domains.x);
+
+		d3.select("#chart svg").select(".path").attr("d", line)
+			.attr("transform", null);
+
+		d3.select("#chart svg g.axis.x").transition().duration(interval).ease("linear").call(axis.x);
+
+		path.transition()
+			.duration(interval).ease("linear")
+			.attr("transform", "translate(" + (scales.x(now - 121*interval) - area.x[0]) + ")")
+			.each("end", update);
+
+		data.shift();
 		lastTimestamp = data[data.length -1][0];
-		
+
 	};
-	
+
 	function updateData(data, second){
 		var last = data[data.length - 1];
 		data.push([moment().toDate(), getY()]);
 	};
-	
-	
+
+
 	function getY(){
 		return Math.round(domains.y[1]/2 + Math.random()*domains.y[1]/2);
 	};
