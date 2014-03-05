@@ -61,8 +61,8 @@
 	<script>
 	"use strict";
 
-	var dimensions = {width : 800, height : 400};
-	var paddings = {top : 20, right : 30, bottom : 40, left : 50};
+	var dimensions = {width : 1000, height : 400};
+	var paddings = {top : 20, right : 30, bottom : 40, left : 250};
 	var area = {
 		x : [paddings.left, dimensions.width - paddings.right],
 		y : [dimensions.height - paddings.bottom, paddings.top]  //large value first !
@@ -129,7 +129,7 @@
 	};
 
 	function initData(data){
-		var times = d3.time.seconds(domains.x[0], domains.x[1],
+		var times = d3.time.seconds(scales.x.invert((area.x[0] + area.x[1])/2), domains.x[1],
 			d3.time.second);
 		var i, n; //variables for loop
 		
@@ -142,15 +142,29 @@
 		if(--count < 0) return; 
 
 		updateData(data, 1);
-
+		
+		var interval = data[data.length - 1][0] - lastTimestamp;
 		var delta = scales.x(lastTimestamp) - scales.x(data[data.length - 1][0]);
+
+		domains.x = [new Date(domains.x[0] + interval), new Date(domains.x[1] + interval)];
+		scales.x.domain(domains.x);
+		
 		path.attr("d", line)
-			.attr("transform", null)
+			.attr("transform", null);
+		
+		d3.select("#chart svg g.axis.x")
 			.transition()
+			.duration(1000)
+			.ease("linear")
+			.call(scales.x.axis);
+		
+		path.transition()
 			.duration(1000).ease("linear")
 			.attr("transform", "translate(" + delta + ")")
 			.each("end", function(){ update(count); });
-		data.shift();	
+			
+		
+		//data.shift();
 		lastTimestamp = data[data.length -1][0];
 		
 	};
