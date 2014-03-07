@@ -38,59 +38,90 @@
 <body>
 
 
-	<div class="panel-group" id="accordion">
-		<div class="panel panel-default">
-			<div class="pannel-heading">
-				<h4 class="pannel-title">
-					<a data-toggle="collapse" data-parent="#accordion" href="#chart">
-					Exercise time scale
-					</a>
-				</h4>
-			</div>
-			<div id="chart" class="panel-collapse">
-				<div id="display" style="margin-top:10px">
+	<table>
+		<tr>
+			<td>
+				<div id="chart1" class="panel-collapse">
+					<div class="display" style="margin-top:10px">
+					</div>
 				</div>
-			</div>
-		</div>
-	</div>
+			</td>
+			<td width="20">&nbsp;</td>
+			<td>
+				<div id="chart2" class="panel-collapse">
+					<div class="display" style="margin-top:10px">
+					</div>
+				</div>
+			</td>
+		</tr>
+	</table>
+
+
+	<div>
+		<svg width="600" height="2400"></div>
+		
+	</div>	
 
 
 	<script>
 	
-	(function(window, undefined){
+	function realtimeChart(options, initData, updateData){
 		"use strict";
+		
+		var container = options.container; //mandatory
+		
+		//{width : int, heigh : int} is expected
+		var dimensions = options.dimensions;
+		
+		//{top : int, right : int, bottom : int, left : int} is expected. 
+		var paddings = options.paddings; 
+		
+		var range; //pure derived, so should not specified from external
+		
+		var interval = options.interval; //int value is expected.
+		
+		var now;
+		
+		//{ x : [date, date], y : [int, int]} is expected.
+		var domains = options.domains;
+		 
+		//{x : int, y : int} is expected
+		var ticks = options.ticks; 
+		
+		//int value is expected.
+		var r = options.r;
 
-		/*
-		 * Glossary
-		 * chart, axis, grid, guideline, tick, plot area, axis label, data label, legend, title, source
-		 * path or line, bar, ...
-		 */
+		var data = [];
+		 
+		var chart;
+		var scales;
+		var axis;
+		var line;
+		var path;
 
-		var dimensions = {width : 1000, height : 400};
-		var paddings = {top : 20, right : 30, bottom : 40, left : 250};
-		var range = {
+		if(dimensions === undefined) dimensions = {width : 800, height : 600};
+		if(paddings === undefined){ 
+			paddings = {top : 10, right : 10, bottom : 20, left : 20};
+		}
+		range = {
 			x : [paddings.left, dimensions.width - paddings.right],
 			y : [dimensions.height - paddings.bottom, paddings.top]  //large value first !
 		}
-		var interval = 1000;
-		var now = new Date();
-		var domains = {
-			x : [now - 120*interval, now - interval],
-			y : [0, 100]
+		if(interval === undefined) interval = 1000;
+		if(domains === undefined){
+			now = new Date();
+			domains = {
+				x : [now - 120*interval, now - interval],
+				y : [0, 100]
+			};
 		};
-		var ticks = { x : 12, y : 5};
-		var r = 3;
-		var chart = {};
-		var area = {};
-		var scales = {};
-		var axis = {};
-		var data = [];
-		var line = {};
-		var path = {};
+		if(ticks === undefined) ticks = { x : 12, y : 5};
+		if(r === undefined) r = 2;
+		if(data === undefined) data = [];
 
 		//create chart and it's components
 		//plot area, scales, axis, ...
-		chart = d3.select("#chart").append("svg")
+		chart = d3.select(container).append("svg")
 			.classed("chart line realtime", true)
 			.attr("width", dimensions.width)
 			.attr("height", dimensions.height);
@@ -121,17 +152,7 @@
 			.attr("width", range.x[1] - range.x[0])
 			.attr("height", range.y[0] - range.y[1]);
 		
-		
-		//init data
-		(function(){
-			var times = d3.time.seconds(domains.x[0], domains.x[1],
-				d3.time.second);
-			var i, n;
-			
-			for(i = 0, n = times.length; i < n; i++){
-				data.push([times[i], getY()]);
-			}
-		}());
+		initData(data);
 		
 		//draw path
 		line = d3.svg.line().interpolate("basis")
@@ -148,9 +169,9 @@
 			count++;
 			//if(--count < 0) return;
 
-			updateData(data, 1);
+			updateData(data);
 	
-			$("#display").text("interval : " + interval +
+			$(container + " .display").text("interval : " + interval +
 				", data size : " + data.length +
 				", count : " + count);
 
@@ -174,18 +195,62 @@
 			data.shift();
 
 		};
-
-		function updateData(data, second){
-			data.push([new Date(), getY()]);
-		};
-
-		function getY(){
-			return Math.round(domains.y[1]/2 + Math.random()*domains.y[1]/2);
-		};
-
-		update(60);
+		
+		update();
+	};
 	
-	}(window));
+	var dimensions0 = {width : 400, height : 300};
+	var paddings0 = {top : 10, right : 10, bottom : 20, left : 30};
+	var interval0 = 1000;
+	var now0 = Date.now();
+	var domains0 = {
+		x : [now0 - 120*interval0, now0 - interval0],
+		y : [0, 100]
+	};
+	var ticks0 = { x : 12, y : 5}
+	realtimeChart({
+		container : "#chart1",
+		dimensions : dimensions0, 		
+		paddings : paddings0,
+		interval : interval0,
+		domains : domains0,
+		ticks : ticks0,
+	}, function(data){
+		var times = d3.time.seconds(domains0.x[0], domains0.x[1],
+			d3.time.second);
+		var i, n;
+		
+		for(i = 0, n = times.length; i < n; i++){
+			data.push([times[i], domains0.y[1]/2 + Math.random()*domains0.y[1]/2]);				
+		};
+		
+		return data;	
+	}, function(data){
+		data.push([new Date(), domains0.y[1]/2 + Math.random()*domains0.y[1]/2]);
+	});
+	
+	
+	realtimeChart({
+		container : "#chart2",
+		dimensions : dimensions0, 		
+		paddings : paddings0,
+		interval : interval0,
+		domains : domains0,
+		ticks : ticks0,
+	}, function(data){
+		var times = d3.time.seconds(domains0.x[0], domains0.x[1],
+			d3.time.second);
+		var i, n;
+		
+		for(i = 0, n = times.length; i < n; i++){
+			data.push([times[i], Math.random()*domains0.y[1]]);				
+		};
+		
+		return data;	
+	}, function(data){
+		data.push([new Date(), Math.random()*domains0.y[1]]);
+	});
+
 	</script>
 
 
