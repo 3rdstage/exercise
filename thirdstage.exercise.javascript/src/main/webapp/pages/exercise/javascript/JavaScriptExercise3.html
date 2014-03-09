@@ -4,7 +4,7 @@
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 		<title>JavaScript Exercise</title>
-<link rel="stylesheet" type="text/css" media="screen" 
+<link rel="stylesheet" type="text/css" media="screen"
 		href="../../../scripts/qunit/qunit-1.9.0.css" />
 <script type="text/javascript" src="../../../scripts/jquery/js/jquery-1.8.0.min.js"></script>
 <script type='text/javascript' src='../../../scripts/d3/d3.v2.min.js'></script>
@@ -14,7 +14,7 @@
 <script>
 </script>
 </head>
-	
+
 
 
 <body>
@@ -40,6 +40,159 @@ test("'1' == { valueOf : function(){return 1;}} : true", function(){
 	ok("1" == { valueOf : function(){return 1;}});
 });
 
+
+test("undefined test", function(){
+
+	function f(options){
+		var chart = {
+			dimensions : options.dimensions,
+			paddings : options.paddings
+		};
+		return chart;
+	};
+
+	var interval
+	ok(interval === undefined);
+	ok(typeof(interval) === "undefined");
+
+	var c = f({});
+	ok(c.dimensions === undefined);
+	ok(c.paddings === undefined);
+
+	var d = f({dimensions : [0, 100]});
+	ok(d.dimensions !== undefined);
+	ok(d.paddings === undefined);
+
+
+});
+
+
+test("closure test", function(){
+
+	(function(window, undefined){
+		var start;
+
+		window.line = function(x0){
+			start = x0;
+
+			var obj = {
+				length : function(x){ return (x - x0) }
+			}
+
+			return obj;
+		}
+	}(window));
+
+	var line1 = line(0);
+	ok(line1.length(3) === 3);
+	var line2 = line(10);
+	ok(line2.length(12) === 2);
+	ok(line1.length(4) === 4);
+});
+
+
+test("object test", function(){
+
+	var person = {
+		firstName : "Sangmoon",
+		lastName : "Oh",
+		fullName : this.firstName + " " + this.lastName
+	};
+
+	equal(person.fullName, "Sangmoon Oh");
+
+});
+
+test("object literal test", function(){
+
+	var domains = {
+		y : [0, 100],
+		init : function(date){
+			this.x = [date - 6*60*60*1000, date + 6*60*60*1000];
+			return this;
+		}
+	}.init(new Date(2014, 1, 1, 12, 0, 0, 0).valueOf());
+
+	console.log("domains.x = [" + domains.x[0] + ", " + domains.x[1] + "]");
+
+	equal(domains.x[0], new Date(2014, 1, 1, 6, 0, 0, 0).valueOf());
+	equal(domains.x[1].valueOf(), new Date(2014, 1, 1, 18, 0, 0, 0).valueOf());
+
+});
+
+test("scope test 1", function(){
+	//For explanation, refer http://www.adequatelygood.com/JavaScript-Scoping-and-Hoisting.html
+
+	var foo = 1;
+
+	function bar(){
+		var bar = 1;
+
+		if(!foo){ //this block will be EXECUTED. !!!
+			var foo = 10; //at interpret time, declare 'var foo' at the 1st line of bar().
+			bar = 10;
+		};
+		return bar;
+	};
+
+	function baz(){
+		var baz = 1;
+		if(foo){ //this block will NOT be executed. !!!
+			var foo = 10; //at interpret time, declare 'var foo' at the 1st line of baz().
+			baz = 10;
+		};
+		return baz;
+	};
+
+	function quz(){
+		var a = 1;
+		var quz = 1;
+		function a(){ quz = 10; }; //fail to override a, but no error.
+		try{
+			a(); //will throw error at this line.
+		}catch(e){
+			quz = 100;
+		};
+		return quz;
+	};
+
+	function kix(){
+		b = 1; //global scope
+		var kix = 1;
+		function b(){ kix = 10; }; //fail to override but no error;
+		kix = 100;
+		try{
+			b(); //will throw error at this line.
+		}catch(e){
+			kix += 1;
+		}
+		return kix;
+	};
+
+	equal(bar(), 10);
+	equal(baz(), 1);
+	equal(quz(), 100);
+	equal(kix(), 101);
+	equal(foo, 1);
+});
+
+
+test("scope test 2", function(){
+
+	var i, n1 = 10, n2 = 15;
+	var nums = [];
+
+	for(i = 0; i < n1; i++){
+		nums.push(i);
+	};
+
+	for(; i < n2; i++){ //will start with n1
+		nums.push(i);
+	};
+
+	equal(nums.length, n2);
+
+});
 
 </script>
 

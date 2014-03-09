@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>D3.js Exercise - Real-time line chart</title>
+<link rel="stylesheet" href="../../../styles/bootstrap/bootstrap.min.css">
+	<style type="text/css">
+		body {
+			margin-left:20px;
+		}
+
+		.chart .axis path, .chart .axis line .area{
+			fill:none;
+			stroke:black;
+			shape-rendering:crispEdges;
+		}
+
+		.chart .axis text{
+			font-family:sans-serif;
+			font-size:11px;
+		}
+
+		.chart path{
+			fill:none;
+			stroke:black;
+		}
+
+	</style>
+</head>
+<body>
+	<table id="charts">
+	</table>
+
+	<!-- script area -->
+	<script type="text/javascript" src="../../../scripts/underscore/underscore.js"></script>
+	<script type="text/javascript" src="../../../scripts/jquery/js/jquery-1.8.0.min.js"></script>
+	<script type="text/javascript" src="../../../scripts/bootstrap/bootstrap.min.js"></script>
+	<script type='text/javascript' src='../../../scripts/d3/d3.min.js'></script>
+	<script type='text/javascript' src='../../../scripts/moment/moment-with-langs.js'></script>
+	<script>
+	var i, j, n;
+	for(i = 0, n = 40; i < n; i++){
+		$("#charts").append("<tr>" + 
+				"<td>" + 
+				"<div>" +
+				"   <div class='display' style='margin-top:10px'></div>" +
+				"</div>" +
+				"</td>" + 
+				"<td>" + 
+				"<div>" +
+				"   <div class='display' style='margin-top:10px'></div>" +
+				"</div>" +
+				"</td>" + 
+				"<td>" + 
+				"<div>" +
+				"   <div class='display' style='margin-top:10px'></div>" +
+				"</div>" +
+				"</td>" + 
+			"</tr>");
+	};
+	
+	$("#charts tr td").each(function(i){
+		$(this).attr("id", "chart" + (i + 1));
+	});
+	
+	function realtimeChart(container, options, initData, updateData){
+		"use strict";
+		
+		var container = container; //mandatory
+		
+		//{width : int, heigh : int} is expected
+		var dimensions = options.dimensions;
+		
+		//{top : int, right : int, bottom : int, left : int} is expected. 
+		var paddings = options.paddings; 
+		
+		var range; //pure derived, so should not specified from external
+		
+		var interval = options.interval; //int value is expected.
+		
+		var now;
+		
+		//{ x : [date, date], y : [int, int]} is expected.
+		var domains = options.domains;
+		 
+		//{x : int, y : int} is expected
+		var ticks = options.ticks; 
+		
+		//int value is expected.
+		var r = options.r;
+
+		var data = [];
+		 
+		var chart;
+		var scales;
+		var axis;
+		var line;
+		var path;
+
+		if(dimensions === undefined) dimensions = {width : 800, height : 600};
+		if(paddings === undefined){ 
+			paddings = {top : 10, right : 10, bottom : 20, left : 20};
+		}
+		range = {
+			x : [paddings.left, dimensions.width - paddings.right],
+			y : [dimensions.height - paddings.bottom, paddings.top]  //large value first !
+		}
+		if(interval === undefined) interval = 1000;
+		if(domains === undefined){
+			now = new Date();
+			domains = {
+				x : [now - 120*interval, now - interval],
+				y : [0, 100]
+			};
+		};
+		if(ticks === undefined) ticks = { x : 12, y : 5};
+		if(r === undefined) r = 2;
+		if(data === undefined) data = [];
+
+		//create chart and it's components
+		//plot area, scales, axis, ...
+		chart = d3.select(container).append("svg")
+			.classed("chart line realtime", true)
+			.attr("width", dimensions.width)
+			.attr("height", dimensions.height);
+			
+		scales = {
+			x : d3.time.scale().range(range.x).domain(domains.x),
+			y : d3.scale.linear().range(range.y).domain(domains.y)
+		}
+	
+		axis = {
+			x : d3.svg.axis().scale(scales.x).orient("bottom").ticks(ticks.x),
+			y : d3.svg.axis().scale(scales.y).orient("left").ticks(ticks.y)
+		}
+
+		chart.append("g")
+			.classed("axis x", true)
+			.attr("transform", "translate(0, " + range.y[0] + ")")
+			.call(axis.x);
+			
+		chart.append("g")
+			.classed("axis y", true)
+			.attr("transform", "translate(" + range.x[0] + ", 0)")
+			.call(axis.y);
+		
+		chart.append("defs").append("clipPath")
+			.classed("clip", true)
+			.append("rect")
+			.attr("width", range.x[1] - range.x[0])
+			.attr("height", range.y[0] - range.y[1]);
+		
+		initData(data);
+		
+		//draw path
+		line = d3.svg.line().interpolate("linear") //linear, basis, ...
+			.x(function(d){ return scales.x(d[0])})
+			.y(function(d){ return scales.y(d[1])});		
+		
+		path = chart.append("g")
+			.append("path")
+			.data([data])
+			.classed("path line", true)
+			.attr("d", line);
+
+		function update(count){
+			count++;
+			//if(--count < 0) return;
+
+			updateData(data);
+	
+			$(container + " .display").text("interval : " + interval +
+				", data size : " + data.length +
+				", count : " + count);
+
+			now = new Date();
+			domains.x = [now - 120*interval, now - interval];
+			scales.x.domain(domains.x);
+
+			chart.select(".path.line").attr("d", line)
+				.attr("transform", null);
+
+			/*
+			chart.select("g.axis.x").transition()
+				.duration(interval)
+				.ease("linear")
+				.call(axis.x);
+			*/
+			
+			path.transition()
+				.duration(interval).ease("linear")
+				.attr("transform", "translate(" + (scales.x(now - 121*interval) - range.x[0]) + ")")
+				.each("end", update);
+			
+			if(data.length > 60)	data.shift();
+
+		};
+		
+		update();
+	};
+
+	var options0 = {
+		dimensions : {width : 200, height : 150},
+		paddings : {top : 10, right : 10, bottom : 20, left : 30},
+		interval : 2000,
+		now : Date.now(),
+		domains : {
+			x : [],
+			y : [0, 100]
+		},
+		ticks : { x : 12, y : 5},
+		init : function(date){
+			this.domains.x = [date - 60*1000, date - this.interval];
+			return this;
+		}
+	}.init(new Date());
+	
+	
+	var chartNum = $("#charts tr td").length;
+	
+	var count = 1000;
+	var randoms = [];
+	for(i = 0; i < chartNum; i++){
+		randoms[i] = [];
+		for(j = 0; j < count; j++){
+			randoms[i].push(Math.random()*options0.domains.y[1]);
+		}
+	}
+	
+	for(i = 0; i < chartNum; i++){
+		realtimeChart("#chart" + i, options0, function(data){
+			//do nothing;	
+		}, (function(random){
+			var cnt = -1;
+			return function(data){
+				if(++cnt < count){
+					data.push([new Date(), random[cnt]]);
+				};
+			};
+		}(randoms[i])));
+	};
+	</script>
+
+</body>
+</html>

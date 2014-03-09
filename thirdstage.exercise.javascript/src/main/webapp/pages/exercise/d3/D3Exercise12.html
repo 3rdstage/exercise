@@ -17,7 +17,7 @@
 			margin-left:20px;
 		}
 
-		.chart .axis path, .chart .axis line{
+		.chart .axis path, .chart .axis line .area{
 			fill:none;
 			stroke:black;
 			shape-rendering:crispEdges;
@@ -56,138 +56,136 @@
 
 
 	<script>
-	"use strict";
+	
+	(function(window, undefined){
+		"use strict";
 
-	/*
-	 * Glossary
-	 * chart, axis, grid, guideline, tick, plot area, axis label, data label, legend, title, source
-	 * path or line, bar, ...
-	 */
+		/*
+		 * Glossary
+		 * chart, axis, grid, guideline, tick, plot area, axis label, data label, legend, title, source
+		 * path or line, bar, ...
+		 */
 
-	var dimensions = {width : 1000, height : 400};
-	var paddings = {top : 20, right : 30, bottom : 40, left : 250};
-	var area = {
-		x : [paddings.left, dimensions.width - paddings.right],
-		y : [dimensions.height - paddings.bottom, paddings.top]  //large value first !
-	}
-	var interval = 1000;
-	var now = new Date();
-	var domains = {
-		x : [now - 120*interval, now - interval],
-		y : [0, 100]
-	};
-	var r = 3;
-	var scales = {};
-	var axis = {};
-	var data = [];
-	var line = {};
-	var path = {};
-	var timeDomainLength = domains.x[1] - domains.x[0];
-	var lastTimestamp;
+		var dimensions = {width : 1000, height : 400};
+		var paddings = {top : 20, right : 30, bottom : 40, left : 250};
+		var range = {
+			x : [paddings.left, dimensions.width - paddings.right],
+			y : [dimensions.height - paddings.bottom, paddings.top]  //large value first !
+		}
+		var interval = 1000;
+		var now = new Date();
+		var domains = {
+			x : [now - 120*interval, now - interval],
+			y : [0, 100]
+		};
+		var ticks = { x : 12, y : 5};
+		var r = 3;
+		var chart = {};
+		var area = {};
+		var scales = {};
+		var axis = {};
+		var data = [];
+		var line = {};
+		var path = {};
 
-	//create scales
-	scales = {
-		x : d3.time.scale().range(area.x).domain(domains.x),
-		y : d3.scale.linear().range(area.y).domain(domains.y)
-	}
+		//create chart and it's components
+		//plot area, scales, axis, ...
+		chart = d3.select("#chart").append("svg")
+			.classed("chart line realtime", true)
+			.attr("width", dimensions.width)
+			.attr("height", dimensions.height);
+			
+		scales = {
+			x : d3.time.scale().range(range.x).domain(domains.x),
+			y : d3.scale.linear().range(range.y).domain(domains.y)
+		}
+	
+		axis = {
+			x : d3.svg.axis().scale(scales.x).orient("bottom").ticks(ticks.x),
+			y : d3.svg.axis().scale(scales.y).orient("left").ticks(ticks.y)
+		}
 
-	//create pannel
-	d3.select("#chart").insert("svg", "div")
-		.classed("chart", true)
-		.attr("width", dimensions.width)
-		.attr("height", dimensions.height);
-		//.style("background-color", "white");
-
-	axis = {
-		x : d3.svg.axis().scale(scales.x).orient("bottom").ticks(10),
-		y : d3.svg.axis().scale(scales.y).orient("left").ticks(10)
-	}
-
-	d3.select("#chart svg").append("g")
-		.classed("axis x x-axis", true)
-		.attr("transform", "translate(0, " + area.y[0] + ")")
-		.call(axis.x);
-
-	d3.select("#chart svg").append("g")
-		.classed("axis y", true)
-		.attr("transform", "translate(" + area.x[0] + ", 0)")
-		.call(axis.y);
-
-	/*
-	d3.select("#chart svg").append("clipPath")
-		.attr("id", "clip")
-		.append("rect")
-		.attr("width", dimensions.width)
-		.attr("height", dimensions.height);
-	*/
-
-	function draw(){
-		initData(data);
-
-		line = d3.svg.line()
-			.interpolate("basis")
+		chart.append("g")
+			.classed("axis x", true)
+			.attr("transform", "translate(0, " + range.y[0] + ")")
+			.call(axis.x);
+			
+		chart.append("g")
+			.classed("axis y", true)
+			.attr("transform", "translate(" + range.x[0] + ", 0)")
+			.call(axis.y);
+		
+		chart.append("defs").append("clipPath")
+			.classed("clip", true)
+			.append("rect")
+			.attr("width", range.x[1] - range.x[0])
+			.attr("height", range.y[0] - range.y[1]);
+		
+		
+		//init data
+		(function(){
+			var times = d3.time.seconds(domains.x[0], domains.x[1],
+				d3.time.second);
+			var i, n;
+			
+			for(i = 0, n = times.length; i < n; i++){
+				data.push([times[i], getY()]);
+			}
+		}());
+		
+		//draw path
+		line = d3.svg.line().interpolate("basis")
 			.x(function(d){ return scales.x(d[0])})
-			.y(function(d){ return scales.y(d[1])});
-
-		path = d3.select("#chart svg").append("g")
-			.attr("clip-path", "url(#clip)")
+			.y(function(d){ return scales.y(d[1])});		
+		
+		path = chart.append("g")
 			.append("path")
 			.data([data])
 			.classed("path line", true)
 			.attr("d", line);
 
-		lastTimestamp = data[data.length - 1][0];
+		function update(count){
+			count++;
+			//if(--count < 0) return;
 
-	};
+			updateData(data, 1);
+	
+			$("#display").text("interval : " + interval +
+				", data size : " + data.length +
+				", count : " + count);
 
-	function initData(data){
-		var times = d3.time.seconds(domains.x[0], domains.x[1],
-			d3.time.second);
-		var i, n; //variables for loop
+			now = new Date();
+			domains.x = [now - 120*interval, now - interval];
+			scales.x.domain(domains.x);
 
-		for(i = 0, n = times.length; i < n; i++){
-			data[i] = [times[i], getY()];
-		}
-	};
+			chart.select(".path.line").attr("d", line)
+				.attr("transform", null);
 
-	function update(count){
-		//if(--count < 0) return;
+			chart.select("g.axis.x").transition()
+				.duration(interval)
+				.ease("linear")
+				.call(axis.x);
 
-		updateData(data, 1);
+			path.transition()
+				.duration(interval).ease("linear")
+				.attr("transform", "translate(" + (scales.x(now - 121*interval) - range.x[0]) + ")")
+				.each("end", update);
 
-		$("#display").text("interval : " + interval + ", data size : " + data.length);
+			data.shift();
 
-		now = new Date();
-		domains.x = [now - 120*interval, now - interval];
-		scales.x.domain(domains.x);
-		//scales.x.domain(domains.x);
+		};
 
-		d3.select("#chart svg").select(".path").attr("d", line)
-			.attr("transform", null);
+		function updateData(data, second){
+			data.push([new Date(), getY()]);
+		};
 
-		d3.select("#chart svg g.axis.x").transition().duration(interval).ease("linear").call(axis.x);
+		function getY(){
+			return Math.round(domains.y[1]/2 + Math.random()*domains.y[1]/2);
+		};
 
-		path.transition()
-			.duration(interval).ease("linear")
-			.attr("transform", "translate(" + (scales.x(now - 121*interval) - area.x[0]) + ")")
-			.each("end", update);
-
-		data.shift();
-
-	};
-
-	function updateData(data, second){
-		var last = data[data.length - 1];
-		data.push([moment().toDate(), getY()]);
-	};
-
-	function getY(){
-		return Math.round(domains.y[1]/2 + Math.random()*domains.y[1]/2);
-	};
-
-	draw();
-	update(60);
-
+		update(60);
+	
+	}(window));
 	</script>
 
 
