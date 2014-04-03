@@ -40,7 +40,7 @@
 	<script type='text/javascript' src='../../../scripts/moment/moment-with-langs.js'></script>
 	<script>
 	var i, j, n;
-	for(i = 0, n = 40; i < n; i++){
+	for(i = 0, n = 10; i < n; i++){
 		$("#charts").append("<tr>" + 
 				"<td>" + 
 				"<div>" +
@@ -61,7 +61,7 @@
 	};
 	
 	$("#charts tr td").each(function(i){
-		$(this).attr("id", "chart" + (i + 1));
+		$(this).attr("id", "chart" + i);
 	});
 	
 	function realtimeChart(containerId, options, initData, updateData){
@@ -119,7 +119,7 @@
 	
 			//create chart and it's components
 			//plot area, scales, axis, ...
-			area = d3.select("#" + containerId).select("svg")
+			area = d3.select("#" + containerId).append("svg")
 				.classed("chart realtime", true)
 				.attr("width", dimensions.width)
 				.attr("height", dimensions.height)
@@ -153,7 +153,13 @@
 			//init data
 			initData(data);
 	
-			context = document.getElementById("#" + containerId + "-canvas").getContext("2d");
+			
+			d3.select("#" + containerId).append("canvas")
+				.attr("id", containerId + "-canvas")
+				.attr("width", dimensions.width)
+				.attr("height", dimensions.height);
+			
+			context = document.getElementById(containerId + "-canvas").getContext("2d");
 			context.translate(paddings.left, paddings.top);
 			context.strokeStyle = "red";
 			context.rect(0, 0, ranges.x[1], ranges.y[0]); //don't need to draw for clip
@@ -176,14 +182,14 @@
 				context.clearRect(canvas.origin.x, 0, dimensions.width, dimensions.height);
 				drawPath(context, data, r);
 				
-				data.shift();
+				if(data.length > 60)	data.shift();
 				area.select("g.axis.x").transition()
 					.duration(interval)
 					.ease("linear")
 					.call(axis.x)
 					.each("end", update);
 				
-						
+				/*						
 				$("#" + containerId + "-display").text("interval : " + interval +
 					", data size : " + data.length +
 					", count : " + count +
@@ -194,12 +200,22 @@
 					", canvas.origin.x : " + canvas.origin.x +
 					"shift : " + shift +
 					", last data position : [" + data[data.length - 1][2] + ", " + data[data.length - 1][3] + "]");
+				*/
 				
 			};
 			
 			function drawPath(context, data, r){
+				if(data === undefined || data.length < 1){
+					return;
+				}
+				
 				var i, n;
 				var x, y;
+				for(i = 0, n = data.length; i < n; i++){
+					data[i][2] = scales.x0(data[i][0]);
+					data[i][3] = scales.y(data[i][1]);
+				}
+				
 				context.beginPath();
 				context.moveTo(data[0][2], data[0][3]);
 				for(i = 1, n = data.length; i < n; i++){
@@ -253,7 +269,7 @@
 	}
 	
 	for(i = 0; i < chartNum; i++){
-		realtimeChart("#chart" + i, options0, function(data){
+		realtimeChart("chart" + i, options0, function(data){
 			//do nothing;	
 		}, (function(random){
 			var cnt = -1;
