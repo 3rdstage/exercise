@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SVG Editor Prototype</title>
+<link rel="stylesheet" media="screen" href="../../../styles/bootstrap/bootstrap.min.css">
+</head>
+<body style="margin-left:40px">
+	
+	
+<svg id='panel1' style="width:800px;height:400px;border:1px solid blue">
+</svg>
+<br/>
+<div id='pallette1' class='btn-group'>
+	<button id='addCircleButton' type='button' class='btn btn-default'>Circle</button>
+	<button id='addRectangle' type='button' class='btn btn-default'>Rectangle</button>
+</div>
+
+<div id='srcView1' style="width:800px;height:400px;border:1px dotted gray">
+
+<script src="../../../scripts/jquery/js/jquery-1.8.0.min.js"></script>
+<script src="../../../scripts/bootstrap/bootstrap.min.js"></script>
+<script src="../../../scripts/svg.js/svg.min.js"></script>
+<script src="../../../scripts/svg.js/svg.draggable.js"></script>
+<script>
+
+var p1 = [100, 100];
+var p2 = [300, 300];
+var w = 50;
+var h = 30;
+var r = 10;
+
+
+var draw = SVG('panel1');
+
+var rect1 = draw.rect(w, h).center(p1[0], p1[1]).fill('white').stroke('black');
+var c1 = draw.circle(r).center(p1[0] + w/2, p1[1]);
+var g1 = draw.group().add(rect1).add(c1);
+	
+var rect2 = draw.rect(w, h).center(p2[0], p2[1]).fill('white').stroke('black');
+var c2 = draw.circle(10).center(p2[0] - w/2, p2[1]);
+var g2 = draw.group().add(rect2).add(c2);
+
+var line = draw.polyline([[c1.cx(), c1.cy()], [(c1.cx() + c2.cx())/2, c1.cy()], [(c1.cx() + c2.cx())/2, c2.cy()], [c2.cx(), c2.cy()]])
+	.fill('none').stroke({width:1});
+
+function updateConnector(){
+	var x1 = c1.cx() + g1.x();
+	var y1 = c1.cy() + g1.y();
+	var x2 = c2.cx() + g2.x();
+	var y2 = c2.cy() + g2.y();
+	
+	line.plot([[x1, y1], [(x1 + x2)/2, y1], [(x1 + x2)/2, y2], [x2, y2]]);
+}
+
+function updateSrcView(){
+	$('#srcView1').text($('#panel1').html());
+}
+
+g1.dragmove = function(){ 
+	updateConnector();
+	updateSrcView();	
+}
+g2.dragmove = function(){ 
+	updateConnector(); 
+	updateSrcView();	
+}
+
+g1.draggable();
+g2.draggable();
+//line.draggable();
+
+updateSrcView();
+
+
+</script>
+</body>
+</html>
