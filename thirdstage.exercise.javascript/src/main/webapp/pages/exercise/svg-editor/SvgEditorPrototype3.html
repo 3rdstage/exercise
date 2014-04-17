@@ -26,89 +26,122 @@
 <script src="../../../scripts/svg.js/svg.draggable.js"></script>
 <script>
 
-SVG.extend(SVG.Doc, {
-
-	isConnecting : function(){
-		if(arguments.length === 0){
-			if(this.connecting === undefined){
-				this.connecting = false;
-			}
-			return this.connecting;
-		}else{
-			this.connecting = arguments[0];
-			return this;
-		}
-	},
-	
-	startAnchor : function(){
-		if(arguments.length === 0){
-			if(this.connecting === undefined){
-			}
-		}
-	}
-
-});
-
-
-SVG.AnchorableRect = SVG.invent({
-	
-	create : 'g',
-	
-	inherit: SVG.G,
-	
-	construct: {
-		anchorable: function(width, height, r){
-			var g = new SVG.AnchorableRect;
-			var rect = (new SVG.Rect).size(width, height);
-			var anchors = [];
-			var anchor;
-			var fromAnchor;
-			var isConnecting;
-			var i = 0, n;
-			var z; //final object to return
-
-			rect.fill('white').stroke('black');
-			g.add(rect);
+(function(){
+	SVG.extend(SVG.Doc, {
+		isConnecting : (function(){
+			var is = false;
 			
-			//create anchors and glue them to group
-			//basically 8 anchors for every 45 dgree of angle from the right north.
-			anchors[i++] = (new SVG.Ellipse).radius(r).center(width/2, 0);
-			anchors[i++] = (new SVG.Ellipse).radius(r).center(width, 0);
-			anchors[i++] = (new SVG.Ellipse).radius(r).center(width, height/2);
-			anchors[i++] = (new SVG.Ellipse).radius(r).center(width, height);
-			anchors[i++] = (new SVG.Ellipse).radius(r).center(width/2, height);
-			anchors[i++] = (new SVG.Ellipse).radius(r).center(0, height);
-			anchors[i++] = (new SVG.Ellipse).radius(r).center(0, height/2);
-			anchors[i++] = (new SVG.Ellipse).radius(r).center(0, 0);
-			
-			n  = anchors.length;
-			for(i = 0; i < n; i++){
-				anchor = anchors[i];
-				anchor.fill('white').stroke('darkgray');
-				g.add(anchor);
-				//anchor.hide();
-				anchor.mouseover(function(){
-					this.visible(true);
-				});
-				anchor.mouseout(function(){
-					this.visible(false);
-				});
+			return function(){
+				var element = this;
+				var connector = null;
+				var anchor0, anchor1;
+				var x0, y0;
+				var x1, y0;
 				
-				anchor.click(function(){
-					this.doc().isConnecting(true);
-				});
-			}
-
-			z = this.put(g);	
-			z.draggable();
-			return z;			
-		}
-	}
+				if(arguments.length === 0){
+					return is;
+				}else{
+					is = arguments[0];
+					
+					if(is){
+						element.mousemove(function(ev){
+							anchor0 = element.startAnchor();
+							x0 = anchor0.cx() + anchor0.parent.x();
+							y0 = anchor0.cy() + anchor0.parent.y();
+							x1 = ev.clientX - element.x() - element.node.offsetLeft;
+							y1 = ev.clientY - element.y() - element.node.offsetTop;
+							
+							if(connector == null){
+								connector = element.polyline([[x0, y0], [(x0 + x1)/2, y0], [(x0 + y1)/2, y1], [x1, y1]])
+									.fill('none').stroke({width:1});
+							}else{
+								connector.plot([[x0, y0], [(x0 + x1)/2, y0], [(x0 + x1)/2, y1], [x1, y1]]);
+							};
+						});
+					};
+					return element;
+				}
+			};
+		})(),
+		
+		startAnchor : (function(){
+			var anchor = null;
+			var element = this;
+			
+			return function(){
+				if(arguments.length === 0){
+					return anchor;
+				}else{
+					if(anchor != null) anchor.fill('white');
+					anchor = arguments[0];
+					return element;
+				}
+			};
+		})(),
 	
-});
+	});
+	
+	
+	SVG.AnchorableRect = SVG.invent({
+		create : 'g',
+		inherit: SVG.G,
+		
+		construct: {
+			anchorable: function(width, height, r){
+				var g = new SVG.AnchorableRect;
+				var rect = (new SVG.Rect).size(width, height);
+				var anchors = [];
+				var anchor;
+				var fromAnchor;
+				var isConnecting;
+				var i = 0, n;
+				var z; //final object to return
+	
+				rect.fill('white').stroke('black');
+				g.add(rect);
+				
+				//create anchors and glue them to group
+				//basically 8 anchors for every 45 dgree of angle from the right north.
+				anchors[i++] = (new SVG.Ellipse).radius(r).center(width/2, 0);
+				anchors[i++] = (new SVG.Ellipse).radius(r).center(width, 0);
+				anchors[i++] = (new SVG.Ellipse).radius(r).center(width, height/2);
+				anchors[i++] = (new SVG.Ellipse).radius(r).center(width, height);
+				anchors[i++] = (new SVG.Ellipse).radius(r).center(width/2, height);
+				anchors[i++] = (new SVG.Ellipse).radius(r).center(0, height);
+				anchors[i++] = (new SVG.Ellipse).radius(r).center(0, height/2);
+				anchors[i++] = (new SVG.Ellipse).radius(r).center(0, 0);
+				
+				n  = anchors.length;
+				for(i = 0; i < n; i++){
+					anchor = anchors[i];
+					anchor.fill('white').stroke('darkgray');
+					g.add(anchor);
+					//anchor.hide();
+					anchor.mouseover(function(){
+						this.visible(true);
+					});
+					anchor.mouseout(function(){
+						this.visible(false);
+					});
+					
+					anchor.click(function(){
+						this.fill('black');
+						this.doc().isConnecting(true);
+						this.doc().startAnchor(this);
+					});
+				}
+	
+				z = this.put(g);	
+				z.draggable();
+				return z;			
+			}
+		}
+	});
+})();
 
 var draw = SVG('panel1');
-var rect = draw.anchorable(50, 30, 5).center(200, 200);
+var rect1 = draw.anchorable(50, 30, 5).center(100, 100);
+var rect2 = draw.anchorable(50, 30, 5).center(300, 300)
 
 </script>
 </body>
