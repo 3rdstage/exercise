@@ -18,73 +18,89 @@
 	<button id='addRectangle' type='button' class='btn btn-default'>Rectangle</button>
 </div>
 
-<div id='srcView1' style="width:800px;height:400px;border:1px dotted gray">
+<div id='panel2' style="width:800px;height:400px;border:1px dotted gray">
 
 <script src="../../../scripts/jquery/js/jquery-1.8.0.min.js"></script>
 <script src="../../../scripts/bootstrap/bootstrap.min.js"></script>
 <script src="../../../scripts/svg.js/svg.js"></script>
 <script src="../../../scripts/svg.js/svg.draggable.js"></script>
 <script>
-
-(function(){
-	SVG.extend(SVG.Doc, {
-		isConnecting : (function(){
-			var is = false;
-			
-			return function(){
-				var element = this;
-				var connector = null;
-				var anchor0, anchor1;
-				var x0, y0;
-				var x1, y0;
-				
-				if(arguments.length === 0){
-					return is;
-				}else{
-					is = arguments[0];
-					
-					if(is){
-						element.mousemove(function(ev){
-							anchor0 = element.startAnchor();
-							x0 = anchor0.cx() + anchor0.parent.x();
-							y0 = anchor0.cy() + anchor0.parent.y();
-							x1 = ev.clientX - element.x() - element.node.offsetLeft;
-							y1 = ev.clientY - element.y() - element.node.offsetTop;
-							
-							if(connector == null){
-								connector = element.polyline([[x0, y0], [(x0 + x1)/2, y0], [(x0 + y1)/2, y1], [x1, y1]])
-									.fill('none').stroke({width:1});
-							}else{
-								connector.plot([[x0, y0], [(x0 + x1)/2, y0], [(x0 + x1)/2, y1], [x1, y1]]);
-							};
-						});
-					};
-					return element;
-				}
-			};
-		})(),
+	this.SVGEditor = function(element){
 		
-		startAnchor : (function(){
-			var anchor = null;
-			var element = this;
+		if(SVG.supported){
+			element = new SVG.Editor(element);
+			if(!SVG.parser) SVG.prepare(element);
+			return element;
+		};
+	};
+	
+	SVG.Editor = SVG.invent({
+		create : function(element){
+			SVG.Doc.call(this, element);
+		},
+		
+		inherit: function(){
+			return Object.create(SVG.Doc.prototype);
+		},
+		
+		extend : {
+			isConnecting : (function(){
+				var is = false;
+				
+				return function(){
+					var element = this;
+					var connector = null;
+					var anchor0, anchor1;
+					var x0, y0;
+					var x1, y0;
+					
+					if(arguments.length === 0){
+						return is;
+					}else{
+						is = arguments[0];
+						
+						if(is){
+							element.mousemove(function(ev){
+								anchor0 = element.startAnchor();
+								x0 = anchor0.cx() + anchor0.parent.x();
+								y0 = anchor0.cy() + anchor0.parent.y();
+								x1 = ev.clientX - element.x() - element.node.offsetLeft;
+								y1 = ev.clientY - element.y() - element.node.offsetTop;
+								
+								if(connector == null){
+									connector = element.polyline([[x0, y0], [(x0 + x1)/2, y0], [(x0 + y1)/2, y1], [x1, y1]])
+										.fill('none').stroke({width:1});
+								}else{
+									connector.plot([[x0, y0], [(x0 + x1)/2, y0], [(x0 + x1)/2, y1], [x1, y1]]);
+								};
+							});
+						};
+						return element;
+					}
+				};
+			})(),
 			
-			return function(){
-				if(arguments.length === 0){
-					return anchor;
-				}else{
-					if(anchor != null) anchor.fill('white');
-					anchor = arguments[0];
-					return element;
-				}
-			};
-		})(),
-	
+			startAnchor : (function(){
+				var anchor = null;
+				var element = this;
+				
+				return function(){
+					if(arguments.length === 0){
+						return anchor;
+					}else{
+						if(anchor != null) anchor.fill('white');
+						anchor = arguments[0];
+						return element;
+					}
+				};
+			})()
+		},
 	});
-	
 	
 	SVG.AnchorableRect = SVG.invent({
 		create : 'g',
 		inherit: SVG.G,
+		parent : SVG.Editor,
 		
 		construct: {
 			anchorable: function(width, height, r){
@@ -137,11 +153,11 @@
 			}
 		}
 	});
-})();
 
-var draw = SVG('panel1');
-var rect1 = draw.anchorable(50, 30, 5).center(100, 100);
-var rect2 = draw.anchorable(50, 30, 5).center(300, 300)
+var editor = new SVGEditor('panel1');
+var viewer = new SVG('panel2');
+var rect1 = editor.anchorable(50, 30, 5).center(100, 100);
+var rect2 = editor.anchorable(50, 30, 5).center(300, 300);
 
 </script>
 </body>
