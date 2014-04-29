@@ -19,7 +19,7 @@
 	<input name='memo' type='text'/>
 </div>
 
-<div id='panel2' style="width:800px;height:400px;border:1px dotted gray">
+<div id='srcView1' style="width:800px;height:400px;border:1px dotted gray">
 
 <script src="../../../scripts/jquery/js/jquery-1.8.0.min.js"></script>
 <script src="../../../scripts/bootstrap/bootstrap.min.js"></script>
@@ -40,6 +40,10 @@
 	
 	svgeditor.Editor = SVG.invent({
 		create : function(element){
+			this.nodes = [];
+			this.connectors = [];
+			this.selectedNode = null;
+			this.drawingConnector = null;
 			var that = this;
 			
 			SVG.Doc.call(that, element);
@@ -58,10 +62,6 @@
 		},
 		
 		extend : {
-			nodes : [],
-			connectors : [],
-			selectedNode : null,
-			drawingConnector : null,
 			
 			select : function(node){},
 			
@@ -120,100 +120,102 @@
 		},
 	});
 	
-	svgeditor.AnchorableRect = SVG.invent({
-		create : function(width, height, r){
-			this.constructor.call(this, SVG.create('g'));
-			this.body = (new SVG.Rect).size(width, height);
-			var self = this;
-			//SVG.G.call(self);
-
-
-			self.body.fill('white').stroke('black');
-			self.anchors = [];
-			var anchor;
-			var fromAnchor;
-			var connecting;
-			var i = 0, n;
-			var z; //final object to return
 	
-			self.add(self.body);
-				
-			//create anchors and glue them to group
-			//basically 8 anchors for every 45 dgree of angle from the right north.
-			self.anchors[i++] = (new SVG.Ellipse).radius(r).center(width/2, 0);
-			self.anchors[i++] = (new SVG.Ellipse).radius(r).center(width, 0);
-			self.anchors[i++] = (new SVG.Ellipse).radius(r).center(width, height/2);
-			self.anchors[i++] = (new SVG.Ellipse).radius(r).center(width, height);
-			self.anchors[i++] = (new SVG.Ellipse).radius(r).center(width/2, height);
-			self.anchors[i++] = (new SVG.Ellipse).radius(r).center(0, height);
-			self.anchors[i++] = (new SVG.Ellipse).radius(r).center(0, height/2);
-			self.anchors[i++] = (new SVG.Ellipse).radius(r).center(0, 0);
-				
-			n  = self.anchors.length;
-			for(i = 0; i < n; i++){
-				anchor = self.anchors[i];
-				anchor.fill('white').stroke('darkgray');
-				self.add(anchor);
-				//anchor.hide();
-				anchor.mouseover(function(){
-					this.visible(true);
-				});
-				anchor.mouseout(function(){
-					this.visible(false);
-				});
-					
-				anchor.click(function(){
-					this.fill('black');
-					this.doc().connecting(true);
-					this.doc().startAnchor(this);
-				});
-			}
+	svgeditor.Editable = SVG.invent({
+		create : function(){
+			this.constructor.call(this);
 			
-			self.click(function(){
-			
+			this.a = "a";
+
+			this.click(function(){
+				window.alert('a');
 			});
 			
-		
-		},
+		},	
 		
 		inherit: SVG.G,
-		parent : svgeditor.Editor,
+		parent : svgeditor.Editor,		
+
+		construct : {
 		
-		extend : {
-			
-			selected: (function(){
-				var self = this;
-				var is = false;
-				
-				return function(){
-					if(arguments.length === 0){
-						return is;
-					}else{
-						//@todo need validation for the arguments[0]'s type
-						is = arguments[0];
-						return self;
-					};
-				};
-			})(),
-			
-			
-		},
-		
-		construct: {
-			anchorable: function(width, height, r){
-				var g = new svgeditor.AnchorableRect(width, height, r);
-				this.put(g);	
-				g.draggable();
-				return g;			
+			//@NOTES can be removed?
+			editable : function(x, y, name, type){
+					var nd = new svgeditor.Editable();
+					nd.center(x, y);	
+					this.put(nd);
+					return nd;
 			}
 		}
 	});
-})(window, window.document, window.jQuery, false);
+	
+	svgeditor.Action = SVG.invent({
+		create : function(width, height, name){
+			this.constructor.call(this, SVG.create('g'));
+			this.type = "action";
+			this.name = name;
+			this.body = (new SVG.Rect).size(width, height);
+			this.anchors = [];
+			
+			var self = this;
+			var i = 0, n; 
+			
+			self.body.fill('white').stroke('black');
+			self.add(self.body);
+			
+			self.anchors[i++] = this.anchor(3).center(width/2, 0);
+			
+			for(i = 0, n = self.anchors.length; i < n; i++){
+				self.add(self.anchors[i]);
+			};
+			
+		},
+		
+		inherit: svgeditor.Editable,
+		parent : svgeditor.Editor,
+		
+		construct: {
+			action : function(width, height, name){
+				var ac = new svgeditor.Action(width, height, name);
+				ac.name = name;
+				ac.type = "action";
+				this.put(ac);
+				return ac;
+			}
+			
+		}
+	});
+	
+	svgeditor.Anchor = SVG.invent({
+		create : function(r){
+			this.constructor.call(this, SVG.create('ellipse'));
+			var self = this;
+			
+			self.size(r, r).fill('white').stroke('black');
+		}, 
+		inherit : SVG.Ellipse,
+		parent : svgeditor.Editable,
+		
+		construct : {
+			anchor : function(r){
+				var ac = new svgeditor.Anchor(r);
+				return ac;
+			}
+		}
+	});
+	
+	
+	
+
+})(window, window.document, window.jQuery, true);
 
 var editor = new svgeditor('panel1');
-var viewer = new SVG('panel2');
-var rect1 = editor.anchorable(50, 30, 5).center(100, 100);
-var rect2 = editor.anchorable(50, 30, 5).center(300, 300);
+var action1 = editor.action(50, 50, "action1").center(100, 100);
+var action2 = editor.action(75, 75, "action2").center(300, 300);
+var ac1 = action1.anchor(5);
+ac1.fill('white').stroke('black').center(200, 200);
+
+
+$('#srcView1').text($('#panel1').html());
 
 </script>
 </body>
