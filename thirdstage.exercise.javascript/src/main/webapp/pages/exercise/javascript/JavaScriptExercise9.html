@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<title>JavaScript Exercise</title>
+<link rel="stylesheet" type="text/css" media="screen" 
+		href="../../../scripts/qunit/qunit-1.9.0.css" />
+<script type="text/javascript" src="../../../scripts/jquery/js/jquery-1.8.0.min.js"></script>
+<script type='text/javascript' src='../../../scripts/d3/d3.v2.min.js'></script>
+
+<script type="text/javascript" src="../../../scripts/qunit/qunit-1.9.0.js"></script>
+
+<script>
+
+</script>
+
+
+	</head>
+	
+
+
+	<body>
+<div id="qunit"></div>
+<div id="qunit-fixture"></div>
+
+<script type="text/javascript">
+
+
+test("test property and method override", function(){
+
+	function Foo(name, color){
+		
+		this.name = name;
+		this.name = function(){
+			return "Foo";
+		}
+		
+		this.color = function(){
+			return "Blue";
+		};
+		this.color = color;
+		
+	};
+	
+	var foo = new Foo("Bar", "Red");
+	
+	equal(typeof(foo.name), "function"
+		, "a method after the property with the same name override the property.");
+	equal(typeof(foo.color), "string");
+	throws(function(){
+		foo.color();
+	}, "a property after the method with the same name override the method.");
+	
+});
+
+test("test private method ?", function(){
+	//sample from "http://javascript.crockford.com/private.html"
+	
+	function Container(param) {
+	
+	    function dec() {
+	        if (secret > 0) {
+	            secret -= 1;
+	            return true;
+	        } else {
+	            return false;
+	        }
+	    }
+	
+	    this.member = param;
+	    var secret = 3;
+	    var that = this;
+	};
+	
+	var c = new Container("Box");
+	
+	equal(typeof(c.dec), "undefined");
+	
+	
+});
+
+test("test altering priviliged method ?", function(){
+	
+	function Foo(){
+		this.greet = function(){
+			return "Hi ~";
+		}
+	}
+	
+	var f = new Foo();
+	f.greet = function(){
+		return "What's up !";
+	}
+	
+	equal(f.greet(), "What's up !");	
+
+});
+
+test("test defining setter and getter using defineProperty", function(){
+	
+	var foo = {
+		val : ""
+	};
+	
+	Object.defineProperty(foo, "echo", {
+		
+		get : function(){
+			//return this.val;
+			return "Foo 2";
+		},
+		
+		set : function(val){
+			//this.val = val;
+		}
+	});
+	
+	foo.echo("Foo 1");
+	equal(foo.echo(), "Foo 1");
+	
+	
+});
+
+test("test accessing own variable in prototype", function(){
+	
+	function Foo(){
+		var _name = "A";
+	
+	};
+	
+	Foo.prototype.getName = function(){
+		return _name;
+	};
+	
+	
+	var foo = new Foo();
+	
+	throws(function(){
+		foo.getName()
+	}, "Method in prototype can't access the varialbe in constructor.");
+});
+
+//@notable
+test("test closuer in prototype", function(){
+	
+	function Foo(){
+		var name;
+		
+		this.name = function(val){
+			if(arguments.length === 0){
+				return name;
+			}else{
+				name = val;
+				return this;
+			}
+		}
+	}
+	
+	var foo = new Foo();
+	equal(foo.name("foo1"), foo);
+	equal(foo.name(), "foo1");
+	
+	function Bar(){
+		var type;
+		
+		this.type = function(val){
+			if(arguments.length === 0){
+				return type;
+			}else{
+				type = val;
+				return this;
+			}
+		}
+	}
+	Bar.prototype = new Foo();
+	
+	var bar1 = new Bar();
+	var bar2 = new Bar();
+	equal(bar1.name("bar1").type("1"), bar1);
+	equal(bar2.name("bar2").type("2"), bar2);
+	notEqual(bar1.name(), "bar1", "The name of first Bar has chaned when the 2nd Bar makes name 'casue the prototype is shared.");
+	equal(bar1.name(), bar2.name(), "The names of tho Bar objects are same. Oops.")
+	
+	
+});
+
+//@notable
+test("test closuer in prototype 2 - with a little slick", function(){
+	
+		function Foo(){
+		
+		this.name = function(val){
+			if(arguments.length === 0){
+				if(this._name === undefined) this._name = null;
+				return this._name;
+			}else{
+				this._name = val;
+				return this;
+			}
+		}
+	}
+	
+	var foo = new Foo();
+	equal(foo.name("foo1"), foo);
+	equal(foo.name(), "foo1");
+	
+	function Bar(){
+		
+		this.type = function(val){
+			if(arguments.length === 0){
+				if(this._type === undefined) this._type = null;
+				return this._type;
+			}else{
+				this._type = val;
+				return this;
+			}
+		}
+		
+		this.echo = function(){
+			return "" + this.name() + ":" + this.type();
+		}
+	}
+	Bar.prototype = new Foo();
+	
+	var bar1 = new Bar();
+	var bar2 = new Bar();
+	equal(bar1.name("bar1").type("1"), bar1);
+	equal(bar2.name("bar2").type("2"), bar2);
+	equal(bar1.name(), "bar1", "");
+	equal(bar2.name(), "bar2", "Each Bar object keeps it's own name. Yeah.");
+	equal(bar1.echo(), "bar1:1");
+	equal(bar2.echo(), "bar2:2");
+	
+	
+});
+	
+
+</script>
+
+
+
+</body>
+
+</html>

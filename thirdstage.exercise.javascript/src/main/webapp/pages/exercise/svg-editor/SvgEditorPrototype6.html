@@ -124,15 +124,6 @@
 	
 	svgeditor.Editable = SVG.invent({
 		create : function(){
-			this.constructor.call(this, SVG.create('g'));
-			
-			this.selected = false;
-
-			this.click(function(){
-				window.alert('a');
-				
-			});
-			
 		},	
 		
 		inherit: SVG.G,
@@ -142,21 +133,20 @@
 			addDefaultClickHandler : function(obj){
 				
 				obj.click(function(){
-					if(_.isUndefined(obj.selected)){ //errorable situation
-					
-					}else if(obj.selected){
-										
+					if(this.selected()){
+						this.fixed();
+						this.selected(false);
 					}else{
-						this.selected = true;
-						obj.draggable();
-						
-					
-					
+						this.dragend = function(d, ev){
+							this.data("dragging", false);
+							this.selected(true);
+							ev.stopPropagation();
+						}
+						this.draggable();
+						this.selected(true);
 					}
-				});
-				
+				});	
 			}
-			
 		},
 
 		construct : {
@@ -173,7 +163,8 @@
 	
 	svgeditor.Action = SVG.invent({
 		create : function(width, height, name){
-			this.constructor.call(this, SVG.create('g'));
+			var g = SVG.create('g');
+			this.constructor.call(this, g);
 			this.type = "action";
 			this.name = name;
 			this.body = (new SVG.Rect).size(width, height);
@@ -197,6 +188,19 @@
 		
 		inherit: svgeditor.Editable,
 		parent : svgeditor.Editor,
+		
+		extend : {
+			selected : function(val){
+				if(arguments.length === 0){
+					if(this._selected === undefined) this._selected = false;
+					return this._selected;
+				}else{
+					this._selected = val;
+					this.body.stroke(val ? 'red' : 'black');
+					return this;
+				}
+			}
+		},
 		
 		construct: {
 			action : function(width, height, name){
