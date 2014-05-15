@@ -17,10 +17,10 @@
 </style>
 
 </head>
-	
-
-
 <body>
+
+<h1>Oozie Config Editor</h1>	
+	
 
 <textarea id="codeArea" style="width:800px;height:400px"></textarea>
 
@@ -32,14 +32,69 @@
 <script type='text/javascript' src='../../../scripts/codemirror/mode/xml/xml.js'></script>
 <script type="text/javascript">
 
+      function completeAfter(cm, pred) {
+        var cur = cm.getCursor();
+        if (!pred || pred()) setTimeout(function() {
+          if (!cm.state.completionActive)
+            cm.showHint({completeSingle: false});
+        }, 100);
+        return CodeMirror.Pass;
+      }
+
+      function completeIfAfterLt(cm) {
+        return completeAfter(cm, function() {
+          var cur = cm.getCursor();
+          return cm.getRange(CodeMirror.Pos(cur.line, cur.ch - 1), cur) == "<";
+        });
+      }
+
+      function completeIfInTag(cm) {
+        return completeAfter(cm, function() {
+          var tok = cm.getTokenAt(cm.getCursor());
+          if (tok.type == "string" && (!/['"]/.test(tok.string.charAt(tok.string.length - 1)) || tok.string.length == 1)) return false;
+          var inner = CodeMirror.innerMode(cm.getMode(), tok.state).state;
+          return inner.tagName;
+        });
+      }
+
 var oozieTags = {
 	"!top": ["workflow-app"],
 	"!attrs": {
 		name: null
 	},
-	workflowApp: {
+	"workflow-app" : {
+		attrs : {
+			name : null
+		},
+		children : [
+			"parameters", "global", "credentials", "start",
+			"decision", "fork", "join", "kill", "action", 
+			"end"
+		] //sequence and choice
+	},
+	"parameters" : {
+		children : [ "property" ]
+	},
+	"property" : {
+		children : [ "name", "value", "description"] //sequence
+	},
+	"global" : {
+		children : [ "job-tracker", "name-node", "job-xml", "configuration" ]
+	},
+	"start" : {
+		attrs : {
+			to : null
+		}
+	},
+	"end" : {
+		attrs : {
+			name : null
+		}
+	},
+	"decision" : {
 		
 	}
+	
 }
 
 var config = {
@@ -53,6 +108,15 @@ var config = {
 	lineNumbers: true,
 	showCursorWhenSelecting: true,
 	autofocus: true,
+	
+	extraKeys: {
+		"'<'": completeAfter,
+		"'/'": completeIfAfterLt,
+		"' '": completeIfInTag,
+		"'='": completeIfInTag,
+		"Ctrl-Space": "autocomplete"
+	},
+	hintOptions: {schemaInfo: oozieTags}
 };
 
 var xmlEditor = CodeMirror.fromTextArea(document.getElementById('codeArea'), config);
