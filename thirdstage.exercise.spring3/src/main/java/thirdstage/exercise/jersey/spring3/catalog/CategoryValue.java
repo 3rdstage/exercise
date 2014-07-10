@@ -1,4 +1,4 @@
-package thirdstage.exercise.jersey.spring3;
+package thirdstage.exercise.jersey.spring3.catalog;
 
 import javax.annotation.Nonnull;
 
