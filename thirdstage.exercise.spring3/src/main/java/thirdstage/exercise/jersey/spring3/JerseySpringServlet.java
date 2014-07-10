@@ -21,7 +21,6 @@ public class JerseySpringServlet extends SpringServlet{
 	
 	public static final String INIT_PARM_SPRING_CONFIG_LOCATION = "springConfigLocation";
 	
-	
 	@Override
 	protected void initiate(com.sun.jersey.api.core.ResourceConfig rc, WebApplication wa){
 		String location = "";
