@@ -21,27 +21,39 @@ import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.ResourceUtils;
-
 import com.sun.jersey.spi.container.servlet.ServletContainer;
+import thirdstage.exercise.jersey.spring3.Config.ItemMeta;
 
 public class Application{
 	
 	protected static Logger logger = LoggerFactory.getLogger(Application.class);
 	
+	
+	public static final String CONFIG_LOCATION_SYS_VAR = "bootstrap.configLocation";
+	
+	/**
+	 * The value is expected to be Spring resource location format which can have prefix of
+	 * "classpath:" or "file".
+	 */
+	public static final String CONFIG_LOCATION_DEFAULT = "classpath:thirdstage/exercise/jersey/spring3/config.properties";
+	
 	public static void main(String[] args) throws Exception{
 		
 		//load main configuration
-		Properties config = new Properties();
+		String configLoc = System.getProperty(CONFIG_LOCATION_SYS_VAR, CONFIG_LOCATION_DEFAULT);
+		Properties configProps = new Properties();
 		try{
-			config.load(new FileInputStream(ResourceUtils.getFile("classpath:thirdstage/exercise/jersey/spring3/config.properties")));
+			configProps.load(new FileInputStream(ResourceUtils.getFile(configLoc)));
 			logger.info("Successfully loaded main configuration.");
 		}catch(Exception ex){
 			logger.error("Fail to start in early part", ex);
 			throw ex;
 		}
+		Config config = new Config(configProps);
 		
 		//load log4j configuration
-		String log4jConfigLoc = config.getProperty("bootstarp.log4jConfigLocation");
+		//@todo review the effect and final configuration when -Dlog4j.properties is specified with command line
+		String log4jConfigLoc = config.getValue(ItemMeta.BOOTSTRAP_LOG4J_CONFIG_LOCATION);
 		if(log4jConfigLoc != null){
 			Properties log4jConfig = new Properties();
 
@@ -59,36 +71,36 @@ public class Application{
 		ServletContextHandler sch = new ServletContextHandler(
 			ServletContextHandler.SECURITY | ServletContextHandler.SESSIONS);
 		
-		sch.setContextPath("/");
-		sch.getSessionHandler().getSessionManager().setSessionCookie("JERSEYWITHSPRINGID");
+		sch.setContextPath(config.getValue(ItemMeta.ROOT_SERVLET_CONTEXT_PATH));
+		sch.getSessionHandler().getSessionManager()
+			.setSessionCookie(config.getValue(ItemMeta.ROOT_SERVLET_SESSION_ID));
 		
 		ServletHolder dsh = sch.addServlet(DefaultServlet.class, "/");
 		dsh.setInitOrder(1);
 		
 		ServletHolder jsh = new ServletHolder(JerseySpringServlet.class);
 		jsh.setInitParameter(JerseySpringServlet.INIT_PARM_SPRING_CONFIG_LOCATION,
-			"classpath:thirdstage/exercise/jersey/spring3/spring-auto.xml");
-		jsh.setInitParameter("com.sun.jersey.api.json.POJOMappingFeature",
-         "true");
-		sch.addServlet(jsh, "/api/*");
-		jsh.setInitOrder(2);
+			config.getValue(ItemMeta.BOOTSTRAP_SPRING_CONFIG_LOCATION));
+		jsh.setInitParameter("com.sun.jersey.api.json.POJOMappingFeature", "true");
+		sch.addServlet(jsh, config.getValue(ItemMeta.JERSEY_SERVLET_URL_PATTEN));
+		jsh.setInitOrder(config.getIntValue(ItemMeta.JERSEY_SERVLET_INIT_ORDER));
 		
 		Server jetty = new Server();
 		HandlerList hl = new HandlerList();
 		hl.addHandler(sch);
 		jetty.setHandler(hl);
-		jetty.setThreadPool(new QueuedThreadPool(10));
+		jetty.setThreadPool(new QueuedThreadPool(config.getIntValue(ItemMeta.WEB_SERVER_THREAD_POOL_SIZE)));
 		
 		SelectChannelConnector conn = new SelectChannelConnector();
-		conn.setPort(8088);
-		conn.setMaxIdleTime(900000);
+		conn.setPort(config.getIntValue(ItemMeta.WEB_SERVER_PORT));
+		conn.setMaxIdleTime(config.getIntValue(ItemMeta.WEB_SERVER_MAX_IDLE_TIME));
 		
 		jetty.addConnector(conn);
 		jetty.setStopAtShutdown(true);
 		
 		try{
 			jetty.start();
-			logger.info("Jetty started at port {} on {}", "8088", "127.0.0.1");
+			logger.info("Jetty started at port {} on {}", conn.getPort(), "127.0.0.1");
 		}catch(Exception ex){
 			logger.error("Fail to start Jetty.", ex);
 			System.exit(-1);
