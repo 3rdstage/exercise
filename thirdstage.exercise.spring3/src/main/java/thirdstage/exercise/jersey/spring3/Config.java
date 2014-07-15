@@ -10,6 +10,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
+import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,12 +135,12 @@ public class Config {
 	 * @see org.apache.commons.lang3.math.NumberUtils.createInteger(String str)
 	 */
 	public Integer getIntValue(@Nonnull ItemMeta meta){
-		if(props == null) throw new IllegalStateException("This config is NOT correctly initialized.");
-		if(meta == null) throw new IllegalArgumentException("The item to access is NOT specified.");
 		
-		String value = this.props.getProperty(meta.getName(), meta.getDefaultValue());
-		
-		return NumberUtils.createInteger(value);
+		return NumberUtils.createInteger(this.getValue(meta));
+	}
+	
+	public Boolean getBooleanValue(@Nonnull ItemMeta meta){
+		return BooleanUtils.toBoolean(this.getValue(meta));
 	}
 	
 
