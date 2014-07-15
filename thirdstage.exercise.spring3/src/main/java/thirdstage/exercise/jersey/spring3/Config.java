@@ -131,6 +131,7 @@ public class Config {
 	 * @param meta
 	 * @return the value for the specified item in integer.
 	 * @throws NumberFormatException When the value for the specified item can't be correctly converted into integer,
+	 * @see org.apache.commons.lang3.math.NumberUtils.createInteger(String str)
 	 */
 	public Integer getIntValue(@Nonnull ItemMeta meta){
 		if(props == null) throw new IllegalStateException("This config is NOT correctly initialized.");
