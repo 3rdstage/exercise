@@ -2,6 +2,7 @@ package thirdstage.exercise.jersey.spring3;
 
 
 import java.io.FileInputStream;
+import java.lang.management.ManagementFactory;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
@@ -11,6 +12,8 @@ import java.util.Properties;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+
+import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.nio.SelectChannelConnector;
@@ -41,6 +44,7 @@ public class Application{
 		
 		//load main configuration
 		String configLoc = System.getProperty(CONFIG_LOCATION_SYS_VAR, CONFIG_LOCATION_DEFAULT);
+		System.setProperty(CONFIG_LOCATION_SYS_VAR, configLoc);
 		Properties configProps = new Properties();
 		try{
 			configProps.load(new FileInputStream(ResourceUtils.getFile(configLoc)));
@@ -94,6 +98,11 @@ public class Application{
 		SelectChannelConnector conn = new SelectChannelConnector();
 		conn.setPort(config.getIntValue(ItemMeta.WEB_SERVER_PORT));
 		conn.setMaxIdleTime(config.getIntValue(ItemMeta.WEB_SERVER_MAX_IDLE_TIME));
+		
+		MBeanContainer mbc = new MBeanContainer(ManagementFactory.getPlatformMBeanServer());
+		mbc.setDomain(config.getValue(ItemMeta.JMX_DOMAIN) + ".jetty");
+		jetty.getContainer().addEventListener(mbc);
+		jetty.addBean(mbc);
 		
 		jetty.addConnector(conn);
 		jetty.setStopAtShutdown(true);

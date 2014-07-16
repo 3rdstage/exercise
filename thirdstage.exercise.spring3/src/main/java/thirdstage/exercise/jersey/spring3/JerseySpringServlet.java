@@ -15,7 +15,13 @@ import com.sun.jersey.spi.container.WebApplication;
 import com.sun.jersey.spi.spring.container.SpringComponentProviderFactory;
 import com.sun.jersey.spi.spring.container.servlet.SpringServlet;
 
+/**
+ * @author 3rdstage
+ *
+ */
 public class JerseySpringServlet extends SpringServlet{
+	
+	//@todo Find the way expose the loaded Spring context outside.
 	
 	protected Logger logger = LoggerFactory.getLogger(this.getClass());
 	
