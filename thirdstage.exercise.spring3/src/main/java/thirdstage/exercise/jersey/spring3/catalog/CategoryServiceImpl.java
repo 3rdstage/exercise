@@ -9,7 +9,7 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 
-@Service
+@Service("categoryService")
 @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class CategoryServiceImpl implements CategoryService {
 	

@@ -18,9 +18,9 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 @Path("/orders")
-@Component
+@Component("orderResource")
 @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
-public class OrderResources{
+public class OrderResource{
 	
 	@GET
 	@Produces(MediaType.TEXT_PLAIN)

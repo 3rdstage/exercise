@@ -24,7 +24,7 @@ import com.sun.jersey.spi.resource.Singleton;
  *
  */
 @Path("/catalog")
-@Component
+@Component("catalogResource")
 @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class CatalogResource {
 	

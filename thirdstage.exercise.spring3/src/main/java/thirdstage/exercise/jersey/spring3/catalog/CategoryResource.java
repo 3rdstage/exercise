@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.HashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.Resource;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.ws.rs.GET;
 import javax.ws.rs.Produces;
@@ -20,7 +21,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import com.sun.jersey.api.core.ResourceContext;
 
-@Component
+@Component("categoryResource")
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class CategoryResource{
 	
@@ -29,7 +30,7 @@ public class CategoryResource{
 	@Context
 	private ResourceContext resourceContext;
 	
-	@Autowired
+	@Resource(name="categoryService")
 	private CategoryService categoryService;
 	
 	@GET

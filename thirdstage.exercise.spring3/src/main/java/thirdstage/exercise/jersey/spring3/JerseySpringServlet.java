@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jmx.export.MBeanExporter;
 import org.springframework.web.context.ConfigurableWebApplicationContext;
 import org.springframework.web.context.support.XmlWebApplicationContext;
 import com.sun.jersey.spi.container.WebApplication;
@@ -26,12 +27,15 @@ public class JerseySpringServlet extends SpringServlet{
 	protected Logger logger = LoggerFactory.getLogger(this.getClass());
 	
 	public static final String INIT_PARM_SPRING_CONFIG_LOCATION = "springConfigLocation";
+	public static final String INIT_PARM_JMX_EXPORTER_BEAN_ID = "jmxExporterBeanId";
 	
 	@Override
 	protected void initiate(com.sun.jersey.api.core.ResourceConfig rc, WebApplication wa){
 		String location = "";
+		String id = null;
 		try{
 			location = getWebConfig().getInitParameter(INIT_PARM_SPRING_CONFIG_LOCATION);
+			
 			final ConfigurableWebApplicationContext cntx = new XmlWebApplicationContext();
 			cntx.setServletContext(getServletContext());
 			cntx.setConfigLocation(location);
