@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.HashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.Resource;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.ws.rs.GET;
 import javax.ws.rs.Produces;
@@ -18,19 +19,21 @@ import org.springframework.beans.factory.annotation.Required;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Controller;
+
 import com.sun.jersey.api.core.ResourceContext;
 
-@Component
+@Controller("categoryResource")
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class CategoryResource{
 	
 	protected Logger logger = LoggerFactory.getLogger(this.getClass());
 	
 	@Context
-	private ResourceContext resourceContext;
+	protected ResourceContext resourceContext;
 	
-	@Autowired
-	private CategoryService categoryService;
+	@Resource(name="categoryService")
+	protected CategoryService categoryService;
 	
 	@GET
 	@Produces(MediaType.TEXT_PLAIN)

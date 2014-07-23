@@ -10,29 +10,22 @@
 
 	<description>Samples for Jersey and Spring</description>
 
+	<bean id="defaultProps" class="org.springframework.beans.factory.config.PropertiesFactoryBean">
+		<property name="properties">
+			<props>
+				<prop key="tx.defaultTimeout">120</prop>
+			</props>
+		</property>
+	</bean>	
+	
 	<!-- @todo make the upper element work correctly
 	<context:property-placeholder location="#{systemProperties['bootstrap.configLocation']}" /> -->
-	<context:property-placeholder location="classpath:thirdstage/exercise/jersey/spring3/config.properties"/>
+	<context:property-placeholder location="classpath:thirdstage/exercise/jersey/spring3/config.properties"
+		properties-ref="defaultProps" local-override="false"/>
 
 
-	<!-- Makes activate Spring annotations such as @Required, @Autowired, @Resource et al -->
-	<context:annotation-config />
-
-
-	<!-- Exports fabric components explicitly -->
-	<!-- @todo 
-		candidates to export : SLF4J main, Log4j main, this Spring context, Jetty server
-	-->
-	<bean id="jmxExporter" class="org.springframework.jmx.export.MBeanExporter" lazy-init="false">
-		<property name="beans">
-			<map>
-				<entry key="${jmx.domain}:type=fabric,name=dataSource" value-ref="dataSource"/>
-			</map>
-		</property>
-	</bean>
-
-
-	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" lazy-init="false">
+		<description></description>
 		<property name="driverClassName" value="${datasource.jdbcDriver}" />
 		<property name="url" value="${datasource.jdbcUrl}" />
 		<property name="username" value="${datasource.user}" />
@@ -43,9 +36,31 @@
 		<property name="minIdle" value="${datasource.minIdle}" />
 		<property name="initialSize" value="${datasource.initSize}" />
 	</bean>
+	
+	<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<description></description>
+		<property name="dataSource" ref="dataSource"/>
+		<property name="defaultTimeout" value="${tx.defaultTimeout}"/>
+	</bean>
 
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<description></description>
+		<property name="dataSource" ref="dataSource"/>
+		<property name="mapperLocations" value="classpath*:thirdstage.exercise.jsersey.spring3/**/*.xml"/>
+	</bean>
+	
+	<bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate">
+		<description></description>
+		<constructor-arg index="0" ref="sqlSessionFactory"/>
+	</bean>
 
-	<!-- load domain components (JAX-RS resources and services) for this application -->
+	<!-- Activates @Transactional annotation -->
+	<tx:annotation-driven transaction-manager="transactionManager"/>
+
+	<!-- Activates Spring annotations such as @Required, @Autowired, @Resource et al -->
+	<context:annotation-config />
+
+	<!-- Loads domain components (JAX-RS resources and services) for this application -->
 	<context:component-scan base-package="thirdstage.exercise.jersey.spring3" />
 
 </beans>

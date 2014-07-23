@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Required;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Controller;
 
 import com.sun.jersey.api.core.ResourceContext;
 import com.sun.jersey.spi.resource.Singleton;
@@ -24,7 +25,7 @@ import com.sun.jersey.spi.resource.Singleton;
  *
  */
 @Path("/catalog")
-@Component
+@Controller("catalogResource")
 @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class CatalogResource {
 	
