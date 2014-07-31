@@ -14,8 +14,8 @@ public interface FieldFacet<T> {
 	String getName();
 	
 	Class<T> getType();
-	
-	String getDescription(@Nullale String lang);
+	 
+	String getDescription(@Nullable String lang); 
 	
 	@Nullable T getDefault();
 	
