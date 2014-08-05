@@ -1,6 +1,7 @@
 package thirdstage.exercise.jersey.spring3.catalog;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Service;
 @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class CategoryServiceImpl implements CategoryService {
 	
-	private static List<CategoryValue> categories = new ArrayList<CategoryValue>();
+	private static List<CategoryValue> categories = new LinkedList<CategoryValue>();
 	
 	static{
 		categories.add(new CategoryValue("CAT0001", "Electronics"));

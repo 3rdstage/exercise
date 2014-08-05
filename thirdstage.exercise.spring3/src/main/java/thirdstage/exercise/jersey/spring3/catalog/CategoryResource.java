@@ -36,19 +36,13 @@ public class CategoryResource{
 	protected CategoryService categoryService;
 	
 	@GET
-	@Produces(MediaType.TEXT_PLAIN)
-	public String getAllCategories(){
+	@Produces({MediaType.APPLICATION_JSON})
+	public List<CategoryValue> getAllCategories(){
 		logger.info("executing getAllCategories on {}/{}", this.toString(), this.hashCode());
-		
-		StringBuilder result = new StringBuilder();
-		
-		List<CategoryValue> categories = this.categoryService.findAllCategories();
-		
-		for(CategoryValue category: categories){
-			result.append(category.toString()).append("\n");
-		}
-		
-		return result.toString();
+
+		return this.categoryService.findAllCategories();
 	}
+	
+	
 
 }
