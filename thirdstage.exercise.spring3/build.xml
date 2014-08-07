@@ -13,8 +13,13 @@
 
 	<!-- Get Maven Dependency -->
 	<artifact:pom id="pom.this" file="./pom.xml" />
-	<artifact:dependencies pomRefId="pom.this"
-		pathId="dependency.classpath" />
+	<artifact:dependencies pomRefId="pom.this" pathId="dependency.classpath" />
+	
+	<artifact:dependencies pathId="ant-only.classpath">
+		<dependency groupId="org.umlgraph" artifactId="umlgraph" version="5.6.6"/>
+		<dependency groupId="com.lunatech.jax-doclets" artifactId="doclets" version="0.10.1"/>
+		<dependency groupId="com.sun.jersey.contribs" artifactId="wadl-resourcedoc-doclet" version="1.18"/>
+	</artifact:dependencies>
 
 	<macrodef name="maven">
 		<!-- for more on this macro, refer http://maven.apache.org/ant-tasks/examples/mvn.html -->
@@ -43,11 +48,18 @@
 			</java>
 		</sequential>
 	</macrodef> 	
+
+	<!-- @todo How to sort the list -->
+	<pathconvert pathsep="${line.separator}" refid="dependency.classpath" property="dependency.classpath.list">
+	  <mapper type="regexp" from=".*\\\.m2\\repository\\(.*)" to="\1"/>
+	</pathconvert>
 	
 	<target name="echo.env">
+		<echo>Defined properties : </echo>
 		<echoproperties />
-		<echo>${toString:dependency.classpath}</echo>
-		<echo>${toString:project.home}</echo>
+		<echo>Classpath entries : </echo>
+		<echo>${dependency.classpath.list}</echo>
+		<echo>Project home : ${toString:project.home}</echo>
 	</target>
 
 	<target name="jetty.run">
@@ -86,31 +98,47 @@
 	</target>
 	
 	<target name="docs.wsdl">
-		<!-- @todo add task to create output directory if not exist. -->
-		
+		<mkdir dir="${basedir}/target/docs"/>
 		<javadoc classpathref="dependency.classpath">
 			<packageset dir="${basedir}/src/main/java" defaultexcludes="yes">
 				<include name="thirdstage/exercise/jersey/spring3/**"/>
 			</packageset>
 			<doclet name="com.sun.jersey.wadl.resourcedoc.ResourceDoclet"
-				pathref="dependency.classpath">
+				pathref="ant-only.classpath">
 				<param name="-output" value="${basedir}/target/docs/jax-rs-resource-doc.xml" />	
 			</doclet>
 		</javadoc>
 	
 	</target>
 	
-	<target name="docs.jax-rs">
-	<!-- @todo adjust the location of css file -->
+	<target name="docs.jax-rs-api">
+		<!-- @todo adjust the location of css file -->
 		<javadoc classpathref="dependency.classpath" 
-			destdir="${basedir}/target/docs/jax-rs/"
-			stylesheetfile="${basedir}/lib/jax-doclet-spring.css">
+			destdir="${basedir}/target/docs/jax-rs-api/">
+			<!--  stylesheetfile="${basedir}/lib/jax-doclet-spring.css" -->
 			<packageset dir="${basedir}/src/main/java" defaultexcludes="yes">
 				<include name="thirdstage/exercise/jersey/spring3/**"/>
 			</packageset>
-			<doclet name="com.lunatech.doclets.jax.jaxrs.JAXRSDoclet" pathref="dependency.classpath"/>
+			<!--  http://fromage.github.io/jax-doclets/docs/0.10.0/html/ -->
+			<doclet name="com.lunatech.doclets.jax.jaxrs.JAXRSDoclet" pathref="ant-only.classpath">
+				<param name="-charset" value="utf-8"/>
+	  	  		<param name="-link" value="../jaxb-api/"/>
+	  	  		<!--  <param name="-stylesheet" value="${basedir}/lib/jax-doclet-spring.css"/> -->
+			</doclet>
 		</javadoc>
+	</target>
 	
+	<target name="docs.jaxb-api">
+		<javadoc classpathref="dependency.classpath" 
+			destdir="${basedir}/target/docs/jaxb-api/">
+			<packageset dir="${basedir}/src/main/java" defaultexcludes="yes">
+				<include name="thirdstage/exercise/jersey/spring3/**"/>
+			</packageset>
+			<!--  http://fromage.github.io/jax-doclets/docs/0.10.0/html/ -->
+			<doclet name="com.lunatech.doclets.jax.jaxb.JAXBDoclet" pathref="ant-only.classpath">
+				<param name="-charset" value="utf-8"/>
+			</doclet>
+		</javadoc>
 	</target>
 	
 </project>
