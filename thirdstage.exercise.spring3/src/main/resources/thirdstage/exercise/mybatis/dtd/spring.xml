@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:util="http://www.springframework.org/schema/util" xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+    http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
+    http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.0.xsd
+    http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-3.0.xsd
+    http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.0.xsd">
+
+
+	<bean id="propertyPlaceholderConfigurer"
+		class="org.springframework.context.support.PropertySourcesPlaceholderConfigurer">
+		<!-- <property name="location" value="classpath:skcc/ambariplus/bootstrap/ambariplus-test.properties"/> -->
+		<property name="properties">
+			<props>
+				<prop key="jmx.domain">thirdstage.test</prop>
+				<prop key="datasource.jdbcDriver">com.mysql.jdbc.Driver</prop>
+				<prop key="datasource.jdbcUrl">jdbc:mysql://124.66.189.155:3306/ambari</prop>
+				<prop key="datasource.user">ambari</prop>
+				<prop key="datasource.password">bigdata14</prop>
+				<prop key="datasource.maxActive">3</prop>
+				<prop key="datasource.initSize">1</prop>
+				<prop key="tx.defaultTimeout">180</prop>
+				<prop key="mybatis.configLocation">classpath:thirdstage/exercise/mybatis/dtd/mybatis.xml</prop>
+				<prop key="component.basePackage">thirdstage.exercise.mybatis.dtd</prop>
+			</props>
+		</property>
+	</bean>
+
+	<!-- register CommonAnnotationBeanPostProcessor -->
+	<context:annotation-config />
+
+	<!-- JMX -->
+	<bean id="mbeanServer" class="org.springframework.jmx.support.MBeanServerFactoryBean">
+		<property name="locateExistingServerIfPossible" value="true" />
+	</bean>
+
+	<bean id="jmxExporter" class="org.springframework.jmx.export.MBeanExporter"
+		lazy-init="false">
+		<property name="beans">
+			<map>
+				<entry key="${jmx.domain}:type=fabric,name=dataSource"
+					value-ref="dataSource" />
+				<entry key="${jmx.domain}:type=fabric,name=transactionManager"
+					value-ref="transactionManager" />
+				<entry key="${jmx.domain}:type=fabric,name=databaseIdProvider"
+					value-ref="databaseIdProvider" />
+				<entry key="${jmx.domain}:type=fabric,name=sqlSessionFactory"
+					value-ref="sqlSessionFactory" />
+				<entry key="${jmx.domain}:type=fabric,name=sqlMapperScanner"
+					value-ref="sqlMapperScanner" />
+			</map>
+		</property>
+		<property name="server" ref="mbeanServer" />
+	</bean>
+
+	<!-- Data access and transaction -->
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+		destroy-method="close">
+		<description>
+		http://commons.apache.org/proper/commons-dbcp/api-1.4/org/apache/commons/dbcp/BasicDataSource.html
+		</description>
+		<property name="driverClassName" value="${datasource.jdbcDriver}" />
+		<property name="url" value="${datasource.jdbcUrl}" />
+		<property name="username" value="${datasource.user}" />
+		<property name="password" value="${datasource.password}" />
+		<property name="defaultAutoCommit" value="true" />
+		<property name="maxActive" value="${datasource.maxActive}" />
+		<property name="initialSize" value="${datasource.initSize}" />
+		<!-- <property name="maxWait" value="#{}"/> -->
+	</bean>
+
+	<bean id="transactionManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<description>
+			http://mybatis.github.io/spring/transactions.html
+			http://docs.spring.io/spring/docs/3.1.x/javadoc-api/org/springframework/jdbc/datasource/DataSourceTransactionManager.html
+		</description>
+		<property name="dataSource" ref="dataSource" />
+		<property name="defaultTimeout" value="${tx.defaultTimeout}" />
+		<property name="nestedTransactionAllowed" value="false" /> <!-- default is true -->
+	</bean>
+
+	<!-- <tx:annotation-driven transaction-manager="transactionManager" mode="proxy" 
+		proxy-target-class="true" /> -->
+
+	<tx:annotation-driven transaction-manager="transactionManager" />
+
+
+	<bean id="databaseIdProvider" class="org.apache.ibatis.mapping.VendorDatabaseIdProvider">
+		<description>
+			DatabaseIdProvider should be set to SqlSessionFactory directly by
+			setDatabaseIdProvider.
+			The databaseIdProvider element in the configuration XML will be ignored
+			when the XML is set to SqlSessionFactory.
+
+			http://mybatis.github.io/spring/factorybean.html#Properties
+			http://mybatis.github.io/mybatis-3/apidocs/reference/org/apache/ibatis/mapping/VendorDatabaseIdProvider.html
+		</description>
+		<property name="properties">
+			<props>
+				<prop key="Oracle">oracle</prop>
+				<prop key="MySQL">mysql</prop>
+			</props>
+		</property>
+	</bean>
+
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<description>
+			http://mybatis.github.io/spring/factorybean.html
+			http://mybatis.github.io/spring/apidocs/reference/org/mybatis/spring/SqlSessionFactoryBean.html
+		</description>
+		<property name="dataSource" ref="dataSource" />
+		<property name="configLocation"
+			value="${mybatis.configLocation}" />
+		<property name="databaseIdProvider" ref="databaseIdProvider" />
+	</bean>
+
+	<bean id="sqlMapperScanner" class="org.mybatis.spring.mapper.MapperScannerConfigurer"
+		depends-on="propertyPlaceholderConfigurer">
+		<description>
+			http://mybatis.github.io/spring/mappers.html#scan
+			http://mybatis.github.io/spring/apidocs/reference/org/mybatis/spring/mapper/MapperScannerConfigurer.html
+		</description>
+		<!-- The following ${mybatis.mapperBasePackage} doesn't work. Why? 
+		<property name="basePackage" value="${mybatis.mapperBasePackage}" />
+		-->
+		<property name="basePackage" value="thirdstage.exercise.mybatis.dtd" />
+		<property name="sqlSessionFactoryBeanName" value="sqlSessionFactory" />
+		<property name="annotationClass" value="org.springframework.stereotype.Repository" />
+	</bean>
+	
+	<!-- context seems to be processed before the beans are created including 'propertyPlaceholderConfigurer' -->
+	<context:component-scan base-package="thirdstage.exercise.mybatis.dtd" />
+
+</beans>
