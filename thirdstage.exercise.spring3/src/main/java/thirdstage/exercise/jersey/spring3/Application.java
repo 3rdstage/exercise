@@ -92,11 +92,15 @@ public class Application{
 		sch.addServlet(jsh, config.getValue(ItemMeta.JERSEY_SERVLET_URL_PATTEN));
 		jsh.setInitOrder(config.getIntValue(ItemMeta.JERSEY_SERVLET_INIT_ORDER));
 		
+		//For more, refer http://download.eclipse.org/jetty/stable-7/apidocs/index.html?org/eclipse/jetty/servlets/CrossOriginFilter.html
 		FilterHolder fh = new FilterHolder(CrossOriginFilter.class);
 		fh.setName("crossOriginFilter");
-		fh.setInitParameter("allowedOrigins", "*");
-		fh.setInitParameter("allowedMethods", "GET,PUT,POST,DELETE");
-		fh.setInitParameter("allowedHeaders", "X-Requested-With, Content-Type, Accept, Origin, accept, x-requested-by");
+		fh.setInitParameter(CrossOriginFilter.ALLOWED_ORIGINS_PARAM, 
+			config.getValue(ItemMeta.CROSS_ORIGIN_FILTER_ALLOWED_ORIGINS));
+		fh.setInitParameter(CrossOriginFilter.ALLOWED_METHODS_PARAM, 
+			config.getValue(ItemMeta.CROSS_ORIGIN_FILTER_ALLOWED_METHODS));
+		fh.setInitParameter(CrossOriginFilter.ALLOWED_HEADERS_PARAM, 
+			config.getValue(ItemMeta.CROSS_ORIGIN_FILTER_ALLOWED_HEADERS));
 		sch.addFilter(fh, "/*", FilterMapping.DEFAULT);
 		
 		Server jetty = new Server();

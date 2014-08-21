@@ -46,6 +46,12 @@ public class Config {
 		
 		JERSEY_SERVLET_INIT_ORDER("jerseyServlet.initOrder", "2"),
 		
+		CROSS_ORIGIN_FILTER_ALLOWED_ORIGINS("crossOriginFilter.allowedOrigins", "127.0.0.1,localhost"),
+		
+		CROSS_ORIGIN_FILTER_ALLOWED_METHODS("crossOriginFilter.allowedMethods", "GET,POST,HEAD"),
+		
+		CROSS_ORIGIN_FILTER_ALLOWED_HEADERS("crossOriginFilter.allowedHeaders", "X-Requested-With,Content-Type,Accept,Origin"),
+		
 		WEB_SERVER_THREAD_POOL_SIZE("webServer.threadPoolSize", "10"),
 		
 		WEB_SERVER_PORT("jetty.port", "80"),

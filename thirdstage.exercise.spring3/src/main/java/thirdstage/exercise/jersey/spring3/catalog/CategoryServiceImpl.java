@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
+import javax.annotation.Resource;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -26,10 +28,14 @@ public class CategoryServiceImpl implements CategoryService {
 	
 	protected Logger logger = LoggerFactory.getLogger(this.getClass());
 
+	@Resource(name="categoryMapper")
+	CategoryMapper categoryMapper;
+	
 	@Override
 	public List<CategoryValue> findAllCategories() {
 		logger.info("executing findAllCategories on {}/{}", this.toString(), this.hashCode());
-		return categories;
+		
+		return this.categoryMapper.selectAllCategories();
 	}
 
 }
