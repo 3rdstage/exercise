@@ -18,8 +18,11 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.nio.SelectChannelConnector;
 import org.eclipse.jetty.servlet.DefaultServlet;
+import org.eclipse.jetty.servlet.FilterHolder;
+import org.eclipse.jetty.servlet.FilterMapping;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +91,13 @@ public class Application{
 		jsh.setInitParameter("com.sun.jersey.api.json.POJOMappingFeature", "true");
 		sch.addServlet(jsh, config.getValue(ItemMeta.JERSEY_SERVLET_URL_PATTEN));
 		jsh.setInitOrder(config.getIntValue(ItemMeta.JERSEY_SERVLET_INIT_ORDER));
+		
+		FilterHolder fh = new FilterHolder(CrossOriginFilter.class);
+		fh.setName("crossOriginFilter");
+		fh.setInitParameter("allowedOrigins", "*");
+		fh.setInitParameter("allowedMethods", "GET,PUT,POST,DELETE");
+		fh.setInitParameter("allowedHeaders", "X-Requested-With, Content-Type, Accept, Origin, accept, x-requested-by");
+		sch.addFilter(fh, "/*", FilterMapping.DEFAULT);
 		
 		Server jetty = new Server();
 		HandlerList hl = new HandlerList();

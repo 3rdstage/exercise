@@ -48,9 +48,9 @@ public class Config {
 		
 		WEB_SERVER_THREAD_POOL_SIZE("webServer.threadPoolSize", "10"),
 		
-		WEB_SERVER_PORT("webServer.port", "80"),
+		WEB_SERVER_PORT("jetty.port", "80"),
 		
-		WEB_SERVER_MAX_IDLE_TIME("webServer.maxIdleTime", "900000"),
+		WEB_SERVER_MAX_IDLE_TIME("jetty.maxIdleTime", "900000"),
 		
 		JMX_DOMAIN("jmx.domain", "shop3"),
 		

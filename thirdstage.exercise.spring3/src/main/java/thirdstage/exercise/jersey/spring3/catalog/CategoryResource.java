@@ -11,6 +11,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.ws.rs.GET;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +38,7 @@ public class CategoryResource{
 	
 	@GET
 	@Produces({MediaType.APPLICATION_JSON})
-	public List<CategoryValue> getAllCategories(){
+	public List<CategoryValue> getAllCategories(@Context HttpHeaders headers){
 		logger.info("executing getAllCategories on {}/{}", this.toString(), this.hashCode());
 
 		return this.categoryService.findAllCategories();

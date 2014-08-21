@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.HashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import javax.annotation.ParametersAreNonnullByDefault;
 import javax.annotation.concurrent.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,8 +18,10 @@ import org.springframework.context.annotation.Scope;
 
 @Repository("categoryMapper")
 @Scope(ConfigurableBeanFactory.SCOPE_SINGLETON)
+@ParametersAreNonnullByDefault
 public interface CategoryMapper {
 	
+	@Nonnull
 	List<CategoryValue> selectAllCategories();
 
 }

@@ -11,20 +11,42 @@
 
 	<description>Samples for Jersey and Spring</description>
 
+	<!-- Prefer normal bean instead of context for PropertyPlaceHolderConfigurer 
 	<bean id="defaultProps"
 		class="org.springframework.beans.factory.config.PropertiesFactoryBean">
 		<property name="properties">
 			<props>
+				<prop key="jmx.domain">shop3</prop>
 				<prop key="tx.defaultTimeout">120</prop>
+				<prop key="tx.nestedTransactionAllowed">true</prop>
 			</props>
 		</property>
 	</bean>
-
-	<!-- @todo make the upper element work correctly <context:property-placeholder 
-		location="#{systemProperties['bootstrap.configLocation']}" /> -->
+	
 	<context:property-placeholder
 		location="classpath:thirdstage/exercise/jersey/spring3/config.properties"
 		properties-ref="defaultProps" local-override="false" />
+	-->
+
+	<!-- Properties -->
+	<bean id="propertyPlaceholderConfigurer"
+		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<description>
+			http://docs.spring.io/spring/docs/3.0.x/spring-framework-reference/html/beans.html#beans-factory-placeholderconfigurer
+			http://docs.spring.io/spring/docs/3.0.x/javadoc-api/index.html?org/springframework/beans/factory/config/PropertyPlaceholderConfigurer.html
+		</description>
+		<property name="location"
+			value="classpath:thirdstage/exercise/jersey/spring3/config.properties" />
+		<property name="properties">
+			<props>
+				<prop key="jmx.domain">shop3</prop>
+				<prop key="tx.defaultTimeout">120</prop>
+				<prop key="tx.nestedTransactionAllowed">true</prop>
+			</props>
+		</property>
+		<property name="localOverride" value="false" /> <!-- default -->
+		<property name="systemPropertiesModeName" value="SYSTEM_PROPERTIES_MODE_OVERRIDE" /> <!-- not default with brevity -->
+	</bean>
 
 	<!-- JMX -->
 	<bean id="mbeanServer" class="org.springframework.jmx.support.MBeanServerFactoryBean">
@@ -35,17 +57,27 @@
 		lazy-init="false">
 		<property name="beans">
 			<map>
-				<entry key="shop3:type=fabric,name=dataSource" value-ref="dataSource" />
-				<entry key="shop3:type=fabric,name=transactionManager" value-ref="transactionManager" />
-				<entry key="shop3:type=fabric,name=sqlSessionFactory" value-ref="sqlSessionFactory" />
+				<entry key="${jmx.domain}:type=fabric,name=dataSource"
+					value-ref="dataSource" />
+				<entry key="${jmx.domain}:type=fabric,name=transactionManager"
+					value-ref="transactionManager" />
+				<entry key="${jmx.domain}:type=fabric,name=databaseIdProvider"
+					value-ref="databaseIdProvider" />
+				<entry key="${jmx.domain}:type=fabric,name=sqlSessionFactory"
+					value-ref="sqlSessionFactory" />
+				<entry key="${jmx.domain}:type=fabric,name=sqlMapperScanner"
+					value-ref="sqlMapperScanner" />
 			</map>
 		</property>
 		<property name="server" ref="mbeanServer" />
 	</bean>
 
 	<!-- Data access and transaction -->
-	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource" lazy-init="false">
-		<description>http://commons.apache.org/proper/commons-dbcp/api-1.4/org/apache/commons/dbcp/BasicDataSource.html</description>
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+		lazy-init="false">
+		<description>
+			http://commons.apache.org/proper/commons-dbcp/api-1.4/org/apache/commons/dbcp/BasicDataSource.html
+		</description>
 		<property name="driverClassName" value="${datasource.jdbcDriver}" />
 		<property name="url" value="${datasource.jdbcUrl}" />
 		<property name="username" value="${datasource.user}" />
@@ -55,32 +87,61 @@
 		<property name="maxIdle" value="${datasource.maxIdle}" />
 		<property name="minIdle" value="${datasource.minIdle}" />
 		<property name="initialSize" value="${datasource.initSize}" />
-
 	</bean>
 
 	<bean id="transactionManager"
 		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
-		<description>http://docs.spring.io/spring/docs/3.1.x/javadoc-api/org/springframework/jdbc/datasource/DataSourceTransactionManager.html</description>
+		<description>
+			http://mybatis.github.io/spring/transactions.html
+			http://docs.spring.io/spring/docs/3.0.x/javadoc-api/org/springframework/jdbc/datasource/DataSourceTransactionManager.html
+		</description>
 		<property name="dataSource" ref="dataSource" />
 		<property name="defaultTimeout" value="${tx.defaultTimeout}" />
+		<property name="nestedTransactionAllowed" value="${tx.nestedTransactionAllowed}" /> <!-- default is true -->
+	</bean>
+
+		<!-- Activates @Transactional annotation -->
+	<tx:annotation-driven transaction-manager="transactionManager" />
+
+	<bean id="databaseIdProvider" class="org.apache.ibatis.mapping.VendorDatabaseIdProvider">
+		<description>
+			 DatabaseIdProvider should be set to SqlSessionFactory directly by	setDatabaseIdProvider.
+			 The databaseIdProvider element in the configuration XML will be ignored
+			when the XML is set to SqlSessionFactory.
+
+			http://mybatis.github.io/spring/factorybean.html#Properties
+			http://mybatis.github.io/mybatis-3/apidocs/reference/org/apache/ibatis/mapping/VendorDatabaseIdProvider.html
+		</description>
+		<property name="properties">
+			<props>
+				<prop key="Oracle">oracle</prop>
+				<prop key="MySQL">mysql</prop>
+			</props>
+		</property>
 	</bean>
 
 	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
-		<description>http://mybatis.github.io/spring/apidocs/reference/org/mybatis/spring/SqlSessionFactoryBean.html</description>
+		<description>
+			http://mybatis.github.io/spring/factorybean.html
+			http://mybatis.github.io/spring/apidocs/reference/org/mybatis/spring/SqlSessionFactoryBean.html
+		</description>
 		<property name="dataSource" ref="dataSource" />
-		<property name="mapperLocations"
-			value="classpath*:thirdstage.exercise.jsersey.spring3/**/*.xml" />
+		<property name="configLocation" value="${mybatis.configLocation}" />
+		<property name="databaseIdProvider" ref="databaseIdProvider" />
 	</bean>
 
-	<bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate">
-		<description></description>
-		<constructor-arg index="0" ref="sqlSessionFactory" />
+	<bean id="sqlMapperScanner" class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<description>
+			http://mybatis.github.io/spring/mappers.html#scan
+			http://mybatis.github.io/spring/apidocs/reference/org/mybatis/spring/mapper/MapperScannerConfigurer.html
+		</description>
+		<property name="basePackage" value="thirdstage.exercise.jersey.spring3" />
+		<property name="sqlSessionFactoryBeanName" value="sqlSessionFactory" />
+		<property name="annotationClass" value="org.springframework.stereotype.Repository" />
 	</bean>
 
-	<!-- Activates @Transactional annotation -->
-	<tx:annotation-driven transaction-manager="transactionManager" />
-
-	<!-- Activates Spring annotations such as @Required, @Autowired, @Resource et al -->
+	<!-- Activates Spring annotations such as @Required, @Autowired, @Resource 
+		et al -->
 	<context:annotation-config />
 
 	<!-- Loads domain components (JAX-RS resources and services) for this application -->
