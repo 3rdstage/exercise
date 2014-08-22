@@ -27,6 +27,8 @@ import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.ResourceUtils;
+import com.sun.jersey.api.core.ResourceConfig;
+import com.sun.jersey.api.json.JSONConfiguration;
 import com.sun.jersey.spi.container.servlet.ServletContainer;
 import thirdstage.exercise.jersey.spring3.Config.ItemMeta;
 
@@ -88,7 +90,17 @@ public class Application{
 		ServletHolder jsh = new ServletHolder(JerseySpringServlet.class);
 		jsh.setInitParameter(JerseySpringServlet.INIT_PARM_SPRING_CONFIG_LOCATION,
 			config.getValue(ItemMeta.BOOTSTRAP_SPRING_CONFIG_LOCATION));
-		jsh.setInitParameter("com.sun.jersey.api.json.POJOMappingFeature", "true");
+		//Refer https://jersey.java.net/apidocs/1.18/jersey/index.html?constant-values.html
+		jsh.setInitParameter(JSONConfiguration.FEATURE_POJO_MAPPING, "true");
+		jsh.setInitParameter(ResourceConfig.PROPERTY_CONTAINER_REQUEST_FILTERS,
+			"com.sun.jersey.api.container.filter.LoggingFilter");
+		jsh.setInitParameter(ResourceConfig.PROPERTY_CONTAINER_RESPONSE_FILTERS,
+			"com.sun.jersey.api.container.filter.LoggingFilter");
+		jsh.setInitParameter(ResourceConfig.FEATURE_TRACE, "true");
+		//jsh.setInitParameter(JSONMarshaller.FORMATTED, "true");
+		//jsh.setInitParameter(FeaturesAndProperties.FEATURE_FORMATTED, "true");
+		//jsh.setInitParameter(FeaturesAndProperties.FEATURE_XMLROOTELEMENT_PROCESSING, "true");		
+		
 		sch.addServlet(jsh, config.getValue(ItemMeta.JERSEY_SERVLET_URL_PATTEN));
 		jsh.setInitOrder(config.getIntValue(ItemMeta.JERSEY_SERVLET_INIT_ORDER));
 		
