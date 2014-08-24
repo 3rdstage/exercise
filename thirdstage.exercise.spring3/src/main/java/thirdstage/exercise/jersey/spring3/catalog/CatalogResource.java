@@ -3,9 +3,17 @@ package thirdstage.exercise.jersey.spring3.catalog;
 import java.util.List;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Resource;
+import javax.validation.groups.Default;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
@@ -35,6 +43,9 @@ public class CatalogResource {
 	@Context
 	private ResourceContext resourceContext;
 	
+	@Resource(name="categoryService")
+	CategoryService categoryService;
+	
 	
 	@GET
 	@Produces(MediaType.TEXT_PLAIN)
@@ -43,11 +54,61 @@ public class CatalogResource {
 		return "This is Catalog";
 	}
 	
+	@GET
 	@Path("categories")
-	public CategoryResource getCategoryResource(@Context HttpHeaders headers){
-		logger.info("executing getCategoryResource on {}/{}", this.toString(), this.hashCode());
+	@Produces(MediaType.APPLICATION_JSON)
+	public List<CategoryValue> getCategories(@Context HttpHeaders headers){
 		
-		CategoryResource rsrc = this.resourceContext.getResource(CategoryResource.class);
-		return rsrc;
+		return this.categoryService.findAllCategories();
 	}
+	
+	@GET
+	@Path("categories/{id}")
+	@Produces(MediaType.APPLICATION_JSON)
+	public CategoryValue getCategory(@Context HttpHeaders headers,
+			@PathParam("id") String id){
+
+		return null;
+	}
+	
+	@GET
+	@Path("categories-by-parent/{parentId}")
+	@Produces(MediaType.APPLICATION_JSON)
+	public List<CategoryValue> getCategoriesByParent(@Context HttpHeaders headers,
+			@PathParam("parentId") String parentId){
+		return null;
+	}
+	
+	@POST
+	@Path("categories")
+	@Produces(MediaType.APPLICATION_JSON)
+	public CategoryValue postCategory(@Context HttpHeaders headers,
+			@QueryParam("id") @Nonnull String id,
+			@QueryParam("name") @Nonnull String name,
+			@QueryParam("parentId") String parentId,
+			@QueryParam("desc") String desc){
+		return null;
+	}
+	
+	@DELETE
+	@Path("categories/{id}")
+	@Produces(MediaType.APPLICATION_JSON)
+	public CategoryValue deleteCategory(@Context HttpHeaders headers,
+			@PathParam("id") String id,
+			@QueryParam("cascaded") @DefaultValue("false") boolean cascaded){
+		return null;
+	}
+	
+	@GET
+	@Path("categories/{id}/products")
+	@Produces(MediaType.APPLICATION_JSON)
+	public List<ProductValue> getProductsOfCategory(@Context HttpHeaders headers,
+			@PathParam("id") String categoryId){
+		return null;
+	}
+	
+	
+	
+	
+	
 }
