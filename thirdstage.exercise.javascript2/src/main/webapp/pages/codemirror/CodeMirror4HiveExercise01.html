@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exercise on CodeMirror</title>
+
+<!-- Bootstrap -->
+<link href="../../css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" type="text/css" media="screen"
+	href="../../lib/codemirror/lib/codemirror.css" />
+<link rel="stylesheet" type="text/css" media="screen"
+	href="../../lib/codemirror/addon/hint/show-hint.css" />
+
+<!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+<!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+<!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+</head>
+<body>
+	<h1>HiveQL Editor with CodeMirror</h1>
+
+	<div class="btn-group btn-group-right" id="codeAreaControl"
+		style="text-align: right">
+		<button type="button" class="btn btn-default format">Format</button>
+		<button type="button" class="btn btn-default">Command2</button>
+		<button type="button" class="btn btn-default">Command3</button>
+	</div>
+	<textarea id="codeArea" style="width: 800px; height: 400px"></textarea>
+
+	<table class="table table-bordered" id="sampleStatements"
+		style="width: 1200px">
+		<tr>
+			<th>Title</th>
+			<th>Statement</th>
+			<th>Actions</th>
+		</tr>
+		<tr class="statement">
+			<td>Simple Select
+			</th>
+			<td class="statement">select a.id, a.name, a.title, a.job,
+				b.name from users a, departments b where b.deptId = a.deptId and
+				a.name like #{name} + '%'</td>
+			<td class="action">
+				<button type="button" class="btn load">Load</button>
+			</td>
+		</tr>
+	</table>
+
+
+
+	</table>
+
+
+	<script type="text/javascript"
+		src="../../js/vendor/jquery-1.10.1	.min.js"></script>
+	<script type='text/javascript'
+		src='../../lib/codemirror/lib/codemirror.js'></script>
+	<script type='text/javascript'
+		src='../../lib/codemirror/addon/hint/show-hint.js'></script>
+	<script type='text/javascript'
+		src='../../lib/codemirror/addon/hint/sql-hint.js'></script>
+	<script type='text/javascript'
+		src='../../lib/codemirror/mode/sql/sql.js'></script>
+	<script type="text/javascript">
+
+      function completeAfter(cm, pred) {
+        var cur = cm.getCursor();
+        if (!pred || pred()) setTimeout(function() {
+          if (!cm.state.completionActive)
+            cm.showHint({completeSingle: false});
+        }, 100);
+        return CodeMirror.Pass;
+      }
+
+      function completeIfAfterLt(cm) {
+        return completeAfter(cm, function() {
+          var cur = cm.getCursor();
+          return cm.getRange(CodeMirror.Pos(cur.line, cur.ch - 1), cur) == "<";
+        });
+      }
+
+      function completeIfInTag(cm) {
+        return completeAfter(cm, function() {
+          var tok = cm.getTokenAt(cm.getCursor());
+          if (tok.type == "string" && (!/['"]/.test(tok.string.charAt(tok.string.length - 1)) || tok.string.length == 1)) return false;
+          var inner = CodeMirror.innerMode(cm.getMode(), tok.state).state;
+          return inner.tagName;
+        });
+      }
+
+var oozieTags = {
+  "!top": ["workflow-app"],
+  "!attrs": {
+    name: null
+  },
+  "workflow-app" : {
+    attrs : {
+      name : null
+    },
+    children : [
+      "parameters", "global", "credentials", "start",
+      "decision", "fork", "join", "kill", "action",
+      "end"
+    ] //sequence and choice
+  },
+  "parameters" : {
+    children : [ "property" ]
+  },
+  "property" : {
+    children : [ "name", "value", "description"] //sequence
+  },
+  "global" : {
+    children : [ "job-tracker", "name-node", "job-xml", "configuration" ]
+  },
+  "start" : {
+    attrs : {
+      to : null
+    }
+  },
+  "end" : {
+    attrs : {
+      name : null
+    }
+  },
+  "decision" : {
+
+  }
+
+}
+
+var config = {
+  mode: "text/x-hive",
+  indentUnit: 3,
+  smartIndent: true,
+  tabSize: 3,
+  indentWithTabs: true,
+  electricChars: true,
+  lineWrapping: false,
+  lineNumbers: true,
+  fixedGutter: true,
+  readOnly: false,
+  showCursorWhenSelecting: true,
+  autofocus: true,
+
+  extraKeys: {
+    "'<'": completeAfter,
+    "'/'": completeIfAfterLt,
+    "' '": completeIfInTag,
+    "'='": completeIfInTag,
+    "Ctrl-Space": "autocomplete"
+  },
+  hint: CodeMirror.hint.sql
+};
+
+var editor = CodeMirror.fromTextArea(document.getElementById('codeArea'), config);
+
+//Add event handlers for controls
+$("#codeAreaControl button.format").click(function(event){
+	
+	editor.execCommand("selectAll");
+	editor.execCommand("indentAuto");
+	editor.setSelection({line : 0, ch : 0});
+});
+
+//Add event handlers for sample statements table
+$("#sampleStatements td.action button.load").click(function(event){
+
+	var stmt = $(this).parents("tr.statement").find("> td.statement").text();
+	editor.setValue(stmt);
+	editor.execCommand("selectAll");
+	editor.execCommand("indentAuto");
+	editor.setSelection({line : 0, ch : 0})
+});
+
+</script>
+
+
+
+</body>
+</html>
