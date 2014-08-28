@@ -16,9 +16,9 @@
 <style>
 /* http://codemirror.net/doc/manual.html#styling */
 .CodeMirror {
-	width: 1200px;
+	width: 1000px;
 	height: 400px;
-	font-size: 1.5em;
+	font-size: 1.0em;
 	line-height: 1.5;
 	border: thin solid darkblue;
 }
@@ -33,8 +33,17 @@
 </head>
 <body>
 	<h1>Oozie Config Editor</h1>
-	<textarea id="codeArea"
-		style="width: 800px; height: 400px; font-size: 16px"></textarea>
+
+
+
+	<div class="btn-group btn-group-right" id="codeAreaControl"
+		style="text-align: right">
+		<button type="button" class="btn btn-default format">Format</button>
+		<button type="button" class="btn btn-default">Command2</button>
+		<button type="button" class="btn btn-default">Command3</button>
+	</div>
+
+	<textarea id="codeArea"></textarea>
 
 
 
@@ -48,8 +57,9 @@
 		src='../../lib/codemirror/addon/hint/xml-hint.js'></script>
 	<script type='text/javascript'
 		src='../../lib/codemirror/mode/xml/xml.js'></script>
-	<script type='text/javascript' src='../../js/app.js' /><script type="text/javascript">
+	<script type='text/javascript' src='../../js/app.js'></script>
 
+	<script type="text/javascript">
 		function completeAfter(cm, pred) {
 			var cur = cm.getCursor();
 			if (!pred || pred())
@@ -87,159 +97,166 @@
 					});
 		}
 
-		var oozieTags = app.
+		!function() {
+			var oozieTags = app.getOozieTags("0.5");
 
-		var config = {
-			mode : "xml",
-			indentUnit : 3,
-			smartIndent : true,
-			tabSize : 3,
-			indentWithTabs : true,
-			electricChars : true,
-			lineWrapping : false,
-			lineNumbers : true,
-			showCursorWhenSelecting : true,
-			autofocus : true,
+			var config = {
+				mode : "application/xml",
+				indentUnit : 3,
+				smartIndent : true,
+				tabSize : 3,
+				indentWithTabs : true,
+				electricChars : true,
+				lineWrapping : false,
+				lineNumbers : true,
+				showCursorWhenSelecting : true,
+				autofocus : true,
 
-			extraKeys : {
-				"'<'" : completeAfter,
-				"'/'" : completeIfAfterLt,
-				"' '" : completeIfInTag,
-				"'='" : completeIfInTag,
-				"Ctrl-Space" : "autocomplete"
-			},
-			hintOptions : {
-				schemaInfo : oozieTags
-			}
-		};
+				extraKeys : {
+					"'<'" : completeAfter,
+					"'/'" : completeIfAfterLt,
+					"' '" : completeIfInTag,
+					"'='" : completeIfInTag,
+					"Ctrl-Space" : "autocomplete"
+				},
+				hint : CodeMirror.hint.xml,
+				hintOptions : {
+					schemaInfo : oozieTags
+				}
+			};
 
-		var xmlEditor = CodeMirror.fromTextArea(document
-				.getElementById('codeArea'), config);
+			var xmlEditor = CodeMirror.fromTextArea(document
+					.getElementById('codeArea'), config);
+			
+			$("#codeAreaControl button.format").click(function(event){
+				xmlEditor.execCommand("selectAll");
+				xmlEditor.execCommand("indentAuto");
+				xmlEditor.setSelection({ line : 0, ch : 0 });				
+			});
+			
+		}();
 	</script>
 
-<article>
-	<h2>XML Autocomplete Demo</h2>
-	<form>
-		<textarea id="code" name="code">
+	<article>
+		<h2>XML Autocomplete Demo</h2>
+		<form>
+			<textarea id="code" name="code">
 				<!-- write some xml below -->
-</textarea>
-	</form>
+			</textarea>
+		</form>
 
-	<p>
-		Press <strong>ctrl-space</strong>, or type a '' character to activate
-		autocompletion. This demo defines a simple schema that guides
-		completion. The schema can be customized—see the <a
-		href="../doc/manual.html#addon_xml-hint">manual</a>.
-	</p>
+		<p>
+			Press <strong>ctrl-space</strong>, or type a '' character to activate
+			autocompletion. This demo defines a simple schema that guides
+			completion. The schema can be customized—see the <a
+				href="../doc/manual.html#addon_xml-hint">manual</a>.
+		</p>
 
-	<p>
-		Development of the
-		<code>
-			xml-hint
-		</code>
-		addon was kindly sponsored by <a href="http://www.xperiment.mobi">www.xperiment.mobi</a>.
-	</p>
+		<p>
+			Development of the
+			<code> xml-hint </code>
+			addon was kindly sponsored by <a href="http://www.xperiment.mobi">www.xperiment.mobi</a>.
+		</p>
 
-	<script>
-		var dummy = {
-			attrs : {
-				color : [ "red", "green", "blue", "purple", "white", "black",
-						"yellow" ],
-				size : [ "large", "medium", "small" ],
-				description : null
-			},
-			children : []
-		};
-
-		var tags = {
-			"!top" : [ "top" ],
-			"!attrs" : {
-				id : null,
-				class : [ "A", "B", "C" ]
-			},
-			top : {
+		<script>
+			var dummy = {
 				attrs : {
-					lang : [ "en", "de", "fr", "nl" ],
-					freeform : null
+					color : [ "red", "green", "blue", "purple", "white",
+							"black", "yellow" ],
+					size : [ "large", "medium", "small" ],
+					description : null
 				},
-				children : [ "animal", "plant" ]
-			},
-			animal : {
-				attrs : {
-					name : null,
-					isduck : [ "yes", "no" ]
+				children : []
+			};
+
+			var tags = {
+				"!top" : [ "top" ],
+				"!attrs" : {
+					id : null,
+					class : [ "A", "B", "C" ]
 				},
-				children : [ "wings", "feet", "body", "head", "tail" ]
-			},
-			plant : {
-				attrs : {
-					name : null
+				top : {
+					attrs : {
+						lang : [ "en", "de", "fr", "nl" ],
+						freeform : null
+					},
+					children : [ "animal", "plant" ]
 				},
-				children : [ "leaves", "stem", "flowers" ]
-			},
-			wings : dummy,
-			feet : dummy,
-			body : dummy,
-			head : dummy,
-			tail : dummy,
-			leaves : dummy,
-			stem : dummy,
-			flowers : dummy
-		};
+				animal : {
+					attrs : {
+						name : null,
+						isduck : [ "yes", "no" ]
+					},
+					children : [ "wings", "feet", "body", "head", "tail" ]
+				},
+				plant : {
+					attrs : {
+						name : null
+					},
+					children : [ "leaves", "stem", "flowers" ]
+				},
+				wings : dummy,
+				feet : dummy,
+				body : dummy,
+				head : dummy,
+				tail : dummy,
+				leaves : dummy,
+				stem : dummy,
+				flowers : dummy
+			};
 
-		function completeAfter(cm, pred) {
-			var cur = cm.getCursor();
-			if (!pred || pred())
-				setTimeout(function() {
-					if (!cm.state.completionActive)
-						cm.showHint({
-							completeSingle : false
-						});
-				}, 100);
-			return CodeMirror.Pass;
-		}
-
-		function completeIfAfterLt(cm) {
-			return completeAfter(
-					cm,
-					function() {
-						var cur = cm.getCursor();
-						return cm.getRange(
-								CodeMirror.Pos(cur.line, cur.ch - 1), cur) == "<";
-					});
-		}
-
-		function completeIfInTag(cm) {
-			return completeAfter(
-					cm,
-					function() {
-						var tok = cm.getTokenAt(cm.getCursor());
-						if (tok.type == "string"
-								&& (!/['"]/.test(tok.string
-										.charAt(tok.string.length - 1)) || tok.string.length == 1))
-							return false;
-						var inner = CodeMirror.innerMode(cm.getMode(),
-								tok.state).state;
-						return inner.tagName;
-					});
-		}
-
-		var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
-			mode : "xml",
-			lineNumbers : true,
-			extraKeys : {
-				"'<'" : completeAfter,
-				"'/'" : completeIfAfterLt,
-				"' '" : completeIfInTag,
-				"'='" : completeIfInTag,
-				"Ctrl-Space" : "autocomplete"
-			},
-			hintOptions : {
-				schemaInfo : tags
+			function completeAfter(cm, pred) {
+				var cur = cm.getCursor();
+				if (!pred || pred())
+					setTimeout(function() {
+						if (!cm.state.completionActive)
+							cm.showHint({
+								completeSingle : false
+							});
+					}, 100);
+				return CodeMirror.Pass;
 			}
-		});
-	</script>
-</article>
+
+			function completeIfAfterLt(cm) {
+				return completeAfter(cm, function() {
+					var cur = cm.getCursor();
+					return cm.getRange(CodeMirror.Pos(cur.line, cur.ch - 1),
+							cur) == "<";
+				});
+			}
+
+			function completeIfInTag(cm) {
+				return completeAfter(
+						cm,
+						function() {
+							var tok = cm.getTokenAt(cm.getCursor());
+							if (tok.type == "string"
+									&& (!/['"]/.test(tok.string
+											.charAt(tok.string.length - 1)) || tok.string.length == 1))
+								return false;
+							var inner = CodeMirror.innerMode(cm.getMode(),
+									tok.state).state;
+							return inner.tagName;
+						});
+			}
+
+			var editor = CodeMirror.fromTextArea(document
+					.getElementById("code"), {
+				mode : "xml",
+				lineNumbers : true,
+				extraKeys : {
+					"'<'" : completeAfter,
+					"'/'" : completeIfAfterLt,
+					"' '" : completeIfInTag,
+					"'='" : completeIfInTag,
+					"Ctrl-Space" : "autocomplete"
+				},
+				hintOptions : {
+					schemaInfo : tags
+				}
+			});
+		</script>
+	</article>
 
 </body>
 </html>
