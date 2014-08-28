@@ -9,19 +9,19 @@
 <!-- Bootstrap -->
 <link href="../../css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" type="text/css" media="screen"
-href="../../lib/codemirror/lib/codemirror.css" />
+	href="../../lib/codemirror/lib/codemirror.css" />
 <link rel="stylesheet" type="text/css" media="screen"
-href="../../lib/codemirror/addon/hint/show-hint.css" />
+	href="../../lib/codemirror/addon/hint/show-hint.css" />
 
 <style>
-	/* http://codemirror.net/doc/manual.html#styling */
-	.CodeMirror {
-		width: 1200px;
-		height: 400px;
-		font-size: 1.5em;
-		line-height: 1.5;
-		border: thin solid darkblue;
-	}
+/* http://codemirror.net/doc/manual.html#styling */
+.CodeMirror {
+	width: 1200px;
+	height: 400px;
+	font-size: 1.5em;
+	line-height: 1.5;
+	border: thin solid darkblue;
+}
 </style>
 
 <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
@@ -32,116 +32,90 @@ href="../../lib/codemirror/addon/hint/show-hint.css" />
 <![endif]-->
 </head>
 <body>
-<h1>Oozie Config Editor</h1>
-<textarea id="codeArea"
+	<h1>Oozie Config Editor</h1>
+	<textarea id="codeArea"
 		style="width: 800px; height: 400px; font-size: 16px"></textarea>
-		
 
 
- <script type="text/javascript"
-src="../../js/vendor/jquery-1.10.1.min.js"></script>
-<script type='text/javascript'
-src='../../lib/codemirror/lib/codemirror.js'></script>
-<script type='text/javascript'
-src='../../lib/codemirror/addon/hint/show-hint.js'></script>
-<script type='text/javascript'
-src='../../lib/codemirror/addon/hint/xml-hint.js'></script>
-<script type='text/javascript'
-src='../../lib/codemirror/mode/xml/xml.js'></script>
-<script type="text/javascript">
-	var oozieTags2 = $.getJSON("oozie-workflow-0.5.json");
 
-	function completeAfter(cm, pred) {
-		var cur = cm.getCursor();
-		if (!pred || pred())
-			setTimeout(function() {
-				if (!cm.state.completionActive)
-					cm.showHint({
-						completeSingle : false
-					});
-			}, 100);
-		return CodeMirror.Pass;
-	}
+	<script type="text/javascript"
+		src="../../js/vendor/jquery-1.10.1.min.js"></script>
+	<script type='text/javascript'
+		src='../../lib/codemirror/lib/codemirror.js'></script>
+	<script type='text/javascript'
+		src='../../lib/codemirror/addon/hint/show-hint.js'></script>
+	<script type='text/javascript'
+		src='../../lib/codemirror/addon/hint/xml-hint.js'></script>
+	<script type='text/javascript'
+		src='../../lib/codemirror/mode/xml/xml.js'></script>
+	<script type='text/javascript' src='../../js/app.js' /><script type="text/javascript">
 
-	function completeIfAfterLt(cm) {
-		return completeAfter(cm, function() {
+		function completeAfter(cm, pred) {
 			var cur = cm.getCursor();
-			return cm.getRange(CodeMirror.Pos(cur.line, cur.ch - 1), cur) == "<";
-		});
-	}
+			if (!pred || pred())
+				setTimeout(function() {
+					if (!cm.state.completionActive)
+						cm.showHint({
+							completeSingle : false
+						});
+				}, 100);
+			return CodeMirror.Pass;
+		}
 
-	function completeIfInTag(cm) {
-		return completeAfter(cm, function() {
-			var tok = cm.getTokenAt(cm.getCursor());
-			if (tok.type == "string" && (!/['"]/.test(tok.string.charAt(tok.string.length - 1)) || tok.string.length == 1))
-				return false;
-			var inner = CodeMirror.innerMode(cm.getMode(), tok.state).state;
-			return inner.tagName;
-		});
-	}
+		function completeIfAfterLt(cm) {
+			return completeAfter(
+					cm,
+					function() {
+						var cur = cm.getCursor();
+						return cm.getRange(
+								CodeMirror.Pos(cur.line, cur.ch - 1), cur) == "<";
+					});
+		}
 
-	var oozieTags = {
-		"!top" : ["workflow-app"],
-		"!attrs" : {
-			name : null
-		},
-		"workflow-app" : {
-			attrs : {
-				name : null
+		function completeIfInTag(cm) {
+			return completeAfter(
+					cm,
+					function() {
+						var tok = cm.getTokenAt(cm.getCursor());
+						if (tok.type == "string"
+								&& (!/['"]/.test(tok.string
+										.charAt(tok.string.length - 1)) || tok.string.length == 1))
+							return false;
+						var inner = CodeMirror.innerMode(cm.getMode(),
+								tok.state).state;
+						return inner.tagName;
+					});
+		}
+
+		var oozieTags = app.
+
+		var config = {
+			mode : "xml",
+			indentUnit : 3,
+			smartIndent : true,
+			tabSize : 3,
+			indentWithTabs : true,
+			electricChars : true,
+			lineWrapping : false,
+			lineNumbers : true,
+			showCursorWhenSelecting : true,
+			autofocus : true,
+
+			extraKeys : {
+				"'<'" : completeAfter,
+				"'/'" : completeIfAfterLt,
+				"' '" : completeIfInTag,
+				"'='" : completeIfInTag,
+				"Ctrl-Space" : "autocomplete"
 			},
-			children : ["parameters", "global", "credentials", "start", "decision", "fork", "join", "kill", "action", "end"]
-			//sequence and choice
-		},
-		"parameters" : {
-			children : ["property"]
-		},
-		"property" : {
-			children : ["name", "value", "description"]
-			//sequence
-		},
-		"global" : {
-			children : ["job-tracker", "name-node", "job-xml", "configuration"]
-		},
-		"start" : {
-			attrs : {
-				to : null
+			hintOptions : {
+				schemaInfo : oozieTags
 			}
-		},
-		"end" : {
-			attrs : {
-				name : null
-			}
-		},
-		"decision" : {
-		}
-	};
+		};
 
-	var config = {
-		mode : "xml",
-		indentUnit : 3,
-		smartIndent : true,
-		tabSize : 3,
-		indentWithTabs : true,
-		electricChars : true,
-		lineWrapping : false,
-		lineNumbers : true,
-		showCursorWhenSelecting : true,
-		autofocus : true,
-
-		extraKeys : {
-			"'<'" : completeAfter,
-			"'/'" : completeIfAfterLt,
-			"' '" : completeIfInTag,
-			"'='" : completeIfInTag,
-			"Ctrl-Space" : "autocomplete"
-		},
-		hintOptions : {
-			schemaInfo : oozieTags
-		}
-	};
-
-	var xmlEditor = CodeMirror.fromTextArea(document.getElementById('codeArea'), config); 
-</script>
+		var xmlEditor = CodeMirror.fromTextArea(document
+				.getElementById('codeArea'), config);
+	</script>
 
 <article>
 	<h2>XML Autocomplete Demo</h2>
@@ -169,38 +143,39 @@ src='../../lib/codemirror/mode/xml/xml.js'></script>
 	<script>
 		var dummy = {
 			attrs : {
-				color : ["red", "green", "blue", "purple", "white", "black", "yellow"],
-				size : ["large", "medium", "small"],
+				color : [ "red", "green", "blue", "purple", "white", "black",
+						"yellow" ],
+				size : [ "large", "medium", "small" ],
 				description : null
 			},
 			children : []
 		};
 
 		var tags = {
-			"!top" : ["top"],
+			"!top" : [ "top" ],
 			"!attrs" : {
 				id : null,
-				class : ["A", "B", "C"]
+				class : [ "A", "B", "C" ]
 			},
 			top : {
 				attrs : {
-					lang : ["en", "de", "fr", "nl"],
+					lang : [ "en", "de", "fr", "nl" ],
 					freeform : null
 				},
-				children : ["animal", "plant"]
+				children : [ "animal", "plant" ]
 			},
 			animal : {
 				attrs : {
 					name : null,
-					isduck : ["yes", "no"]
+					isduck : [ "yes", "no" ]
 				},
-				children : ["wings", "feet", "body", "head", "tail"]
+				children : [ "wings", "feet", "body", "head", "tail" ]
 			},
 			plant : {
 				attrs : {
 					name : null
 				},
-				children : ["leaves", "stem", "flowers"]
+				children : [ "leaves", "stem", "flowers" ]
 			},
 			wings : dummy,
 			feet : dummy,
@@ -225,20 +200,28 @@ src='../../lib/codemirror/mode/xml/xml.js'></script>
 		}
 
 		function completeIfAfterLt(cm) {
-			return completeAfter(cm, function() {
-				var cur = cm.getCursor();
-				return cm.getRange(CodeMirror.Pos(cur.line, cur.ch - 1), cur) == "<";
-			});
+			return completeAfter(
+					cm,
+					function() {
+						var cur = cm.getCursor();
+						return cm.getRange(
+								CodeMirror.Pos(cur.line, cur.ch - 1), cur) == "<";
+					});
 		}
 
 		function completeIfInTag(cm) {
-			return completeAfter(cm, function() {
-				var tok = cm.getTokenAt(cm.getCursor());
-				if (tok.type == "string" && (!/['"]/.test(tok.string.charAt(tok.string.length - 1)) || tok.string.length == 1))
-					return false;
-				var inner = CodeMirror.innerMode(cm.getMode(), tok.state).state;
-				return inner.tagName;
-			});
+			return completeAfter(
+					cm,
+					function() {
+						var tok = cm.getTokenAt(cm.getCursor());
+						if (tok.type == "string"
+								&& (!/['"]/.test(tok.string
+										.charAt(tok.string.length - 1)) || tok.string.length == 1))
+							return false;
+						var inner = CodeMirror.innerMode(cm.getMode(),
+								tok.state).state;
+						return inner.tagName;
+					});
 		}
 
 		var editor = CodeMirror.fromTextArea(document.getElementById("code"), {

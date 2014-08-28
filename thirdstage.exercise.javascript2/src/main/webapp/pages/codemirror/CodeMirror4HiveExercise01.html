@@ -56,7 +56,7 @@
 
 
 	<script type="text/javascript"
-		src="../../js/vendor/jquery-1.10.1	.min.js"></script>
+		src="../../js/vendor/jquery-1.10.1.min.js"></script>
 	<script type='text/javascript'
 		src='../../lib/codemirror/lib/codemirror.js'></script>
 	<script type='text/javascript'
@@ -65,118 +65,102 @@
 		src='../../lib/codemirror/addon/hint/sql-hint.js'></script>
 	<script type='text/javascript'
 		src='../../lib/codemirror/mode/sql/sql.js'></script>
+
+	<script type='text/javascript' src='../../js/app.js'></script>
+
 	<script type="text/javascript">
+		function completeAfter(cm, pred) {
+			var cur = cm.getCursor();
+			if (!pred || pred())
+				setTimeout(function() {
+					if (!cm.state.completionActive)
+						cm.showHint({
+							completeSingle : false
+						});
+				}, 100);
+			return CodeMirror.Pass;
+		}
 
-      function completeAfter(cm, pred) {
-        var cur = cm.getCursor();
-        if (!pred || pred()) setTimeout(function() {
-          if (!cm.state.completionActive)
-            cm.showHint({completeSingle: false});
-        }, 100);
-        return CodeMirror.Pass;
-      }
+		function completeIfAfterLt(cm) {
+			return completeAfter(
+					cm,
+					function() {
+						var cur = cm.getCursor();
+						return cm.getRange(
+								CodeMirror.Pos(cur.line, cur.ch - 1), cur) == "<";
+					});
+		}
 
-      function completeIfAfterLt(cm) {
-        return completeAfter(cm, function() {
-          var cur = cm.getCursor();
-          return cm.getRange(CodeMirror.Pos(cur.line, cur.ch - 1), cur) == "<";
-        });
-      }
+		function completeIfInTag(cm) {
+			return completeAfter(
+					cm,
+					function() {
+						var tok = cm.getTokenAt(cm.getCursor());
+						if (tok.type == "string"
+								&& (!/['"]/.test(tok.string
+										.charAt(tok.string.length - 1)) || tok.string.length == 1))
+							return false;
+						var inner = CodeMirror.innerMode(cm.getMode(),
+								tok.state).state;
+						return inner.tagName;
+					});
+		}
 
-      function completeIfInTag(cm) {
-        return completeAfter(cm, function() {
-          var tok = cm.getTokenAt(cm.getCursor());
-          if (tok.type == "string" && (!/['"]/.test(tok.string.charAt(tok.string.length - 1)) || tok.string.length == 1)) return false;
-          var inner = CodeMirror.innerMode(cm.getMode(), tok.state).state;
-          return inner.tagName;
-        });
-      }
+		var oozieTags = app.getOozieTags();
 
-var oozieTags = {
-  "!top": ["workflow-app"],
-  "!attrs": {
-    name: null
-  },
-  "workflow-app" : {
-    attrs : {
-      name : null
-    },
-    children : [
-      "parameters", "global", "credentials", "start",
-      "decision", "fork", "join", "kill", "action",
-      "end"
-    ] //sequence and choice
-  },
-  "parameters" : {
-    children : [ "property" ]
-  },
-  "property" : {
-    children : [ "name", "value", "description"] //sequence
-  },
-  "global" : {
-    children : [ "job-tracker", "name-node", "job-xml", "configuration" ]
-  },
-  "start" : {
-    attrs : {
-      to : null
-    }
-  },
-  "end" : {
-    attrs : {
-      name : null
-    }
-  },
-  "decision" : {
+		var config = {
+			mode : "text/x-hive",
+			indentUnit : 3,
+			smartIndent : true,
+			tabSize : 3,
+			indentWithTabs : true,
+			electricChars : true,
+			lineWrapping : false,
+			lineNumbers : true,
+			fixedGutter : true,
+			readOnly : false,
+			showCursorWhenSelecting : true,
+			autofocus : true,
 
-  }
+			extraKeys : {
+				"'<'" : completeAfter,
+				"'/'" : completeIfAfterLt,
+				"' '" : completeIfInTag,
+				"'='" : completeIfInTag,
+				"Ctrl-Space" : "autocomplete"
+			},
+			hint : CodeMirror.hint.sql
+		};
 
-}
+		var editor = CodeMirror.fromTextArea(document
+				.getElementById('codeArea'), config);
 
-var config = {
-  mode: "text/x-hive",
-  indentUnit: 3,
-  smartIndent: true,
-  tabSize: 3,
-  indentWithTabs: true,
-  electricChars: true,
-  lineWrapping: false,
-  lineNumbers: true,
-  fixedGutter: true,
-  readOnly: false,
-  showCursorWhenSelecting: true,
-  autofocus: true,
+		//Add event handlers for controls
+		$("#codeAreaControl button.format").click(function(event) {
 
-  extraKeys: {
-    "'<'": completeAfter,
-    "'/'": completeIfAfterLt,
-    "' '": completeIfInTag,
-    "'='": completeIfInTag,
-    "Ctrl-Space": "autocomplete"
-  },
-  hint: CodeMirror.hint.sql
-};
+			editor.execCommand("selectAll");
+			editor.execCommand("indentAuto");
+			editor.setSelection({
+				line : 0,
+				ch : 0
+			});
+		});
 
-var editor = CodeMirror.fromTextArea(document.getElementById('codeArea'), config);
+		//Add event handlers for sample statements table
+		$("#sampleStatements td.action button.load").click(
+				function(event) {
 
-//Add event handlers for controls
-$("#codeAreaControl button.format").click(function(event){
-	
-	editor.execCommand("selectAll");
-	editor.execCommand("indentAuto");
-	editor.setSelection({line : 0, ch : 0});
-});
-
-//Add event handlers for sample statements table
-$("#sampleStatements td.action button.load").click(function(event){
-
-	var stmt = $(this).parents("tr.statement").find("> td.statement").text();
-	editor.setValue(stmt);
-	editor.execCommand("selectAll");
-	editor.execCommand("indentAuto");
-	editor.setSelection({line : 0, ch : 0})
-});
-
-</script>
+					var stmt = $(this).parents("tr.statement").find(
+							"> td.statement").text();
+					editor.setValue(stmt);
+					editor.execCommand("selectAll");
+					editor.execCommand("indentAuto");
+					editor.setSelection({
+						line : 0,
+						ch : 0
+					})
+				});
+	</script>
 
 
 
