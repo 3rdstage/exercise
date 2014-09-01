@@ -62,13 +62,10 @@ Consider the utilization of the followings
 		<button type="button" class="btn btn-default">
 			Validate
 		</button>
-		<label>
-			<input type="checkbox" name="wraps">
-			자동 줄바꿈</label>
-		<label>
-			<input type="checkbox" name="closes">
-			자동 태그 닫기</label>
+		<label><input type="checkbox" name="wraps">자동 줄바꿈</label>
+		<label><input type="checkbox" name="closesTag">자동 태그 닫기</label>
 		<!-- font size, code folding -->
+		<label><input type="checkbox" name="consoleLogs">콘솔 로그</label>
 	</div>
 </nav>
 
@@ -90,6 +87,9 @@ Consider the utilization of the followings
 <script type='text/javascript' src='../../js/oozie.js'></script>
 
 <script type="text/javascript">
+	var xmlEditor;  //make global variable for the convenience of debugging
+
+
 	function completeAfter(cm, pred) {
 		var cur = cm.getCursor();
 		if (!pred || pred())
@@ -118,6 +118,10 @@ Consider the utilization of the followings
 			return inner.tagName;
 		});
 	}! function() {
+		"use strict";
+
+		var consoleLogs = true;
+
 		var oozieTags = app.oozie.getTags("0.5");
 
 		//@hint
@@ -142,6 +146,7 @@ Consider the utilization of the followings
 				"' '" : completeIfInTag,
 				"'='" : completeIfInTag,
 				"Ctrl-Space" : "autocomplete",
+				"F2" : "autocomplete",
 				"Ctrl-J" : "toMatchingTag"
 			},
 			hint : CodeMirror.hint.xml,
@@ -158,10 +163,12 @@ Consider the utilization of the followings
 			autoCloseTags : true
 		};
 
-		var xmlEditor = CodeMirror.fromTextArea(document.getElementById('codeArea'), config);
+		xmlEditor = CodeMirror.fromTextArea(document.getElementById('codeArea'), config);
 
 		//initializing controls
 		$("#codeAreaControl input[name='wraps']").prop("checked", xmlEditor.getOption("lineWrapping"));
+		$("#codeAreaControl input[name='closesTag']").prop("checked", xmlEditor.getOption("autoCloseTags"));
+		$("#codeAreaControl input[name='consoleLogs']").prop("checked", consoleLogs);
 
 		$("#codeAreaControl button.format").click(function(event) {
 			event.stopPropagation();
@@ -169,21 +176,24 @@ Consider the utilization of the followings
 			var pos = xmlEditor.getCursor();
 			var str = xmlEditor.getValue() || "";
 			var str1, str2;
-			var re1, re2;
+			var re, re1, re2;
 			var result;
 
 			//normalize start tag including attribute values
 			//refer http://www.w3.org/TR/REC-xml/#AVNormalize
-			var re1 = /<\s*([A-Za-z_:][-\w:.]+)(\s+[^<>]*[^\/<>])(\/)?>/g;
-			var re2 = /\s+([A-Za-z_:][-\w:.]+)\s*=\s*(?:"([^"]*)"|'([^']*)')\s*/g;
+			//the most common form of xs:name : [A-Za-z_:][-\w:.]+ (http://www.w3.org/TR/xml/#d0e804)
+			re1 = /<\s*([A-Za-z_:][-\w:.]+)([^<>]*[^\/<>])?(\/)?>/g;
+			re2 = /\s*([A-Za-z_:][-\w:.]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 
 			str1 = str.replace(re1, function(match, p1, p2, p3, offset, string) {
-				console.log("match : [" + match + "], p1 : [" + p1 + "], p2 : [" + p2 + "], p3 : [" + p3 + "]");
+				if(consoleLogs) console.log("match : [" + match + "], p1 : [" + p1 + "], p2 : [" + p2 + "], p3 : [" + p3 + "]");
+
+				p2 = p2.trim();
 
 				str2 = p2.replace(re2, function(match, p1, p2, p3, offset, string) {
-					console.log("  match : [" + match + "], p1 : [" + p1 + "], p2 : [" + p2 + "], p3 : [" + p3 + "]");
+					if(consoleLogs) console.log("  match : [" + match + "], p1 : [" + p1 + "], p2 : [" + p2 + "], p3 : [" + p3 + "]");
 
-					result = " " + (p1 || "").trim() + "=";
+					result = " " + p1 + "=";
 					// only one of p2 or p3 always undefined
 					if (p2) {
 						result += "\"" + p2.trim() + "\"";
@@ -194,38 +204,56 @@ Consider the utilization of the followings
 
 					return result;
 				});
-				console.log("  replaced attrbs : [" + str2 + "]");
 
 				return "<" + p1 + str2 + (p3 || "") + ">";
 			});
 
+			//normalize the end tag
+			re = /<\/\s*([A-Za-z_:][-\w:.]+)\s*>/g;
+			str1 = str1.replace(re, "</$1>");
+
 			//normalize the text of name element
-			str = str.replace(/<name>([^<>]*)<\/name>/gm, function(match, p1) {
+			str1 = str1.replace(/<name>([^<>]*)<\/name>/gm, function(match, p1) {
 				return '<name>' + (p1 || '').trim() + '</name>';
 			});
 
-			//str = str.replace(/(\r\n|\n|\r)/gm, "");
+			//@todo normalized attribute values containing action name.
 
-			xmlEditor.setValue(vkbeautify.xml(str, 3));
+			xmlEditor.setValue(vkbeautify.xml(str1, 3));
 			//xmlEditor.execCommand("selectAll");
 			//xmlEditor.execCommand("indentAuto");
 			//xmlEditor.setSelection({ line : 0, ch : 0 });
-			xmlEditor.setCursor(pos);
 
+			xmlEditor.focus();
+			xmlEditor.setCursor(pos);
 		});
 		$("#codeAreaControl button.sample").click(function(event) {
 			event.stopPropagation();
 
 			var str = app.oozie.getWorkflowSample("0.1");
 
+			xmlEditor.setValue("");
 			xmlEditor.setValue(str);
+			xmlEditor.setCursor(0, 0);
+			xmlEditor.focus();
 		});
 		$("#codeAreaControl input[name='wraps']").click(function(event) {
 			event.stopPropagation();
 			xmlEditor.setOption("lineWrapping", $(this).is(":checked"));
+			xmlEditor.focus();
+		});
+		$("#codeAreaControl input[name='closesTag']").click(function(event) {
+			event.stopPropagation();
+			xmlEditor.setOption("autoCloseTags", $(this).is(":checked"));
+			xmlEditor.focus();
+		});
+		$("#codeAreaControl input[name='consoleLogs']").click(function(event){
+			event.stopPropagation();
+			consoleLogs = $(this).is(":checked");
+			xmlEditor.focus();
 		});
 
-	}(); 
+	}();
 </script>
 
 </body>

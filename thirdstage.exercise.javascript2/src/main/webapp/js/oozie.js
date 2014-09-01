@@ -6,8 +6,10 @@
 
 	var schemas = {};
 	
+	//from the schema top can be one of ["workflow-app", "switch", "kill", "map-reduce", "pig", "sub-workflow", "fs", "java"]
+	//but it seems to be ...
 	schemas["0.5"] = {
-		"!top": ["workflow-app", "switch", "kill", "map-reduce", "pig", "sub-workflow", "fs", "java"],
+		"!top": ["workflow-app"],
 
 		"workflow-app": {
 			"attrs": {
@@ -251,7 +253,8 @@
 	workflowSamples["0.1"] = 
 		"<workflow-app name='example-forkjoinwf' xmlns=\"uri:oozie:workflow:0.1\">"
 		+ "    <start to='firstjob' />"
-		+ "    <action name=\"firstjob\">"
+		+ "    <action/>"
+		+ "    <action name=\"firstjob\" cred='who?'>"
 		+ "        <map-reduce>"
 		+ "            <job-tracker>${jobtracker}</job-tracker>"
 		+ "            <name-node>${namenode}</name-node>"
@@ -265,12 +268,12 @@
 		+ "                    <value>org.apache.hadoop.example.IdReducer</value>"
 		+ "                </property>"
 		+ "                <property>"
-		+ "                    <name>mapred.map.tasks</name>"
-		+ "                    <value>1</value>"
+		+ "                    <name>mapred.input.dir</name>"
+		+ "                    <value>/usr/foo/${wf:id()}/temp1,/usr/foo/${wf:id()}/temp2,/usr/foo/${wf:id()}/temp3</value>"
 		+ "                </property>"
 		+ "                <property>"
-		+ "                    <name>mapred.input.dir</name>"
-		+ "                    <value>${input}</value>"
+		+ "                    <name>mapred.map.tasks</name>"
+		+ "                    <value>1</value>"
 		+ "                </property>"
 		+ "                <property>"
 		+ "                    <name>mapred.output.dir</name>"
