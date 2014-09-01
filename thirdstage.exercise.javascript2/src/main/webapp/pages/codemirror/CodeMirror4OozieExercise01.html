@@ -10,20 +10,27 @@
 <link href="../../css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" type="text/css" media="screen" href="../../lib/codemirror/lib/codemirror.css" />
 <link rel="stylesheet" type="text/css" media="screen" href="../../lib/codemirror/addon/hint/show-hint.css" />
+<link rel="stylesheet" type="text/css" media="screen" href="../../lib/codemirror/addon/fold/foldgutter.css" />
 
 <style>
-/* http://codemirror.net/doc/manual.html#styling */
-body{
-	font-family:"맑은 고딕"
-}
+	/* http://codemirror.net/doc/manual.html#styling */
+	body {
+		font-family: "맑은 고딕"
+	}
 
-.CodeMirror {
-	width: 1200px;
-	height: 600px;
-	font-size: 20px;
-	line-height: 1.2;
-	border: thin solid darkblue;
-}
+	.CodeMirror {
+		width: 1200px;
+		height: 600px;
+		font-size: 20px;
+		line-height: 1.2;
+		border: thin solid darkblue;
+	}
+	.CodeMirror-foldgutter-open:after {
+		content: "\2296";
+	}
+	.CodeMirror-foldgutter-folded:after {
+		content: "\2295";
+	}
 </style>
 
 <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
@@ -34,9 +41,9 @@ body{
 <![endif]-->
 </head>
 <body>
-	<h1>Oozie Config Editor</h1>
+<h1>Oozie Config Editor</h1>
 
-	<!--
+<!--
 Consider the utilization of the followings
 
 * CodeMirror
@@ -44,142 +51,182 @@ Consider the utilization of the followings
 * jQuery.parseXML() : http://api.jquery.com/jQuery.parseXML/
 -->
 
-	<nav class="navbar navbar-default" role="control">
-		<div id="codeAreaControl">
-		<button type="button" class="btn btn-default sample">Sample</button>
-		<button type="button" class="btn btn-default format">Format</button>
-		<button type="button" class="btn btn-default">Command3</button>
-		<label><input type="checkbox" name="wraps">자동 줄바꿈</label>
-		<label><input type="checkbox" name="closes">자동 태그 닫기</label>
+<nav class="navbar navbar-default" role="control">
+	<div id="codeAreaControl">
+		<button type="button" class="btn btn-default sample">
+			Sample
+		</button>
+		<button type="button" class="btn btn-default format">
+			Format
+		</button>
+		<button type="button" class="btn btn-default">
+			Validate
+		</button>
+		<label>
+			<input type="checkbox" name="wraps">
+			자동 줄바꿈</label>
+		<label>
+			<input type="checkbox" name="closes">
+			자동 태그 닫기</label>
 		<!-- font size, code folding -->
-		</div>
-	</nav>
-
-	<div class="btn-group btn-group-right" id="codeAreaControl" style="text-align: right">
 	</div>
-	<textarea id="codeArea"></textarea>
+</nav>
+
+<div class="btn-group btn-group-right" id="codeAreaControl" style="text-align: right"></div>
+<textarea id="codeArea"></textarea>
 
 
-	<script type="text/javascript" src="../../js/vendor/jquery-1.10.1.min.js"></script>
-	<script type='text/javascript' src='../../lib/codemirror/lib/codemirror.js'></script>
-	<script type='text/javascript' src='../../lib/codemirror/mode/xml/xml.js'></script>
-	<script type='text/javascript' src='../../lib/codemirror/addon/hint/show-hint.js'></script>
-	<script type='text/javascript' src='../../lib/codemirror/addon/hint/xml-hint.js'></script>
-	<script type='text/javascript' src='../../lib/codemirror/addon/fold/xml-fold.js'></script>
-	<script type='text/javascript' src='../../lib/codemirror/addon/edit/matchtags.js'></script>
-	<script type='text/javascript' src='../../lib/codemirror/addon/edit/closetag.js'></script>
-	<script type='text/javascript' src='../../lib/vkbeautify.0.99.00.beta.js'></script>
-	<script type='text/javascript' src='../../js/oozie.js'></script>
+ <script type="text/javascript" src="../../js/vendor/jquery-1.10.1.min.js"></script>
+<script type='text/javascript' src='../../lib/codemirror/lib/codemirror.js'></script>
+<script type='text/javascript' src='../../lib/codemirror/mode/xml/xml.js'></script>
+<script type='text/javascript' src='../../lib/codemirror/addon/hint/show-hint.js'></script>
+<script type='text/javascript' src='../../lib/codemirror/addon/hint/xml-hint.js'></script>
+<script type='text/javascript' src='../../lib/codemirror/addon/fold/foldcode.js'></script>
+<script type='text/javascript' src='../../lib/codemirror/addon/fold/foldgutter.js'></script>
+<script type='text/javascript' src='../../lib/codemirror/addon/fold/xml-fold.js'></script>
+<script type='text/javascript' src='../../lib/codemirror/addon/edit/matchtags.js'></script>
+<script type='text/javascript' src='../../lib/codemirror/addon/edit/closetag.js'></script>
+<script type='text/javascript' src='../../lib/vkbeautify.0.99.00.beta.js'></script>
+<script type='text/javascript' src='../../js/oozie.js'></script>
 
-	<script type="text/javascript">
-		function completeAfter(cm, pred) {
+<script type="text/javascript">
+	function completeAfter(cm, pred) {
+		var cur = cm.getCursor();
+		if (!pred || pred())
+			setTimeout(function() {
+				if (!cm.state.completionActive)
+					cm.showHint({
+						completeSingle : false
+					});
+			}, 100);
+		return CodeMirror.Pass;
+	}
+
+	function completeIfAfterLt(cm) {
+		return completeAfter(cm, function() {
 			var cur = cm.getCursor();
-			if (!pred || pred())
-				setTimeout(function() {
-					if (!cm.state.completionActive)
-						cm.showHint({
-							completeSingle : false
-						});
-				}, 100);
-			return CodeMirror.Pass;
-		}
+			return cm.getRange(CodeMirror.Pos(cur.line, cur.ch - 1), cur) == "<";
+		});
+	}
 
-		function completeIfAfterLt(cm) {
-			return completeAfter(
-					cm,
-					function() {
-						var cur = cm.getCursor();
-						return cm.getRange(
-								CodeMirror.Pos(cur.line, cur.ch - 1), cur) == "<";
-					});
-		}
+	function completeIfInTag(cm) {
+		return completeAfter(cm, function() {
+			var tok = cm.getTokenAt(cm.getCursor());
+			if (tok.type == "string" && (!/['"]/.test(tok.string.charAt(tok.string.length - 1)) || tok.string.length == 1))
+				return false;
+			var inner = CodeMirror.innerMode(cm.getMode(), tok.state).state;
+			return inner.tagName;
+		});
+	}! function() {
+		var oozieTags = app.oozie.getTags("0.5");
 
-		function completeIfInTag(cm) {
-			return completeAfter(
-					cm,
-					function() {
-						var tok = cm.getTokenAt(cm.getCursor());
-						if (tok.type == "string"
-								&& (!/['"]/.test(tok.string
-										.charAt(tok.string.length - 1)) || tok.string.length == 1))
-							return false;
-						var inner = CodeMirror.innerMode(cm.getMode(),
-								tok.state).state;
-						return inner.tagName;
-					});
-		}
-		
-		!function() {
-			var oozieTags = app.oozie.getTags("0.5");
+		//@hint
+		// folderOptions : defaultOptions in foldcode.js
+		var config = {
+			mode : "application/xml",
+			indentUnit : 3,
+			smartIndent : true,
+			tabSize : 3,
+			indentWithTabs : false,
+			electricChars : true,
+			lineWrapping : true,
+			lineNumbers : true,
+			foldGutter : true,
+			gutters : ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+			showCursorWhenSelecting : true,
+			autofocus : true,
 
-			var config = {
-				mode : "application/xml",
-				indentUnit : 3,
-				smartIndent : true,
-				tabSize : 3,
-				indentWithTabs : false,
-				electricChars : true,
-				lineWrapping : true,
-				lineNumbers : true,
-				showCursorWhenSelecting : true,
-				autofocus : true,
+			extraKeys : {
+				"'<'" : completeAfter,
+				"'/'" : completeIfAfterLt,
+				"' '" : completeIfInTag,
+				"'='" : completeIfInTag,
+				"Ctrl-Space" : "autocomplete",
+				"Ctrl-J" : "toMatchingTag"
+			},
+			hint : CodeMirror.hint.xml,
+			hintOptions : {
+				schemaInfo : oozieTags
+			},
+			foldOptions : {
+				minFoldSize : 0,
+				scanUp : false
+			},
+			matchTags : {
+				bothTags : true
+			},
+			autoCloseTags : true
+		};
 
-				extraKeys : {
-					"'<'" : completeAfter,
-					"'/'" : completeIfAfterLt,
-					"' '" : completeIfInTag,
-					"'='" : completeIfInTag,
-					"Ctrl-Space" : "autocomplete",
-					"Ctrl-J": "toMatchingTag"
-				},
-				hint : CodeMirror.hint.xml,
-				hintOptions : {
-					schemaInfo : oozieTags
-				},
-				autoCloseTags : true,
-				matchTags : {bothTags: true}
-			};
+		var xmlEditor = CodeMirror.fromTextArea(document.getElementById('codeArea'), config);
 
-			var xmlEditor = CodeMirror.fromTextArea(document
-					.getElementById('codeArea'), config);
-			
-			//initializing controls
-			$("#codeAreaControl input[name='wraps']").prop("checked", xmlEditor.getOption("lineWrapping"));
+		//initializing controls
+		$("#codeAreaControl input[name='wraps']").prop("checked", xmlEditor.getOption("lineWrapping"));
 
-			$("#codeAreaControl button.format").click(
-					function(event) {
-						event.stopPropagation();
-						
-						var str = xmlEditor.getValue() || "";
+		$("#codeAreaControl button.format").click(function(event) {
+			event.stopPropagation();
 
-						//normalize the text of name element
-						str = str.replace(/<name>([^<>]*)<\/name>/gm, function(
-								match, p1) {
-							return '<name>' + (p1 || '').trim() + '</name>';
-						});
-						//str = str.replace(/(\r\n|\n|\r)/gm, "");
+			var pos = xmlEditor.getCursor();
+			var str = xmlEditor.getValue() || "";
+			var str1, str2;
+			var re1, re2;
+			var result;
 
-						xmlEditor.setValue(vkbeautify.xml(str, 3));
-						//xmlEditor.execCommand("selectAll");
-						//xmlEditor.execCommand("indentAuto");
-						//xmlEditor.setSelection({ line : 0, ch : 0 });
+			//normalize start tag including attribute values
+			//refer http://www.w3.org/TR/REC-xml/#AVNormalize
+			var re1 = /<\s*([A-Za-z_:][-\w:.]+)(\s+[^<>]*[^\/<>])(\/)?>/g;
+			var re2 = /\s+([A-Za-z_:][-\w:.]+)\s*=\s*(?:"([^"]*)"|'([^']*)')\s*/g;
 
-					});
-			$("#codeAreaControl button.sample").click(function(event) {
-				event.stopPropagation();
-				
-				var str = app.oozie.getWorkflowSample("0.1");
+			str1 = str.replace(re1, function(match, p1, p2, p3, offset, string) {
+				console.log("match : [" + match + "], p1 : [" + p1 + "], p2 : [" + p2 + "], p3 : [" + p3 + "]");
 
-				xmlEditor.setValue(str);
-			});
-			$("#codeAreaControl input[name='wraps']").click(function(event){
-				event.stopPropagation();
-				xmlEditor.setOption("lineWrapping", $(this).is(":checked"));
+				str2 = p2.replace(re2, function(match, p1, p2, p3, offset, string) {
+					console.log("  match : [" + match + "], p1 : [" + p1 + "], p2 : [" + p2 + "], p3 : [" + p3 + "]");
+
+					result = " " + (p1 || "").trim() + "=";
+					// only one of p2 or p3 always undefined
+					if (p2) {
+						result += "\"" + p2.trim() + "\"";
+					} else if (p3) {
+						result += "'" + p3.trim() + "'";
+					} else {/*error */
+					}
+
+					return result;
+				});
+				console.log("  replaced attrbs : [" + str2 + "]");
+
+				return "<" + p1 + str2 + (p3 || "") + ">";
 			});
 
-		}();
-	</script>
+			//normalize the text of name element
+			str = str.replace(/<name>([^<>]*)<\/name>/gm, function(match, p1) {
+				return '<name>' + (p1 || '').trim() + '</name>';
+			});
 
+			//str = str.replace(/(\r\n|\n|\r)/gm, "");
+
+			xmlEditor.setValue(vkbeautify.xml(str, 3));
+			//xmlEditor.execCommand("selectAll");
+			//xmlEditor.execCommand("indentAuto");
+			//xmlEditor.setSelection({ line : 0, ch : 0 });
+			xmlEditor.setCursor(pos);
+
+		});
+		$("#codeAreaControl button.sample").click(function(event) {
+			event.stopPropagation();
+
+			var str = app.oozie.getWorkflowSample("0.1");
+
+			xmlEditor.setValue(str);
+		});
+		$("#codeAreaControl input[name='wraps']").click(function(event) {
+			event.stopPropagation();
+			xmlEditor.setOption("lineWrapping", $(this).is(":checked"));
+		});
+
+	}(); 
+</script>
 
 </body>
 </html>

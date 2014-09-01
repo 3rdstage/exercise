@@ -226,6 +226,24 @@
 			}
 		}
 	};
+	
+	var idAttrs = {};
+	idAttrs["0.5"] = [
+		{tag : "workflow-app", attr : "name"},
+		{tag : "workflow-app", attr : "name"},
+		{tag : "workflow-app", attr : "name"},
+		{tag : "workflow-app", attr : "name"},
+		{tag : "workflow-app", attr : "name"},
+		{tag : "workflow-app", attr : "name"},
+		{tag : "workflow-app", attr : "name"},
+		{tag : "workflow-app", attr : "name"},
+		{tag : "workflow-app", attr : "name"},
+		{tag : "workflow-app", attr : "name"},
+		{tag : "workflow-app", attr : "name"},
+		
+		
+	];
+	
 
 	
 	var workflowSamples = {};
