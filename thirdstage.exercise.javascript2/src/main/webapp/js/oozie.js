@@ -5,7 +5,7 @@
 	var oozie = {};
 
 	var schemas = {};
-	
+
 	//from the schema top can be one of ["workflow-app", "switch", "kill", "map-reduce", "pig", "sub-workflow", "fs", "java"]
 	//but it seems to be ...
 	schemas["0.5"] = {
@@ -47,7 +47,7 @@
 				"type": null
 			},
 			"children": ["property"]
-		},	
+		},
 
 		"start": {
 			"attrs": {
@@ -74,7 +74,7 @@
 			"attrs": {
 				"to": null
 			}
-		},	
+		},
 
 		"fork": {
 			"attrs": {
@@ -86,7 +86,7 @@
 			"attrs": {
 				"start": null
 			}
-		},	
+		},
 
 		"join": {
 			"attrs": {
@@ -228,29 +228,36 @@
 			}
 		}
 	};
-	
+
 	var idAttrs = {};
 	idAttrs["0.5"] = [
 		{tag : "workflow-app", attr : "name"},
-		{tag : "workflow-app", attr : "name"},
-		{tag : "workflow-app", attr : "name"},
-		{tag : "workflow-app", attr : "name"},
-		{tag : "workflow-app", attr : "name"},
-		{tag : "workflow-app", attr : "name"},
-		{tag : "workflow-app", attr : "name"},
-		{tag : "workflow-app", attr : "name"},
-		{tag : "workflow-app", attr : "name"},
-		{tag : "workflow-app", attr : "name"},
-		{tag : "workflow-app", attr : "name"},
-		
-		
+		{tag : "start", attr : "to"},
+		{tag : "end", attr : "name"},
+		{tag : "decision", attr : "name"},
+		{tag : "case", attr : "to"},
+		{tag : "default", attr : "to"},
+		{tag : "path", attr : "start"},
+		{tag : "fork", attr : "name"},
+		{tag : "join", attr : "name"},
+		{tag : "join", attr : "to"},
+		{tag : "kill", attr : "name"},
+		{tag : "kill", attr : "name"}
 	];
-	
 
-	
+	var indentTags = {};
+	var dontCloseTags = {};
+
+	indentTags["0.5"] = ["workflow-app", "parameters", "property", "global",
+	                     "configuration", "credentials", "credential", "decision",
+	                     "switch", "fork", "kill", "action", "map-reduce", "prepare",
+	                     "streaming", "pipes", "pig", "sub-workflow", "fs", "java"];
+	dontCloseTags["0.5"] = [];
+
+
 	var workflowSamples = {};
-	
-	workflowSamples["0.1"] = 
+
+	workflowSamples["0.1"] =
 		"<workflow-app name='example-forkjoinwf' xmlns=\"uri:oozie:workflow:0.1\">"
 		+ "    <start to='firstjob' />"
 		+ "    <action/>"
@@ -262,14 +269,16 @@
 		+ "                <property>"
 		+ "                    <name>mapred.mapper.class</name>"
 		+ "                    <value>org.apache.hadoop.example.IdMapper</value>"
+		+ "                    <description>The full qualified name of Java class to execute mapper process. The class should extends ....</description>"
 		+ "                </property>"
 		+ "                <property>"
 		+ "                    <name>mapred.reducer.class</name>"
 		+ "                    <value>org.apache.hadoop.example.IdReducer</value>"
+		+ "                    <description>The full qualified name of Java class to execute reduce process. The class should extends ....</description>"
 		+ "                </property>"
 		+ "                <property>"
 		+ "                    <name>mapred.input.dir</name>"
-		+ "                    <value>/usr/foo/${wf:id()}/temp1,/usr/foo/${wf:id()}/temp2,/usr/foo/${wf:id()}/temp3</value>"
+		+ "                    <value>/usr/foo/${wf:id()}/temp1, /usr/foo/${wf:id()}/temp2, /usr/foo/${wf:id()}/temp3</value>"
 		+ "                </property>"
 		+ "                <property>"
 		+ "                    <name>mapred.map.tasks</name>"
@@ -387,15 +396,24 @@
 		+ "</workflow-app>"
 
 
-		
-	oozie.getTags = function(ver) {
 
+	oozie.getTags = function(ver) {
 		return schemas[ver];
 	};
-	
+
 	oozie.getWorkflowSample = function(ver){
 		return workflowSamples[ver];
 	}
+
+	oozie.getIndentTags = function(ver){
+		return indentTags[ver];
+	}
+
+	oozie.getDontCloseTags = function(ver){
+		return dontCloseTags[ver];
+	}
+
+
 
 	window.app = window.app || {};
 	window.app.oozie = oozie;

@@ -4,33 +4,40 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Exercise on CodeMirror</title>
+<title>Oozie Workflow Editor</title>
 
 <!-- Bootstrap -->
 <link href="../../css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" type="text/css" media="screen" href="../../lib/codemirror/lib/codemirror.css" />
 <link rel="stylesheet" type="text/css" media="screen" href="../../lib/codemirror/addon/hint/show-hint.css" />
 <link rel="stylesheet" type="text/css" media="screen" href="../../lib/codemirror/addon/fold/foldgutter.css" />
+<link rel="stylesheet" type="text/css" media="screen" href="../../lib/jquery-ui-1.11.1/jquery-ui.min.css" />
 
 <style>
-	/* http://codemirror.net/doc/manual.html#styling */
-	body {
-		font-family: "맑은 고딕"
-	}
+  /* http://codemirror.net/doc/manual.html#styling */
+  body {
+    max-width:1600px;
+    font-family: "맑은 고딕"
+  }
 
-	.CodeMirror {
-		width: 1200px;
-		height: 600px;
-		font-size: 20px;
-		line-height: 1.2;
-		border: thin solid darkblue;
-	}
-	.CodeMirror-foldgutter-open:after {
-		content: "\2296";
-	}
-	.CodeMirror-foldgutter-folded:after {
-		content: "\2295";
-	}
+  .CodeMirror {
+    height: 800px;
+    margin-left: 0;
+    margin-right: 0;
+    font-size: 20px;
+    line-height: 1.2;
+    border: thin solid darkblue;
+  }
+  .CodeMirror-foldgutter-open:after {
+    content: "\2296";
+  }
+  .CodeMirror-foldgutter-folded:after {
+    content: "\2295";
+  }
+
+  #oozieWorkflowEidtor div.snippet{
+    height: 800px;
+  }
 </style>
 
 <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
@@ -41,7 +48,7 @@
 <![endif]-->
 </head>
 <body>
-<h1>Oozie Config Editor</h1>
+<h1>Oozie Workflow Editor</h1>
 
 <!--
 Consider the utilization of the followings
@@ -51,29 +58,39 @@ Consider the utilization of the followings
 * jQuery.parseXML() : http://api.jquery.com/jQuery.parseXML/
 -->
 
-<nav class="navbar navbar-default" role="control">
-	<div id="codeAreaControl">
-		<button type="button" class="btn btn-default sample">
-			Sample
-		</button>
-		<button type="button" class="btn btn-default format">
-			Format
-		</button>
-		<button type="button" class="btn btn-default">
-			Validate
-		</button>
-		<label><input type="checkbox" name="wraps">자동 줄바꿈</label>
-		<label><input type="checkbox" name="closesTag">자동 태그 닫기</label>
-		<!-- font size, code folding -->
-		<label><input type="checkbox" name="consoleLogs">콘솔 로그</label>
-	</div>
-</nav>
-
-<div class="btn-group btn-group-right" id="codeAreaControl" style="text-align: right"></div>
-<textarea id="codeArea"></textarea>
 
 
- <script type="text/javascript" src="../../js/vendor/jquery-1.10.1.min.js"></script>
+<div class="container-fluid" id="oozieWorkflowEidtor">
+  <div class="row">
+    <div class="col-lg-12">
+      <nav class="navbar navbar-default" role="navigation" id="codeAreaControl">
+        <div class="nav navbar-nav navbar-left">
+          <button type="button" class="btn btn-default sample">Sample</button>
+          <button type="button" class="btn btn-default format">Format</button>
+          <button type="button" class="btn btn-default">Validate</button>
+        </div>
+        <div class="nav nabvar-nav navbar-right">
+          <label><input type="checkbox" name="wraps">자동 줄바꿈</label>
+          <label><input type="checkbox" checked disabled name="closesTag">자동 태그 닫기</label>
+          <!-- font size, code folding -->
+          <label><input type="checkbox" name="consoleLogs">콘솔 로그</label>
+        </div>
+      </nav>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-lg-9" id="codeArea"></div>
+    <div class="col-lg-3">
+      <div class="panel panel-info snippet">
+        <div class="panel-heading"><div class="panel-title">Code Snippet</div></div>
+        <div class="panel-body snippet-body">Code Snippet Here</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="text/javascript" src="../../js/vendor/jquery-1.10.1.min.js"></script>
+<script type="text/javascript" src="../../lib/jquery-ui-1.11.1/jquery-ui.js"></script>
 <script type='text/javascript' src='../../lib/codemirror/lib/codemirror.js'></script>
 <script type='text/javascript' src='../../lib/codemirror/mode/xml/xml.js'></script>
 <script type='text/javascript' src='../../lib/codemirror/addon/hint/show-hint.js'></script>
@@ -83,177 +100,196 @@ Consider the utilization of the followings
 <script type='text/javascript' src='../../lib/codemirror/addon/fold/xml-fold.js'></script>
 <script type='text/javascript' src='../../lib/codemirror/addon/edit/matchtags.js'></script>
 <script type='text/javascript' src='../../lib/codemirror/addon/edit/closetag.js'></script>
-<script type='text/javascript' src='../../lib/vkbeautify.0.99.00.beta.js'></script>
+<script type='text/javascript' src='../../lib/vkbeautify/vkbeautify.0.99.00.beta.js'></script>
 <script type='text/javascript' src='../../js/oozie.js'></script>
 
 <script type="text/javascript">
-	var xmlEditor;  //make global variable for the convenience of debugging
+  var xmlEditor;  //make global variable for the convenience of debugging
 
 
-	function completeAfter(cm, pred) {
-		var cur = cm.getCursor();
-		if (!pred || pred())
-			setTimeout(function() {
-				if (!cm.state.completionActive)
-					cm.showHint({
-						completeSingle : false
-					});
-			}, 100);
-		return CodeMirror.Pass;
-	}
+  function completeAfter(cm, pred) {
+    var cur = cm.getCursor();
+    if (!pred || pred())
+      setTimeout(function() {
+        if (!cm.state.completionActive)
+          cm.showHint({
+            completeSingle : false
+          });
+      }, 100);
+    return CodeMirror.Pass;
+  }
 
-	function completeIfAfterLt(cm) {
-		return completeAfter(cm, function() {
-			var cur = cm.getCursor();
-			return cm.getRange(CodeMirror.Pos(cur.line, cur.ch - 1), cur) == "<";
-		});
-	}
+  function completeIfAfterLt(cm) {
+    return completeAfter(cm, function() {
+      var cur = cm.getCursor();
+      return cm.getRange(CodeMirror.Pos(cur.line, cur.ch - 1), cur) == "<";
+    });
+  }
 
-	function completeIfInTag(cm) {
-		return completeAfter(cm, function() {
-			var tok = cm.getTokenAt(cm.getCursor());
-			if (tok.type == "string" && (!/['"]/.test(tok.string.charAt(tok.string.length - 1)) || tok.string.length == 1))
-				return false;
-			var inner = CodeMirror.innerMode(cm.getMode(), tok.state).state;
-			return inner.tagName;
-		});
-	}! function() {
-		"use strict";
+  function completeIfInTag(cm) {
+    return completeAfter(cm, function() {
+      var tok = cm.getTokenAt(cm.getCursor());
+      if (tok.type == "string" && (!/['"]/.test(tok.string.charAt(tok.string.length - 1)) || tok.string.length == 1))
+        return false;
+      var inner = CodeMirror.innerMode(cm.getMode(), tok.state).state;
+      return inner.tagName;
+    });
+  }! function() {
+    "use strict";
 
-		var consoleLogs = true;
+    var consoleLogs = false;
+    var opt;
 
-		var oozieTags = app.oozie.getTags("0.5");
+    var oozieTags = app.oozie.getTags("0.5");
 
-		//@hint
-		// folderOptions : defaultOptions in foldcode.js
-		var config = {
-			mode : "application/xml",
-			indentUnit : 3,
-			smartIndent : true,
-			tabSize : 3,
-			indentWithTabs : false,
-			electricChars : true,
-			lineWrapping : true,
-			lineNumbers : true,
-			foldGutter : true,
-			gutters : ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
-			showCursorWhenSelecting : true,
-			autofocus : true,
+    //@hint
+    // folderOptions : defaultOptions in foldcode.js
+    var config = {
+      mode : "application/xml",
+      indentUnit : 3,
+      smartIndent : true,
+      tabSize : 3,
+      indentWithTabs : false,
+      electricChars : true,
+      lineWrapping : true,
+      lineNumbers : true,
+      foldGutter : true,
+      gutters : ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+      showCursorWhenSelecting : true,
+      autofocus : true,
 
-			extraKeys : {
-				"'<'" : completeAfter,
-				"'/'" : completeIfAfterLt,
-				"' '" : completeIfInTag,
-				"'='" : completeIfInTag,
-				"Ctrl-Space" : "autocomplete",
-				"F2" : "autocomplete",
-				"Ctrl-J" : "toMatchingTag"
-			},
-			hint : CodeMirror.hint.xml,
-			hintOptions : {
-				schemaInfo : oozieTags
-			},
-			foldOptions : {
-				minFoldSize : 0,
-				scanUp : false
-			},
-			matchTags : {
-				bothTags : true
-			},
-			autoCloseTags : true
-		};
+      //removed keys
+      //"' '" : completeIfInTag,
 
-		xmlEditor = CodeMirror.fromTextArea(document.getElementById('codeArea'), config);
+      extraKeys : {
+        "'<'" : completeAfter,
+        "'/'" : completeIfAfterLt,
+        "'='" : completeIfInTag,
+        "Ctrl-Space" : "autocomplete",
+        "F2" : "autocomplete",
+        "Ctrl-J" : "toMatchingTag"
+      },
+      hint : CodeMirror.hint.xml,
+      hintOptions : {
+        schemaInfo : oozieTags
+      },
+      foldOptions : {
+        minFoldSize : 0,
+        scanUp : false
+      },
+      matchTags : {
+        bothTags : true
+      },
+      autoCloseTags : {
+        whenOpening : true,
+        whenClosing : true,
+        dontCloseTags : app.oozie.getDontCloseTags("0.5") || [],
+        indentTags : app.oozie.getIndentTags("0.5") || []
+      }
+    };
 
-		//initializing controls
-		$("#codeAreaControl input[name='wraps']").prop("checked", xmlEditor.getOption("lineWrapping"));
-		$("#codeAreaControl input[name='closesTag']").prop("checked", xmlEditor.getOption("autoCloseTags"));
-		$("#codeAreaControl input[name='consoleLogs']").prop("checked", consoleLogs);
+    xmlEditor = CodeMirror(document.getElementById('codeArea'), config);
 
-		$("#codeAreaControl button.format").click(function(event) {
-			event.stopPropagation();
+    //initializing controls
+    $("#codeAreaControl input[name='wraps']").prop("checked", xmlEditor.getOption("lineWrapping"));
+    opt = xmlEditor.getOption("autoCloseTags")
+    $("#codeAreaControl input[name='closesTag']").prop("checked", (typeof opt === "object") ? opt.whenOpening : false);
+    $("#codeAreaControl input[name='consoleLogs']").prop("checked", consoleLogs);
 
-			var pos = xmlEditor.getCursor();
-			var str = xmlEditor.getValue() || "";
-			var str1, str2;
-			var re, re1, re2;
-			var result;
+    $('.CodeMirror').resizable({
+      aspectRatio : false,
+      handles : "s",
+      resize: function() {
+        $(".CodeMirror").css('height', $(this).height());
+      },
+      alsoResize : "#oozieWorkflowEidtor div.snippet"
+     });
 
-			//normalize start tag including attribute values
-			//refer http://www.w3.org/TR/REC-xml/#AVNormalize
-			//the most common form of xs:name : [A-Za-z_:][-\w:.]+ (http://www.w3.org/TR/xml/#d0e804)
-			re1 = /<\s*([A-Za-z_:][-\w:.]+)([^<>]*[^\/<>])?(\/)?>/g;
-			re2 = /\s*([A-Za-z_:][-\w:.]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+    $("#codeAreaControl button.format").click(function(event) {
+      event.stopPropagation();
 
-			str1 = str.replace(re1, function(match, p1, p2, p3, offset, string) {
-				if(consoleLogs) console.log("match : [" + match + "], p1 : [" + p1 + "], p2 : [" + p2 + "], p3 : [" + p3 + "]");
+      var pos = xmlEditor.getCursor();
+      var str = xmlEditor.getValue() || "";
+      var str1, str2;
+      var re, re1, re2;
+      var result;
 
-				p2 = p2.trim();
+      //normalize start tag including attribute values
+      //refer http://www.w3.org/TR/REC-xml/#AVNormalize
+      //the most common form of xs:name : [A-Za-z_:][-\w:.]+ (http://www.w3.org/TR/xml/#d0e804)
+      re1 = /<\s*([A-Za-z_:][-\w:.]+)([^<>]*[^\/<>])?(\/)?>/g;
+      re2 = /\s*([A-Za-z_:][-\w:.]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 
-				str2 = p2.replace(re2, function(match, p1, p2, p3, offset, string) {
-					if(consoleLogs) console.log("  match : [" + match + "], p1 : [" + p1 + "], p2 : [" + p2 + "], p3 : [" + p3 + "]");
+      str1 = str.replace(re1, function(match, p1, p2, p3, offset, string) {
+        if(consoleLogs) console.log("match : [" + match + "], p1 : [" + p1 + "], p2 : [" + p2 + "], p3 : [" + p3 + "]");
 
-					result = " " + p1 + "=";
-					// only one of p2 or p3 always undefined
-					if (p2) {
-						result += "\"" + p2.trim() + "\"";
-					} else if (p3) {
-						result += "'" + p3.trim() + "'";
-					} else {/*error */
-					}
+        p2 = (p2 || "").trim();
 
-					return result;
-				});
+        str2 = p2.replace(re2, function(match, p1, p2, p3, offset, string) {
+          if(consoleLogs) console.log("  match : [" + match + "], p1 : [" + p1 + "], p2 : [" + p2 + "], p3 : [" + p3 + "]");
 
-				return "<" + p1 + str2 + (p3 || "") + ">";
-			});
+          result = " " + p1 + "=";
+          // only one of p2 or p3 always undefined
+          if (p2) {
+            result += "\"" + p2.trim() + "\"";
+          } else if (p3) {
+            result += "'" + p3.trim() + "'";
+          } else {/*error */
+          }
 
-			//normalize the end tag
-			re = /<\/\s*([A-Za-z_:][-\w:.]+)\s*>/g;
-			str1 = str1.replace(re, "</$1>");
+          return result;
+        });
 
-			//normalize the text of name element
-			str1 = str1.replace(/<name>([^<>]*)<\/name>/gm, function(match, p1) {
-				return '<name>' + (p1 || '').trim() + '</name>';
-			});
+        return "<" + p1 + str2 + (p3 || "") + ">";
+      });
 
-			//@todo normalized attribute values containing action name.
+      //normalize the end tag
+      re = /<\/\s*([A-Za-z_:][-\w:.]+)\s*>/g;
+      str1 = str1.replace(re, "</$1>");
 
-			xmlEditor.setValue(vkbeautify.xml(str1, 3));
-			//xmlEditor.execCommand("selectAll");
-			//xmlEditor.execCommand("indentAuto");
-			//xmlEditor.setSelection({ line : 0, ch : 0 });
+      //normalize the text of name element
+      str1 = str1.replace(/<name>([^<>]*)<\/name>/gm, function(match, p1) {
+        return '<name>' + (p1 || '').trim() + '</name>';
+      });
 
-			xmlEditor.focus();
-			xmlEditor.setCursor(pos);
-		});
-		$("#codeAreaControl button.sample").click(function(event) {
-			event.stopPropagation();
+      //@todo normalized attribute values containing action name.
 
-			var str = app.oozie.getWorkflowSample("0.1");
+      xmlEditor.setValue(vkbeautify.xml(str1, 3));
+      //xmlEditor.execCommand("selectAll");
+      //xmlEditor.execCommand("indentAuto");
+      //xmlEditor.setSelection({ line : 0, ch : 0 });
 
-			xmlEditor.setValue("");
-			xmlEditor.setValue(str);
-			xmlEditor.setCursor(0, 0);
-			xmlEditor.focus();
-		});
-		$("#codeAreaControl input[name='wraps']").click(function(event) {
-			event.stopPropagation();
-			xmlEditor.setOption("lineWrapping", $(this).is(":checked"));
-			xmlEditor.focus();
-		});
-		$("#codeAreaControl input[name='closesTag']").click(function(event) {
-			event.stopPropagation();
-			xmlEditor.setOption("autoCloseTags", $(this).is(":checked"));
-			xmlEditor.focus();
-		});
-		$("#codeAreaControl input[name='consoleLogs']").click(function(event){
-			event.stopPropagation();
-			consoleLogs = $(this).is(":checked");
-			xmlEditor.focus();
-		});
+      xmlEditor.focus();
+      xmlEditor.setCursor(pos);
+    });
+    $("#codeAreaControl button.sample").click(function(event) {
+      event.stopPropagation();
 
-	}();
+      var str = app.oozie.getWorkflowSample("0.1");
+
+      xmlEditor.setValue("");
+      xmlEditor.setValue(str);
+      xmlEditor.setCursor(0, 0);
+      xmlEditor.focus();
+    });
+    $("#codeAreaControl input[name='wraps']").click(function(event) {
+      event.stopPropagation();
+      xmlEditor.setOption("lineWrapping", $(this).is(":checked"));
+      xmlEditor.focus();
+    });
+    $("#codeAreaControl input[name='closesTag']").click(function(event) {
+      event.stopPropagation();
+      var opt = xmlEditor.getOption("autoCloseTags")
+      if(typeof opt === "object") opt.whenOpening = $(this).is(":checked");
+      xmlEditor.focus();
+    });
+    $("#codeAreaControl input[name='consoleLogs']").click(function(event){
+      event.stopPropagation();
+      consoleLogs = $(this).is(":checked");
+      xmlEditor.focus();
+    });
+
+  }();
 </script>
 
 </body>
