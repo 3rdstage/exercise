@@ -393,7 +393,7 @@
 		+ "        <message>Map/Reduce failed, error message[${wf:errorMessage()}]</message>"
 		+ "    </kill>"
 		+ "    <end name='end'/>"
-		+ "</workflow-app>"
+		+ "</workflow-app>";
 
 
 
@@ -403,15 +403,15 @@
 
 	oozie.getWorkflowSample = function(ver){
 		return workflowSamples[ver];
-	}
+	};
 
 	oozie.getIndentTags = function(ver){
 		return indentTags[ver];
-	}
+	};
 
 	oozie.getDontCloseTags = function(ver){
 		return dontCloseTags[ver];
-	}
+	};
 
 
 
