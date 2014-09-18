@@ -47,7 +47,21 @@ public class OozieUtils{
 
       XmlValidationResult result = new XmlValidationResult();
 
+      //loads DOM  (checks well-formedness)
+
+
+      //identifies and validates namespaces
+
+
+      //validate using schema or schematron
+
+
+
       return result;
    }
+
+
+
+
 
 }
