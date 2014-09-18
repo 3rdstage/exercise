@@ -3,6 +3,7 @@ package thirdstage.exercise.oozie;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.xml.XMLConstants;
 import javax.xml.validation.Schema;
@@ -16,6 +17,8 @@ public class OozieUtils{
     */
    protected static Map<String, Schema> workflowSchemas = new HashMap<String, Schema>();
 
+   protected final static Pattern workflowShcemaVerPattern
+   = Pattern.compile("<workflow-app.*xmlns=\"uri:oozie:workflow:(\\d\\.\\d+)\"", Pattern.DOTALL);
 
    static{
       Map<String, String> paths = new HashMap<String, String>();
@@ -30,7 +33,7 @@ public class OozieUtils{
             ver = path.getKey();
             sch = sf.newSchema(ClassLoader.getSystemResource(path.getValue()));
             workflowSchemas.put(ver, sch);
-         }catch(Exception ex){
+         } catch(Exception ex){
             LoggerFactory.getLogger(OozieUtils.class).error("Fail to load schema from {}", path.getValue(), ex);
          }
       }
@@ -38,19 +41,13 @@ public class OozieUtils{
       workflowSchemas = Collections.unmodifiableMap(workflowSchemas);
    }
 
-
-
-
    public static XmlValidationResult validateWorkflowDefinition(@Nonnull String def){
-      if(def == null) throw new IllegalArgumentException("Definition string shouldn't be null.");
+      if(def == null)
+         throw new IllegalArgumentException("Definition string shouldn't be null.");
 
       XmlValidationResult result = new XmlValidationResult();
 
-
       return result;
    }
-
-
-
 
 }
