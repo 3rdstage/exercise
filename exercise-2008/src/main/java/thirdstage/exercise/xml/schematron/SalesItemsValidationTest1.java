@@ -69,12 +69,15 @@ public class SalesItemsValidationTest1 {
 	}	
 	
 	
-	@Test
+	@Test(expectedExceptions={Exception.class})
 	public void testValidSalesItemsWithSchema11() throws Exception{
 		Configuration cfg = new Configuration();
 		Processor proc = new Processor(cfg); //thread safe after established.
 		
 		SchemaManager schMgr = proc.getSchemaManager();
+		
+		// XML Schema 1.1 is not supported by Saxon Home Edition as of 9.5.
+		// For more, refer http://www.saxonica.com/feature-matrix.html
 		schMgr.setXsdVersion("1.1");
 
 		File fSch11 = new File(ClassLoader.getSystemResource(SCHEMA_1_1_PATH_IN_CLASSPATH).toURI());
@@ -157,9 +160,9 @@ public class SalesItemsValidationTest1 {
 			for(FailedAssert failed : faileds){
 				logger.error(failed.toString());
 			}
-			Assert.assertTrue(faileds.isEmpty());
+			Assert.assertTrue(faileds.size() > 0);
 		}else{
-			Assert.assertTrue(true);
+			Assert.fail();
 		}
 	}	
 	
