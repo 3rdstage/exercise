@@ -10,6 +10,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
@@ -48,6 +49,7 @@ public class WordCountTopology {
 
 			cluster.shutdown();
 		}
+
 	}
 
 }
