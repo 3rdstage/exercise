@@ -26,9 +26,11 @@ import backtype.storm.tuple.Values;
  */
 public class SimplestDrpcTopology {
 
+	protected static final String topologyName =  "exclamation";
+
 	public static void main(String[] args) throws Exception{
 
-		LinearDRPCTopologyBuilder builder = new LinearDRPCTopologyBuilder("exclamanation");
+		LinearDRPCTopologyBuilder builder = new LinearDRPCTopologyBuilder(topologyName);
 		builder.addBolt(new ExclaimBolt(), 3);
 		Config config = new Config();
 		config.setDebug(true);
@@ -39,7 +41,7 @@ public class SimplestDrpcTopology {
 
 
 			cluster.submitTopology("drpc-sample", config, builder.createLocalTopology(drpc));
-			System.out.println("Result for 'hello' : " + drpc.execute("exclamation", "hello"));
+			System.err.println("Result for 'hello' : " + drpc.execute(topologyName, "hello"));
 
 			Thread.sleep(1000);
 			cluster.shutdown();
