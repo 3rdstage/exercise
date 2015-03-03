@@ -41,7 +41,8 @@ public class SimplestDrpcTopology {
 
 
 			cluster.submitTopology("drpc-sample", config, builder.createLocalTopology(drpc));
-			System.err.println("Result for 'hello' : " + drpc.execute(topologyName, "hello"));
+			System.err.println("Result for 'Hello' : " + drpc.execute(topologyName, "Hello"));
+			System.err.println("Result for 'Hi ~' : " + drpc.execute(topologyName, "Hi ~"));
 
 			Thread.sleep(1000);
 			cluster.shutdown();
