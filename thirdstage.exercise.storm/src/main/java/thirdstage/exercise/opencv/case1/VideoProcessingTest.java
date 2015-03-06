@@ -7,6 +7,9 @@ import java.util.HashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+
+import org.opencv.core.Core;
+import org.opencv.highgui.VideoCapture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import backtype.storm.task.TopologyContext;
@@ -17,7 +20,8 @@ import backtype.storm.tuple.Values;
 public class VideoProcessingTest {
 
 	public static void main(String[] args){
-
+		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+		VideoCapture vc = new VideoCapture("");
 
 	}
 
