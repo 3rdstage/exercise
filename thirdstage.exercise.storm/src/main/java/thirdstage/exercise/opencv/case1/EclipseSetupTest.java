@@ -23,6 +23,8 @@ public class EclipseSetupTest {
 	public static void main(String[] args){
 
 		System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+		System.out.printf("The version of OpenCV.Core : %1$s\n", Core.VERSION);
+
 		Mat mat = Mat.eye(3, 3, CvType.CV_8UC1);
 		System.out.println("mat = " + mat.dump());
 
