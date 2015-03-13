@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="thirdstage.exercise.jni.library"
+ basedir="." default="echo.env"
+ xmlns:artifact="antlib:org.apache.maven.artifact.ant"
+ xmlns:antelope="antlib:ise.antelope.tasks"
+ xmlns:antcontrib="antlib:net.sf.antcontrib">
+
+  <!-- Ant reference : http://ant.apache.org/manual/index.html -->
+  <description>Title or descrption for this build file.</description>
+
+  <property environment="env"/>
+
+  <!-- Define Maven-Ant tasks -->
+  <!-- For more on Maven-Ant tasks, refer http://maven.apache.org/ant-tasks/ -->
+  <typedef resource="org/apache/maven/artifact/ant/antlib.xml"
+   uri="antlib:org.apache.maven.artifact.ant"
+   classpath="lib/maven-ant-tasks-2.1.3.jar">
+  </typedef>
+
+  <artifact:dependencies pathId="ant-only.classpath">
+    <!-- libraries only necessary for Ant task not application. -->
+    <!-- Ant-Contrib tasks. For more, refer http://ant-contrib.sourceforge.net/tasks/ -->
+    <dependency groupId="ant-contrib" artifactId="ant-contrib" version="1.0b3"/>
+    <!-- Antelope tasks , For more, refer http://antelope.stage.tigris.org/nonav/docs/manual/index.html -->
+    <dependency groupId="ise.antelope" artifactId="ant-antelope-tasks" version="3.5.0"/>
+    <dependency groupId="org.mortbay.jetty" artifactId="jetty-runner" version="7.6.9.v20130131"/>
+    <dependency groupId="org.eclipse.jetty" artifactId="jetty-jmx" version="7.6.9.v20130131"/>
+    <dependency groupId="org.eclipse.jetty" artifactId="jetty-start" version="7.6.9.v20130131"/>
+    <dependency groupId="org.umlgraph" artifactId="umlgraph" version="5.6.6"/>
+    <dependency groupId="com.lunatech.jax-doclets" artifactId="doclets" version="0.10.0"/>
+    <remoteRepository id="centeral2" url="http://repo2.maven.org/maven2/"/>
+    <remoteRepository id="maven2-repository.dev.java.net" url="http://download.java.net/maven/2/"/>
+    <remoteRepository id="evolvis-3rdparty" url="http://maven-repo.evolvis.org/3rdparty" layout="default"/>
+  </artifact:dependencies>
+
+  <!-- Define Antelope tasks -->
+  <taskdef name="stringutil" classname="ise.antelope.tasks.StringUtilTask"
+   uri="antlib:ise.antelope.tasks" classpathref="ant-only.classpath"/>
+  <taskdef name="if" classname="ise.antelope.tasks.IfTask"
+  uri="antlib:ise.antelope.tasks" classpathref="ant-only.classpath"/>
+
+  <artifact:pom id="project.pom" file="${basedir}/pom.xml"/>
+  <artifact:dependencies pomRefId="project.pom" pathId="project.classpath"/>
+
+  <target name="echo.env">
+    <!-- @todo How to sort the list -->
+    <pathconvert pathsep="${line.separator}"
+     refid="project.classpath" property="project.classpath.list">
+      <mapper type="regexp" from="(.*\\\.m2\\repository\\)?(.*)" to="\2" />
+    </pathconvert>
+
+    <echo>Defined properties : </echo>
+    <echoproperties />
+    <echo>Classpath : </echo>
+    <echo>${project.classpath.list}</echo>
+  </target>
+
+   <target name="check.env">
+      <fail unless="env.MAVEN_HOME">Environment variable MAVEN_HOME should be specified properly.</fail>
+   </target>
+
+   <target name="mvn.compile" depends="check.env"
+      description="Run Maven's compile phase for this project">
+      <artifact:mvn mavenHome="${env.MAVEN_HOME}">
+          <arg value="compile"/>
+        </artifact:mvn>
+   </target>
+
+   <target name="mvn.package" depends="check.env"
+      description="Run Maven's package phase for this project">
+      <artifact:mvn mavenHome="${env.MAVEN_HOME}">
+          <arg value="package"/>
+        </artifact:mvn>
+   </target>
+
+   <target name="mvn.install" depends="check.env"
+      description="Run Maven's install phase for this project">
+      <artifact:mvn mavenHome="${env.MAVEN_HOME}">
+          <arg value="install"/>
+        </artifact:mvn>
+   </target>
+
+   <target name="mvn.clean" depends="check.env"
+      description="Run Maven's clean phase for this project">
+      <artifact:mvn mavenHome="${env.MAVEN_HOME}">
+          <arg value="clean"/>
+        </artifact:mvn>
+   </target>
+
+</project>
