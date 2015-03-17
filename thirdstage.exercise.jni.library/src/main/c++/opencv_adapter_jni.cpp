@@ -1,7 +1,7 @@
 
+#include "thirdstage_exercise_jni_library_case1_OpenCvAdapter1.h"
 #include "stdio.h"
 #include "windows.h"
-#include "thirdstage_exercise_jni_library_case1_OpenCvAdapter1.h"
 #include "cv.hpp"
 #include "highgui.h"
 
@@ -12,6 +12,8 @@ JNIEXPORT void JNICALL Java_thirdstage_exercise_jni_library_case1_OpenCvAdapter1
   (JNIEnv *, jobject){
 
 	//Mat r = Mat(3, 2, CV_8UC3);
-	Mat M;
+	//Mat M;
+	CvCapture* capture;
+	Mat a(100, 100, CV_32F);
 
 }
