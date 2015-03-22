@@ -14,7 +14,6 @@ extern "C" {
 #include "libswscale/swscale.h"
 #include "libavutil/avutil.h"
 
-
 JNIEXPORT void JNICALL
 Java_thirdstage_exercise_jni_library_case1_FfmpegAdapter_avRegisterAll
 (JNIEnv *env, jobject j_this)
