@@ -21,7 +21,7 @@ int main(){
 	Path path1;
 	path1.vertices = vertices;
 
-	int len = (sizeof *(path1.vertices))/(sizeof (path1.vertices)[0]);
+	int len = (sizeof *vertices)/(sizeof (path1.vertices)[0]);
 
 	printf("p1 is at (%d, %d)\n", p1.x, p1.y);
 	printf("path1 links (%d, %d), (%d, %d), (%d, %d)\n",
