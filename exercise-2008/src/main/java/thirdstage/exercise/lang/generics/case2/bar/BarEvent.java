@@ -34,4 +34,5 @@ public abstract class BarEvent implements Event{
 		}
 		return str;
 	}
+
 }

@@ -48,5 +48,4 @@ public class BarEventContext implements EventContext {
 		}
 		return this.str;
 	}
-
 }

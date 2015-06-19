@@ -49,5 +49,4 @@ public class FooEvent implements Event{
 		}
 		return str;
 	}
-
 }

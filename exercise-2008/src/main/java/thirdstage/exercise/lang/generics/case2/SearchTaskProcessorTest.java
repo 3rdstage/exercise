@@ -65,6 +65,7 @@ public class SearchTaskProcessorTest {
 		Assert.assertEquals(((BarPeopleCountEvent)items2.get(1).getLeft()).getCount(), 100);
 		Assert.assertEquals(items2.get(1).getRight().getTime(), "20150510120500");
 		Assert.assertEquals(items2.get(1).getRight().getFileName(), "");
+
 	}
 
 

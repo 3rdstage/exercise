@@ -50,6 +50,7 @@ public class BarSearchTaskProcessor extends
 		SearchResult<BarEvent, BarEventContext> result = new SearchResult<BarEvent, BarEventContext>();
 
 		return sampleResult;
+
 	}
 
 }
