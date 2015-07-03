@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="thirdstage.exercise.wix.case1" basedir="." default="echo.env"
+   xmlns:artifact="antlib:org.apache.maven.artifact.ant"
+   xmlns:antelope="antlib:ise.antelope.tasks"
+   xmlns:antcontrib="antlib:net.sf.antcontrib">
+
+   <property environment="env" />
+   <dirname property="targetdir" file="${basedir}/../../../../../../../target/none.txt"/>
+
+   <target name="echo.env">
+      <echo>Defined properties : </echo>
+      <echoproperties />
+   </target>
+
+   <target name="check.env">
+      <fail unless="env.WIX_HOME">Environment variable WIX_HOME should be specified properly.</fail>
+   </target>
+
+   <target name="package.using.wix" depends="check.env"
+      description="Create windows installer in .msi file for Satrun">
+
+      <copy file="${basedir}/application.wxs" tofile="${targetdir}/wix/saturn.wxs"
+         overwrite="true" force="true" filtering="true">
+         <filterset>
+            <filter token="PROJECT_DIR" value="${basedir}"/>
+         </filterset>
+      </copy>
+      <schemavalidate file="${targetdir}/wix/saturn.wxs"
+         disableDTD="true"
+         failonerror="false">
+         <schema namespace="http://schemas.microsoft.com/wix/2006/wi"
+            file="${basedir}/wix.xsd"/>
+      </schemavalidate>
+      <exec executable="cmd" dir="${basedir}" osfamily="windows" failonerror="true">
+         <arg value='/C'/>
+         <arg value='${env.WIX_HOME}\\candle.exe'/>
+         <arg value='-out'/>
+         <arg value='${targetdir}/wix/saturn.wixobj'/>
+         <arg value='-v'/>
+         <arg value='${targetdir}/wix/saturn.wxs'/>
+      </exec>
+      <exec executable="cmd" dir="${basedir}" osfamily="windows" failonerror="true">
+         <arg value='/C'/>
+         <arg value='"${env.WIX_HOME}\\light.exe"'/>
+         <arg value='-ext'/>
+         <arg value='WixUIExtension'/>
+         <arg value='-ext'/>
+         <arg value='WixUtilExtension'/>
+         <arg value='-cultures:en-us'/>
+         <arg value='-loc'/>
+         <arg value='${basedir}/application.en-us.wxl'/>
+         <arg value='-v'/>
+         <arg value='${targetdir}/wix/saturn.wixobj'/>
+         <arg value='-out'/>
+         <arg value='${targetdir}/saturn.msi'/>
+      </exec>
+   </target>
+
+</project>
