@@ -22,11 +22,28 @@ public class SimpleRtmpClient{
 
 	private final transient Logger logger = LoggerFactory.getLogger(this.getClass());
 
-	private RTMPClient client = new RTMPClient();
+	private RTMPClient client = new RTMPClient(){
+
+//		@Override
+//		public void connectionOpened(RTMPConnection conn){
+//			super.connectionOpened(conn);
+//			logger.debug("Connection opened");
+//		}
+
+		@Override
+		public void connectionClosed(RTMPConnection conn){
+			super.connectionClosed(conn);
+			logger.debug("Connection closed");
+		}
+
+
+	};
 
 	public SimpleRtmpClient(String host, int port, String app){
 
 		IPendingServiceCallback connCallback = new IPendingServiceCallback(){
+			private final transient Logger logger = LoggerFactory.getLogger(this.getClass());
+
 			@Override
 			public void resultReceived(IPendingServiceCall call){
 				if("connect".equals(call.getServiceMethodName())){
@@ -36,7 +53,12 @@ public class SimpleRtmpClient{
 			}
 		};
 
+		logger.debug("Before connect");
 		client.connect(host, port, app, connCallback);
+
+
+
+		client.disconnect();
 	}
 
 	public void play(String file){
