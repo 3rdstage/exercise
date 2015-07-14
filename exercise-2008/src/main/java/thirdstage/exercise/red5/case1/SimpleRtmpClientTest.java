@@ -20,13 +20,24 @@ public class SimpleRtmpClientTest {
 
 
 	@Test
-	public void testConstructor1(){
+	public void testConstructor1() throws Exception{
 
 		String host = "fms.12E5.edgecastcdn.net";
 		int port = RTMP_PORT_DEFAULT;
 		String app = "0012E5";
 
 		SimpleRtmpClient client = new SimpleRtmpClient(host, port, app);
+
+		client.connect();
+
+		System.out.println("Press [Enter] key to start.");
+		int cnt;
+		while((cnt = System.in.available()) < 1){
+			Thread.currentThread().sleep(500);
+		}
+		while(cnt-- > 0) System.in.read();
+
+		client.disconnect();
 
 	}
 
