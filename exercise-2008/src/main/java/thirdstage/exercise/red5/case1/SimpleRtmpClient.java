@@ -109,6 +109,10 @@ public class SimpleRtmpClient{
 	 */
 	private final AtomicBoolean isConnected = new AtomicBoolean(false);
 
+	public boolean isConnected(){
+		return this.isConnected.get();
+	}
+
 	@GuardedBy("connLock")
 	public void connect(){
 
@@ -130,6 +134,8 @@ public class SimpleRtmpClient{
 							}finally{
 								connLock.unlock();
 							}
+						}else if("createStream".equals(call.getServiceMethodName())){
+							logger.debug("RTMP createStream is invoked.");
 						}
 					}
 				};
@@ -173,5 +179,20 @@ public class SimpleRtmpClient{
 
 	public void play(String file){
 
+		IPendingServiceCallback createStreamCallback =
+				new IPendingServiceCallback(){
+
+			@Override
+			public void resultReceived(IPendingServiceCall call){
+
+				Integer streamId = (Integer)call.getResult();
+				logger.debug("RTMP Create Stream callback is in process with a stream[id: {}]", streamId);
+				if(client.getConnection() != null && streamId != null){
+
+				}
+			}
+		};
+
+		this.client.invoke("createStream", null, createStreamCallback);
 	}
 }

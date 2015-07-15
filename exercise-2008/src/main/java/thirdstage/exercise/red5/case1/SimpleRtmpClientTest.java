@@ -30,6 +30,8 @@ public class SimpleRtmpClientTest {
 
 		client.connect();
 
+		client.play("none");
+
 		System.out.println("Press [Enter] key to start.");
 		int cnt;
 		while((cnt = System.in.available()) < 1){
