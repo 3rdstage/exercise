@@ -30,7 +30,9 @@ public class SimpleRtmpClientTest {
 
 		client.connect();
 
-		client.play("none");
+		logger.debug("Connection is returned. Calling play.");
+
+		client.play("mp4:videos/8Juv1MVa-485.mp4", 0, -2);
 
 		System.out.println("Press [Enter] key to start.");
 		int cnt;

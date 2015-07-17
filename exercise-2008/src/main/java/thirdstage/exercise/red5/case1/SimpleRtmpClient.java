@@ -14,13 +14,18 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.hibernate.validator.constraints.NotEmpty;
 import org.red5.client.net.rtmp.RTMPClient;
+import org.red5.io.utils.ObjectMap;
 import org.red5.server.api.service.IPendingServiceCall;
 import org.red5.server.api.service.IPendingServiceCallback;
+import org.red5.server.net.rtmp.Channel;
 import org.red5.server.net.rtmp.RTMPConnection;
 import org.red5.server.net.rtmp.codec.RTMP;
+import org.red5.server.net.rtmp.event.Notify;
+import org.red5.server.net.rtmp.message.Header;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +67,8 @@ public class SimpleRtmpClient{
 			super.connectionClosed(conn);
 			logger.debug("RTMP Connection is closing.");
 		}
+
+
 	};
 
 	/**
@@ -125,17 +132,15 @@ public class SimpleRtmpClient{
 
 					@Override
 					public void resultReceived(IPendingServiceCall call){
-						if("connect".equals(call.getServiceMethodName())){
+						if(RtmpClientCommand.CONNECT.getName().equals(call.getServiceMethodName())){
 							connLock.lock();
 							try{
 								isConnected.set(true);
 								connected.signal();
-								logger.debug("RTMP connection is established by thread[id: {}].", Thread.currentThread().getId());
+								logger.debug("RTMP connection[{}] is established by thread[id: {}].", client.getConnection(), Thread.currentThread().getId());
 							}finally{
 								connLock.unlock();
 							}
-						}else if("createStream".equals(call.getServiceMethodName())){
-							logger.debug("RTMP createStream is invoked.");
 						}
 					}
 				};
@@ -146,10 +151,11 @@ public class SimpleRtmpClient{
 					succeeded = true;
 				}else{
 					logger.debug("Thread[id: {}] will wait {} milli-seconds", Thread.currentThread().getId(), this.connTimeout);
-					succeeded = this.connected.await(this.connTimeout, TimeUnit.MILLISECONDS);
+					//succeeded = this.connected.await(this.connTimeout, TimeUnit.MILLISECONDS);
+					this.connected.await();
 				}
 
-				if(succeeded){
+				if(isConnected.get()){
 					logger.debug("RTMP connection is made successfully by current thread.");
 				}else{
 					logger.error("RTMP connection try by current thread has timed-out");
@@ -178,6 +184,11 @@ public class SimpleRtmpClient{
 	}
 
 	public void play(String file){
+		this.play(file, 0, 5000);
+	}
+
+	public void play(final String file, final int start, final int duration){
+		Validate.isTrue(!StringUtils.isBlank(file), "The file should be specified.");
 
 		IPendingServiceCallback createStreamCallback =
 				new IPendingServiceCallback(){
@@ -186,13 +197,19 @@ public class SimpleRtmpClient{
 			public void resultReceived(IPendingServiceCall call){
 
 				Integer streamId = (Integer)call.getResult();
-				logger.debug("RTMP Create Stream callback is in process with a stream[id: {}]", streamId);
+				logger.debug("RTMP createStream callback is in process with a stream[id: {}]", streamId);
 				if(client.getConnection() != null && streamId != null){
-
+					SimpleRtmpClientStream stream = new SimpleRtmpClientStream();
+					stream.setConnection(client.getConnection());
+					stream.setStreamId(streamId);
+					client.getConnection().addClientStream(stream);
+					logger.debug("RTMP client stream is created with stream[id: {}]", streamId);
 				}
+				client.play(streamId, file, start, duration);
+
 			}
 		};
 
-		this.client.invoke("createStream", null, createStreamCallback);
+		this.client.invoke(RtmpClientCommand.CREATE_STREAM.getName(), null, createStreamCallback);
 	}
 }
