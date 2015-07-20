@@ -199,7 +199,7 @@ public class SimpleRtmpClient{
 				Integer streamId = (Integer)call.getResult();
 				logger.debug("RTMP createStream callback is in process with a stream[id: {}]", streamId);
 				if(client.getConnection() != null && streamId != null){
-					SimpleRtmpClientStream stream = new SimpleRtmpClientStream();
+					VideoDataHandlingStream stream = new VideoDataHandlingStream();
 					stream.setConnection(client.getConnection());
 					stream.setStreamId(streamId);
 					client.getConnection().addClientStream(stream);
