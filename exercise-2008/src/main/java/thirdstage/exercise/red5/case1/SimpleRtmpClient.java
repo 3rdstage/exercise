@@ -32,6 +32,8 @@ import org.slf4j.LoggerFactory;
 /**
  * @author 3rdstage
  *
+ * @see <a href="http://wiki.multimedia.cx/?title=RTMP">RTMP</a>
+ * @see <a href="https://en.wikipedia.org/wiki/Flash_Video#Flash_Video_Structure">Flash Video Structure</a>
  * @see <a href="https://ptrthomas.wordpress.com/2008/04/19/how-to-record-rtmp-flash-video-streams-using-red5/">How to record RTMP flash video streams using Red5</a>
  * @see <a href="http://www.mekya.com/2014/11/07/how-to-extract-snapsot-image-from-rtmp-streams-videodata-in-red5-app/">How to extract snapsot image from RTMP stream’s videodata in Red5 App</a>
  * @see <a href="http://support.jwplayer.com/customer/portal/articles/1430358-using-rtmp-streaming">Using RTMP Streaming</a>
