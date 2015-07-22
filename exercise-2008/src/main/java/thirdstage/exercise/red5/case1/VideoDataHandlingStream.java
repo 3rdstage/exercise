@@ -4,12 +4,15 @@
 package thirdstage.exercise.red5.case1;
 
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.NotThreadSafe;
 
 import org.apache.commons.lang3.Validate;
 import org.apache.mina.core.buffer.IoBuffer;
+import org.red5.codec.StreamCodecInfo;
 import org.red5.server.api.event.IEvent;
 import org.red5.server.api.event.IEventDispatcher;
 import org.red5.server.net.rtmp.event.IRTMPEvent;
+import org.red5.server.net.rtmp.event.Notify;
 import org.red5.server.net.rtmp.event.VideoData;
 import org.red5.server.net.rtmp.event.VideoData.FrameType;
 import org.red5.server.net.rtmp.message.Header;
@@ -21,24 +24,33 @@ import org.slf4j.LoggerFactory;
 /**
  * @author 3rdstage
  *
+ * @see <a href="https://github.com/Red5/red5-server-common/blob/master/src/main/java/org/red5/server/stream/ClientBroadcastStream.java">ClientBroadcastStream.java</a>
  */
+@NotThreadSafe
 public class VideoDataHandlingStream extends AbstractClientStream implements
 		IEventDispatcher {
 
+	//@Notes Logging guideline
+	//       life-cycle of stream : INFO
+	//       life-cycle of event : DEBUG
+
 	private transient final Logger logger = LoggerFactory.getLogger(this.getClass());
 
+	private volatile boolean closed = false;
+
+	private volatile boolean checkedVideoCodec = false;
 
 	/**
 	 * The number of RTMP events this stream dispatched.
 	 */
 	private volatile int eventNum = 0;
 
+	public int getNumberOfEvents(){ return this.eventNum; }
+
 	/**
 	 * The number of video data this stream dispatched.
 	 */
 	private volatile int videoDataNum = 0;
-
-	public int getNumberOfEvents(){ return this.eventNum; }
 
 	public int getNumberOfVideoData(){ return this.videoDataNum; }
 
@@ -47,8 +59,14 @@ public class VideoDataHandlingStream extends AbstractClientStream implements
 	 */
 	@Override
 	public void start() {
-		// TODO Auto-generated method stub
+		this.closed = false;
+		this.checkedVideoCodec = false;
+		this.eventNum = 0;
+		this.videoDataNum = 0;
 
+		this.setCodecInfo(new StreamCodecInfo());
+
+		logger.info("Steam[id: {}] started.", this.getStreamId());
 	}
 
 	/* (non-Javadoc)
@@ -92,9 +110,32 @@ public class VideoDataHandlingStream extends AbstractClientStream implements
 			logger.debug("Skipping event with 0 size");
 			return;
 		}
+
+		//For stream data such as Video, Audio, Invoke, Notify and so on
+		IoBuffer buf = null;
+
+
+		if(ev instanceof Notify){
+			if(ev.getHeader().getDataType() == Notify.TYPE_STREAM_METADATA){
+				try{
+					this.metaData = ((Notify)ev).duplicate();
+
+				}catch(Exception ex){
+					logger.warn("Metadata can't be dupliated for this stream.", ex);
+				}
+			}
+			return;
+		}
 		if(ev instanceof VideoData){
+
+
 			//delegate logging to handleVideoData method to prevent duplicate logging.
 			this.videoDataNum++;
+			if(!checkedVideoCodec){ //no concurrent access to this point
+
+
+			}
+
 			this.handleVideoData((VideoData)ev);
 		}
 

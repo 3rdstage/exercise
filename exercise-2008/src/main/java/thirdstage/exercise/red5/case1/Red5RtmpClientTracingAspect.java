@@ -42,7 +42,7 @@ public class Red5RtmpClientTracingAspect {
 	 * @see org.red5.client.net.rtmp.RTMPMinaIoHandler#sessionOpened(IoSession)
 	 * @see org.red5.client.net.rtmp.RTMPMinaIoHandler#sessionClosed(IoSession)
 	 */
-	@Before("call(public void IoHandler.message*(..)) && target(RTMPMinaIoHandler) && args(sess, msg)")
+	@Before("call(public void org.apache.mina.core.service.IoHandler.message*(..)) && target(org.red5.client.net.rtmp.RTMPMinaIoHandler) && args(sess, msg)")
 	public void beforeCallMinaIoHandlerMessageMethods(final StaticPart joinPt,
 		final EnclosingStaticPart enclosingJoinPt, IoSession sess, Object msg){
 		Pair<String, String> fromTo = this.getFromToMethods(joinPt, enclosingJoinPt);
@@ -67,7 +67,7 @@ public class Red5RtmpClientTracingAspect {
 	 * @see org.red5.client.net.rtmp.RTMPMinaIoHandler#messageReceived(IoSession, Object)
 	 * @see org.red5.client.net.rtmp.RTMPMinaIoHandler#messageSent(IoSession, Object)
 	 */
-	@Before("call(public void IoHandler.session*(..)) && target(RTMPMinaIoHandler) && args(sess)")
+	@Before("call(public void org.apache.mina.core.service.IoHandler.session*(..)) && target(org.red5.client.net.rtmp.RTMPMinaIoHandler) && args(sess)")
 	public void beforeCallMinaIoHandlerSessionMethods(final StaticPart joinPt,
 		final EnclosingStaticPart enclosingJoinPt, IoSession sess){
 		Pair<String, String> fromTo = this.getFromToMethods(joinPt, enclosingJoinPt);
