@@ -205,6 +205,7 @@ public class SimpleRtmpClient{
 					VideoDataHandlingStream stream = new VideoDataHandlingStream();
 					stream.setConnection(client.getConnection());
 					stream.setStreamId(streamId);
+					stream.start(); //on start callback
 					client.getConnection().addClientStream(stream);
 					logger.debug("RTMP client stream is created with stream[id: {}]", streamId);
 				}
