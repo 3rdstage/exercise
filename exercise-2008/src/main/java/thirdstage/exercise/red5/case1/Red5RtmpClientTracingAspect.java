@@ -17,6 +17,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.mina.core.service.IoHandler;
 import org.apache.mina.core.session.IoSession;
 import org.red5.client.net.rtmp.RTMPMinaIoHandler;
+import org.red5.server.net.rtmp.event.VideoData;
 import org.red5.server.net.rtmp.message.Packet;
 
 /**
@@ -26,7 +27,7 @@ import org.red5.server.net.rtmp.message.Packet;
 @Aspect
 public class Red5RtmpClientTracingAspect {
 
-	private transient final Logger logger = LoggerFactory.getLogger(this.getClass());
+	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 	public final static Marker AOP_MARKER = MarkerFactory.getMarker("AOP");
 
@@ -85,4 +86,6 @@ public class Red5RtmpClientTracingAspect {
 
 		return Pair.of(from, to);
 	}
+
+
 }

@@ -196,7 +196,7 @@ public class VideoDataHandlingStream extends AbstractClientStream implements
 	}
 
 
-	protected void handleVideoData(@Nonnull VideoData ev){
+	public void handleVideoData(@Nonnull VideoData ev){
 		Validate.isTrue(ev != null, "The video data to handle shouldn't null.");
 
 		Header header = ev.getHeader();
