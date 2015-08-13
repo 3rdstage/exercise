@@ -26,13 +26,13 @@ public class CalendarTest {
 	@Test
 	public void testCalendarWithTimeZoneToDate1(){
 
-		int year = 2006;
-		int month = 11;
-		int day = 10;
+		int year = 2015;
+		int month = 0;   //0 for January
+		int day = 1;
 		int hour = 12;
 		int min = 0;
 		int sec = 0;
-		int milliSec = 100;
+		int milliSec = 500;
 
 		FastDateFormat df = FastDateFormat.getInstance("yyyy/MM/dd HH:mm:ss.SSS zzz", TimeZone.getTimeZone("Asia/Seoul"));
 
@@ -52,6 +52,10 @@ public class CalendarTest {
 		String sc2 = df.format(c2);
 		String sd2 = df.format(d2);
 
+		logger.info("user.timezone : {}", System.getProperty("user.timezone"));
+		logger.info("Default time-zone ID : {}", TimeZone.getDefault().getID());
+		logger.info("");
+
 		logger.info("Calendar c1 : {}", c1.toString());
 		logger.info("c1.getTime().toGMTString() : {}", d1.toGMTString());
 		logger.info("c1.getTime().toLocalString() : {}", d1.toLocaleString());
@@ -59,6 +63,7 @@ public class CalendarTest {
 		logger.info("c1.getTimeInMillis() : {}", t1);
 		logger.info("DateFormat.format(c1) : {}", sc1);
 		logger.info("DateFormat.format(c1.getTime()) : {}", sd1);
+		logger.info("");
 
 		logger.info("Calendar c2 : {}", c2.toString());
 		logger.info("c2.getTime().toGMTString() : {}", d2.toGMTString());
