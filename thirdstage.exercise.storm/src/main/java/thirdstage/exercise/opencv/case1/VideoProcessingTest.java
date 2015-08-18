@@ -1,5 +1,6 @@
 package thirdstage.exercise.opencv.case1;
 
+import java.io.File;
 import java.net.URL;
 import java.util.List;
 import java.util.ArrayList;
@@ -42,7 +43,8 @@ public class VideoProcessingTest {
 		while(vc.read(frame)){
 			cnt++;
 			if(cnt == 10){
-				Highgui.imwrite("d:/temp/drop-f10.png", frame);
+				Highgui.imwrite(System.getenv("TEMP") + File.separator + "d:/temp/drop-f10.png", frame);
+
 			}
 
 
