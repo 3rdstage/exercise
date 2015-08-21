@@ -17,21 +17,21 @@ import backtype.storm.tuple.Values;
 
 @ThreadSafe
 public class LaggedCalc{
-   
+
    public static final int DEFAULT_DELAY = 500;
-   
+
    private int delay = 500;
-   
+
    public LaggedCalc(){}
-   
+
    /**
     * @param delay in millisecond
     */
    public LaggedCalc(int delay){
       this.delay = delay;
    }
-   
-   
+
+
    public long sumIntBetween(int from, int to){
       int a = from, b = to;
       long s = 0;
@@ -39,18 +39,15 @@ public class LaggedCalc{
          a = to;
          b = from;
       }
-      
+
       for(int i = a; i < b; i++){
          try{ Thread.currentThread().sleep(this.delay); }
          catch(InterruptedException ex){}
-         
+
          s += i;
       }
       try{ Thread.currentThread().sleep(this.delay); }
       catch(InterruptedException ex){}
       return (s + b);
    }
-   
-   
-
 }
