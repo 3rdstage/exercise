@@ -18,16 +18,19 @@ import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
 
 public class SumPartitioningBolt extends BaseBasicBolt {
+   
+   private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 	@Override
 	public void execute(Tuple input, BasicOutputCollector collector) {
-		// TODO Auto-generated method stub
-
+		logger.info("Starting {}.execute", this.getClass().getSimpleName());
+		String arg = input.getString(0);
+		collector.emit(new Values(arg, input.getValue(1)));
 	}
 
 	@Override
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
-		// TODO Auto-generated method stub
+	   declarer.declare(new Fields("result", "return-info"));
 
 	}
 

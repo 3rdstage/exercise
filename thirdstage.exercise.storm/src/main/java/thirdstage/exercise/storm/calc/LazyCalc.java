@@ -1,5 +1,6 @@
 package thirdstage.exercise.storm.calc;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
@@ -44,25 +45,37 @@ public class LazyCalc {
 		this.delay = delay;
 
 	}
+ 
 
+	/**
+	 * @param from
+	 * @param to should be equal or greater than {@code from}
+	 * @param step should be positive
+	 * @return
+	 */
+	public double sumBetween(double from, double to, double step){
+	   Validate.isTrue(to >= from, "to should be equal or greater than from.");
+	   Validate.isTrue(step >= 0.0, "step should be positive.");
+	   
+		BigDecimal a = new BigDecimal(from); 
+		BigDecimal b = new BigDecimal(to);
+		BigDecimal inc = new BigDecimal(step);
+		BigDecimal sum = BigDecimal.ZERO;
 
-	public long sumIntBetween(int from, int to){
-		int a = from, b = to;
-		long s = 0;
-		if(from > to){
-			a = to;
-			b = from;
+		BigDecimal c = a;
+		for(;;){
+		   if(delay > 0){
+		      try{ Thread.sleep(this.delay); }
+		      catch(InterruptedException ex){}
+		   }
+
+		   sum = sum.add(c);
+		   c = c.add(inc);
+		   
+		   if(c.compareTo(b) > 0){ break; }
 		}
-
-		for(int i = a; i < b; i++){
-			try{ Thread.currentThread().sleep(this.delay); }
-			catch(InterruptedException ex){}
-
-			s += i;
-		}
-		try{ Thread.currentThread().sleep(this.delay); }
-		catch(InterruptedException ex){}
-		return (s + b);
+		
+		return sum.doubleValue();
 	}
 
 }
