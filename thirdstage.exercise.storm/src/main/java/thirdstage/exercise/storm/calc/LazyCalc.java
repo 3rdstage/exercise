@@ -1,6 +1,7 @@
 package thirdstage.exercise.storm.calc;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
@@ -34,8 +35,6 @@ public class LazyCalc {
 
 	private int delay = 500;
 
-	public LazyCalc(){}
-
 	/**
 	 * @param delay in millisecond
 	 */
@@ -43,39 +42,37 @@ public class LazyCalc {
 		Validate.isTrue(delay > -1, "Delay should be non-negative.");
 		Validate.isTrue(delay <= MAX_DELAY, "Delay should be equal or less than %1$s", MAX_DELAY);
 		this.delay = delay;
-
 	}
- 
+
 
 	/**
-	 * @param from
-	 * @param to should be equal or greater than {@code from}
+	 * @param from always inclusive
+	 * @param to should be equal or greater than {@code from} and inclusiveness depends on {@code from} and {@code step}
 	 * @param step should be positive
 	 * @return
+	 * @throws RuntimeException
 	 */
-	public double sumBetween(double from, double to, double step){
-	   Validate.isTrue(to >= from, "to should be equal or greater than from.");
-	   Validate.isTrue(step >= 0.0, "step should be positive.");
-	   
-		BigDecimal a = new BigDecimal(from); 
-		BigDecimal b = new BigDecimal(to);
-		BigDecimal inc = new BigDecimal(step);
-		BigDecimal sum = BigDecimal.ZERO;
+	public long sumIntBetween(int from, int to, @Min(1) int step){
+	   Validate.isTrue(to >= from, "Parameter 'to' should be equal or greater than the parameter 'from'.");
+	   Validate.isTrue(step > 0, "Parameter 'step' should be positive.");
 
-		BigDecimal c = a;
-		for(;;){
-		   if(delay > 0){
-		      try{ Thread.sleep(this.delay); }
-		      catch(InterruptedException ex){}
-		   }
+	   	long sum = 0;
 
-		   sum = sum.add(c);
-		   c = c.add(inc);
-		   
-		   if(c.compareTo(b) > 0){ break; }
-		}
-		
-		return sum.doubleValue();
+	   	int cur = from;
+	   	for(;;){
+	   		if(delay > 0){
+	   			try{ Thread.sleep(this.delay); }
+			    catch(InterruptedException ex){
+			    	throw new RuntimeException(ex);
+			    }
+	   		}
+
+	   		sum = sum + cur;
+	   		cur = cur + step;
+	   		if(cur > to){ break; }
+	   	}
+
+	   	return sum;
 	}
 
 }

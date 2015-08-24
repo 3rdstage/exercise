@@ -8,28 +8,28 @@ import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 
-public class SumRequestTest {
+public class SumJobRequestTest {
 
    private final Logger logger = LoggerFactory.getLogger(this.getClass());
-   
+
    @Test
-   public void testSerDeWithJackson() throws Exception{
-      
-      SumRequest req = new SumRequest("R100", 1.0, 100.0, 1.0);
-      
+   public void testSerDeWithJackson1() throws Exception{
+
+      SumJobRequest req = new SumJobRequest("R100", 1, 100, 1, 3, 100);
+
       ObjectMapper mapper = new ObjectMapper();
       mapper.registerModule(new JaxbAnnotationModule());
       String reqStr = mapper.writeValueAsString(req);
-      
+
       logger.info("The JSON representation of the request : {}", reqStr);
-      
-      SumRequest req2 = mapper.readValue(reqStr, req.getClass());
-      
+
+      SumJobRequest req2 = mapper.readValue(reqStr, req.getClass());
+
       Assert.assertEquals(req2.getId(), req.getId());
       Assert.assertEquals(req2.getFrom(), req.getFrom());
       Assert.assertEquals(req2.getTo(), req.getTo());
       Assert.assertEquals(req2.getStep(), req.getStep());
-      
-      
+      Assert.assertEquals(req2.getDelay(), req.getDelay());
    }
+
 }

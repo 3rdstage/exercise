@@ -6,22 +6,22 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class LazyCalcTest {
-   
+
    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
    @Test
-   public void sumBetween() {
-      
+   public void testSumIntBetween() {
+
       LazyCalc calc = new LazyCalc(0);
-      
-      double a = 1.0;
-      double b = 100.0;
-      double step = 1.0;
-      double sum = calc.sumBetween(a, b, step);
+
+      int a = 1;
+      int b = 100;
+      int step = 1;
+      long sum = calc.sumIntBetween(a, b, step);
 
       this.logger.info("Sum integers between 0 to 100 is : {}", sum);
-      
-      Assert.assertEquals(sum, 5050.0);
-      
+
+      Assert.assertEquals(sum, 5050);
+
    }
 }
