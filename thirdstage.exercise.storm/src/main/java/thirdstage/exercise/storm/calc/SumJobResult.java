@@ -15,6 +15,8 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlType;
 
+import org.apache.storm.commons.lang.builder.StandardToStringStyle;
+import org.apache.storm.commons.lang.builder.ToStringBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +31,7 @@ import backtype.storm.tuple.Values;
 @NotThreadSafe
 @XmlType
 @XmlAccessorType(XmlAccessType.NONE)
-public class SumJobResult {
+public class SumJobResult{
 
 	public enum JobStatus{
 		RUNNING,
@@ -69,6 +71,13 @@ public class SumJobResult {
 	 */
 	@XmlElement(name="sum")
 	private long sum;
+	
+	private transient String str = null;
+	
+	/**
+	 * private no-arg constructor for Kryo deserilization
+	 */
+	private SumJobResult(){}
 
 	@JsonCreator
 	public SumJobResult(@Nonnull @JsonProperty("id") String id,
@@ -128,6 +137,19 @@ public class SumJobResult {
 	public SumJobResult addSum(long delta){
 		this.sum = this.sum + delta;
 		return this;
+	}
+	
+	@Override
+	public String toString(){
+	   if(this.str == null){
+	      this.str = new ToStringBuilder(this, StandardToStringStyle.DEFAULT_STYLE)
+         .append("id", this.id).append("tasks-total", this.tasksTotal)
+         .append("tasks-success", this.tasksSuccess)
+         .append("tasks-fail", this.tasksFail)
+         .append("sum", this.sum).toString();
+	   }
+	   
+	   return this.str;
 	}
 
 

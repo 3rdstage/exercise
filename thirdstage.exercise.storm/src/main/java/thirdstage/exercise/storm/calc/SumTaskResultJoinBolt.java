@@ -61,16 +61,9 @@ public class SumTaskResultJoinBolt extends BaseBasicBolt {
 		int tasks = input.getInteger(2);
 		int taskNo = input.getInteger(3);
 		TaskStatus taskStatus =(TaskStatus)input.getValue(4);
-		String resultStr = input.getString(5);
+		SumTaskResult result = (SumTaskResult)input.getValue(5);
 
 		logger.info("Executing {} for Job ID: {}, Task No: {}", this.getClass().getSimpleName(), jobId, taskNo);
-
-		SumTaskResult result = null;
-		try{
-			result = mapper.readValue(resultStr, SumTaskResult.class);
-		}catch(Exception ex){
-			logger.error("Fail to deserialize ...", ex);
-		}
 
 		SumJobResult jobResult = null;
 		resultsLock.lock();

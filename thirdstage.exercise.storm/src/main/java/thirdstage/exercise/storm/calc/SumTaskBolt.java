@@ -62,10 +62,10 @@ public class SumTaskBolt extends BaseBasicBolt {
 		try{
 			resultStr = mapper.writeValueAsString(result);
 			collector.emit(new Values(retInfo, jobId, tasks,
-					result.getNo(), result.getStatus(), resultStr));
+					result.getNo(), result.getStatus(), result));
 		}catch(Exception ex){
 			collector.emit(new Values(retInfo, jobId, tasks,
-					result.getNo(), result.getStatus(), ""));
+					result.getNo(), result.getStatus(), null));
 		}
 	}
 

@@ -57,6 +57,11 @@ public class SumJobRequest{
 	 */
 	@XmlElement(name="delay")
 	private int delay = DEFAULT_DELAY;
+	
+	/**
+	 * private no-arg constructor for Kryo deserilization
+	 */
+	private SumJobRequest(){}
 
 	/**
 	 * @param id

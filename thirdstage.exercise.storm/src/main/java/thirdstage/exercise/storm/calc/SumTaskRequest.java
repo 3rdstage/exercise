@@ -50,6 +50,11 @@ public class SumTaskRequest {
 	private int delay = SumJobRequest.DEFAULT_DELAY;
 
 	/**
+	 * private no-arg constructor for Kryo deserialization
+	 */
+	private SumTaskRequest(){}
+	
+	/**
 	 * @param no usually 1-base
 	 * @param from
 	 * @param to

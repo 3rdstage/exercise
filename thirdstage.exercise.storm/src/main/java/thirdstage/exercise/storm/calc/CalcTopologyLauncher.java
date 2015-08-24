@@ -35,7 +35,6 @@ public class CalcTopologyLauncher {
 		PRIME,
 	}
 
-
 	public static void main(String... args) throws Exception{
 
 		TopologyBuilder builder = new TopologyBuilder();
@@ -55,6 +54,9 @@ public class CalcTopologyLauncher {
 
 			LocalCluster cluster = new LocalCluster();
 			Config conf = new Config();
+			Config.setFallBackOnJavaSerialization(conf, false);
+			Config.registerSerialization(conf, SumTaskRequest.class);
+			Config.registerSerialization(conf, SumTaskResult.class);
 			cluster.submitTopology(DEFAULT_NAME, conf, builder.createTopology());
 
 			SumJobRequest req1 = new SumJobRequest("R001", 1, 100, 1, 3, SumJobRequest.DEFAULT_DELAY);
