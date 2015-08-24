@@ -2,10 +2,6 @@
 #define __STDC_CONSTANT_MACROS
 #endif
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 #include "thirdstage_exercise_jni_library_case1_FfmpegAdapter.h"
 #include "stdio.h"
 #include "windows.h"
@@ -21,6 +17,3 @@ Java_thirdstage_exercise_jni_library_case1_FfmpegAdapter_avRegisterAll
 	av_register_all();
 	printf("av_register_all() is executed successfully.");
 }
-#ifdef __cplusplus
-}
-#endif
