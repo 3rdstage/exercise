@@ -12,7 +12,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 
-import org.apache.storm.commons.lang.Validate;
+import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import backtype.storm.task.TopologyContext;

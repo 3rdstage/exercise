@@ -14,7 +14,7 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlType;
 
-import org.apache.storm.commons.lang.Validate;
+import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +53,7 @@ public class SumTaskRequest {
 	 * private no-arg constructor for Kryo deserialization
 	 */
 	private SumTaskRequest(){}
-	
+
 	/**
 	 * @param no usually 1-base
 	 * @param from

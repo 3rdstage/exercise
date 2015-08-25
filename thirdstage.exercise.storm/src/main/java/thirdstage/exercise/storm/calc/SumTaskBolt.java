@@ -47,6 +47,9 @@ public class SumTaskBolt extends BaseBasicBolt {
 		SumTaskRequest req = null;
 		SumTaskResult result = null;
 		String resultStr = null;
+
+		logger.debug("SumTaskBolt - Received sum task: {}", reqStr);
+
 		try{
 			req = mapper.readValue(reqStr, SumTaskRequest.class);
 			LazyCalc calc = new LazyCalc(req.getDelay());
@@ -63,7 +66,9 @@ public class SumTaskBolt extends BaseBasicBolt {
 			resultStr = mapper.writeValueAsString(result);
 			collector.emit(new Values(retInfo, jobId, tasks,
 					result.getNo(), result.getStatus(), result));
+			logger.debug("SumTaskBolt - Emitted sum task result: {}", resultStr);
 		}catch(Exception ex){
+			logger.error("Fail to serialize sum task result.", ex);
 			collector.emit(new Values(retInfo, jobId, tasks,
 					result.getNo(), result.getStatus(), null));
 		}

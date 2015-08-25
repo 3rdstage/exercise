@@ -13,6 +13,8 @@ import javax.annotation.concurrent.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import thirdstage.exercise.storm.calc.SumTaskResult.TaskStatus;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 
@@ -90,6 +92,7 @@ public class CalcTopologyLauncher {
 		conf.setFallBackOnJavaSerialization(false);
 		conf.registerSerialization(SumTaskRequest.class);
 		conf.registerSerialization(SumTaskResult.class);
+		conf.registerSerialization(TaskStatus.class);
 		conf.setNumWorkers(3);
 
 		try{

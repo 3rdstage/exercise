@@ -63,7 +63,7 @@ public class SumTaskResultJoinBolt extends BaseBasicBolt {
 		TaskStatus taskStatus =(TaskStatus)input.getValue(4);
 		SumTaskResult result = (SumTaskResult)input.getValue(5);
 
-		logger.info("Executing {} for Job ID: {}, Task No: {}", this.getClass().getSimpleName(), jobId, taskNo);
+		logger.debug("SumTaskResultJoinBolt - Received sum task result: {}", result);
 
 		SumJobResult jobResult = null;
 		resultsLock.lock();
@@ -81,6 +81,7 @@ public class SumTaskResultJoinBolt extends BaseBasicBolt {
 			}
 			if(tasks == (jobResult.getTasksSuccess() + jobResult.getTasksFail())){
 				//all tasks are processed
+				jobResult.setStatus(JobStatus.COMPLETED);
 				String jobResultStr = null;
 				try{
 					jobResultStr = mapper.writeValueAsString(jobResult);
@@ -90,6 +91,7 @@ public class SumTaskResultJoinBolt extends BaseBasicBolt {
 				}
 				collector.emit(new Values(jobResultStr, retInfo));
 				results.remove(jobId);
+				logger.debug("SumTaskResultJoinBolt - Emitted sum job result: {}", jobResultStr);
 			}
 		}finally{
 			resultsLock.unlock();

@@ -41,10 +41,11 @@ public class SumJobBolt extends BaseBasicBolt {
 
 	@Override
 	public void execute(Tuple input, BasicOutputCollector collector) {
-		logger.info("Starting {}.execute", this.getClass().getSimpleName());
 		String arg = input.getString(0);
 		if(arg == null){
 			throw new IllegalStateException("No argument is transfered.");
+		}else{
+			logger.debug("SumJobBolt - Received sum job: {}", arg);
 		}
 
 		SumJobRequest req = null;
@@ -69,6 +70,7 @@ public class SumJobBolt extends BaseBasicBolt {
 
 		for(String str : taskStrs){
 			collector.emit(new Values(input.getValue(1), req.getId(), taskStrs.size(), str));
+			logger.debug("SumJobBolt - Emitted sum task: {}", str);
 		}
 	}
 

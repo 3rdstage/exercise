@@ -69,9 +69,19 @@ public class RemoteCalcTopologyTest {
 		DRPCClient client = new DRPCClient(conf, this.address, this.port);
 
 		SumJobRequest req1 = new SumJobRequest("R001", 1, 100, 1, 3, SumJobRequest.DEFAULT_DELAY);
+		String arg1 = mapper.writeValueAsString(req1);
 
-		logger.info("Just before sending sum request to DRPC server at {}:{}", this.address, this.port);
-		String resultStr = client.execute(Function.SUM.name(), mapper.writeValueAsString(req1));
+		logger.info("Sending job request to DRPC server: {}", arg1);
+		String resultStr1 = client.execute(Function.SUM.name(), arg1);
+		logger.info("Recevied job result from DRPC server: {}", resultStr1);
+
+		SumJobRequest req2 = new SumJobRequest("R002", 1, 1000, 1, 30, SumJobRequest.DEFAULT_DELAY);
+		String arg2 = mapper.writeValueAsString(req2);
+
+		logger.info("Sending job request to DRPC server: {}", arg2);
+		String resultStr2 = client.execute(Function.SUM.name(), arg2);
+		logger.info("Recevied job result from DRPC server: {}", resultStr2);
+
 	}
 
 
