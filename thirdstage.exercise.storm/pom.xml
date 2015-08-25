@@ -1,7 +1,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
    <modelVersion>4.0.0</modelVersion>
    <groupId>thirdstage.exercise</groupId>
-   <artifactId>storm</artifactId>
+   <artifactId>exercise-storm</artifactId>
    <version>0.0.1-SNAPSHOT</version>
    <packaging>jar</packaging>
 
@@ -17,17 +17,35 @@
       <plugins>
          <plugin>
             <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <version>3.2</version>
-            <configuration>
-               <source>${java.version}</source>
-               <target>${java.version}</target>
-            </configuration>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <executions>
+               <execution>
+                  <id>copy-dependencies-except-storm</id>
+                  <phase>package</phase>
+                  <goals>
+                     <goal>copy-dependencies</goal>
+                  </goals>
+                  <configuration>
+                     <copyPom>false</copyPom>
+                     <!-- default location. Do NOT change -->
+                     <ouputDirectory>${project.build.directory}/dependency</ouputDirectory>
+                     <includeScope>runtime</includeScope>
+                     <excludeGroupIds>org.slf4j,ch.qos.logback</excludeGroupIds>
+                     <!-- jackson-core is already included in Storm 0.10.0-beta1 distribution -->
+                     <excludeArtifactIds>jackson-core</excludeArtifactIds>
+                     <overWriteReleases>true</overWriteReleases>
+                     <stripVersion>false</stripVersion>
+                     <useBaseVersion>false</useBaseVersion>
+                     <useRepositoryLayout>false</useRepositoryLayout>
+                     <useSubDirectoryPerArtifact>false</useSubDirectoryPerArtifact>
+                     <useSubDirectoryPerScope>false</useSubDirectoryPerScope>
+                  </configuration>
+               </execution>
+            </executions>
          </plugin>
          <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-eclipse-plugin</artifactId>
-            <version>2.9</version>
             <configuration>
                <!-- http://maven.apache.org/plugins/maven-eclipse-plugin/eclipse-mojo.html -->
                <classpathContainers>
@@ -41,7 +59,6 @@
          <plugin>
             <groupId>com.github.maven-nar</groupId>
             <artifactId>nar-maven-plugin</artifactId>
-            <version>3.2.2</version>
             <extensions>true</extensions>
             <configuration>
                <architecture>x86</architecture>
@@ -103,6 +120,60 @@
             </executions> -->
          </plugin>
       </plugins>
+
+      <pluginManagement>
+         <plugins>
+            <plugin>
+               <groupId>org.apache.maven.plugins</groupId>
+               <artifactId>maven-compiler-plugin</artifactId>
+               <version>2.3.2</version>
+               <inherited>true</inherited>
+               <configuration>
+                  <source>${java.version}</source>
+                  <target>${java.version}</target>
+               </configuration>
+            </plugin>
+            <plugin>
+               <groupId>com.github.maven-nar</groupId>
+               <artifactId>nar-maven-plugin</artifactId>
+               <version>3.2.2</version>
+            </plugin>
+            <plugin>
+               <groupId>org.apache.maven.plugins</groupId>
+               <artifactId>maven-dependency-plugin</artifactId>
+               <version>2.10</version>
+            </plugin>
+            <plugin>
+               <groupId>org.apache.maven.plugins</groupId>
+               <artifactId>maven-eclipse-plugin</artifactId>
+               <version>2.9</version>
+            </plugin>
+            <plugin>
+               <groupId>org.eclipse.m2e</groupId>
+               <artifactId>lifecycle-mapping</artifactId>
+               <version>1.0.0</version>
+               <configuration>
+                  <lifecycleMappingMetadata>
+                     <pluginExecutions>
+                        <pluginExecution>
+                           <pluginExecutionFilter>
+                              <groupId>org.apache.maven.plugins</groupId>
+                              <artifactId>maven-dependency-plugin</artifactId>
+                              <versionRange>[1.0.0,)</versionRange>
+                              <goals>
+                                 <goal>copy-dependencies</goal>
+                              </goals>
+                           </pluginExecutionFilter>
+                           <action>
+                              <ignore />
+                           </action>
+                        </pluginExecution>
+                     </pluginExecutions>
+                  </lifecycleMappingMetadata>
+               </configuration>
+            </plugin>
+         </plugins>
+      </pluginManagement>
    </build>
 
    <repositories>
@@ -154,6 +225,11 @@
          <groupId>org.testng</groupId>
          <artifactId>testng</artifactId>
          <version>6.5.2</version>
+      </dependency>
+      <dependency>
+         <groupId>org.apache.commons</groupId>
+         <artifactId>commons-lang3</artifactId>
+         <version>3.4</version>
       </dependency>
       <dependency>
          <groupId>org.apache.commons</groupId>
