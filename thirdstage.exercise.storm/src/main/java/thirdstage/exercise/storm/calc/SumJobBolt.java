@@ -41,7 +41,7 @@ public class SumJobBolt extends BaseBasicBolt {
 
 	@Override
 	public void execute(Tuple input, BasicOutputCollector collector) {
-		String arg = input.getString(0);
+		String arg = input.getStringByField("args");
 		if(arg == null){
 			throw new IllegalStateException("No argument is transfered.");
 		}else{
@@ -51,26 +51,14 @@ public class SumJobBolt extends BaseBasicBolt {
 		SumJobRequest req = null;
 		try{
 			 req = this.mapper.readValue(arg, SumJobRequest.class);
-
 		}catch(Exception ex){
 			throw new IllegalStateException("The request is not deserialized properly.", ex);
 		}
 		List<SumTaskRequest> taskReqs = partitionSumRequest(req);
-		final List<String> taskStrs = new ArrayList<>();
-		String taskStr;
-		for(int i = 0, n = taskReqs.size(); i < n; i++){
-			try{
-				taskStr = this.mapper.writeValueAsString(taskReqs.get(i));
-				taskStrs.add(taskStr);
-			}catch(Exception ex){
-				//@TODO Need much more consideration on this situation.
-				logger.error("The task is not serialized properly.", ex);
-			}
-		}
 
-		for(String str : taskStrs){
-			collector.emit(new Values(input.getValue(1), req.getId(), taskStrs.size(), str));
-			logger.debug("SumJobBolt - Emitted sum task: {}", str);
+		for(SumTaskRequest taskReq : taskReqs){
+			collector.emit(new Values(input.getValueByField("return-info"), req.getId(), taskReqs.size(), taskReq));
+			logger.debug("SumJobBolt - Emitted sum task: {}", taskReq);
 		}
 	}
 

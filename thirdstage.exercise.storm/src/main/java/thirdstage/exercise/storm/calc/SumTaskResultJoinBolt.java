@@ -56,12 +56,12 @@ public class SumTaskResultJoinBolt extends BaseBasicBolt {
 	@Override
 	public void execute(Tuple input, BasicOutputCollector collector) {
 
-		String retInfo = input.getString(0);
-		String jobId = input.getString(1);
-		int tasks = input.getInteger(2);
-		int taskNo = input.getInteger(3);
-		TaskStatus taskStatus =(TaskStatus)input.getValue(4);
-		SumTaskResult result = (SumTaskResult)input.getValue(5);
+		String retInfo = input.getStringByField("return-info");
+		String jobId = input.getStringByField("job-id");
+		int tasks = input.getIntegerByField("tasks-total");
+		int taskNo = input.getIntegerByField("task-no");
+		TaskStatus taskStatus =(TaskStatus)input.getValueByField("task-status");
+		SumTaskResult result = (SumTaskResult)input.getValueByField("task-result");
 
 		logger.debug("SumTaskResultJoinBolt - Received sum task result: {}", result);
 

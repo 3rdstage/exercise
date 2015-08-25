@@ -31,7 +31,6 @@ public class SumTaskBolt extends BaseBasicBolt {
 
 	@Override
 	public void prepare(Map conf, TopologyContext cntx){
-
 		super.prepare(conf, cntx);
 		this.mapper = new ObjectMapper();
 		mapper.registerModule(new JaxbAnnotationModule());
@@ -39,24 +38,20 @@ public class SumTaskBolt extends BaseBasicBolt {
 
 	@Override
 	public void execute(Tuple input, BasicOutputCollector collector) {
-		String retInfo = input.getString(0);
-		String jobId = input.getString(1);
-		int tasks = input.getInteger(2);
-
-		String reqStr = input.getString(3);
-		SumTaskRequest req = null;
+		String retInfo = input.getStringByField("return-info");
+		String jobId = input.getStringByField("job-id");
+		int tasks = input.getIntegerByField("tasks-total");
+		SumTaskRequest req = (SumTaskRequest)input.getValueByField("task-req");
+		logger.debug("SumTaskBolt - Received sum task: {}", req);
+		
 		SumTaskResult result = null;
 		String resultStr = null;
 
-		logger.debug("SumTaskBolt - Received sum task: {}", reqStr);
-
 		try{
-			req = mapper.readValue(reqStr, SumTaskRequest.class);
 			LazyCalc calc = new LazyCalc(req.getDelay());
 
 			long sum = calc.sumIntBetween(req.getFrom(), req.getTo(), req.getStep());
 			result = new SumTaskResult(req.getNo(), TaskStatus.SUCCESS, sum);
-
 		}catch(Exception ex){
 			logger.error("Fail to execute sum task request.", ex);
 			result = new SumTaskResult((req != null) ? req.getNo() : -1, TaskStatus.FAIL, 0);
@@ -73,7 +68,6 @@ public class SumTaskBolt extends BaseBasicBolt {
 					result.getNo(), result.getStatus(), null));
 		}
 	}
-
 
 	@Override
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {

@@ -10,6 +10,8 @@ import java.util.HashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import javax.validation.constraints.Min;
+import org.apache.storm.commons.lang.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,74 +36,81 @@ import backtype.storm.tuple.Values;
 
 public class CalcTopologyLauncher {
 
-	public static final String DEFAULT_NAME = "CalcTopology";
+   public static final String DEFAULT_NAME = "CalcTopology";
 
-	private static Logger logger = LoggerFactory.getLogger(CalcTopologyLauncher.class);
+   private static Logger logger = LoggerFactory.getLogger(CalcTopologyLauncher.class);
 
-	public enum Function{
-		SUM,
-		PRIME,
-	}
+   public enum Function{
+      SUM,
+      PRIME,
+   }
 
-	protected static StormTopology buildTopology(@Nullable ILocalDRPC localDrpc){
-		int sumJobBoltNum = 2;
-		int sumTaskBoltNum = 5;
-		int sumJoinBoltNum = 2;
-		int resultBoltNum = 2;
+   protected static StormTopology buildTopology(@Nullable ILocalDRPC localDrpc){
+      return buildCalcTopology(2, 5, 2, 2, localDrpc);
+   }
 
-		TopologyBuilder builder = new TopologyBuilder();
+   protected static StormTopology buildCalcTopology(
+         @Min(1) int sumJobBoltNum, @Min(3) int sumTaskBoltNum,
+         @Min(1) int sumJoinBoltNum, @Min(1) int resultBoltNum,
+         @Nullable ILocalDRPC localDrpc){
+      Validate.isTrue(sumJobBoltNum > 0, "Invalid number of SumJobBolt is specified.");
+      Validate.isTrue(sumTaskBoltNum > 2, "At least 3 SumTaskBolt should be specified.");
+      Validate.isTrue(sumJoinBoltNum > 0, "Invalid number of SumJobBolt is specified.");
+      Validate.isTrue(resultBoltNum > 0, "Invalid number of SumJobBolt is specified.");
+      
+      TopologyBuilder builder = new TopologyBuilder();
 
-		DRPCSpout sumSpt = null;
-		if(localDrpc != null){
-			//@TODO Find out the way to add LocalDRPC after building topology
-			sumSpt = new DRPCSpout(Function.SUM.name(), localDrpc);
-		}else{
-			sumSpt = new DRPCSpout(Function.SUM.name());
-		}
+      DRPCSpout sumSpt = null;
+      if(localDrpc != null){
+         //@TODO Find out the way to add LocalDRPC after building topology
+         sumSpt = new DRPCSpout(Function.SUM.name(), localDrpc);
+      }else{
+         sumSpt = new DRPCSpout(Function.SUM.name());
+      }
 
-		builder.setSpout("drpc-sum", sumSpt);
-		builder.setBolt("sum-job", new SumJobBolt(), sumJobBoltNum).shuffleGrouping("drpc-sum");
-		builder.setBolt("sum-task", new SumTaskBolt(), sumTaskBoltNum).shuffleGrouping("sum-job");
-		builder.setBolt("sum-task-result-join", new SumTaskResultJoinBolt(), sumJoinBoltNum)
-		.fieldsGrouping("sum-task", new Fields("job-id"));
-		builder.setBolt("sum-return", new ReturnResults(), resultBoltNum).shuffleGrouping("sum-task-result-join");
+      builder.setSpout("drpc-sum", sumSpt);
+      builder.setBolt("sum-job", new SumJobBolt(), sumJobBoltNum).shuffleGrouping("drpc-sum");
+      builder.setBolt("sum-task", new SumTaskBolt(), sumTaskBoltNum).shuffleGrouping("sum-job");
+      builder.setBolt("sum-task-result-join", new SumTaskResultJoinBolt(), sumJoinBoltNum)
+      .fieldsGrouping("sum-task", new Fields("job-id"));
+      builder.setBolt("sum-return", new ReturnResults(), resultBoltNum).shuffleGrouping("sum-task-result-join");
 
-		return builder.createTopology();
-	}
+      return builder.createTopology();
+   }
 
-	public static void printUsage(PrintStream out){
+   public static void printUsage(PrintStream out){
 
-		out.println("Specify the topology name in command line.");
+      out.println("Specify the topology name in command line.");
 
-	}
+   }
 
-	public static void main(String... args) throws Exception{
+   public static void main(String... args) throws Exception{
 
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.registerModule(new JaxbAnnotationModule());
+      ObjectMapper mapper = new ObjectMapper();
+      mapper.registerModule(new JaxbAnnotationModule());
 
-		if(args == null || args.length == 0){
-			printUsage(System.out);
-			return;
-		}
+      if(args == null || args.length == 0){
+         printUsage(System.out);
+         return;
+      }
 
-		String name = args[0];
+      String name = args[0];
 
-		StormTopology topology = buildTopology(null);
-		Config conf = new Config();
-		conf.setFallBackOnJavaSerialization(false);
-		conf.registerSerialization(SumTaskRequest.class);
-		conf.registerSerialization(SumTaskResult.class);
-		conf.registerSerialization(TaskStatus.class);
-		conf.setNumWorkers(3);
+      StormTopology topology = buildTopology(null);
+      Config conf = new Config();
+      conf.setFallBackOnJavaSerialization(false);
+      conf.registerSerialization(SumTaskRequest.class);
+      conf.registerSerialization(SumTaskResult.class);
+      conf.registerSerialization(TaskStatus.class);
+      conf.setNumWorkers(3);
 
-		try{
-			logger.info("Submitting storm topology(name: {}) at {}", name, InetAddress.getLocalHost().getHostName());
-			StormSubmitter.submitTopology(name, conf, topology);
-		}catch(Exception ex){
-			logger.error("Fail to submit the topology.", ex);
-			throw ex;
-		}
-	}
+      try{
+         logger.info("Submitting storm topology(name: {}) at {}", name, InetAddress.getLocalHost().getHostName());
+         StormSubmitter.submitTopology(name, conf, topology);
+      }catch(Exception ex){
+         logger.error("Fail to submit the topology.", ex);
+         throw ex;
+      }
+   }
 
 }
