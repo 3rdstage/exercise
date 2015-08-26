@@ -19,6 +19,7 @@ import backtype.storm.task.TopologyContext;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
+import backtype.storm.utils.Utils;
 
 @ThreadSafe
 public class LazyCalc {
@@ -34,6 +35,8 @@ public class LazyCalc {
 	public static final int MAX_DELAY = 5000;
 
 	private int delay = 500;
+
+
 
 	/**
 	 * @param delay in millisecond
@@ -52,27 +55,43 @@ public class LazyCalc {
 	 * @return
 	 * @throws RuntimeException
 	 */
+	public long sumIntBetween(int from, int to, @Min(1) int step, boolean inStorm){
+		Validate.isTrue(to >= from, "Parameter 'to' should be equal or greater than the parameter 'from'.");
+		Validate.isTrue(step > 0, "Parameter 'step' should be positive.");
+
+		long sum = 0;
+
+		int cur = from;
+		for(;;){
+			if(delay > 0){
+				if(inStorm){
+					Utils.sleep(delay);
+				}else{
+					try{ Thread.sleep(this.delay); }
+					catch(InterruptedException ex){
+						throw new RuntimeException(ex);
+					}
+				}
+			}
+
+			sum = sum + cur;
+			cur = cur + step;
+			if(cur > to){ break; }
+		}
+
+		return sum;
+	}
+
+
+	/**
+	 * @param from always inclusive
+	 * @param to should be equal or greater than {@code from} and inclusiveness depends on {@code from} and {@code step}
+	 * @param step should be positive
+	 * @return
+	 * @throws RuntimeException
+	 */
 	public long sumIntBetween(int from, int to, @Min(1) int step){
-	   Validate.isTrue(to >= from, "Parameter 'to' should be equal or greater than the parameter 'from'.");
-	   Validate.isTrue(step > 0, "Parameter 'step' should be positive.");
-
-	   	long sum = 0;
-
-	   	int cur = from;
-	   	for(;;){
-	   		if(delay > 0){
-	   			try{ Thread.sleep(this.delay); }
-			    catch(InterruptedException ex){
-			    	throw new RuntimeException(ex);
-			    }
-	   		}
-
-	   		sum = sum + cur;
-	   		cur = cur + step;
-	   		if(cur > to){ break; }
-	   	}
-
-	   	return sum;
+		return this.sumIntBetween(from, to, step, true);
 	}
 
 }

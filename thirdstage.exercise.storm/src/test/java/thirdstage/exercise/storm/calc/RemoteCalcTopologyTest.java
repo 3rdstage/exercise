@@ -7,10 +7,12 @@ import java.util.HashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
+import javax.validation.constraints.Min;
 
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
@@ -55,7 +57,7 @@ public class RemoteCalcTopologyTest {
 	}
 
 	@Test
-	public void testSimple1() throws Exception{
+	public void testSum1() throws Exception{
 
 		Config conf = new Config();
 		conf.setFallBackOnJavaSerialization(false);
@@ -68,21 +70,69 @@ public class RemoteCalcTopologyTest {
 		conf.put(Config.DRPC_MAX_BUFFER_SIZE, 3000);
 		DRPCClient client = new DRPCClient(conf, this.address, this.port);
 
-		SumJobRequest req1 = new SumJobRequest("R001", 1, 100, 1, 3, SumJobRequest.DEFAULT_DELAY);
-		String arg1 = mapper.writeValueAsString(req1);
+		//1st test
+		String jobId = "R001";
+		int from = 1;
+		int to = 100;
+		int step = 1;
+		int partitions = 3;
+		int delay = 50;
 
-		logger.info("Sending job request to DRPC server: {}", arg1);
-		String resultStr1 = client.execute(Function.SUM.name(), arg1);
-		logger.info("Recevied job result from DRPC server: {}", resultStr1);
+		long sum = this.calcSumRemote(client, jobId, from, to, step, partitions, delay);
+		long sum0 = this.calcSumSimple(from, to, step, delay);
+		Assert.assertEquals(sum, sum0);
 
-		SumJobRequest req2 = new SumJobRequest("R002", 1, 1000, 1, 30, SumJobRequest.DEFAULT_DELAY);
-		String arg2 = mapper.writeValueAsString(req2);
+		//2nd test
+		jobId = "R002";
+		from = 1;
+		to = 1000;
+		step = 1;
+		partitions = 30;
+		delay = 50;
 
-		logger.info("Sending job request to DRPC server: {}", arg2);
-		String resultStr2 = client.execute(Function.SUM.name(), arg2);
-		logger.info("Recevied job result from DRPC server: {}", resultStr2);
+		sum = this.calcSumRemote(client, jobId, from, to, step, partitions, delay);
+		sum0 = this.calcSumSimple(from, to, step, delay);
+		Assert.assertEquals(sum, sum0);
 
+		//3rd test
+		jobId = "R002";
+		from = 1;
+		to = 10000;
+		step = 1;
+		partitions = 100;
+		delay = 50;
+
+		sum = this.calcSumRemote(client, jobId, from, to, step, partitions, delay);
+		sum0 = this.calcSumSimple(from, to, step, delay);
+		Assert.assertEquals(sum, sum0);
 	}
 
+	private long calcSumRemote(@Nonnull DRPCClient client, String jobId,
+			int from, int to, @Min(1) int step,
+			@Min(1) int partitions, @Min(0) int delay) throws Exception{
+
+		SumJobRequest req = new SumJobRequest(jobId, from, to, step, partitions, delay);
+		String arg = mapper.writeValueAsString(req);
+		logger.info("Sending job request to DRPC server: {}", arg);
+		long startAt = System.currentTimeMillis();
+		String resultStr = client.execute(Function.SUM.name(), arg);
+		long endAt = System.currentTimeMillis();
+		logger.info("Recevied job result from DRPC server: {}", resultStr);
+		logger.info("Duration : {}ms for job: {}", (endAt - startAt), jobId);
+		SumJobResult result = mapper.readValue(resultStr, SumJobResult.class);
+		return result.getSum();
+	}
+
+	private long calcSumSimple(int from, int to, int step, int delay){
+
+		LazyCalc calc = new LazyCalc(delay);
+		long startAt = System.currentTimeMillis();
+		long sum = calc.sumIntBetween(from, to, step, false);
+		long endAt = System.currentTimeMillis();
+		logger.info("Duration : {}ms for single thread summation: {} to {}, step: {}",
+				(endAt - startAt), from, to, step);
+
+		return sum;
+	}
 
 }
