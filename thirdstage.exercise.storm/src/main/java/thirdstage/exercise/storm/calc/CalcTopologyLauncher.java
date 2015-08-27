@@ -57,7 +57,7 @@ public class CalcTopologyLauncher {
       Validate.isTrue(sumTaskBoltNum > 2, "At least 3 SumTaskBolt should be specified.");
       Validate.isTrue(sumJoinBoltNum > 0, "Invalid number of SumJobBolt is specified.");
       Validate.isTrue(resultBoltNum > 0, "Invalid number of SumJobBolt is specified.");
-      
+
       TopologyBuilder builder = new TopologyBuilder();
 
       DRPCSpout sumSpt = null;
