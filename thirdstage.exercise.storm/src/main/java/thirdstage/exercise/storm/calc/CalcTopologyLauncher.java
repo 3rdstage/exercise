@@ -1,38 +1,24 @@
 package thirdstage.exercise.storm.calc;
 
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.InetAddress;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
-import javax.annotation.Nonnull;
+
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.ThreadSafe;
 import javax.validation.constraints.Min;
+
 import org.apache.storm.commons.lang.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import thirdstage.exercise.storm.calc.SumTaskResult.TaskStatus;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
-
 import backtype.storm.Config;
 import backtype.storm.ILocalDRPC;
-import backtype.storm.LocalCluster;
-import backtype.storm.LocalDRPC;
 import backtype.storm.StormSubmitter;
 import backtype.storm.drpc.DRPCSpout;
 import backtype.storm.drpc.ReturnResults;
 import backtype.storm.generated.StormTopology;
-import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.Tuple;
-import backtype.storm.tuple.Values;
 
 public class CalcTopologyLauncher {
 
@@ -85,9 +71,6 @@ public class CalcTopologyLauncher {
    }
 
    public static void main(String... args) throws Exception{
-
-      ObjectMapper mapper = new ObjectMapper();
-      mapper.registerModule(new JaxbAnnotationModule());
 
       if(args == null || args.length == 0){
          printUsage(System.out);
