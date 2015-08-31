@@ -29,6 +29,11 @@ import backtype.storm.tuple.Values;
 
 public class SumTaskResultJoinBolt extends BaseBasicBolt {
 
+	/**
+	 *
+	 */
+	private static final long serialVersionUID = 1L;
+
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 	private ObjectMapper mapper = null;

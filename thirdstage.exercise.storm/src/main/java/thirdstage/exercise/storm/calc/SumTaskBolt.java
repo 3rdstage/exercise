@@ -25,6 +25,11 @@ import backtype.storm.tuple.Values;
 
 public class SumTaskBolt extends BaseBasicBolt {
 
+	/**
+	 *
+	 */
+	private static final long serialVersionUID = 1L;
+
 	private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
 	private ObjectMapper mapper = null;
@@ -43,7 +48,7 @@ public class SumTaskBolt extends BaseBasicBolt {
 		int tasks = input.getIntegerByField("tasks-total");
 		SumTaskRequest req = (SumTaskRequest)input.getValueByField("task-req");
 		logger.debug("SumTaskBolt - Received sum task: {}", req);
-		
+
 		SumTaskResult result = null;
 		String resultStr = null;
 
