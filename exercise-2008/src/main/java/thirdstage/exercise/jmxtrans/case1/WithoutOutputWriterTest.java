@@ -1,13 +1,16 @@
 package thirdstage.exercise.jmxtrans.case1;
 
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
 import com.googlecode.jmxtrans.model.JmxProcess;
+import com.googlecode.jmxtrans.model.Query;
 import com.googlecode.jmxtrans.model.Server;
 import com.googlecode.jmxtrans.util.JsonPrinter;
 
 public class WithoutOutputWriterTest {
 
-   private static final JsonPrinter printer = null;
+   private JsonPrinter printer = null;
 
    @BeforeClass
    public void beforeClass(){
@@ -15,10 +18,10 @@ public class WithoutOutputWriterTest {
    }
 
    @Test
-   public void testPrettyPrint() {
+   public void testPrettyPrint() throws Exception {
 
       Query qry = Query.builder()
-            .setObject("java.lang:type=Memory")
+            .setObj("java.lang:type=Memory")
             .addAttr("HeapMemoryUsage", "NonHeapMemoryUsage")
             .build();
 
