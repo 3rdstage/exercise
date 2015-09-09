@@ -8,24 +8,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-
 import javax.annotation.ParametersAreNonnullByDefault;
 import javax.annotation.concurrent.GuardedBy;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.hibernate.validator.constraints.NotEmpty;
 import org.red5.client.net.rtmp.RTMPClient;
-import org.red5.io.utils.ObjectMap;
 import org.red5.server.api.service.IPendingServiceCall;
 import org.red5.server.api.service.IPendingServiceCallback;
-import org.red5.server.net.rtmp.Channel;
 import org.red5.server.net.rtmp.RTMPConnection;
-import org.red5.server.net.rtmp.codec.RTMP;
-import org.red5.server.net.rtmp.event.Notify;
-import org.red5.server.net.rtmp.message.Header;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,6 +92,12 @@ public class SimpleRtmpClient{
 		this.port = port;
 		this.app = app;
 		this.connTimeout = connTimeout;
+
+		Runtime.getRuntime().addShutdownHook(new Thread(){
+		   @Override public void run(){
+		      if(isConnected()){ disconnect(); }
+		   }
+		});
 	}
 
 
