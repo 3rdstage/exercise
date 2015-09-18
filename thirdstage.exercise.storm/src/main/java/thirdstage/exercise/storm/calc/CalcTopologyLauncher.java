@@ -45,7 +45,7 @@ public class CalcTopologyLauncher {
       Validate.isTrue(resultBoltNum > 0, "Invalid number of SumJobBolt is specified.");
 
       TopologyBuilder builder = new TopologyBuilder();
-
+      
       DRPCSpout sumSpt = null;
       if(localDrpc != null){
          //@TODO Find out the way to add LocalDRPC after building topology

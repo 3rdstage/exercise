@@ -41,7 +41,7 @@ public class SumJobBolt extends BaseBasicBolt {
 		//@TODO Register the Jaskson mapper to the platform mbean server.
 		super.prepare(conf, cntx);
 		this.mapper = new ObjectMapper();
-		mapper.registerModule(new JaxbAnnotationModule());
+		this.mapper.registerModule(new JaxbAnnotationModule());
 	}
 
 	@Override
