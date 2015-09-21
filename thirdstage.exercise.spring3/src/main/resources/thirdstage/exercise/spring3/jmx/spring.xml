@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+   xmlns:context="http://www.springframework.org/schema/context" xmlns:task="http://www.springframework.org/schema/task" xmlns:util="http://www.springframework.org/schema/util"
+   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+      http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+      http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+      http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd
+      http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+
+   <util:properties id="config" location="classpath:thirdstage/exercise/spring3/jmx/config.properties" />
+   <context:property-placeholder properties-ref="config" ignore-unresolvable="true" />
+
+   <!-- JMX -->
+   <bean id="mBeanServer" class="org.springframework.jmx.support.MBeanServerFactoryBean">
+      <property name="locateExistingServerIfPossible" value="true" />
+   </bean>
+
+   <bean id="jmxAttributeSource" class="org.springframework.jmx.export.annotation.AnnotationJmxAttributeSource" />
+
+   <bean id="autodetectJmxExporter" class="org.springframework.jmx.export.MBeanExporter" lazy-init="false">
+      <property name="assembler">
+         <bean class="org.springframework.jmx.export.assembler.MetadataMBeanInfoAssembler">
+            <property name="attributeSource" ref="jmxAttributeSource" />
+         </bean>
+      </property>
+      <property name="namingStrategy">
+         <bean class="org.springframework.jmx.export.naming.MetadataNamingStrategy">
+            <description>
+               http://docs.spring.io/spring/docs/4.0.x/javadoc-api/org/springframework/jmx/export/naming/MetadataNamingStrategy.html
+            </description>
+            <property name="attributeSource" ref="jmxAttributeSource" />
+            <property name="defaultDomain" value="${jmx.domain}" />
+         </bean>
+      </property>
+      <property name="autodetect" value="true" />
+      <property name="autodetectModeName" value="AUTODETECT_ASSEMBLER" />
+      <property name="server" ref="mBeanServer" />
+   </bean>
+
+   <beans profile="default">
+      <bean id="defaultStorageProxyBuilder"
+         class="thirdstage.exercise.spring3.jmx.DefaultStorageProxyBuilder">
+      </bean>
+      <bean id="storageAccessService"
+         class="thirdstage.exercise.spring3.jmx.StorageAccessServiceImpl">
+         <constructor-arg index="0" value="${storage.base}" />
+         <constructor-arg index="1">
+            <null />
+         </constructor-arg>
+         <constructor-arg index="2" ref="defaultStorageProxyBuilder" />
+      </bean>
+   </beans>
+
+   <beans profile="concurrent">
+      <bean id="concurrentStorageProxyBuilder"
+         class="thirdstage.exercise.spring3.jmx.ConcurrentStorageProxyBuilder">
+         <constructor-arg index="0" value="${storage.builder.concurrency}" />
+      </bean>
+      <bean id="storageAccessService"
+         class="thirdstage.exercise.spring3.jmx.StorageAccessServiceImpl">
+         <constructor-arg index="0" value="${storage.base}" />
+         <constructor-arg index="1">
+            <null />
+         </constructor-arg>
+         <constructor-arg index="2" ref="concurrentStorageProxyBuilder" />
+      </bean>
+   </beans>
+
+   <beans profile="incremental">
+      <bean id="incrementalStorageProxyBuilder"
+         class="thirdstage.exercise.spring3.jmx.IncrementalStorageProxyBuilder">
+      </bean>
+      <bean id="storageAccessService"
+         class="thirdstage.exercise.spring3.jmx.StorageAccessServiceImpl">
+         <constructor-arg index="0" value="${storage.base}" />
+         <constructor-arg index="1">
+            <null />
+         </constructor-arg>
+         <constructor-arg index="2" ref="incrementalStorageProxyBuilder" />
+      </bean>
+   </beans>
+
+</beans>

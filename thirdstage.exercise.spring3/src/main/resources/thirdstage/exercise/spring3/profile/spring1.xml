@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xmlns:aop="http://www.springframework.org/schema/aop"
-	xmlns:context="http://www.springframework.org/schema/context"
-	xmlns:task="http://www.springframework.org/schema/task"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xmlns:aop="http://www.springframework.org/schema/aop"
+   xmlns:context="http://www.springframework.org/schema/context"
+   xmlns:task="http://www.springframework.org/schema/task"
    xmlns:util="http://www.springframework.org/schema/util"
-	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
-		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
-		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
-		http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd
+   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+      http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+      http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+      http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd
       http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
 
    <util:properties id="config"
-     location="classpath:thirdstage/exercise/spring3/scheduling/config.properties" />
+     location="classpath:thirdstage/exercise/spring3/profile/config.properties" />
    <context:property-placeholder properties-ref="config" ignore-unresolvable="true"/>
 
    <!-- JMX -->
-   <bean id="mBeanServer" class="org.springframework.jmx.support.MBeanServerFactoryBean">
+   <bean id="mbeanServer" class="org.springframework.jmx.support.MBeanServerFactoryBean">
       <property name="locateExistingServerIfPossible" value="true" />
    </bean>
 
@@ -40,19 +40,19 @@
       </property>
       <property name="autodetect" value="true" />
       <property name="autodetectModeName" value="AUTODETECT_ASSEMBLER" />
-      <property name="server" ref="mBeanServer" />
+      <property name="server" ref="mbeanServer" />
    </bean>
 
-	<!-- for @Component scan -->
-	<context:component-scan base-package="thirdstage.exercise.spring3.scheduling" annotation-config="true">
-		<context:include-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
-		<context:include-filter type="annotation" expression="org.springframework.stereotype.Service"/>
-		<context:include-filter type="annotation" expression="org.springframework.stereotype.Repository"/>
-	</context:component-scan>
+   <beans profile="dev">
+      <bean id="accessManager" class="thirdstage.exercise.spring3.profile.FreeAccessManager"/>
+   </beans>
 
-	<task:annotation-driven/>
+   <beans profile="qa">
+      <bean id="accessManager" class="thirdstage.exercise.spring3.profile.PasswordAccessManager"/>
+   </beans>
 
-
-	<bean id="beanValidator" class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean"/>
+   <beans profile="production">
+      <bean id="accessManager" class="thirdstage.exercise.spring3.profile.SslAccessManager"/>
+   </beans>
 
 </beans>
