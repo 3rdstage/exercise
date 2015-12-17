@@ -25,7 +25,7 @@ public class DateTest {
 	@Test
 	public void testTimeZone(){
 
-		logger.info("Using JVM bootstrap time-zone");
+		logger.info("'user.timezone' system variable at JVM startup command-line : {}", System.getProperty("user.timezone"));
 		Date d = new Date();
 		Calendar c = Calendar.getInstance();
 		logger.info("The current date is {} using 'new Date()'", this.dateFormat.format(d));
@@ -34,10 +34,10 @@ public class DateTest {
 		c = Calendar.getInstance(TimeZone.getTimeZone("Asia/Seoul"));
 		logger.info("The current date is {} using 'Calendar.getInstance(TimeZone.getTimeZone(\"Asia/Seoul\"))'", this.dateFormat.format(c));
 
-		TimeZone.setDefault(TimeZone.getTimeZone("Asia/Seoul"));
+		TimeZone.setDefault(TimeZone.getTimeZone("GMT+5:00"));
 
 		logger.info("");
-		logger.info("Changed default time-zone to 'Asia/Seoul' using TimeZone.setDefault()");
+		logger.info("Changed default time-zone to '{}' using TimeZone.setDefault()", TimeZone.getDefault());
 		d = new Date();
 		c = Calendar.getInstance();
 		logger.info("The current date is {} using 'new Date()'", this.dateFormat.format(d));
