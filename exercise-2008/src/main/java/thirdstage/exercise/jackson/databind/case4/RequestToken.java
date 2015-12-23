@@ -5,6 +5,10 @@ package thirdstage.exercise.jackson.databind.case4;
 
 import java.util.Date;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.deser.std.DateDeserializers;
+
 /**
  * @author Sangmoon Oh
  *
@@ -40,6 +44,7 @@ public class RequestToken {
 
 	public Date getDate(){ return this.date; }
 
+	@JsonDeserialize(using = DateDeserializers.DateDeserializer.class)
 	public RequestToken setDate(Date d){
 		this.date = d;
 		return this;
@@ -47,6 +52,7 @@ public class RequestToken {
 
 	public Object getObject(){ return this.obj; }
 
+	@JsonTypeInfo(use=JsonTypeInfo.Id.CLASS, include=JsonTypeInfo.As.PROPERTY, property="class")
 	public RequestToken setObject(Object obj){
 		this.obj = obj;
 		return this;
