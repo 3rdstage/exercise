@@ -13,14 +13,16 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-#include "opencv2/opencv.hpp"
-#include "opencv2/highgui/highgui.hpp"
+#include "cv.h"
+#include "highgui.h"
 
 
 int main(){
   printf("Starting test2.\n");
 
-  cv::namedWindow("Output", 1);
+  //cvShowImage("Frame of Test Video", (CvArr *)img);
+  cvWaitKey(0);
+  //cvReleaseImage(&img);
 
   av_register_all();
 
