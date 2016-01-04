@@ -13,9 +13,14 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+#include "opencv2/opencv.hpp"
+#include "opencv2/highgui/highgui.hpp"
+
 
 int main(){
   printf("Starting test2.\n");
+
+  cv::namedWindow("Output", 1);
 
   av_register_all();
 
@@ -23,7 +28,7 @@ int main(){
   printf("The file is %s\n", file_name);
 
   AVFormatContext *format_cntx = NULL;
-  if(avformat_open_input(&format_cntx, file_name, NULL, NULL) != 0){
+  if(avformat_open_input        (&format_cntx, file_name, NULL, NULL) != 0){
       return -1;
   }
 
