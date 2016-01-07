@@ -21,7 +21,7 @@ int main(){
   printf("Starting test2.\n");
 
   //cvShowImage("Frame of Test Video", (CvArr *)img);
-  //cvWaitKey(0);
+  cvWaitKey(0);
   //cvReleaseImage(&img);
 
   av_register_all();
