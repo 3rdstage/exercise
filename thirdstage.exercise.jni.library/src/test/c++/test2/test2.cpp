@@ -21,7 +21,7 @@ int main(){
   printf("Starting test2.\n");
 
   //cvShowImage("Frame of Test Video", (CvArr *)img);
-  cvWaitKey(0);
+  //cvWaitKey(0);
   //cvReleaseImage(&img);
 
   av_register_all();
@@ -30,7 +30,7 @@ int main(){
   printf("The file is %s\n", file_name);
 
   AVFormatContext *format_cntx = NULL;
-  if(avformat_open_input        (&format_cntx, file_name, NULL, NULL) != 0){
+  if(avformat_open_input(&format_cntx, file_name, NULL, NULL) != 0){
       return -1;
   }
 
@@ -42,14 +42,18 @@ int main(){
   int video_strm = -1;
   for(int i = 0; i < format_cntx->nb_streams; i++){
       if(format_cntx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO){
-          video_strm = i;
-          codec_cntx = format_cntx->streams[i]->codec;
-          break;
+	  video_strm = i;
+	  codec_cntx = format_cntx->streams[i]->codec;
+	  break;
       }
   }
   if(video_strm == -1){
       fprintf(stderr, "Can't find video stream in the file.\n");
       return -1;
+  }else{
+    fprintf(stdout, "Found video stream in the file.\n");
+    fprintf(stdout, "  Pixel Format : %d.\n", codec_cntx->pix_fmt);
+
   }
 
   AVCodec *codec = NULL;
@@ -88,22 +92,23 @@ int main(){
   int frm_finished;
   AVPacket packet;
   sws_cntx = sws_getContext(codec_cntx1->width, codec_cntx1->height,
-      codec_cntx1->pix_fmt, codec_cntx1->width, codec_cntx1->height, PIX_FMT_RGB24,
-      SWS_BILINEAR, NULL, NULL, NULL);
+			    codec_cntx1->pix_fmt, codec_cntx1->width, codec_cntx1->height, PIX_FMT_RGB24,
+			    SWS_BILINEAR, NULL, NULL, NULL);
 
   int cnt = 0;
   while(av_read_frame(format_cntx, &packet) >= 0){
       if(packet.stream_index == video_strm){
-          avcodec_decode_video2(codec_cntx, frm, &frm_finished, &packet);
+	  avcodec_decode_video2(codec_cntx, frm, &frm_finished, &packet);
 
-          if(frm_finished){
-              sws_scale(sws_cntx, (uint8_t const * const *)frm->data,
-                  frm->linesize, 0, codec_cntx1->height, frm_rgb->data, frm_rgb->linesize);
+	  if(frm_finished){
+	      ++cnt;
+	      sws_scale(sws_cntx, (uint8_t const * const *)frm->data,
+			frm->linesize, 0, codec_cntx1->height, frm_rgb->data, frm_rgb->linesize);
 
-              printf("The %dth frame is decoded.\n", ++cnt);
-              if(cnt <= 5){
-              }
-          }
+	      printf("The %dth frame is decoded.\n", cnt);
+	      if(cnt <= 5){
+	      }
+	  }
       }
 
       av_free_packet(&packet);
