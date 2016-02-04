@@ -30,7 +30,7 @@ int main(){
   printf("The file is %s\n", file_name);
 
   AVFormatContext *format_cntx = NULL;
-  if(avformat_open_input        (&format_cntx, file_name, NULL, NULL) != 0){
+  if(avformat_open_input(&format_cntx, file_name, NULL, NULL) != 0){
       return -1;
   }
 
