@@ -33,124 +33,124 @@ import backtype.storm.tuple.Values;
 @XmlAccessorType(XmlAccessType.NONE)
 public class SumJobResult{
 
-	public enum JobStatus{
-		RUNNING,
-		COMPLETED,
-		FAILED
-	}
+   public enum JobStatus{
+      RUNNING,
+      COMPLETED,
+      FAILED
+   }
 
-	/**
-	 * Job ID
-	 */
-	@XmlElement(name="id")
-	private String id;
+   /**
+    * Job ID
+    */
+   @XmlElement(name="id")
+   private String id;
 
-	/**
-	 * Total number of tasks
-	 */
-	@XmlElement(name="tasks-total")
-	private int tasksTotal;
+   /**
+    * Total number of tasks
+    */
+   @XmlElement(name="tasks-total")
+   private int tasksTotal;
 
-	/**
-	 * Number of succeeded tasks
-	 */
-	@XmlElement(name="tasks-success")
-	private int tasksSuccess;
+   /**
+    * Number of succeeded tasks
+    */
+   @XmlElement(name="tasks-success")
+   private int tasksSuccess;
 
-	/**
-	 * Number of failed tasks
-	 */
-	@XmlElement(name="tasks-fail")
-	private int tasksFail;
+   /**
+    * Number of failed tasks
+    */
+   @XmlElement(name="tasks-fail")
+   private int tasksFail;
 
-	@XmlElement(name="status")
-	private JobStatus status;
+   @XmlElement(name="status")
+   private JobStatus status;
 
-	/**
-	 *
-	 */
-	@XmlElement(name="sum")
-	private long sum;
-	
-	private transient String str = null;
-	
-	/**
-	 * private no-arg constructor for Kryo deserilization
-	 */
-	private SumJobResult(){}
+   /**
+    *
+    */
+   @XmlElement(name="sum")
+   private long sum;
 
-	@JsonCreator
-	public SumJobResult(@Nonnull @JsonProperty("id") String id,
-		@Min(0) @JsonProperty("tasks-total") int total,
-		@Min(0) @JsonProperty("tasks-success") int successes,
-		@Min(0) @JsonProperty("tasks-fail") int fails,
-		@JsonProperty("status") JobStatus status,
-		@JsonProperty("sum") long sum){
-		this.id = id;
-		this.tasksTotal = total;
-		this.tasksSuccess = successes;
-		this.tasksFail = fails;
-		this.status = status;
-		this.sum = sum;
-	}
+   private transient String str = null;
 
-	public String getId(){ return this.id; }
+   /**
+    * private no-arg constructor for Kryo deserilization
+    */
+   private SumJobResult(){}
 
-	public int getTasksTotal(){ return this.tasksTotal; }
+   @JsonCreator
+   public SumJobResult(@Nonnull @JsonProperty("id") String id,
+         @Min(0) @JsonProperty("tasks-total") int total,
+         @Min(0) @JsonProperty("tasks-success") int successes,
+         @Min(0) @JsonProperty("tasks-fail") int fails,
+         @JsonProperty("status") JobStatus status,
+         @JsonProperty("sum") long sum){
+      this.id = id;
+      this.tasksTotal = total;
+      this.tasksSuccess = successes;
+      this.tasksFail = fails;
+      this.status = status;
+      this.sum = sum;
+   }
 
-	public int getTasksSuccess(){ return this.tasksSuccess; }
+   public String getId(){ return this.id; }
 
-	public SumJobResult setTasksSuccess(@Min(0) int num){
-		this.tasksSuccess = num;
-		return this;
-	}
+   public int getTasksTotal(){ return this.tasksTotal; }
 
-	public SumJobResult increaseTasksSuccess(@Min(1) int delta){
-		return this.setTasksSuccess(this.tasksSuccess + delta);
-	}
+   public int getTasksSuccess(){ return this.tasksSuccess; }
 
-	public int getTasksFail(){ return this.tasksFail; }
+   public SumJobResult setTasksSuccess(@Min(0) int num){
+      this.tasksSuccess = num;
+      return this;
+   }
 
-	public SumJobResult setTasksFail(@Min(0) int num){
-		this.tasksFail = num;
-		return this;
-	}
+   public SumJobResult increaseTasksSuccess(@Min(1) int delta){
+      return this.setTasksSuccess(this.tasksSuccess + delta);
+   }
 
-	public SumJobResult increaseTasksFail(@Min(1) int delta){
-		return this.setTasksFail(this.tasksFail + delta);
-	}
+   public int getTasksFail(){ return this.tasksFail; }
 
-	public JobStatus getStatus(){ return this.status; }
+   public SumJobResult setTasksFail(@Min(0) int num){
+      this.tasksFail = num;
+      return this;
+   }
 
-	public SumJobResult setStatus(JobStatus status){
-		this.status = status;
-		return this;
-	}
+   public SumJobResult increaseTasksFail(@Min(1) int delta){
+      return this.setTasksFail(this.tasksFail + delta);
+   }
 
-	public long getSum(){ return this.sum; }
+   public JobStatus getStatus(){ return this.status; }
 
-	public SumJobResult setSum(long sum){
-		this.sum = sum;
-		return this;
-	}
+   public SumJobResult setStatus(JobStatus status){
+      this.status = status;
+      return this;
+   }
 
-	public SumJobResult addSum(long delta){
-		this.sum = this.sum + delta;
-		return this;
-	}
-	
-	@Override
-	public String toString(){
-	   if(this.str == null){
-	      this.str = new ToStringBuilder(this, StandardToStringStyle.DEFAULT_STYLE)
-         .append("id", this.id).append("tasks-total", this.tasksTotal)
-         .append("tasks-success", this.tasksSuccess)
-         .append("tasks-fail", this.tasksFail)
-         .append("sum", this.sum).toString();
-	   }
-	   
-	   return this.str;
-	}
+   public long getSum(){ return this.sum; }
+
+   public SumJobResult setSum(long sum){
+      this.sum = sum;
+      return this;
+   }
+
+   public SumJobResult addSum(long delta){
+      this.sum = this.sum + delta;
+      return this;
+   }
+
+   @Override
+   public String toString(){
+      if(this.str == null){
+         this.str = new ToStringBuilder(this, StandardToStringStyle.DEFAULT_STYLE)
+               .append("id", this.id).append("tasks-total", this.tasksTotal)
+               .append("tasks-success", this.tasksSuccess)
+               .append("tasks-fail", this.tasksFail)
+               .append("sum", this.sum).toString();
+      }
+
+      return this.str;
+   }
 
 
 }

@@ -16,35 +16,35 @@ import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 
 public class LocalCalcTopologyTest {
 
-	private Logger logger = LoggerFactory.getLogger(this.getClass());
+   private Logger logger = LoggerFactory.getLogger(this.getClass());
 
-	@Test
-	public void testLocalCalcTopology1() throws Exception{
+   @Test
+   public void testLocalCalcTopology1() throws Exception{
 
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.registerModule(new JaxbAnnotationModule());
+      ObjectMapper mapper = new ObjectMapper();
+      mapper.registerModule(new JaxbAnnotationModule());
 
-		LocalDRPC drpc = new LocalDRPC();
-		StormTopology topology = CalcTopologyLauncher.buildTopology(drpc);
+      LocalDRPC drpc = new LocalDRPC();
+      StormTopology topology = CalcTopologyLauncher.buildTopology(drpc);
 
-		LocalCluster cluster = new LocalCluster();
-		Config conf = new Config();
-		conf.setFallBackOnJavaSerialization(false);
-		conf.registerSerialization(SumTaskRequest.class);
-		conf.registerSerialization(SumTaskResult.class);
-		cluster.submitTopology(CalcTopologyLauncher.DEFAULT_NAME, conf, topology);
+      LocalCluster cluster = new LocalCluster();
+      Config conf = new Config();
+      conf.setFallBackOnJavaSerialization(false);
+      conf.registerSerialization(SumTaskRequest.class);
+      conf.registerSerialization(SumTaskResult.class);
+      cluster.submitTopology(CalcTopologyLauncher.DEFAULT_NAME, conf, topology);
 
-		SumJobRequest req1 = new SumJobRequest("R001", 1, 100, 1, 3, SumJobRequest.DEFAULT_DELAY);
-		String reqStr1 = mapper.writeValueAsString(req1);
+      SumJobRequest req1 = new SumJobRequest("R001", 1, 100, 1, 3, SumJobRequest.DEFAULT_DELAY);
+      String reqStr1 = mapper.writeValueAsString(req1);
 
-		SumJobRequest req2 = new SumJobRequest("R002", 101, 200, 1, 3, SumJobRequest.DEFAULT_DELAY);
-		String reqStr2 = mapper.writeValueAsString(req2);
+      SumJobRequest req2 = new SumJobRequest("R002", 101, 200, 1, 3, SumJobRequest.DEFAULT_DELAY);
+      String reqStr2 = mapper.writeValueAsString(req2);
 
-		logger.info(drpc.execute(Function.SUM.name(), reqStr1));
-		logger.info(drpc.execute(Function.SUM.name(), reqStr2));
+      logger.info(drpc.execute(Function.SUM.name(), reqStr1));
+      logger.info(drpc.execute(Function.SUM.name(), reqStr2));
 
-		cluster.shutdown();
-		drpc.shutdown();
-	}
+      cluster.shutdown();
+      drpc.shutdown();
+   }
 
 }
