@@ -11,10 +11,10 @@ public class Swapper extends UntypedActor{
    @Override
    public void onReceive(Object message) throws Exception{
       if(message == Swap.SWAP){
-
-
+         this.logger.info("Hi");
+      }else{
+         this.unhandled(message);
       }
-
    }
 
 }
