@@ -1,18 +1,8 @@
 package thirdstage.exercise.akka.pi;
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.ThreadSafe;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.actor.Props;
 
 
 
@@ -23,11 +13,14 @@ import akka.actor.ActorSystem;
 public class Pi {
 
 
-	public void calculate(final int workers, final int elements, final int messages){
-		ActorSystem system = ActorSystem.create("PiSystem");
+   public void calculate(final int workers, final int elements, final int messages){
+      ActorSystem system = ActorSystem.create("PiSystem");
 
+      final ActorRef listener = system.actorOf(Props.create(Listener.class), "listener");
+      ActorRef master = system.actorOf(Props.create(Master.class, workers, elements, messages, listener), "master");
 
+      master.tell(new Calculate(), ActorRef.noSender());
 
-	}
+   }
 
 }
