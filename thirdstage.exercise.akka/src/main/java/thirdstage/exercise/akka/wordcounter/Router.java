@@ -1,15 +1,32 @@
 package thirdstage.exercise.akka.wordcounter;
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.ThreadSafe;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import akka.actor.ActorRef;
+import akka.actor.Props;
+import akka.actor.UntypedActor;
+import akka.event.Logging;
+import akka.event.LoggingAdapter;
 
-public class Router{
+public class Router extends UntypedActor{
+
+   private final LoggingAdapter logger = Logging.getLogger(this.getContext().system(), this);
+
+   private final ActorRef[] counters = new ActorRef[26];
+
+
+   public Router(){
+
+      char initial = 0x41;
+      for(int i = 0; i < this.counters.length; i++, initial++){
+         this.counters[i] = this.getContext().actorOf(Props.create(WordCounter.class, initial), "WordCounter" + initial);
+         this.logger.info("An actor[name: {}] is created.", "WordCounter" + initial);
+      }
+
+   }
+
+   @Override
+   public void onReceive(Object message){
+
+   }
+
 
 }

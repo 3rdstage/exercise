@@ -1,15 +1,37 @@
 package thirdstage.exercise.akka.wordcounter;
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.ThreadSafe;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import javax.validation.constraints.Size;
+import akka.actor.UntypedActor;
 
-public class WordCounter{
+public class WordCounter extends UntypedActor{
+
+   private final String initial;
+
+   public String getInitial(){ return this.initial; }
+
+   private long count;
+
+   public long getCount(){ return this.count; }
+
+   public WordCounter(@Nonnull final char initial){
+      this.initial = String.valueOf(initial);
+   }
+
+   public WordCounter(@Nonnull @Size(min=1, max=1) final String initial){
+      this.initial = initial;
+   }
+
+
+   @Override
+   public void onReceive(Object message){
+      if(message instanceof String && ((String)message).startsWith(this.initial)){
+         this.count++;
+      }else{
+         unhandled(message);
+      }
+   }
+
+
 
 }

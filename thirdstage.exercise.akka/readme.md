@@ -6,4 +6,7 @@
 * Everything in Akka is designed to work in a distributed setting.
 * Dead letters are not propagated over the network, if you want to collect them in one place you will have to subscribe one actor per network node and forward them manually.
 * putting Akka on the boot class path will yield `NullPointerException` from strange places
+* An `ActorRef` always represents an incarnation (path and UID) not just a given path. Therefore if an actor is stopped and a new one with the same name is created an `ActorRef` of the old incarnation will not point to the new one. An `ActorRef` always represents an incarnation (path and UID) not just a given path. Therefore if an actor is stopped and a new one with the same name is created an `ActorRef` of the old incarnation will not point to the new one.
+
+
 
