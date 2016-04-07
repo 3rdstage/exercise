@@ -9,4 +9,12 @@
 * An `ActorRef` always represents an incarnation (path and UID) not just a given path. Therefore if an actor is stopped and a new one with the same name is created an `ActorRef` of the old incarnation will not point to the new one. An `ActorRef` always represents an incarnation (path and UID) not just a given path. Therefore if an actor is stopped and a new one with the same name is created an `ActorRef` of the old incarnation will not point to the new one.
 
 
+### Key principles of actor model
+
+* No shared state
+* Lightweight processes
+* Asynchronous message-passing
+* Mailboxes to buffer incoming messages
+* Mailbox processing with pattern matching
+
 

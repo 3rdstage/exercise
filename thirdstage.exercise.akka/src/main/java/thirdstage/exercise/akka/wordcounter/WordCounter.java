@@ -3,8 +3,12 @@ package thirdstage.exercise.akka.wordcounter;
 import javax.annotation.Nonnull;
 import javax.validation.constraints.Size;
 import akka.actor.UntypedActor;
+import akka.event.Logging;
+import akka.event.LoggingAdapter;
 
 public class WordCounter extends UntypedActor{
+
+   private final LoggingAdapter logger = Logging.getLogger(this.getContext().system(), this);
 
    private final String initial;
 
@@ -27,6 +31,7 @@ public class WordCounter extends UntypedActor{
    public void onReceive(Object message){
       if(message instanceof String && ((String)message).startsWith(this.initial)){
          this.count++;
+         this.logger.debug("Received a word starting with {}, the counter for {} is {}", this.initial, this.initial, count);
       }else{
          unhandled(message);
       }

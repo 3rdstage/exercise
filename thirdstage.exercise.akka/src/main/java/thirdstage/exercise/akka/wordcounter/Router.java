@@ -1,5 +1,7 @@
 package thirdstage.exercise.akka.wordcounter;
 
+import java.util.HashMap;
+import java.util.Map;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
@@ -10,14 +12,14 @@ public class Router extends UntypedActor{
 
    private final LoggingAdapter logger = Logging.getLogger(this.getContext().system(), this);
 
-   private final ActorRef[] counters = new ActorRef[26];
-
+   private final Map<String, ActorRef> counters = new HashMap<String, ActorRef>();
 
    public Router(){
 
       char initial = 0x41;
-      for(int i = 0; i < this.counters.length; i++, initial++){
-         this.counters[i] = this.getContext().actorOf(Props.create(WordCounter.class, initial), "WordCounter" + initial);
+      for( ; initial < 0x5B; initial++){
+         counters.put(String.valueOf(initial),
+               this.getContext().actorOf(Props.create(WordCounter.class, initial), "WordCounter" + initial));
          this.logger.info("An actor[name: {}] is created.", "WordCounter" + initial);
       }
 
@@ -26,7 +28,16 @@ public class Router extends UntypedActor{
    @Override
    public void onReceive(Object message){
 
+      if(message instanceof String && ((String)message).length() > 0){
+         String first = ((String)message).substring(0, 1);
+         ActorRef counter = this.counters.get(first);
+         if(counter != null){
+            counter.tell(message, getSelf());
+         }else{
+            this.unhandled(message);
+         }
+      }else{
+         this.unhandled(message);
+      }
    }
-
-
 }

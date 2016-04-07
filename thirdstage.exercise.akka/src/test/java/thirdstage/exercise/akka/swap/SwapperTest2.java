@@ -15,8 +15,6 @@ public class SwapperTest2{
       //ActorRef swapper = system.actorOf(Swapper.props(), "Swapper"); // Causes runtime exception
       ActorRef swapper = system.actorOf(Props.create(Swapper.class));
 
-
-
       swapper.tell(Swap.SWAP, ActorRef.noSender());
       swapper.tell(Swap.SWAP, ActorRef.noSender());
    }
