@@ -1,5 +1,6 @@
 package thirdstage.exercise.akka.wordcounter;
 
+import junit.framework.Assert;
 import org.apache.commons.codec.binary.Hex;
 import org.testng.annotations.Test;
 
@@ -34,6 +35,22 @@ public class SimpleTest {
 
       String name3 = new String(bytes, "ISO-8859-1");
       System.out.println(name3);
+
+   }
+
+
+   @Test
+   public void testGetBytesWithUtf8AndIsoLatin1() throws Exception{
+
+      String str = "C";  //0x43
+      Assert.assertEquals(1, str.getBytes("ISO-8859-1").length);
+      Assert.assertEquals(1, str.getBytes("UTF-8").length);
+
+      String[] strs = {"§", "©", "®", "°", "±"}; //0xA7, 0xA9, 0xAE, 0xB1
+      for(int i = 0, n = strs.length; i < n; i++){
+         Assert.assertEquals(1, strs[i].getBytes("ISO-8859-1").length);
+         Assert.assertEquals(2, strs[i].getBytes("UTF-8").length);
+      }
 
    }
 }
