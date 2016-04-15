@@ -45,8 +45,8 @@ public class SimpleClusterTest2{
          builders[i].environment();
 
          processes[i] = builders[i].start();
-         watchers[i] = new ProcessDestroyWatcher(processes[i]);
-         watchers[i].start();
+         //watchers[i] = new ProcessDestroyWatcher(processes[i]);
+         //watchers[i].start();
       }
 
       Runtime.getRuntime().addShutdownHook(new Thread(){
@@ -61,10 +61,8 @@ public class SimpleClusterTest2{
                }catch(Throwable th){
                   logger.error("Fail to destroy the process", th);
                }
-
                try{ Thread.sleep(500); }catch(Exception ex){}
             }
-
             try{ Thread.sleep(1000); }
             catch(Exception ex){}
             logger.info("Finished shutdown-hook");

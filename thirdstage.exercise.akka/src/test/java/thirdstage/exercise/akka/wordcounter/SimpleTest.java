@@ -1,13 +1,33 @@
 package thirdstage.exercise.akka.wordcounter;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import junit.framework.Assert;
 import org.apache.commons.codec.binary.Hex;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class SimpleTest {
+
+   private org.slf4j.Logger logger = LoggerFactory.getLogger(this.getClass());
+
+   private String pid;
+
+   @BeforeClass
+   public void beforeClass(){
+      RuntimeMXBean mbean = ManagementFactory.getRuntimeMXBean();
+      pid = mbean.getName();
+      if(pid != null && pid.length() > 0){
+         if(pid.contains("@")) pid = pid.substring(0, pid.indexOf("@"));
+      }
+      MDC.put("pid", pid);
+
+   }
+
    @Test
    public void testUtf8ToIsoLatin1() throws Exception{
-
       String name = new String("홍길동");
       byte[] bytes = name.getBytes("UTF-8");
 
@@ -35,7 +55,6 @@ public class SimpleTest {
 
       String name3 = new String(bytes, "ISO-8859-1");
       System.out.println(name3);
-
    }
 
 
@@ -51,6 +70,11 @@ public class SimpleTest {
          Assert.assertEquals(1, strs[i].getBytes("ISO-8859-1").length);
          Assert.assertEquals(2, strs[i].getBytes("UTF-8").length);
       }
-
    }
+
+   @Test
+   public void testLogbackWithConfitionalConfig(){
+      this.logger.info("Current log line is suppose to have PID as a 2nd item of line header.");
+   }
+
 }

@@ -2,20 +2,29 @@
 <configuration debug="true" scan="true" scanPeriod="180 seconds">
 
    <!-- For more on JMX configuration, refer http://logback.qos.ch/manual/jmxConfig.html -->
-   <jmxConfigurator/>
+   <jmxConfigurator />
 
    <property name="_LOG_FILE_DIR" value="${log.file.dir:-${TEMP:-${user.home}}}" />
    <property name="_LOG_FILE_NAME" value="${log.file.name:-logback}" /> <!-- excluding path and extension -->
-   <property name="_LOG_TIMEZONE" value="${log.timezone:-Asia/Seoul}"/>
-   <property name="_LOG_LEVEL_ROOT" value="${log.level.root:-DEBUG}"/>
-   <property name="_LOG_LEVEL_SPRING" value="${log.level.spring:-DEBUG}"/>
-   <property name="_LOG_LEVEL_MYBATIS" value="${log.level.mybatis:-DEBUG}"/>
-   <property name="_LOG_LEVEL_AKKA_CLUSTER_HEARTBEAT" value="${log.level.akka.clusterHeartBeat:-OFF}"/>
+   <property name="_LOG_TIMEZONE" value="${log.timezone:-Asia/Seoul}" />
+   <property name="_LOG_PID" value="${log.pid:-true}" />
+   <property name="_LOG_LEVEL_ROOT" value="${log.level.root:-DEBUG}" />
+   <property name="_LOG_LEVEL_SPRING" value="${log.level.spring:-DEBUG}" />
+   <property name="_LOG_LEVEL_MYBATIS" value="${log.level.mybatis:-DEBUG}" />
+   <property name="_LOG_LEVEL_AKKA_CLUSTER_HEARTBEAT" value="${log.level.akka.clusterHeartBeat:-OFF}" />
 
-   <!-- For more on conversion pattern, refer http://logback.qos.ch/manual/layouts.html#ClassicPatternLayout -->
-   <property name="_PATTERN_HEADER" value="[%d{yy/MM/dd HH:mm:ss, ${_LOG_TIMEZONE}}|%X{pid}|%t|%-5p|%c{2}]"/>
-   <!-- %M is not particularly fast. Thus, it should be uses only in test -->
-   <property name="_PATTERN_HEADER_METHOD" value="[%d{yy/MM/dd HH:mm:ss, ${_LOG_TIMEZONE}}|%t|%-5p|%c{2}|%M]"/>
+   <if condition='property("_LOG_PID").trim().equals("true")'>
+      <then>
+         <!-- For more on conversion pattern, refer http://logback.qos.ch/manual/layouts.html#ClassicPatternLayout -->
+         <property name="_PATTERN_HEADER" value="[%d{yy/MM/dd HH:mm:ss, ${_LOG_TIMEZONE}}|%X{pid}|%t|%-5p|%c{2}]" />
+         <!-- %M is not particularly fast. Thus, it should be uses only in test -->
+         <property name="_PATTERN_HEADER_METHOD" value="[%d{yy/MM/dd HH:mm:ss, ${_LOG_TIMEZONE}}|%X{pid}|%t|%-5p|%c{2}|%M]" />
+      </then>
+      <else>
+         <property name="_PATTERN_HEADER" value="[%d{yy/MM/dd HH:mm:ss, ${_LOG_TIMEZONE}}|%t|%-5p|%c{2}]" />
+         <property name="_PATTERN_HEADER_METHOD" value="[%d{yy/MM/dd HH:mm:ss, ${_LOG_TIMEZONE}}|%t|%-5p|%c{2}|%M]" />
+      </else>
+   </if>
 
    <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
       <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
@@ -56,7 +65,7 @@
       <appender-ref ref="DRFA" />
    </logger>
 
-  <logger name="org.mybatis.spring" level="${_LOG_LEVEL_MYBATIS}" additivity="false">
+   <logger name="org.mybatis.spring" level="${_LOG_LEVEL_MYBATIS}" additivity="false">
       <appender-ref ref="Console" />
       <appender-ref ref="DRFA" />
    </logger>
