@@ -35,7 +35,7 @@ public class SimpleClusterListener extends UntypedActor{
    public void onReceive(Object msg){
       if(msg instanceof MemberUp){
          MemberUp ev = (MemberUp)msg;
-         logger.info("Member is up : {}", ev.member());
+         logger.info("{} is up at {}", ev.member(), this.toString());
       }else if(msg instanceof UnreachableMember){
          UnreachableMember ev = (UnreachableMember) msg;
          logger.info("Member is detected as unreachable : {}", ev.member());
