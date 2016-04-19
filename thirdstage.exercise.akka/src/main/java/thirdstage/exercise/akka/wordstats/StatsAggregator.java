@@ -10,8 +10,12 @@ import thirdstage.exercise.akka.wordstats.StatsMessages.StatsResult;
 import akka.actor.ActorRef;
 import akka.actor.ReceiveTimeout;
 import akka.actor.UntypedActor;
+import akka.event.Logging;
+import akka.event.LoggingAdapter;
 
 public class StatsAggregator extends UntypedActor{
+
+   private final LoggingAdapter logger = Logging.getLogger(this.getContext().system(), this);
 
    private final int expectedResults;
    private final ActorRef replyTo;

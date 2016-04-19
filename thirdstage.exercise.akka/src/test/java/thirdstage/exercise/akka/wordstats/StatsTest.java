@@ -13,9 +13,15 @@ import com.typesafe.config.ConfigFactory;
 
 public class StatsTest{
 
+   public static final String ACTOR_SYSTEM_NAME_DEFAULT = "WordStats";
+
+   public static final String APPL_NAME_DEFAULT = ACTOR_SYSTEM_NAME_DEFAULT.toLowerCase();
+
    private static final org.slf4j.Logger logger = LoggerFactory.getLogger(StatsTest.class);
 
    private static String pid;
+
+   private static int count = 1;
 
    public static void main(String[] args){
 
@@ -39,18 +45,19 @@ public class StatsTest{
    private static void startup(final String[] ports, final String sentence){
 
       Config config = ConfigFactory.load();
-      config = config.getConfig("wordstats").withFallback(config);
+      config = config.getConfig(APPL_NAME_DEFAULT).withFallback(config);
       config = ConfigFactory.parseString("akka.cluster.roles = [compute]").withFallback(config);
 
       for(String port : ports){
-         ConfigFactory.parseString("akka.remote.netty.tcp.port=" + port).withFallback(config);
+         logger.info("Starting the actor system. - Netty Port: {}", port);
 
-         final ActorSystem system = ActorSystem.create("WordStatsCluster", config);
+         final ActorSystem system = ActorSystem.create(ACTOR_SYSTEM_NAME_DEFAULT,
+               ConfigFactory.parseString("akka.remote.netty.tcp.port=" + port).withFallback(config));
 
          system.actorOf(Props.create(StatsWorker.class), "statsWorker");
          ActorRef service = system.actorOf(Props.create(StatsService.class), "statsService");
 
-         service.tell(new StatsJob(sentence), service);
+         service.tell(new StatsJob(String.valueOf(count++), sentence), service);
 
          system.registerOnTermination(new Runnable(){
             @Override

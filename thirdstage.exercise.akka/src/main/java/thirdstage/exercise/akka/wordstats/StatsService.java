@@ -3,6 +3,7 @@ package thirdstage.exercise.akka.wordstats;
 import thirdstage.exercise.akka.wordstats.StatsMessages.StatsJob;
 import thirdstage.exercise.akka.wordstats.StatsMessages.StatsJobFailed;
 import thirdstage.exercise.akka.wordstats.StatsMessages.StatsResult;
+import thirdstage.exercise.akka.wordstats.StatsMessages.StatsTask;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
@@ -28,6 +29,7 @@ public class StatsService extends UntypedActor{
    public void onReceive(Object message) throws Exception{
       if(message instanceof StatsJob){
          StatsJob job = (StatsJob)message;
+         this.logger.debug("Received a job - Job ID: {}, Text: '{}'", job.getId(), job.getText());
 
          if("".equals(job.getText())){
             this.unhandled(message);
@@ -37,8 +39,10 @@ public class StatsService extends UntypedActor{
             ActorRef aggregator = this.getContext().actorOf(
                   Props.create(StatsAggregator.class, words.length, this.getSelf()));
 
-            for(String word : words){
-               this.workerRouter.tell(new ConsistentHashableEnvelope(word, word), aggregator);
+            StatsTask task = null;
+            for(int i = 0, n = words.length; i < n; i++){
+               task = new StatsTask(job.getId(), i + 1, words[i]);
+               this.workerRouter.tell(new ConsistentHashableEnvelope(task, words[i]), aggregator);
             }
          }
       }else if(message instanceof StatsResult){
