@@ -158,6 +158,7 @@ public class StatsHttpServer{
             ActorSelection service = system.actorSelection("/user/statsService");
             service.tell(new StatsJob(String.valueOf(count++), "You're just good to be true"), service.anchor());
 
+
             return cntx.complete(String.format("This was a %s  request to %s",
                   cntx.request().method().value(), cntx.request().getUri()));
          }
