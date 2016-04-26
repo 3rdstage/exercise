@@ -6,9 +6,8 @@ import javax.annotation.Nonnull;
 import javax.validation.constraints.Min;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import thirdstage.exercise.akka.wordstats.StatsMessages.StatsJob;
-import thirdstage.exercise.akka.wordstats.StatsService;
-import thirdstage.exercise.akka.wordstats.StatsWorker;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import akka.actor.ActorSystem;
@@ -20,8 +19,11 @@ import akka.http.javadsl.server.HttpApp;
 import akka.http.javadsl.server.RequestContext;
 import akka.http.javadsl.server.Route;
 import akka.http.javadsl.server.RouteResult;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
+import akka.stream.javadsl.Source;
+import akka.util.ByteString;
+import thirdstage.exercise.akka.wordstats.StatsMessages.StatsJob;
+import thirdstage.exercise.akka.wordstats.StatsService;
+import thirdstage.exercise.akka.wordstats.StatsWorker;
 
 
 public class StatsHttpServer{
@@ -126,8 +128,14 @@ public class StatsHttpServer{
          return route(
                get(
                      path("test").route(handleWith(testHandler)),
+                     path("jsontest").route(handleWith(jsonTestHandler)),
                      path("wordstats").route(handleWith(wordStatsHandler))
+
+                     ),
+               put(
+                     path("jsontest").route(handleWith(jsonTestHandler))
                      )
+
                );
       }
 
@@ -138,6 +146,24 @@ public class StatsHttpServer{
          public RouteResult apply(RequestContext cntx){
             RequestEntity entity = cntx.request().entity();
             MediaType mediaType = entity.getContentType().mediaType();
+
+            this.logger.debug("Received HTTP reqeust. - Method: {}, URI: {}, Media Type: {}",
+                  cntx.request().method().value(), cntx.request().getUri(), mediaType.toString());
+
+            return cntx.complete(String.format("Received HTTP reqeust. - Method: %s, URI: %s, Media Type: %s",
+                  cntx.request().method().value(), cntx.request().getUri(), mediaType.toString()));
+
+         }
+      };
+
+      private final Handler jsonTestHandler = new Handler(){
+         private final org.slf4j.Logger logger = LoggerFactory.getLogger(this.getClass());
+
+         @Override
+         public RouteResult apply(RequestContext cntx){
+            RequestEntity entity = cntx.request().entity();
+            MediaType mediaType = entity.getContentType().mediaType();
+            Source<ByteString, Object> data = entity.getDataBytes();
 
             this.logger.debug("Received HTTP reqeust. - Method: {}, URI: {}, Media Type: {}",
                   cntx.request().method().value(), cntx.request().getUri(), mediaType.toString());
