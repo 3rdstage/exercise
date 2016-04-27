@@ -1,6 +1,8 @@
 package thirdstage.exercise.akka.wordstats;
 
 import javax.annotation.concurrent.Immutable;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 
 public interface StatsMessages{
@@ -12,7 +14,8 @@ public interface StatsMessages{
 
       private final String text;
 
-      public StatsJob(String id, String text){
+      @JsonCreator
+      public StatsJob(@JsonProperty("id") String id, @JsonProperty("text") String text){
          this.id = id;
          this.text = text;
       }
