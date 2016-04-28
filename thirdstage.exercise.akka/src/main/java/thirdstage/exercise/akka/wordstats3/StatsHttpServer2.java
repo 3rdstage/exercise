@@ -2,6 +2,7 @@ package thirdstage.exercise.akka.wordstats3;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
+import java.net.InetAddress;
 import java.util.concurrent.TimeUnit;
 import javax.validation.constraints.Min;
 import org.slf4j.MDC;
@@ -21,6 +22,10 @@ import thirdstage.exercise.akka.wordstats.StatsWorker;
 
 
 public class StatsHttpServer2{
+
+   public static final int NETTY_PORT_DEFAULT = 2551;
+
+   public static final int HTTP_PORT_DEFAULT = 8080;
 
    public static final String ACTOR_SYSTEM_NAME_DEFAULT = "WordStats";
 
@@ -78,10 +83,16 @@ public class StatsHttpServer2{
    }
 
    public void start() throws Exception{
+      this.start(false);
+   }
+
+   public void start(boolean allowsLocalRoutees) throws Exception{
 
       this.config = ConfigFactory.load();
       this.config = this.config.getConfig(this.getConfigSubtree()).withFallback(this.config);
       this.config = ConfigFactory.parseString("akka.cluster.roles = [compute]").withFallback(config);
+      this.config = ConfigFactory.parseString("akka.actor.deployment.default.cluster.allow-local-routees = "
+            + (allowsLocalRoutees ? "on" : "off")).withFallback(config);
 
       this.systems = new ActorSystem[this.nettyPorts.length];
       for(int i = 0, n = this.nettyPorts.length; i < n; i++){
@@ -92,7 +103,8 @@ public class StatsHttpServer2{
 
          if(i == 0 && this.httpPort > 1){
             Camel camel = CamelExtension.get(systems[i]);
-            ActorRef httpConsumer = systems[i].actorOf(Props.create(HttpConsumer.class, "127.0.0.1", httpPort, service), "httpConsumer");
+            String addr = InetAddress.getLocalHost().getHostAddress();
+            ActorRef httpConsumer = systems[i].actorOf(Props.create(HttpConsumer.class, addr, httpPort, service), "httpConsumer");
 
             Future<ActorRef> activationFuture = camel.activationFutureFor(httpConsumer,
                   new Timeout(Duration.create(10, TimeUnit.SECONDS)), systems[i].dispatcher());

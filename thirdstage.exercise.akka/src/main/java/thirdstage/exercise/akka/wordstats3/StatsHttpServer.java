@@ -28,6 +28,10 @@ import thirdstage.exercise.akka.wordstats.StatsWorker;
 
 public class StatsHttpServer{
 
+   public static final int NETTY_PORT_DEFAULT = 2551;
+
+   public static final int HTTP_PORT_DEFAULT = 8080;
+
    public static final String ACTOR_SYSTEM_NAME_DEFAULT = "WordStats";
 
    public static final String APPL_NAME_DEFAULT = ACTOR_SYSTEM_NAME_DEFAULT.toLowerCase();
