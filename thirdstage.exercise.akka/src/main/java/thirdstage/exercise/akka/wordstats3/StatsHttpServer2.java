@@ -3,8 +3,11 @@ package thirdstage.exercise.akka.wordstats3;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.net.InetAddress;
+import java.net.URI;
 import java.util.concurrent.TimeUnit;
 import javax.validation.constraints.Min;
+import org.apache.activemq.broker.BrokerFactory;
+import org.apache.activemq.broker.BrokerService;
 import org.slf4j.MDC;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -28,6 +31,8 @@ public class StatsHttpServer2{
    public static final int HTTP_PORT_DEFAULT = 8080;
 
    public static final String ACTOR_SYSTEM_NAME_DEFAULT = "WordStats";
+
+   public static final String MESSAGE_BROKER_NAME_DEFAULT = "WordStatsBroker";
 
    public static final String APPL_NAME_DEFAULT = ACTOR_SYSTEM_NAME_DEFAULT.toLowerCase();
 
@@ -87,6 +92,11 @@ public class StatsHttpServer2{
    }
 
    public void start(boolean allowsLocalRoutees) throws Exception{
+
+      BrokerService broker = BrokerFactory.createBroker(new URI("xbean:thirdstage/exercise/akka/wordstats/activemq.xml"));
+      broker.setBrokerName(MESSAGE_BROKER_NAME_DEFAULT);
+      broker.addConnector("tcp://localhost:61616");
+
 
       this.config = ConfigFactory.load();
       this.config = this.config.getConfig(this.getConfigSubtree()).withFallback(this.config);

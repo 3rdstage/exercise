@@ -1,5 +1,6 @@
 package thirdstage.exercise.akka.wordstats3;
 
+import java.net.InetAddress;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import org.apache.http.HttpEntity;
@@ -29,7 +30,7 @@ public class StatsHttpServer2ClientTest{
    private String baseUri;
 
    @BeforeTest
-   public void beforeTest(){
+   public void beforeTest() throws Exception{
       this.jacksonMapper = new ObjectMapper();
       this.jacksonMapper.registerModule(new JaxbAnnotationModule())
       .configure(MapperFeature.AUTO_DETECT_FIELDS, false)
@@ -38,8 +39,9 @@ public class StatsHttpServer2ClientTest{
       .configure(MapperFeature.AUTO_DETECT_IS_GETTERS, true)
       .configure(MapperFeature.AUTO_DETECT_SETTERS, true);
 
+      String addr = InetAddress.getLocalHost().getHostAddress();
       this.httpClient = HttpClients.createDefault();
-      this.baseUri = "http://127.0.0.1:" + StatsHttpServer2.HTTP_PORT_DEFAULT + "/" + StatsHttpServer2.APPL_NAME_DEFAULT;
+      this.baseUri = "http://" + addr + ":" + StatsHttpServer2.HTTP_PORT_DEFAULT + "/" + StatsHttpServer2.APPL_NAME_DEFAULT;
    }
 
 
