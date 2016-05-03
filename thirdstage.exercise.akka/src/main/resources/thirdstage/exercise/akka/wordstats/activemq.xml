@@ -3,19 +3,12 @@
   http://activemq.apache.org/schema/core http://activemq.apache.org/schema/core/activemq-core.xsd">
    <!-- Allows us to use system properties as variables in this configuration file -->
    <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
-      <!--
-      <property name="locations">
-         <value>file:${activemq.conf}/credentials.properties</value>
-      </property>
-      -->
-      <property name="searchSystemEnvironment" value="true"/>
-      <property name="systemPropertiesModeName" value="SYSTEM_PROPERTIES_MODE_OVERRIDE"/>
+      <!-- <property name="locations"> <value>file:${activemq.conf}/credentials.properties</value> </property> -->
+      <property name="searchSystemEnvironment" value="true" />
+      <property name="systemPropertiesModeName" value="SYSTEM_PROPERTIES_MODE_OVERRIDE" />
    </bean>
    <!-- Allows accessing the server log -->
-   <!--
-   <bean id="logQuery" class="io.fabric8.insight.log.log4j.Log4jLogQuery" lazy-init="false" scope="singleton" init-method="start" destroy-method="stop">
-   </bean>
-   -->
+   <!-- <bean id="logQuery" class="io.fabric8.insight.log.log4j.Log4jLogQuery" lazy-init="false" scope="singleton" init-method="start" destroy-method="stop"> </bean> -->
    <!-- The <broker> element is used to configure the ActiveMQ broker. -->
    <broker xmlns="http://activemq.apache.org/schema/core" brokerName="localhost" dataDirectory="${TEMP}/activemq">
       <destinationPolicy>
@@ -59,11 +52,9 @@
          </systemUsage>
       </systemUsage>
       <!-- The transport connectors expose ActiveMQ over a given protocol to clients and other brokers. For more information, see: http://activemq.apache.org/configuring-transports.html -->
-      <!--
       <transportConnectors>
-         <transportConnector name="openwire" uri="tcp://0.0.0.0:61616?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
+         <transportConnector name="openwire" uri="tcp://127.0.0.1:61606?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600" />
       </transportConnectors>
-      -->
       <!-- destroy the spring context on shutdown to stop jetty -->
       <shutdownHooks>
          <bean xmlns="http://www.springframework.org/schema/beans" class="org.apache.activemq.hooks.SpringContextHook" />
@@ -71,7 +62,60 @@
    </broker>
    <!-- Enable web consoles, REST and Ajax APIs and demos The web consoles requires by default login, you can disable this in the jetty.xml file Take a look at ${ACTIVEMQ_HOME}/conf/jetty.xml
       for more details -->
-      <!--
-   <import resource="jetty.xml" />
-   -->
+   <!-- <import resource="jetty.xml" /> -->
+
+
+    <bean id="webContexts" class="org.eclipse.jetty.server.handler.ContextHandlerCollection">
+      <property name="handlers">
+         <list>
+            <bean class="org.eclipse.jetty.webapp.WebAppContext">
+               <property name="war" value="${TEMP}/activemq-web-console-5.13.2.war"/>
+            </bean>
+         </list>
+      </property>
+    </bean>
+
+    <bean id="Server" name="Main" class="org.eclipse.jetty.server.Server" init-method="start" destroy-method="stop">
+        <constructor-arg>
+            <bean id="threadPool" class="org.eclipse.jetty.util.thread.QueuedThreadPool">
+                <property name="minThreads" value="10"/>
+                <property name="maxThreads" value="50"/>
+            </bean>
+        </constructor-arg>
+        <property name="connectors">
+            <list>
+                <bean id="connector" class="org.eclipse.jetty.server.ServerConnector">
+                    <constructor-arg ref="Server"/>
+                    <property name="host" value="127.0.0.1"/>
+                    <property name="port" value="8161"/>
+                </bean>
+            </list>
+        </property>
+        <property name="handler">
+            <bean id="handlers" class="org.eclipse.jetty.server.handler.HandlerCollection">
+            <property name="handlers">
+                    <list>
+                        <ref bean="webContexts"/>
+                        <bean id="defaultHandler" class="org.eclipse.jetty.server.handler.DefaultHandler"/>
+                    </list>
+                </property>
+            </bean>
+        </property>
+        <property name="beans">
+            <list>
+                <bean id="deploymentManager" class="org.eclipse.jetty.deploy.DeploymentManager">
+                    <property name="contexts" ref="webContexts"/>
+                    <property name="appProviders">
+                        <list>
+                            <bean id="webAppProvider" class="org.eclipse.jetty.deploy.providers.WebAppProvider">
+                                <property name="monitoredDirName" value="webapps"/>
+                                <property name="scanInterval" value="1"/>
+                                <property name="extractWars" value="true"/>
+                            </bean>
+                        </list>
+                    </property>
+                </bean>
+            </list>
+        </property>
+    </bean>
 </beans>

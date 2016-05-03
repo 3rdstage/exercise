@@ -95,8 +95,7 @@ public class StatsHttpServer2{
 
       BrokerService broker = BrokerFactory.createBroker(new URI("xbean:thirdstage/exercise/akka/wordstats/activemq.xml"));
       broker.setBrokerName(MESSAGE_BROKER_NAME_DEFAULT);
-      broker.addConnector("tcp://localhost:61616");
-
+      //broker.addConnector("tcp://localhost:61615");
 
       this.config = ConfigFactory.load();
       this.config = this.config.getConfig(this.getConfigSubtree()).withFallback(this.config);
