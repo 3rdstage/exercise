@@ -94,7 +94,7 @@ public class StatsHttpServer2{
    public void start(boolean allowsLocalRoutees) throws Exception{
 
       BrokerService broker = BrokerFactory.createBroker(new URI("xbean:thirdstage/exercise/akka/wordstats/activemq.xml"));
-      broker.setBrokerName(MESSAGE_BROKER_NAME_DEFAULT);
+      //broker.setBrokerName(MESSAGE_BROKER_NAME_DEFAULT);
       //broker.addConnector("tcp://localhost:61615");
 
       this.config = ConfigFactory.load();
