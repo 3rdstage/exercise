@@ -30,6 +30,13 @@
    <artifact:pom id="project.pom" file="${basedir}/pom.xml" />
    <artifact:dependencies pomRefId="project.pom" pathId="project.classpath" />
 
+   <artifact:dependencies pathId="extra.classpath">
+      <dependency groupId="org.apache.activemq" artifactId="activemq-web-console"
+         version="${project.pom.properties.activemq.version}" type="war"/>
+      <dependency groupId="org.apache.taglibs" artifactId="taglibs-standard-spec" version="1.2.1"/>
+      <dependency groupId="org.apache.taglibs" artifactId="taglibs-standard-impl" version="1.2.1"/>
+   </artifact:dependencies>
+
    <target name="echo.env">
       <!-- @todo How to sort the list -->
       <pathconvert pathsep="${line.separator}" refid="project.classpath" property="project.classpath.list">
@@ -38,6 +45,16 @@
 
       <echo>Defined properties : </echo>
       <echoproperties />
+      <echo>
+      </echo>
+      <echo>Maven properties</echo>
+      <echo>   java.version = ${project.pom.properties.java.version}</echo>
+      <echo>   spring.version = ${project.pom.properties.spring.version}</echo>
+      <echo>   mybatis.version = ${project.pom.properties.mybatis.version}</echo>
+      <echo>   akka.version = ${project.pom.properties.akka.version}</echo>
+      <echo>   camel.version = ${project.pom.properties.camel.version}</echo>
+      <echo>   activemq.version = ${project.pom.properties.activemq.version}</echo>
+      <echo>   jetty.version = ${project.pom.properties.jetty.version}</echo>
       <echo>
       </echo>
       <echo>Classpath : </echo>
@@ -50,11 +67,37 @@
     -->
    </target>
 
-   <target name="copy.activemq.webconsole">
-      <copy file="${org.apache.activemq:activemq-web-console:war}"
-            todir="${env.TEMP}" overwrite="true" flatten="true"/>
-
+   <target name="prepare.activemq.webconsole">
+      <description>Copy a slightly modified(removed slf4j-log4j12-*.jar and log4j12-*.jar and added JSTL API and standard implementation) JAR file of ActiveMQ WebConsole and make necessary directories</description>
+      <delete file="${project.pom.build.directory}/activemq-web-console-modified.war"/>
+      <jar destfile="${project.pom.build.directory}/activemq-web-console-modified.war" update="false">
+         <zipfileset src="${org.apache.activemq:activemq-web-console:war}"
+           excludes="WEB-INF/lib/slf4j-log4j12-*.jar,WEB-INF/lib/log4j-*.jar"/>
+         <mappedresources>
+            <resources>
+               <file name="${ch.qos.logback:logback-classic:jar}"/>
+               <file name="${ch.qos.logback:logback-core:jar}"/>
+               <file name="${org.codehaus.janino:janino:jar}"/>
+               <file name="${org.apache.taglibs:taglibs-standard-spec:jar}"/>
+               <file name="${org.apache.taglibs:taglibs-standard-impl:jar}"/>
+            </resources>
+            <chainedmapper>
+               <flattenmapper/>
+               <globmapper from="*" to="WEB-INF/lib/*"/>
+            </chainedmapper>
+         </mappedresources>
+         <mappedresources>
+            <resources>
+               <file name="${basedir}/src/test/resources/logback-test.xml"/>
+            </resources>
+            <chainedmapper>
+               <flattenmapper/>
+               <globmapper from="logback-test.xml" to="WEB-INF/classes/logback.xml"/>
+            </chainedmapper>
+         </mappedresources>
+      </jar>
+      <copy file="${project.pom.build.directory}/activemq-web-console-modified.war"
+           todir="${env.TEMP}" overwrite="true" flatten="true"/>
+      <mkdir dir="${env.TEMP}/activemq"/>
    </target>
-
-
 </project>

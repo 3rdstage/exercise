@@ -3,11 +3,16 @@ package thirdstage.exercise.akka.wordstats3;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.concurrent.TimeUnit;
 import javax.validation.constraints.Min;
 import org.apache.activemq.broker.BrokerFactory;
 import org.apache.activemq.broker.BrokerService;
+import org.eclipse.jetty.jmx.MBeanContainer;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.webapp.Configuration;
+import org.eclipse.jetty.webapp.WebAppContext;
 import org.slf4j.MDC;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -29,6 +34,8 @@ public class StatsHttpServer2{
    public static final int NETTY_PORT_DEFAULT = 2551;
 
    public static final int HTTP_PORT_DEFAULT = 8080;
+
+   public static final int MQ_ADMIN_PORT_DEFAULT = 8090;
 
    public static final String ACTOR_SYSTEM_NAME_DEFAULT = "WordStats";
 
@@ -64,6 +71,10 @@ public class StatsHttpServer2{
 
    public int getHttpPort(){ return this.httpPort; }
 
+   private final int mqAdminPort;
+
+   public int getMqAdminPort(){ return this.mqAdminPort; }
+
    private final String configSubtree;
 
    public String getConfigSubtree(){ return this.configSubtree; }
@@ -78,14 +89,27 @@ public class StatsHttpServer2{
 
       this.nettyPorts = ports;
       this.httpPort = httpPort;
+      this.mqAdminPort = MQ_ADMIN_PORT_DEFAULT;
       this.configSubtree = configSubtree;
    }
 
    public StatsHttpServer2(int[] nettyPorts, int httpPort, String configSubtree){
       this.nettyPorts = nettyPorts;
       this.httpPort = httpPort;
+      this.mqAdminPort = MQ_ADMIN_PORT_DEFAULT;
       this.configSubtree = configSubtree;
    }
+
+   public StatsHttpServer2(@Min(1) int nettyPort, int httpPort, @Min(1) int mqAdminPort, String configSubtree){
+      int[] ports = new int[1];
+      ports[0] = nettyPort;
+
+      this.nettyPorts = ports;
+      this.httpPort = httpPort;
+      this.mqAdminPort = mqAdminPort;
+      this.configSubtree = configSubtree;
+   }
+
 
    public void start() throws Exception{
       this.start(false);
@@ -93,9 +117,28 @@ public class StatsHttpServer2{
 
    public void start(boolean allowsLocalRoutees) throws Exception{
 
-      BrokerService broker = BrokerFactory.createBroker(new URI("xbean:thirdstage/exercise/akka/wordstats/activemq.xml"));
+      final BrokerService broker = BrokerFactory.createBroker(new URI("xbean:thirdstage/exercise/akka/wordstats/activemq.xml"));
       //broker.setBrokerName(MESSAGE_BROKER_NAME_DEFAULT);
       //broker.addConnector("tcp://localhost:61615");
+
+      //setup jetty for ActiveMQ web console
+      System.getProperties().put("webconsole.type", "properties");
+      System.getProperties().put("webconsole.jms.url", "tcp://127.0.0.1:61606");
+      final Server jetty = new Server(new InetSocketAddress(InetAddress.getLocalHost(), this.mqAdminPort));
+      jetty.addBean(new MBeanContainer(ManagementFactory.getPlatformMBeanServer()));
+      Configuration.ClassList.serverDefault(jetty).addBefore("org.eclipse.jetty.webapp.JettyWebXmlConfiguration"
+            , "org.eclipse.jetty.annotations.AnnotationConfiguration");
+      final String webAppPath = System.getenv("TEMP") + "/activemq-web-console-modified.war";
+      final WebAppContext webApp = new WebAppContext(webAppPath, "/admin");
+      webApp.setExtractWAR(true);
+      webApp.setLogUrlOnStart(true);
+      webApp.setAttribute(
+            "org.eclipse.jetty.server.webapp.ContainerIncludeJarPattern",
+            ".*/[^/]*servlet-api-[^/]*\\.jar$|.*/javax.servlet.jsp.jstl-.*\\.jar$|.*/[^/]*taglibs.*\\.jar$" );
+      jetty.setHandler(webApp);
+      jetty.setStopAtShutdown(true);
+      jetty.start();
+      //jetty.join(); //not mandatory but...
 
       this.config = ConfigFactory.load();
       this.config = this.config.getConfig(this.getConfigSubtree()).withFallback(this.config);
