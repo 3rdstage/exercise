@@ -9,6 +9,8 @@ import java.util.concurrent.TimeUnit;
 import javax.validation.constraints.Min;
 import org.apache.activemq.broker.BrokerFactory;
 import org.apache.activemq.broker.BrokerService;
+import org.apache.activemq.camel.component.ActiveMQComponent;
+import org.apache.camel.CamelContext;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.webapp.Configuration;
@@ -148,11 +150,16 @@ public class StatsHttpServer2{
 
    public void start(boolean allowsLocalRoutees) throws Exception{
 
+      System.getProperties().put("activemq.openwire.address", "127.0.0.1");
+      System.getProperties().put("activemq.openwire.port", this.getMqClientConnectorPort());
+      String mqJmsUrl = "tcp://" + System.getProperty("activemq.openwire.address")
+      + ":" + System.getProperty("activemq.openwire.port");
+
       final BrokerService broker = BrokerFactory.createBroker(new URI("xbean:thirdstage/exercise/akka/wordstats/activemq.xml"));
 
       //setup and load Jetty with ActiveMQ web console
       System.getProperties().put("webconsole.type", "properties");
-      System.getProperties().put("webconsole.jms.url", "tcp://127.0.0.1:" + this.getMqClientConnectorPort());
+      System.getProperties().put("webconsole.jms.url", mqJmsUrl);
       System.getProperties().put("webconsole.jmx.url",
             "service:jmx:rmi:///jndi/rmi://127.0.0.1:" + this.getMqJmxRemotePort() + "/jmxrmi");
       //final InetAddress addr = InetAddress.getLocalHost();
@@ -189,6 +196,9 @@ public class StatsHttpServer2{
 
          if(i == 0 && this.httpPort > 1){
             Camel camel = CamelExtension.get(systems[i]);
+            CamelContext camelCntx = camel.context();
+            ActiveMQComponent comp = ActiveMQComponent.activeMQComponent(mqJmsUrl);
+            camelCntx.addComponent("activemq", comp);
             ActorRef httpConsumer = systems[i].actorOf(Props.create(HttpConsumer.class, addr.getHostAddress(), httpPort, service), "httpConsumer");
 
             Future<ActorRef> activationFuture = camel.activationFutureFor(httpConsumer,
