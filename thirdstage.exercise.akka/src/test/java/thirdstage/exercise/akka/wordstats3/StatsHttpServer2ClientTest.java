@@ -58,14 +58,11 @@ public class StatsHttpServer2ClientTest{
       HttpEntity entity = new StringEntity(body);
       req.setEntity(entity);
 
-
       HttpResponse resp = this.httpClient.execute(req);
       ProtocolVersion ver = resp.getStatusLine().getProtocolVersion();
       int statusCode = resp.getStatusLine().getStatusCode();
 
       Assert.assertEquals(200, statusCode);
-
-
    }
 
 }

@@ -35,6 +35,10 @@ public class StatsHttpServer2{
 
    public static final int HTTP_PORT_DEFAULT = 8080;
 
+   public static final int MQ_CLIENT_CONNECTOR_PORT_DEFAULT = 61606;
+
+   public static final int MQ_JMX_REMOTE_PORT_DEFAULT = 1099;
+
    public static final int MQ_ADMIN_PORT_DEFAULT = 8090;
 
    public static final String ACTOR_SYSTEM_NAME_DEFAULT = "WordStats";
@@ -71,6 +75,14 @@ public class StatsHttpServer2{
 
    public int getHttpPort(){ return this.httpPort; }
 
+   private final int mqClientConnectorPort;
+
+   public int getMqClientConnectorPort(){ return this.mqClientConnectorPort; }
+
+   private final int mqJmxRemotePort;
+
+   public int getMqJmxRemotePort(){ return this.mqJmxRemotePort; }
+
    private final int mqAdminPort;
 
    public int getMqAdminPort(){ return this.mqAdminPort; }
@@ -83,19 +95,23 @@ public class StatsHttpServer2{
 
    private ActorSystem[] systems;
 
+   public StatsHttpServer2(int[] nettyPorts, int httpPort, String configSubtree){
+      this.nettyPorts = nettyPorts;
+      this.httpPort = httpPort;
+      this.mqClientConnectorPort = MQ_CLIENT_CONNECTOR_PORT_DEFAULT;
+      this.mqJmxRemotePort = MQ_JMX_REMOTE_PORT_DEFAULT;
+      this.mqAdminPort = MQ_ADMIN_PORT_DEFAULT;
+      this.configSubtree = configSubtree;
+   }
+
    public StatsHttpServer2(@Min(1) int nettyPort, int httpPort, String configSubtree){
       int[] ports = new int[1];
       ports[0] = nettyPort;
 
       this.nettyPorts = ports;
       this.httpPort = httpPort;
-      this.mqAdminPort = MQ_ADMIN_PORT_DEFAULT;
-      this.configSubtree = configSubtree;
-   }
-
-   public StatsHttpServer2(int[] nettyPorts, int httpPort, String configSubtree){
-      this.nettyPorts = nettyPorts;
-      this.httpPort = httpPort;
+      this.mqClientConnectorPort = MQ_CLIENT_CONNECTOR_PORT_DEFAULT;
+      this.mqJmxRemotePort = MQ_JMX_REMOTE_PORT_DEFAULT;
       this.mqAdminPort = MQ_ADMIN_PORT_DEFAULT;
       this.configSubtree = configSubtree;
    }
@@ -106,11 +122,26 @@ public class StatsHttpServer2{
 
       this.nettyPorts = ports;
       this.httpPort = httpPort;
+      this.mqClientConnectorPort = MQ_CLIENT_CONNECTOR_PORT_DEFAULT;
+      this.mqJmxRemotePort = MQ_JMX_REMOTE_PORT_DEFAULT;
       this.mqAdminPort = mqAdminPort;
       this.configSubtree = configSubtree;
    }
 
+   public StatsHttpServer2(@Min(1) int nettyPort, int httpPort,
+         @Min(1) int mqClientConnectorPort, @Min(1) int mqJmxRemotePort, @Min(1) int mqAdminPort, String configSubtree){
 
+      int[] ports = new int[1];
+      ports[0] = nettyPort;
+
+      this.nettyPorts = ports;
+      this.httpPort = httpPort;
+      this.mqClientConnectorPort = mqClientConnectorPort;
+      this.mqJmxRemotePort = mqJmxRemotePort;
+      this.mqAdminPort = mqAdminPort;
+      this.configSubtree = configSubtree;
+
+   }
    public void start() throws Exception{
       this.start(false);
    }
@@ -118,13 +149,15 @@ public class StatsHttpServer2{
    public void start(boolean allowsLocalRoutees) throws Exception{
 
       final BrokerService broker = BrokerFactory.createBroker(new URI("xbean:thirdstage/exercise/akka/wordstats/activemq.xml"));
-      //broker.setBrokerName(MESSAGE_BROKER_NAME_DEFAULT);
-      //broker.addConnector("tcp://localhost:61615");
 
-      //setup jetty for ActiveMQ web console
+      //setup and load Jetty with ActiveMQ web console
       System.getProperties().put("webconsole.type", "properties");
-      System.getProperties().put("webconsole.jms.url", "tcp://127.0.0.1:61606");
-      final Server jetty = new Server(new InetSocketAddress(InetAddress.getLocalHost(), this.mqAdminPort));
+      System.getProperties().put("webconsole.jms.url", "tcp://127.0.0.1:" + this.getMqClientConnectorPort());
+      System.getProperties().put("webconsole.jmx.url",
+            "service:jmx:rmi:///jndi/rmi://127.0.0.1:" + this.getMqJmxRemotePort() + "/jmxrmi");
+      //final InetAddress addr = InetAddress.getLocalHost();
+      final InetAddress addr = InetAddress.getLoopbackAddress();
+      final Server jetty = new Server(new InetSocketAddress(addr, this.mqAdminPort));
       jetty.addBean(new MBeanContainer(ManagementFactory.getPlatformMBeanServer()));
       Configuration.ClassList.serverDefault(jetty).addBefore("org.eclipse.jetty.webapp.JettyWebXmlConfiguration"
             , "org.eclipse.jetty.annotations.AnnotationConfiguration");
@@ -140,6 +173,7 @@ public class StatsHttpServer2{
       jetty.start();
       //jetty.join(); //not mandatory but...
 
+      //setup and load Akka cluster
       this.config = ConfigFactory.load();
       this.config = this.config.getConfig(this.getConfigSubtree()).withFallback(this.config);
       this.config = ConfigFactory.parseString("akka.cluster.roles = [compute]").withFallback(config);
@@ -155,8 +189,7 @@ public class StatsHttpServer2{
 
          if(i == 0 && this.httpPort > 1){
             Camel camel = CamelExtension.get(systems[i]);
-            String addr = InetAddress.getLocalHost().getHostAddress();
-            ActorRef httpConsumer = systems[i].actorOf(Props.create(HttpConsumer.class, addr, httpPort, service), "httpConsumer");
+            ActorRef httpConsumer = systems[i].actorOf(Props.create(HttpConsumer.class, addr.getHostAddress(), httpPort, service), "httpConsumer");
 
             Future<ActorRef> activationFuture = camel.activationFutureFor(httpConsumer,
                   new Timeout(Duration.create(10, TimeUnit.SECONDS)), systems[i].dispatcher());
