@@ -7,6 +7,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.concurrent.TimeUnit;
 import javax.validation.constraints.Min;
+import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.broker.BrokerFactory;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.camel.component.ActiveMQComponent;
@@ -151,9 +152,12 @@ public class StatsHttpServer2{
    public void start(boolean allowsLocalRoutees) throws Exception{
 
       System.getProperties().put("activemq.openwire.address", "127.0.0.1");
-      System.getProperties().put("activemq.openwire.port", this.getMqClientConnectorPort());
+      System.getProperties().put("activemq.openwire.port", String.valueOf(this.getMqClientConnectorPort()));
       String mqJmsUrl = "tcp://" + System.getProperty("activemq.openwire.address")
       + ":" + System.getProperty("activemq.openwire.port");
+
+      //final InetAddress addr = InetAddress.getLocalHost();
+      final InetAddress addr = InetAddress.getLoopbackAddress();
 
       final BrokerService broker = BrokerFactory.createBroker(new URI("xbean:thirdstage/exercise/akka/wordstats/activemq.xml"));
 
@@ -162,8 +166,6 @@ public class StatsHttpServer2{
       System.getProperties().put("webconsole.jms.url", mqJmsUrl);
       System.getProperties().put("webconsole.jmx.url",
             "service:jmx:rmi:///jndi/rmi://127.0.0.1:" + this.getMqJmxRemotePort() + "/jmxrmi");
-      //final InetAddress addr = InetAddress.getLocalHost();
-      final InetAddress addr = InetAddress.getLoopbackAddress();
       final Server jetty = new Server(new InetSocketAddress(addr, this.mqAdminPort));
       jetty.addBean(new MBeanContainer(ManagementFactory.getPlatformMBeanServer()));
       Configuration.ClassList.serverDefault(jetty).addBefore("org.eclipse.jetty.webapp.JettyWebXmlConfiguration"
@@ -191,19 +193,26 @@ public class StatsHttpServer2{
       for(int i = 0, n = this.nettyPorts.length; i < n; i++){
          systems[i] = ActorSystem.create(ACTOR_SYSTEM_NAME_DEFAULT,
                ConfigFactory.parseString("akka.remote.netty.tcp.port=" + this.getNettyPorts()[i]).withFallback(this.config));
-         ActorRef worker = systems[i].actorOf(Props.create(StatsWorker.class), "statsWorker");
-         ActorRef service = systems[i].actorOf(Props.create(StatsService.class), "statsService");
 
          if(i == 0 && this.httpPort > 1){
             Camel camel = CamelExtension.get(systems[i]);
             CamelContext camelCntx = camel.context();
-            ActiveMQComponent comp = ActiveMQComponent.activeMQComponent(mqJmsUrl);
+            ActiveMQConnectionFactory factory = new ActiveMQConnectionFactory(mqJmsUrl);
+            ActiveMQComponent comp = ActiveMQComponent.activeMQComponent();
+            comp.setConnectionFactory(factory);
             camelCntx.addComponent("activemq", comp);
+
+            ActorRef worker = systems[i].actorOf(Props.create(StatsWorker.class), "statsWorker");
+            ActorRef service = systems[i].actorOf(Props.create(StatsService.class), "statsService");
             ActorRef httpConsumer = systems[i].actorOf(Props.create(HttpConsumer.class, addr.getHostAddress(), httpPort, service), "httpConsumer");
 
             Future<ActorRef> activationFuture = camel.activationFutureFor(httpConsumer,
                   new Timeout(Duration.create(10, TimeUnit.SECONDS)), systems[i].dispatcher());
-         };
+         }else{
+            ActorRef worker = systems[i].actorOf(Props.create(StatsWorker.class), "statsWorker");
+            ActorRef service = systems[i].actorOf(Props.create(StatsService.class), "statsService");
+         }
+
       }
 
       System.out.println("Type return to exit");

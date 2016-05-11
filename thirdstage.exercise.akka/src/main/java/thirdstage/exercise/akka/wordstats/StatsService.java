@@ -1,9 +1,5 @@
 package thirdstage.exercise.akka.wordstats;
 
-import thirdstage.exercise.akka.wordstats.StatsMessages.StatsJob;
-import thirdstage.exercise.akka.wordstats.StatsMessages.StatsJobFailed;
-import thirdstage.exercise.akka.wordstats.StatsMessages.StatsResult;
-import thirdstage.exercise.akka.wordstats.StatsMessages.StatsTask;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
@@ -11,6 +7,10 @@ import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.routing.ConsistentHashingRouter.ConsistentHashableEnvelope;
 import akka.routing.FromConfig;
+import thirdstage.exercise.akka.wordstats.StatsMessages.StatsJob;
+import thirdstage.exercise.akka.wordstats.StatsMessages.StatsJobFailed;
+import thirdstage.exercise.akka.wordstats.StatsMessages.StatsResult;
+import thirdstage.exercise.akka.wordstats.StatsMessages.StatsTask;
 
 
 /**
@@ -22,6 +22,8 @@ public class StatsService extends UntypedActor{
 
    private final LoggingAdapter logger = Logging.getLogger(this.getContext().system(), this);
 
+   ActorRef jobTracer = getContext().actorOf(Props.create(JobTracer.class), "jobTracer");
+
    ActorRef workerRouter = getContext().actorOf(
          FromConfig.getInstance().props(Props.create(StatsWorker.class)), "workerRouter");
 
@@ -30,6 +32,9 @@ public class StatsService extends UntypedActor{
       if(message instanceof StatsJob){
          StatsJob job = (StatsJob)message;
          this.logger.debug("Received a job - Job ID: {}, Text: '{}'", job.getId(), job.getText());
+
+         String traceLog = new StringBuilder().append("<job id=\"").append(job.getId()).append("\"/>").toString();
+         this.jobTracer.tell(traceLog, getSelf());
 
          if("".equals(job.getText())){
             this.unhandled(message);
