@@ -12,6 +12,7 @@ import org.apache.activemq.broker.BrokerFactory;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.camel.component.ActiveMQComponent;
 import org.apache.camel.CamelContext;
+import org.apache.commons.codec.binary.StringUtils;
 import org.eclipse.jetty.jmx.MBeanContainer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.webapp.Configuration;
@@ -32,9 +33,15 @@ import thirdstage.exercise.akka.wordstats.StatsService;
 import thirdstage.exercise.akka.wordstats.StatsWorker;
 
 
+/**
+ * Do NOT use local loopback (127.0.0.1)
+ *
+ * @author Sangmoon Oh
+ *
+ */
 public class StatsHttpServer2{
 
-   public static final int NETTY_PORT_DEFAULT = 2551;
+   public static final int MASTER_NODE_NETTY_PORT_DEFAULT = 2551;
 
    public static final int HTTP_PORT_DEFAULT = 8080;
 
@@ -151,36 +158,7 @@ public class StatsHttpServer2{
 
    public void start(boolean allowsLocalRoutees) throws Exception{
 
-      System.getProperties().put("activemq.openwire.address", "127.0.0.1");
-      System.getProperties().put("activemq.openwire.port", String.valueOf(this.getMqClientConnectorPort()));
-      String mqJmsUrl = "tcp://" + System.getProperty("activemq.openwire.address")
-      + ":" + System.getProperty("activemq.openwire.port");
-
-      //final InetAddress addr = InetAddress.getLocalHost();
-      final InetAddress addr = InetAddress.getLoopbackAddress();
-
-      final BrokerService broker = BrokerFactory.createBroker(new URI("xbean:thirdstage/exercise/akka/wordstats/activemq.xml"));
-
-      //setup and load Jetty with ActiveMQ web console
-      System.getProperties().put("webconsole.type", "properties");
-      System.getProperties().put("webconsole.jms.url", mqJmsUrl);
-      System.getProperties().put("webconsole.jmx.url",
-            "service:jmx:rmi:///jndi/rmi://127.0.0.1:" + this.getMqJmxRemotePort() + "/jmxrmi");
-      final Server jetty = new Server(new InetSocketAddress(addr, this.mqAdminPort));
-      jetty.addBean(new MBeanContainer(ManagementFactory.getPlatformMBeanServer()));
-      Configuration.ClassList.serverDefault(jetty).addBefore("org.eclipse.jetty.webapp.JettyWebXmlConfiguration"
-            , "org.eclipse.jetty.annotations.AnnotationConfiguration");
-      final String webAppPath = System.getenv("TEMP") + "/activemq-web-console-modified.war";
-      final WebAppContext webApp = new WebAppContext(webAppPath, "/admin");
-      webApp.setExtractWAR(true);
-      webApp.setLogUrlOnStart(true);
-      webApp.setAttribute(
-            "org.eclipse.jetty.server.webapp.ContainerIncludeJarPattern",
-            ".*/[^/]*servlet-api-[^/]*\\.jar$|.*/javax.servlet.jsp.jstl-.*\\.jar$|.*/[^/]*taglibs.*\\.jar$" );
-      jetty.setHandler(webApp);
-      jetty.setStopAtShutdown(true);
-      jetty.start();
-      //jetty.join(); //not mandatory but...
+      final InetAddress addr = InetAddress.getLocalHost(); //@Important Do NOT use local loopback
 
       //setup and load Akka cluster
       this.config = ConfigFactory.load();
@@ -189,12 +167,16 @@ public class StatsHttpServer2{
       this.config = ConfigFactory.parseString("akka.actor.deployment.default.cluster.allow-local-routees = "
             + (allowsLocalRoutees ? "on" : "off")).withFallback(config);
 
+      String masterAddr = this.config.getString("node.master.address");
+      int masterPort = this.config.getInt("node.master.port");
+
       this.systems = new ActorSystem[this.nettyPorts.length];
       for(int i = 0, n = this.nettyPorts.length; i < n; i++){
          systems[i] = ActorSystem.create(ACTOR_SYSTEM_NAME_DEFAULT,
                ConfigFactory.parseString("akka.remote.netty.tcp.port=" + this.getNettyPorts()[i]).withFallback(this.config));
 
-         if(i == 0 && this.httpPort > 1){
+         if(StringUtils.equals(addr.getHostAddress(), masterAddr) && nettyPorts[i] == masterPort){
+            String mqJmsUrl = this.startActiveMq();
             Camel camel = CamelExtension.get(systems[i]);
             CamelContext camelCntx = camel.context();
             ActiveMQConnectionFactory factory = new ActiveMQConnectionFactory(mqJmsUrl);
@@ -224,6 +206,42 @@ public class StatsHttpServer2{
             public void run(){ system.shutdown(); }
          }.run();
       }
+   }
+
+   private String startActiveMq() throws Exception{
+      final InetAddress addr = InetAddress.getLocalHost();
+
+      System.getProperties().put("activemq.openwire.address", addr.getHostAddress());
+      System.getProperties().put("activemq.openwire.port", String.valueOf(this.getMqClientConnectorPort()));
+      String mqJmsUrl = "tcp://" + System.getProperty("activemq.openwire.address") +
+            ":" + System.getProperty("activemq.openwire.port");
+
+      final BrokerService broker = BrokerFactory.createBroker(
+            new URI("xbean:thirdstage/exercise/akka/wordstats/activemq.xml"));
+
+      //setup and load Jetty with ActiveMQ web console
+      System.getProperties().put("webconsole.type", "properties");
+      System.getProperties().put("webconsole.jms.url", mqJmsUrl);
+      System.getProperties().put("webconsole.jmx.url",
+            "service:jmx:rmi:///jndi/rmi://" + addr.getHostAddress() + ":" + this.getMqJmxRemotePort() + "/jmxrmi");
+      final Server jetty = new Server(new InetSocketAddress(addr, this.mqAdminPort));
+      jetty.addBean(new MBeanContainer(ManagementFactory.getPlatformMBeanServer()));
+      Configuration.ClassList.serverDefault(jetty).addBefore("org.eclipse.jetty.webapp.JettyWebXmlConfiguration"
+            , "org.eclipse.jetty.annotations.AnnotationConfiguration");
+      final String webAppPath = System.getenv("TEMP") + "/activemq-web-console-modified.war";
+      final WebAppContext webApp = new WebAppContext(webAppPath, "/admin");
+      webApp.setExtractWAR(true);
+      webApp.setLogUrlOnStart(true);
+      webApp.setAttribute(
+            "org.eclipse.jetty.server.webapp.ContainerIncludeJarPattern",
+            ".*/[^/]*servlet-api-[^/]*\\.jar$|.*/javax.servlet.jsp.jstl-.*\\.jar$|.*/[^/]*taglibs.*\\.jar$" );
+      jetty.setHandler(webApp);
+      jetty.setStopAtShutdown(true);
+      jetty.start();
+      //jetty.join(); //not mandatory but...
+
+      return mqJmsUrl;
+
    }
 
 

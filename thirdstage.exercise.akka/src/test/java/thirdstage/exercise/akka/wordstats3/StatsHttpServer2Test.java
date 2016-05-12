@@ -16,7 +16,7 @@ public class StatsHttpServer2Test{
       }
       MDC.put("pid", pid);
 
-      int nettyPort = StatsHttpServer2.NETTY_PORT_DEFAULT;
+      int nettyPort = StatsHttpServer2.MASTER_NODE_NETTY_PORT_DEFAULT;
       int httpPort = StatsHttpServer2.HTTP_PORT_DEFAULT;
       String appName = StatsHttpServer2.APPL_NAME_DEFAULT;
 
