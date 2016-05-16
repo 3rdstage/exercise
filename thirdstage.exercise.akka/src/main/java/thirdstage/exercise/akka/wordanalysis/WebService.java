@@ -8,11 +8,13 @@ import akka.camel.CamelMessage;
 import akka.camel.javaapi.UntypedConsumerActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import thirdstage.exercise.akka.wordstats.StatsMessages.StatsJob;
+import akka.routing.ConsistentHashingGroup;
 
 public class WebService extends UntypedConsumerActor{
 
    private static ObjectMapper jacksonMapper = new ObjectMapper();
+
+   private ConsistentHashingGroup router;
 
    static{
       jacksonMapper.registerModule(new JaxbAnnotationModule())
@@ -45,9 +47,9 @@ public class WebService extends UntypedConsumerActor{
 
          CamelMessage msg2 = (CamelMessage) msg;
          String body = msg2.getBodyAs(String.class, getCamelContext());
-         StatsJob job = null;
+         Sentence setence = null;
          try{
-            job = jacksonMapper.readValue(body, StatsJob.class);
+            setence = jacksonMapper.readValue(body, Sentence.class);
             this.logger.debug("Successfully build the job object parsing the request body.");
          }catch(Exception ex){
             throw new RuntimeException("Fail to parse the request body", ex);
