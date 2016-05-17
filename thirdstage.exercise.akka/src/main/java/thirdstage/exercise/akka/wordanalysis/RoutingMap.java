@@ -4,11 +4,11 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import org.hibernate.validator.constraints.NotBlank;
 
-public interface RoutingMap{
+public interface RoutingMap<K>{
 
-   @Nonnull public Set<String> getKeys();
+   @Nonnull public Set<Key<K>> getKeys();
 
-   public String getPath(@NotBlank String key);
+   public String getPath(@NotBlank Key<K> key);
 
 
 }
