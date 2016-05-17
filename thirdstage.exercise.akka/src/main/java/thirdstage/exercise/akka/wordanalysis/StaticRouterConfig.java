@@ -17,7 +17,7 @@ import akka.util.Timeout;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 
-public class StaticRouter extends CustomRouterConfig{
+public class StaticRouterConfig extends CustomRouterConfig{
 
    private final org.slf4j.Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -26,7 +26,7 @@ public class StaticRouter extends CustomRouterConfig{
    private final Map<String, ActorRef> actorMap = new HashMap<String, ActorRef>();
 
 
-   public StaticRouter(@Nonnull RoutingMap map){
+   public StaticRouterConfig(@Nonnull RoutingMap map){
       this.routingMap = map;
 
    }

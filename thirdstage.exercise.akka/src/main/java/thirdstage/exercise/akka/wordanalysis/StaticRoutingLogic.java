@@ -1,5 +1,6 @@
 package thirdstage.exercise.akka.wordanalysis;
 
+import akka.routing.ActorSelectionRoutee;
 import akka.routing.Routee;
 import akka.routing.RoutingLogic;
 import scala.collection.immutable.IndexedSeq;
@@ -12,9 +13,9 @@ public class StaticRoutingLogic implements RoutingLogic{
    public Routee select(Object message, IndexedSeq<Routee> routees){
       int size = routees.size();
 
-      Routee routee = null;
+      ActorSelectionRoutee routee = null;
       for(int i = 0; i < size; i++){
-         routee = routees.apply(i);
+         routee = (ActorSelectionRoutee)(routees.apply(i));
 
       }
 
