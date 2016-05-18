@@ -1,6 +1,7 @@
 package thirdstage.exercise.akka.wordanalysis;
 
 import java.net.InetAddress;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
@@ -41,9 +42,11 @@ public abstract class ClusterNodeBase implements ClusterNode{
 
    public void setPID(String pid){ this.pid = pid; }
 
-   protected Config config;
+   private Config config;
 
-   protected ActorSystem system;
+   private ActorSystem system;
+
+   public ActorSystem getActorSystem(){ return this.system; }
 
    public ClusterNodeBase(@NotBlank String clusterName, @NotBlank String applName,
          @Min(1) @Max(0xFFFF) int nettyPort, @Nullable String configSubtree) throws Exception{
@@ -58,6 +61,7 @@ public abstract class ClusterNodeBase implements ClusterNode{
          this.config = this.config.getConfig(this.getConfigSubtree()).withFallback(this.config);
       }
       this.config = ConfigFactory.parseString("akka.cluster.roles = [compute]").withFallback(this.config);
+      this.config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + nettyPort).withFallback(this.config);
    }
 
    @Override
@@ -71,7 +75,7 @@ public abstract class ClusterNodeBase implements ClusterNode{
             + (allowsLocalRoutees ? "on" : "off")).withFallback(config);
 
       try{
-         this.system = this.buildActorSystem();
+         this.system = this.buildActorSystem(this.config);
          this.logger.info("Succeed to build actor system.");
 
       }catch(Exception ex){
@@ -90,6 +94,6 @@ public abstract class ClusterNodeBase implements ClusterNode{
 
    }
 
-   public abstract ActorSystem buildActorSystem() throws Exception;
+   protected abstract ActorSystem buildActorSystem(@Nonnull Config config) throws Exception;
 
 }

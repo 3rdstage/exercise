@@ -2,6 +2,8 @@ package thirdstage.exercise.akka.wordanalysis;
 
 import javax.annotation.concurrent.Immutable;
 import org.hibernate.validator.constraints.NotBlank;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Immutable
 public class Sentence implements Keyed<String>, java.io.Serializable{
@@ -24,7 +26,8 @@ public class Sentence implements Keyed<String>, java.io.Serializable{
 
    public String getText(){ return this.text; }
 
-   public Sentence(@NotBlank String sourceId, String text){
+   @JsonCreator
+   public Sentence(@JsonProperty("sourceId") @NotBlank String sourceId, @JsonProperty("text") String text){
       this.sourceId = sourceId;
       this.text = text;
       this.key = new Key<String>(sourceId);

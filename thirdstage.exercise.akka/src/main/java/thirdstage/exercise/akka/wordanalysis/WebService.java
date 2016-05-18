@@ -1,6 +1,8 @@
 package thirdstage.exercise.akka.wordanalysis;
 
+import javax.annotation.Nonnull;
 import org.apache.camel.Consume;
+import org.hibernate.validator.constraints.NotBlank;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
@@ -30,15 +32,12 @@ public class WebService extends UntypedConsumerActor{
 
    private final Router router;
 
-   public WebService(String uri){
+   public WebService(@NotBlank String uri, @Nonnull RoutingMap<String> routingMap){
       this.uri = uri;
 
       Config config = this.getContext().system().settings().config();
 
-      RoutingMap<String> map = new SimpleRoutingMap<String>();
-
-      this.router = (new MappedRouterConfig<String>(map)).createRouter(this.getContext().system());
-
+      this.router = (new MappedRouterConfig<String>(routingMap)).createRouter(this.getContext().system());
    }
 
 
