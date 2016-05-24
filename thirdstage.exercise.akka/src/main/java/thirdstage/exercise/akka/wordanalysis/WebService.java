@@ -1,6 +1,8 @@
 package thirdstage.exercise.akka.wordanalysis;
 
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
+import javax.validation.constraints.Min;
 import org.apache.camel.Consume;
 import org.hibernate.validator.constraints.NotBlank;
 import com.fasterxml.jackson.databind.MapperFeature;
@@ -12,8 +14,14 @@ import akka.camel.javaapi.UntypedConsumerActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.routing.Router;
+import scala.concurrent.duration.Duration;
+import scala.concurrent.duration.FiniteDuration;
 
 public class WebService extends UntypedConsumerActor{
+
+   public static final int TIMEOUT_DEFAULT = 3000;
+
+   public static final int TIMEOUT_MIN = 500;
 
    private static ObjectMapper jacksonMapper = new ObjectMapper();
 
@@ -32,21 +40,34 @@ public class WebService extends UntypedConsumerActor{
 
    private final Router router;
 
+   private final FiniteDuration timeout;
+
    public WebService(@NotBlank String uri, @Nonnull RoutingMap<String> routingMap){
-      this.uri = uri;
-
-      Config config = this.getContext().system().settings().config();
-
-      this.router = (new MappedRouterConfig<String>(routingMap)).createRouter(this.getContext().system());
+      this(uri, routingMap, TIMEOUT_DEFAULT);
    }
 
+   public WebService(@NotBlank String uri, @Nonnull RoutingMap<String> routingMap, @Min(TIMEOUT_MIN) int timeout){
 
+      this.uri = uri;
+      Config config = this.getContext().system().settings().config();
+      this.router = (new MappedRouterConfig<String>(routingMap)).createRouter(this.getContext().system());
+
+      this.timeout = Duration.create(timeout, TimeUnit.MILLISECONDS);
+   }
 
    @Override @Consume
    public String getEndpointUri(){
       return this.uri;
    }
 
+   @Override
+   public FiniteDuration replyTimeout(){
+      return this.timeout;
+   }
+
+   /* (non-Javadoc)
+    * @see akka.actor.UntypedActor#onReceive(java.lang.Object)
+    */
    @Override
    public void onReceive(Object msg) throws Exception{
       if(msg instanceof CamelMessage){
@@ -57,10 +78,12 @@ public class WebService extends UntypedConsumerActor{
          Sentence setence = null;
          try{
             setence = jacksonMapper.readValue(body, Sentence.class);
-            this.logger.debug("Successfully build the job object parsing the request body.");
+            this.logger.debug("Successfully has parsed the request body.");
 
             this.router.route(setence, this.getSelf());
 
+            this.logger.debug("Successfully routed the request");
+            this.getSender().tell("Okay", getSelf());
          }catch(Exception ex){
             throw new RuntimeException("Fail to parse the request body", ex);
          }

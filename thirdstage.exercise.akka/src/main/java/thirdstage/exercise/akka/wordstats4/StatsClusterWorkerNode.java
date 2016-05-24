@@ -58,9 +58,9 @@ public class StatsClusterWorkerNode extends StatsClusterNode{
       System.out.println("The master node of Akka cluster has started.\nType return key to exit");
       System.in.read();
 
-      new Runnable(){
+      new Thread(){
          @Override
          public void run(){ system.shutdown(); }
-      }.run();
+      }.start();
    }
 }

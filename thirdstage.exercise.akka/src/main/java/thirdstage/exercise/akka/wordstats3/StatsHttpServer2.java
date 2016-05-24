@@ -201,10 +201,10 @@ public class StatsHttpServer2{
       System.in.read();
 
       for(final ActorSystem system : this.systems){
-         new Runnable(){
+         new Thread(){
             @Override
             public void run(){ system.shutdown(); }
-         }.run();
+         }.start();
       }
    }
 

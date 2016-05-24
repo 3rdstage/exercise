@@ -7,7 +7,7 @@ import javax.annotation.Nonnull;
 import org.hibernate.validator.constraints.NotBlank;
 import org.slf4j.LoggerFactory;
 
-public class SimpleRoutingMap<K> implements RoutingMap<K>{
+public class SimpleRoutingMap<K extends java.io.Serializable> implements RoutingMap<K>{
 
 
    private final org.slf4j.Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -40,8 +40,4 @@ public class SimpleRoutingMap<K> implements RoutingMap<K>{
    public String getPath(@NotBlank Key<K> key){
       return this.map.get(key);
    }
-
-
-
-
 }

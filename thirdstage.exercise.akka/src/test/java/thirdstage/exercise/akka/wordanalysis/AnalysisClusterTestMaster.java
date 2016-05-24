@@ -25,6 +25,12 @@ public class AnalysisClusterTestMaster {
          master.setPID(pid);
          master.start(false);
 
+         System.out.println("The master node of Akka cluster has started.\nType return key to exit");
+         System.in.read();
+
+         master.stop();
+
+
       }catch(Exception ex){
          logger.error("Fail to run cluster master node.", ex);
          throw new RuntimeException("Fail to run cluster master node.", ex);

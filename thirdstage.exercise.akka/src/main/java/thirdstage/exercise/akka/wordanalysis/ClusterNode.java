@@ -6,4 +6,6 @@ public interface ClusterNode{
 
    void start(boolean allowsLocalRoutees) throws Exception;
 
+   void stop() throws Exception;
+
 }

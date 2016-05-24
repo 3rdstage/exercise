@@ -11,7 +11,7 @@ import org.hibernate.validator.constraints.NotBlank;
  *
  * @param <K>
  */
-public interface RoutingMap<K>{
+public interface RoutingMap<K extends java.io.Serializable>{
 
 
 

@@ -14,7 +14,7 @@ import akka.actor.ActorSystem;
 
 public abstract class ClusterNodeBase implements ClusterNode{
 
-   private final org.slf4j.Logger logger = LoggerFactory.getLogger(this.getClass());
+   protected final org.slf4j.Logger logger = LoggerFactory.getLogger(this.getClass());
 
    private final String clusterName;
 
@@ -81,19 +81,24 @@ public abstract class ClusterNodeBase implements ClusterNode{
       }catch(Exception ex){
          this.logger.error("Fail to build actor system.", ex);
       }
-
-      if(this.system != null){
-         System.out.println("The master node of Akka cluster has started.\nType return key to exit");
-         System.in.read();
-
-         new Runnable(){
-            @Override
-            public void run(){ system.shutdown(); }
-         }.run();
-      }
-
    }
 
    protected abstract ActorSystem buildActorSystem(@Nonnull Config config) throws Exception;
+
+   @Override
+   public final void stop() throws Exception{
+      this.stopComponents();
+
+      if(this.system != null){
+         try{
+            this.system.shutdown();
+            this.logger.info("Finished to shutdown the actor system");
+         }catch(Exception ex){
+            this.logger.error("Fail to shutdown the actor system", ex);
+         }
+      }
+   }
+
+   protected abstract void stopComponents();
 
 }

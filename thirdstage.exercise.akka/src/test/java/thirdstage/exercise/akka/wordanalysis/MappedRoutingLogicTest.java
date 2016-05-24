@@ -26,9 +26,9 @@ public class MappedRoutingLogicTest {
 
       List<Sentence> sentences = new ArrayList<Sentence>();
 
-      sentences.add(new Sentence("1", "She's got a smile that it seems to me"));
-      sentences.add(new Sentence("2", "Reminds me of childhood memories"));
-      sentences.add(new Sentence("3", "Where everything"));
+      sentences.add(new Sentence("101", "1", "She's got a smile that it seems to me"));
+      sentences.add(new Sentence("102", "2", "Reminds me of childhood memories"));
+      sentences.add(new Sentence("103", "3", "Where everything"));
 
       List<Routee> routees = new ArrayList<Routee>();
       routees.add(new KeyedActorSelectionRoutee("3",
