@@ -47,6 +47,9 @@ public class WebService extends UntypedConsumerActor{
       return this.uri;
    }
 
+   /* (non-Javadoc)
+    * @see akka.actor.UntypedActor#onReceive(java.lang.Object)
+    */
    @Override
    public void onReceive(Object msg) throws Exception{
       if(msg instanceof CamelMessage){

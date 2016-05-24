@@ -5,7 +5,7 @@ import akka.routing.Routee;
 import akka.routing.RoutingLogic;
 import scala.collection.immutable.IndexedSeq;
 
-public class MappedRoutingLogic<K> implements RoutingLogic{
+public class MappedRoutingLogic<K extends java.io.Serializable> implements RoutingLogic{
 
    private final org.slf4j.Logger logger = LoggerFactory.getLogger(this.getClass());
 

@@ -12,8 +12,9 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
  * @param <T>
  */
 @Immutable
-public class Key<T>{
+public class Key<T extends java.io.Serializable> implements java.io.Serializable{
 
+   private static final long serialVersionUID = 1L;
 
    private final T value;
 
@@ -35,6 +36,11 @@ public class Key<T>{
    @Override
    public int hashCode(){
       return HashCodeBuilder.reflectionHashCode(this.value);
+   }
+
+   @Override
+   public String toString(){
+      return this.value.toString();
    }
 
 }

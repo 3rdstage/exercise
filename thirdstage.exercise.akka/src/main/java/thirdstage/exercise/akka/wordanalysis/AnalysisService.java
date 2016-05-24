@@ -17,7 +17,20 @@ public class AnalysisService extends UntypedActor{
 
    private volatile Lock statsLock = new ReentrantLock();
 
+   private final int nettyPort;
+
+   protected int getNettyPort(){ return this.nettyPort; }
+
    public AnalysisService(){
+
+      int port = -1;
+      try{
+         port = this.getContext().system().settings().config().getInt("akka.remote.netty.tcp.port");
+      }catch(Throwable t){
+         this.logger.warn("Can't read 'akka.remote.netty.tcp.port' from the config.");
+      }
+
+      this.nettyPort = port;
 
    }
 
@@ -28,11 +41,12 @@ public class AnalysisService extends UntypedActor{
       if(message instanceof Sentence){
 
          Sentence sentence = (Sentence)message;
+         String id = sentence.getId();
          String key = sentence.getKey().getValue();
          String text = sentence.getText();
 
-         this.logger.debug("Actor(path: {}) received a sentence - key: {}, text length: {}",
-               this.getSelf().path(), key, StringUtils.length(text));
+         this.logger.debug("Actor(path: {}, port : {}) received a sentence - id: {}, key: {}, text length: {}",
+               this.getSelf().path(), this.getNettyPort(), id, key, StringUtils.length(text));
          if(!StringUtils.isBlank(text)){
             String[] words = StringUtils.splitByWholeSeparator(text, null);
 

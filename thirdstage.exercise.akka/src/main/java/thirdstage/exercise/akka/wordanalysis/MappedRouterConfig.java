@@ -13,7 +13,7 @@ import akka.routing.CustomRouterConfig;
 import akka.routing.Routee;
 import akka.routing.Router;
 
-public class MappedRouterConfig<K> extends CustomRouterConfig{
+public class MappedRouterConfig<K extends java.io.Serializable> extends CustomRouterConfig{
 
    private final org.slf4j.Logger logger = LoggerFactory.getLogger(this.getClass());
 

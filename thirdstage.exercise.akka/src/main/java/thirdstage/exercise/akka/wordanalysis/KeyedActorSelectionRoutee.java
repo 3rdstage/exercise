@@ -5,7 +5,7 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import akka.routing.ActorSelectionRoutee;
 
-public class KeyedActorSelectionRoutee<T> extends ActorSelectionRoutee implements KeyedRoutee<T>{
+public class KeyedActorSelectionRoutee<T extends java.io.Serializable> extends ActorSelectionRoutee implements KeyedRoutee<T>{
 
    private final Key<T> key;
 
