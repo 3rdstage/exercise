@@ -19,9 +19,26 @@ public class AnalysisService extends UntypedActor{
 
    private final InetAddress address;
 
+   <<<<<<< HEAD
    protected InetAddress getAddress(){ return this.address; }
+   =======
+         private final int nettyPort;
 
-   private final int nettyPort;
+   protected int getNettyPort(){ return this.nettyPort; }
+
+   public AnalysisService(){
+
+      int port = -1;
+      try{
+         port = this.getContext().system().settings().config().getInt("akka.remote.netty.tcp.port");
+      }catch(Throwable t){
+         this.logger.warn("Can't read 'akka.remote.netty.tcp.port' from the config.");
+      }
+
+      this.nettyPort = port;
+      >>>>>>> branch 'master' of https://github.com/3rdstage/exercise.git
+
+         private final int nettyPort;
 
    protected int getNettyPort(){ return this.nettyPort; }
 
@@ -87,4 +104,4 @@ public class AnalysisService extends UntypedActor{
       }
    }
 
-}
+   }
