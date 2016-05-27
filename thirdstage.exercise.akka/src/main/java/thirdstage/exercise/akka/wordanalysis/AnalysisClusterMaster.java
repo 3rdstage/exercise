@@ -21,6 +21,8 @@ import redis.embedded.RedisExecProvider;
 import redis.embedded.RedisServer;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
+import thirdstage.exercise.akka.wordanalysis.mappedrouter.Key;
+import thirdstage.exercise.akka.wordanalysis.mappedrouter.SimpleRoutingMap;
 
 public class AnalysisClusterMaster extends ClusterNodeBase{
 
@@ -117,8 +119,8 @@ public class AnalysisClusterMaster extends ClusterNodeBase{
 
       String pathBase = "akka.tcp://" + this.getClusterName() + "@" + this.getAddress().getHostAddress() + ":";
       SimpleRoutingMap<String> routingMap = new SimpleRoutingMap<String>();
-      routingMap.put("1", pathBase + "2550/user/analysisService");
-      routingMap.put("2", pathBase + "2551/user/analysisService");
+      routingMap.putPath(new Key<String>("1"), pathBase + "2550/user/analysisService");
+      routingMap.putPath(new Key<String>("2"), pathBase + "2551/user/analysisService");
 
       ActorRef httpClerk = system.actorOf(Props.create(WebService.class, uri, routingMap), "httpClerk");
 

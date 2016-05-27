@@ -1,4 +1,4 @@
-package thirdstage.exercise.akka.wordanalysis;
+package thirdstage.exercise.akka.wordanalysis.mappedrouter;
 
 import javax.annotation.Nonnull;
 import akka.actor.ActorRef;

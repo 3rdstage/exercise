@@ -1,4 +1,4 @@
-package thirdstage.exercise.akka.wordanalysis;
+package thirdstage.exercise.akka.wordanalysis.mappedrouter;
 
 public interface Keyed<T extends java.io.Serializable>{
 

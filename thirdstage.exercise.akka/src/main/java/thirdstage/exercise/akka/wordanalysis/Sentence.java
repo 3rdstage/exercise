@@ -4,6 +4,8 @@ import javax.annotation.concurrent.Immutable;
 import org.hibernate.validator.constraints.NotBlank;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import thirdstage.exercise.akka.wordanalysis.mappedrouter.Key;
+import thirdstage.exercise.akka.wordanalysis.mappedrouter.Keyed;
 
 /**
  * @author Sangmoon Oh

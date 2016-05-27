@@ -2,6 +2,7 @@ package thirdstage.exercise.akka.wordanalysis;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import thirdstage.exercise.akka.wordanalysis.mappedrouter.Key;
 
 public class KeyTest {
 

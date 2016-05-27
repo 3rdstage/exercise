@@ -16,6 +16,8 @@ import akka.event.LoggingAdapter;
 import akka.routing.Router;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
+import thirdstage.exercise.akka.wordanalysis.mappedrouter.MappedRouterConfig;
+import thirdstage.exercise.akka.wordanalysis.mappedrouter.RoutingMap;
 
 public class WebService extends UntypedConsumerActor{
 

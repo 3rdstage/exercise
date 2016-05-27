@@ -1,4 +1,4 @@
-package thirdstage.exercise.akka.wordanalysis;
+package thirdstage.exercise.akka.wordanalysis.mappedrouter;
 
 import org.slf4j.LoggerFactory;
 import akka.routing.Routee;

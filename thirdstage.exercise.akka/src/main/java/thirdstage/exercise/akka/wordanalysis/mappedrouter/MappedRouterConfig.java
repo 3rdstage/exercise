@@ -1,4 +1,4 @@
-package thirdstage.exercise.akka.wordanalysis;
+package thirdstage.exercise.akka.wordanalysis.mappedrouter;
 
 import java.util.ArrayList;
 import java.util.HashMap;
