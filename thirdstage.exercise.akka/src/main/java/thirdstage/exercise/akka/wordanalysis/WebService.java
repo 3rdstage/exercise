@@ -60,14 +60,11 @@ public class WebService extends UntypedConsumerActor{
       return this.uri;
    }
 
-<<<<<<< HEAD
    @Override
    public FiniteDuration replyTimeout(){
       return this.timeout;
    }
 
-=======
->>>>>>> branch 'master' of https://github.com/3rdstage/exercise.git
    /* (non-Javadoc)
     * @see akka.actor.UntypedActor#onReceive(java.lang.Object)
     */
