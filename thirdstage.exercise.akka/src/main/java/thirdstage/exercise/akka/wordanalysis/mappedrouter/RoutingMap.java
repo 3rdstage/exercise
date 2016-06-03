@@ -11,6 +11,7 @@ import org.hibernate.validator.constraints.NotBlank;
  *
  * @param <T>
  */
+@Deprecated
 public interface RoutingMap<T extends java.io.Serializable>{
 
    @Nonnull public Set<Key<T>> getKeys();

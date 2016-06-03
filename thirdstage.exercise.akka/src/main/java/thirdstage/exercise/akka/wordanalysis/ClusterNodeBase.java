@@ -40,9 +40,14 @@ public abstract class ClusterNodeBase implements ClusterNode{
 
    public String getPID(){ return this.pid; }
 
-   public void setPID(String pid){ this.pid = pid; }
+   public ClusterNodeBase setPID(String pid){
+      this.pid = pid;
+      return this;
+   }
 
    private Config config;
+
+   protected Config getConfig(){ return this.config; }
 
    private ActorSystem system;
 
@@ -61,6 +66,7 @@ public abstract class ClusterNodeBase implements ClusterNode{
          this.config = this.config.getConfig(this.getConfigSubtree()).withFallback(this.config);
       }
       this.config = ConfigFactory.parseString("akka.cluster.roles = [compute]").withFallback(this.config);
+      this.config = ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + this.address.getHostAddress()).withFallback(this.config);
       this.config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + nettyPort).withFallback(this.config);
    }
 
@@ -76,10 +82,13 @@ public abstract class ClusterNodeBase implements ClusterNode{
 
       try{
          this.system = this.buildActorSystem(this.config);
-         this.logger.info("Succeed to build actor system.");
+         this.logger.info("Succeed to build actor system at {}:{}.",
+               this.address.getHostAddress(), this.getNettyPort());
 
       }catch(Exception ex){
-         this.logger.error("Fail to build actor system.", ex);
+         this.logger.error("Fail to build actor system at {}:{}.",
+               this.address.getHostAddress(), this.getNettyPort(), ex);
+         throw new IllegalStateException("Fail to build actor system.", ex);
       }
    }
 

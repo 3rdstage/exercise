@@ -5,9 +5,9 @@ import java.lang.management.RuntimeMXBean;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
-public class AnalysisClusterTestWorker1{
+public class ClusterTestMaster {
 
-   private static final org.slf4j.Logger logger = LoggerFactory.getLogger(AnalysisClusterTestMaster.class);
+   private static final org.slf4j.Logger logger = LoggerFactory.getLogger(ClusterTestMaster.class);
 
    public static void main(String[] args) throws Exception{
       RuntimeMXBean mbean = ManagementFactory.getRuntimeMXBean();
@@ -18,18 +18,23 @@ public class AnalysisClusterTestWorker1{
       MDC.put("pid", pid);
 
       try{
-         AnalysisClusterWorker worker = new AnalysisClusterWorker(
-               "WordAnalysis", "wordanalysis", AnalysisClusterMaster.MASTER_NODE_NETTY_PORT_DEFAULT + 1,
-               "wordanalysis");
+         ClusterMaster master = new ClusterMaster(
+               "WordAnalysis", "wordanalysis", ClusterMaster.MASTER_NODE_NETTY_PORT_DEFAULT,
+               ClusterMaster.HTTP_PORT_DEFAULT, "wordanalysis");
 
-         worker.setPID(pid);
-         worker.start(false);
+         master.setPID(pid);
+         master.start(false);
+
+         System.out.println("The master node of Akka cluster has started.\nType return key to exit");
+         System.in.read();
+
+         master.stop();
+
 
       }catch(Exception ex){
          logger.error("Fail to run cluster master node.", ex);
          throw new RuntimeException("Fail to run cluster master node.", ex);
       }
    }
-
 
 }

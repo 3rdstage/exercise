@@ -1,4 +1,4 @@
-package thirdstage.exercise.akka.wordanalysis;
+package thirdstage.exercise.akka.wordanalysis.mappedrouter;
 
 import org.testng.annotations.Test;
 import thirdstage.exercise.akka.wordanalysis.mappedrouter.Key;

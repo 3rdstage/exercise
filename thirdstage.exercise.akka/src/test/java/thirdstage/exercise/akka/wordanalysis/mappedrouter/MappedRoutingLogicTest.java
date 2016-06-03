@@ -1,4 +1,4 @@
-package thirdstage.exercise.akka.wordanalysis;
+package thirdstage.exercise.akka.wordanalysis.mappedrouter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,6 +9,7 @@ import akka.actor.ActorSystem;
 import akka.routing.Routee;
 import akka.routing.RoutingLogic;
 import scala.collection.immutable.IndexedSeq;
+import thirdstage.exercise.akka.wordanalysis.Sentence;
 import thirdstage.exercise.akka.wordanalysis.mappedrouter.KeyedActorSelectionRoutee;
 import thirdstage.exercise.akka.wordanalysis.mappedrouter.MappedRoutingLogic;
 

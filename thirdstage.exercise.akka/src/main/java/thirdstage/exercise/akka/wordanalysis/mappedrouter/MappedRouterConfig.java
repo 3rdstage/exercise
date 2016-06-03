@@ -13,6 +13,13 @@ import akka.routing.CustomRouterConfig;
 import akka.routing.Routee;
 import akka.routing.Router;
 
+/**
+ * @author Sangmoon Oh
+ *
+ * @param <K>
+ * @see MappedRouterConfig2
+ */
+@Deprecated
 public class MappedRouterConfig<K extends java.io.Serializable> extends CustomRouterConfig{
 
    private final org.slf4j.Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -38,7 +45,7 @@ public class MappedRouterConfig<K extends java.io.Serializable> extends CustomRo
       for(Key<K> key : this.routingMap.getKeys()){
          path = this.routingMap.getPath(key);
          selection = system.actorSelection(path);
-         routee = new KeyedActorSelectionRoutee<K>(key.getValue(), selection);
+         routee = new KeyedActorSelectionRoutee<K>(key.get(), selection);
          routees.add(routee);
       }
 

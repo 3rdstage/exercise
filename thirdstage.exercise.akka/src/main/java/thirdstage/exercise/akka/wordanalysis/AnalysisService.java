@@ -3,16 +3,16 @@ package thirdstage.exercise.akka.wordanalysis;
 import java.net.InetAddress;
 import java.util.Date;
 import javax.annotation.Nonnull;
-import javax.annotation.concurrent.GuardedBy;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.FastDateFormat;
-import org.slf4j.LoggerFactory;
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
+import akka.event.Logging;
+import akka.event.LoggingAdapter;
 
 public class AnalysisService extends UntypedActor{
 
-   private final org.slf4j.Logger logger = LoggerFactory.getLogger(this.getClass());
+   private final LoggingAdapter logger = Logging.getLogger(this.getContext().system(), this);
 
    private final static FastDateFormat timestampFormat =
          FastDateFormat.getInstance("yyyy/MM/dd HH:mm:ss");
@@ -35,7 +35,7 @@ public class AnalysisService extends UntypedActor{
       try{
          port = this.getContext().system().settings().config().getInt("akka.remote.netty.tcp.port");
       }catch(Throwable t){
-         this.logger.warn("Can't read 'akka.remote.netty.tcp.port' from the config.");
+         this.logger.warning("Can't read 'akka.remote.netty.tcp.port' from the config.");
       }
 
       this.address = InetAddress.getLocalHost();
@@ -50,19 +50,19 @@ public class AnalysisService extends UntypedActor{
    }
 
 
-   @Override @GuardedBy("statsLock")
+   @Override
    public void onReceive(Object message) throws Exception{
 
       if(message instanceof Sentence){
 
          Sentence sentence = (Sentence)message;
          String id = sentence.getId();
-         String key = sentence.getKey().getValue();
+         String key = sentence.getKey().get();
          String text = sentence.getText();
          String timestamp = timestampFormat.format(new Date());
 
-         this.logger.debug("Actor(path: {}, port : {}) received a sentence - id: {}, key: {}, text length: {}",
-               this.getSelf().path(), this.getNettyPort(), id, key, StringUtils.length(text));
+         this.logger.debug("Analysis service actor(port : {}) received a sentence - id: {}, key: {}, text length: {}",
+               this.getNettyPort(), id, key, StringUtils.length(text));
 
          if(this.traceService != null){
             Trace trace = new Trace(id, sentence.getSourceId(),

@@ -36,7 +36,7 @@ public class EmbeddedRedisTest{
 
       int port = Integer.valueOf(System.getProperty("redis.port", "6379"));
 
-      final RedisServer server = new RedisServer(port);
+      final RedisServer server = RedisServer.builder().port(port).build();
       server.start();
 
       System.out.println("A redis server has started on " + port + " port.\nType return key to stop redis and end the process.");
@@ -54,13 +54,8 @@ public class EmbeddedRedisTest{
 
       int port = Integer.valueOf(System.getProperty("redis.port", "6379"));
 
-      final RedisServer server = new RedisServer(port);
-      new Thread(){
-         @Override
-         public void run(){
-            server.start();
-         }
-      }.start();
+      final RedisServer server = RedisServer.builder().port(port).build();
+      server.start();
 
       System.out.println("A redis server has started on " + port + " port.\nType return key to stop redis and end the process.");
       int cnt = 0;
@@ -73,11 +68,12 @@ public class EmbeddedRedisTest{
          @Override
          public void run(){
             server.stop();
+            System.out.println("Redis has stopped. Check the process at the task manager");
          }
       }.start();
 
-      System.out.println("Redis has stopped. Check the process at the task manager");
-      System.in.read();
+
+      //System.in.read();
    }
 
    @Test
@@ -91,19 +87,9 @@ public class EmbeddedRedisTest{
             .setting("logfile C:\\temp\\redis.log")
             .build();
 
-      new Thread(){
-         @Override
-         public void run(){
-            try{
-               logger.info("Trying to start redis server.");
-               server.start();
-               logger.info("Redis server has started on " + port + " port.");
-            }catch(Exception ex){
+      server.start(); //@TODO Why hang-up here?
 
-            }
-         }
-      }.start();
-
+      logger.info("Redis server has started on " + port + " port.");
       System.out.println("Type return key to stop redis and end the process.");
       int cnt = 0;
       while((cnt = System.in.available()) < 1){

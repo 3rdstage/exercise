@@ -16,31 +16,31 @@ public class Key<T extends java.io.Serializable> implements java.io.Serializable
 
    private static final long serialVersionUID = 1L;
 
-   private final T value;
+   private final T key;
 
    public Key(@Nonnull T key){
       Validate.isTrue(key != null, "The key should be non-null value");
-      this.value = key;
+      this.key = key;
    }
 
-   public T getValue(){ return this.value; }
+   public T get(){ return this.key; }
 
    @Override
    public boolean equals(Object obj){
       if(obj == null) return false;
       if(!(obj instanceof Key)) return false;
 
-      return EqualsBuilder.reflectionEquals(this.value, ((Key)obj).getValue());
+      return EqualsBuilder.reflectionEquals(this.key, ((Key)obj).get());
    }
 
    @Override
    public int hashCode(){
-      return HashCodeBuilder.reflectionHashCode(this.value);
+      return HashCodeBuilder.reflectionHashCode(this.key);
    }
 
    @Override
    public String toString(){
-      return this.value.toString();
+      return this.key.toString();
    }
 
 }

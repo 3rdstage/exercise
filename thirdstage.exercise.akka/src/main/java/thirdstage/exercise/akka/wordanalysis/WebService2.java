@@ -8,25 +8,21 @@ import org.hibernate.validator.constraints.NotBlank;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
-import com.typesafe.config.Config;
+import akka.actor.ActorRef;
+import akka.actor.Props;
 import akka.camel.CamelMessage;
 import akka.camel.javaapi.UntypedConsumerActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import akka.routing.Router;
 import scala.concurrent.duration.Duration;
 import scala.concurrent.duration.FiniteDuration;
-import thirdstage.exercise.akka.wordanalysis.mappedrouter.MappedRouterConfig;
-import thirdstage.exercise.akka.wordanalysis.mappedrouter.RoutingMap;
+import thirdstage.exercise.akka.wordanalysis.mappedrouter.KeyNodeMap;
+import thirdstage.exercise.akka.wordanalysis.mappedrouter.MappedRouterActor;
+import thirdstage.exercise.akka.wordanalysis.mappedrouter.PortBaseNodeIdResolver;
 
-/**
- * @author Sangmoon Oh
- * @see WebService2
- */
-@Deprecated
-public class WebService extends UntypedConsumerActor{
+public class WebService2 extends UntypedConsumerActor{
 
-   public static final int TIMEOUT_DEFAULT = 3000;
+   public static final int TIMEOUT_DEFAULT = 7000;
 
    public static final int TIMEOUT_MIN = 500;
 
@@ -45,21 +41,27 @@ public class WebService extends UntypedConsumerActor{
 
    private final String uri;
 
-   private final Router router;
+   private final ActorRef routerActor;
 
    private final FiniteDuration timeout;
 
-   public WebService(@NotBlank String uri, @Nonnull RoutingMap<String> routingMap){
-      this(uri, routingMap, TIMEOUT_DEFAULT);
+   /**
+    * @param uri
+    * @param routerActor
+    * @param timeout in milli-seconds
+    */
+   public WebService2(@NotBlank String uri, @Nonnull KeyNodeMap<String> keyNodeMap,
+         @NotBlank String servicePath, @Min(TIMEOUT_MIN) int timeout){
+      this.uri = uri;
+      this.routerActor = this.getContext().system().actorOf(
+            Props.create(MappedRouterActor.class, keyNodeMap, servicePath, new PortBaseNodeIdResolver()),
+            "routerActor");
+      this.timeout = Duration.create(timeout, TimeUnit.MILLISECONDS);
    }
 
-   public WebService(@NotBlank String uri, @Nonnull RoutingMap<String> routingMap, @Min(TIMEOUT_MIN) int timeout){
-
-      this.uri = uri;
-      Config config = this.getContext().system().settings().config();
-      this.router = (new MappedRouterConfig<String>(routingMap)).createRouter(this.getContext().system());
-
-      this.timeout = Duration.create(timeout, TimeUnit.MILLISECONDS);
+   public WebService2(@NotBlank String uri, @Nonnull KeyNodeMap<String> keyNodeMap,
+         @NotBlank String servicePath){
+      this(uri, keyNodeMap, servicePath, TIMEOUT_DEFAULT);
    }
 
    @Override @Consume
@@ -72,29 +74,24 @@ public class WebService extends UntypedConsumerActor{
       return this.timeout;
    }
 
-   /* (non-Javadoc)
-    * @see akka.actor.UntypedActor#onReceive(java.lang.Object)
-    */
    @Override
    public void onReceive(Object msg) throws Exception{
       if(msg instanceof CamelMessage){
-         logger.debug("Received a HTTP request via Camel.");
+         logger.debug("Received a request via Camel");
 
-         CamelMessage msg2 = (CamelMessage) msg;
+         CamelMessage msg2 = (CamelMessage)msg;
          String body = msg2.getBodyAs(String.class, getCamelContext());
-         Sentence setence = null;
+         Sentence sentence = null;
          try{
-            setence = jacksonMapper.readValue(body, Sentence.class);
-            this.logger.debug("Successfully has parsed the request body.");
+            sentence = jacksonMapper.readValue(body, Sentence.class);
+            this.logger.debug("Successfully parsed the request body.");
 
-            this.router.route(setence, this.getSelf());
-
-            this.logger.debug("Successfully routed the request");
+            this.routerActor.tell(sentence, this.getSelf());
+            this.logger.debug("Routed the request.");
             this.getSender().tell("Okay", getSelf());
          }catch(Exception ex){
-            throw new RuntimeException("Fail to parse the request body", ex);
+            throw new RuntimeException("Fail to parse or route the request.", ex);
          }
-
       }else{
          this.unhandled(msg);
       }

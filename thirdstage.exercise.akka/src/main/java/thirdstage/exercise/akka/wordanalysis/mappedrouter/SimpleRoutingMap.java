@@ -7,6 +7,7 @@ import javax.annotation.Nonnull;
 import org.hibernate.validator.constraints.NotBlank;
 import org.slf4j.LoggerFactory;
 
+@Deprecated
 public class SimpleRoutingMap<T extends java.io.Serializable> implements RoutingMap<T>{
 
 
