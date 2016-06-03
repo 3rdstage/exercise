@@ -13,13 +13,13 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 
-public class AnalysisClusterWorker extends ClusterNodeBase{
+public class ClusterWorker extends ClusterNodeBase{
 
    private RedisClient redisClient;
 
    private final ObjectMapper jacksonMapper = new ObjectMapper();
 
-   public AnalysisClusterWorker(@Pattern(regexp="[a-zA-Z0-9]+") String clusterName,
+   public ClusterWorker(@Pattern(regexp="[a-zA-Z0-9]+") String clusterName,
          @Pattern(regexp="[a-zA-Z0-9]+") String applName,
          @Min(1) @Max(0xFFFF) int nettyPort, String configSubtree) throws Exception{
       super(clusterName, applName, nettyPort, configSubtree);

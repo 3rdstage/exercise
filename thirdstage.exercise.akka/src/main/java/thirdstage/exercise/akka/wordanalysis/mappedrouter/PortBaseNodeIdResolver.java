@@ -1,22 +1,26 @@
 package thirdstage.exercise.akka.wordanalysis.mappedrouter;
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.ThreadSafe;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.commons.lang3.Validate;
 import akka.cluster.Member;
 
+/**
+ * @author Sangmoon Oh
+ * @since 2016-05-30
+ */
 public class PortBaseNodeIdResolver implements NodeIdResolver{
 
-   @Override
-   public String resolveNodeId(Member member){
-      // TODO Auto-generated method stub
-      return null;
+   @Override @Nullable
+   public String resolveNodeId(@Nonnull Member member){
+      Validate.isTrue(member != null, "Member shouldn't be null.");
+
+      String id = null;
+      if(!(member.address().port().isEmpty())){
+         id = String.valueOf(member.address().port().get());
+      }
+
+      return id;
    }
 
 }

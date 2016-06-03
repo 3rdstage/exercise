@@ -5,7 +5,7 @@ import akka.routing.Routee;
 import akka.routing.RoutingLogic;
 import scala.collection.immutable.IndexedSeq;
 
-public class MappedRoutingLogic<K extends java.io.Serializable> implements RoutingLogic{
+public class MappedRoutingLogic<T extends java.io.Serializable> implements RoutingLogic{
 
    private final org.slf4j.Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -18,11 +18,11 @@ public class MappedRoutingLogic<K extends java.io.Serializable> implements Routi
          return akka.routing.NoRoutee$.MODULE$;
       }
 
-      Keyed<K> keyedMsg = (Keyed<K>)message;
+      Keyed<T> keyedMsg = (Keyed<T>)message;
 
       int size = routees.size();
       Routee routee = null;
-      KeyedRoutee<K> keyedRoutee = null;
+      KeyedRoutee<T> keyedRoutee = null;
       for(int i = 0; i < size; i++){
          routee = routees.apply(i);
          if(!(routee instanceof KeyedRoutee<?>)){
@@ -31,7 +31,7 @@ public class MappedRoutingLogic<K extends java.io.Serializable> implements Routi
             continue;
          }
 
-         keyedRoutee = (KeyedRoutee<K>)routee;
+         keyedRoutee = (KeyedRoutee<T>)routee;
          if(keyedMsg.getKey().equals(keyedRoutee.getKey())){
             break;
          }

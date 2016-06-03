@@ -18,6 +18,11 @@ public class KeyedActorSelectionRoutee<T extends java.io.Serializable> extends A
 
    }
 
+   public KeyedActorSelectionRoutee(@Nonnull Key<T> key, @Nonnull ActorSelection selection){
+      super(selection);
+      this.key = key;
+   }
+
    @Override
    public void send(Object message, ActorRef sender){
       super.send(message, sender);

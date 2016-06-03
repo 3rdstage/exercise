@@ -4,15 +4,16 @@ import javax.annotation.Nonnull;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.hibernate.validator.constraints.NotBlank;
-import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lambdaworks.redis.RedisClient;
 import com.lambdaworks.redis.RedisConnection;
 import akka.actor.UntypedActor;
+import akka.event.Logging;
+import akka.event.LoggingAdapter;
 
 public class TraceLogService extends UntypedActor{
 
-   private final org.slf4j.Logger logger = LoggerFactory.getLogger(this.getClass());
+   private final LoggingAdapter logger = Logging.getLogger(this.getContext().system(), this);
 
    private final String key;
 
@@ -41,7 +42,7 @@ public class TraceLogService extends UntypedActor{
             String traceStr = this.jacksonMapper.writeValueAsString(trace);
             conn.rpush(key, traceStr);
          }catch(Exception ex){
-            this.logger.error("Fail to log trace.", ex);
+            this.logger.error(ex, "Fail to log trace.");
             throw ex;
          }
       }else{

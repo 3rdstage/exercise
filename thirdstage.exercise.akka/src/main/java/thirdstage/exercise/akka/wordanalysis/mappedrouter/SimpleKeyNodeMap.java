@@ -2,6 +2,7 @@ package thirdstage.exercise.akka.wordanalysis.mappedrouter;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import org.apache.commons.lang3.StringUtils;
@@ -43,11 +44,20 @@ public class SimpleKeyNodeMap<T extends java.io.Serializable> implements KeyNode
    }
 
    @Override
+   public boolean isEmpty(){
+      return this.map.isEmpty();
+   }
+
+   @Override
    public boolean containsKey(@Nonnull Key<T> key){
       Validate.isTrue(key != null, "The key should be non-null.");
 
       return this.map.containsKey(key);
+   }
 
+   @Override
+   public Set<Entry<Key<T>, String>> getEntrySet(){
+      return this.map.entrySet();
    }
 
 
