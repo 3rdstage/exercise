@@ -1,5 +1,6 @@
 package thirdstage.exercise.akka.wordanalysis.mappedrouter;
 
+import java.net.InetAddress;
 import org.testng.annotations.Test;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -14,10 +15,14 @@ public class MappedRouterActorTest1 {
    @Test
    public void testRun() throws Exception{
 
+      String addr = InetAddress.getLocalHost().getHostAddress();
+
       Config config = ConfigFactory.load();
       config = config.getConfig("wordanalysis").withFallback(config);
-      config = ConfigFactory.parseString("akka.cluster.roles = [compute]").withFallback(config);
-      config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + 2551).withFallback(config);
+      Config config2 = ConfigFactory.parseString("akka.cluster.roles = [compute]");
+      config2 = ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + addr).withFallback(config2);
+      config2 = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + 2551).withFallback(config2);
+      config = config2.withFallback(config);
 
       KeyNodeMap<String> keyNodeMap = new SimpleKeyNodeMap<String>();
       keyNodeMap.putNodeId(new Key<String>("1"), "2551");

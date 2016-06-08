@@ -7,9 +7,11 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 /**
+ * Generic/wrapper type for a key used to provide uniqueness and identify an object from others.
+ *
  * @author Sangmoon Oh
  *
- * @param <T>
+ * @param <T> the type of key
  */
 @Immutable
 public class Key<T extends java.io.Serializable> implements java.io.Serializable{

@@ -16,6 +16,7 @@ import akka.cluster.ClusterEvent;
 import akka.cluster.ClusterEvent.MemberEvent;
 import akka.cluster.ClusterEvent.MemberExited;
 import akka.cluster.ClusterEvent.MemberUp;
+import akka.cluster.ClusterEvent.ReachableMember;
 import akka.cluster.ClusterEvent.UnreachableMember;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
@@ -38,18 +39,18 @@ public class MappedRouterActor<T extends java.io.Serializable> extends UntypedAc
 
    private final KeyNodeMap<T> nodeMap = new SimpleKeyNodeMap<T>();
 
-   protected KeyNodeMap<T> getKeyNodeMap(){ return this.nodeMap; }
+   @Nonnull protected KeyNodeMap<T> getKeyNodeMap(){ return this.nodeMap; }
 
    private final List<KeyedRoutee<T>> routees = new ArrayList<KeyedRoutee<T>>();
 
-   protected List<KeyedRoutee<T>> getRoutees(){ return this.routees; }
+   @Nonnull protected List<KeyedRoutee<T>> getRoutees(){ return this.routees; }
 
    private volatile Router router = null;
 
-   protected Router getRouter(){ return this.router; }
+   @Nullable protected Router getRouter(){ return this.router; }
 
    /**
-    * @param nodeMap will be copied, not referenced
+    * @param nodeMap if any, will be shallow-copied, not referenced
     * @param routeeFullName
     * @param nodeIdResolver
     */
@@ -57,6 +58,7 @@ public class MappedRouterActor<T extends java.io.Serializable> extends UntypedAc
          @Nonnull NodeIdResolver nodeIdResolver){
 
       Validate.isTrue(StringUtils.isNotBlank(routeeFullName), "Routee name should be specified.");
+      Validate.isTrue(nodeIdResolver != null, "The Node ID resovler should be provided.");
 
       if(nodeMap != null){
          for(Map.Entry<Key<T>, String> entry: nodeMap.getEntrySet()){
@@ -69,7 +71,7 @@ public class MappedRouterActor<T extends java.io.Serializable> extends UntypedAc
 
       this.cluster = Cluster.get(this.getContext().system());
       this.cluster.subscribe(getSelf(), ClusterEvent.initialStateAsEvents(),
-            MemberEvent.class, UnreachableMember.class);
+            MemberEvent.class, UnreachableMember.class, ReachableMember.class);
    }
 
    /* (non-Javadoc)
@@ -90,27 +92,41 @@ public class MappedRouterActor<T extends java.io.Serializable> extends UntypedAc
          }
       }else if(msg instanceof MemberUp){
          MemberUp ev = (MemberUp) msg;
+         this.logger.debug("Member(address:{}) is up.", ev.member().address());
+
          this.updateRouterWithMemberEvent(ev);
 
       }else if(msg instanceof MemberExited){
-         //@TODO Need implementation
-      }else{
+         MemberExited ev = (MemberExited) msg;
+         this.logger.debug("Member(address:{}) has exited.", ev.member().address());
+      }else if(msg instanceof UnreachableMember){
+         UnreachableMember ev = (UnreachableMember) msg;
+         this.logger.debug("Member(address:{}) is unreachable.", ev.member().address());
+      }else if(msg instanceof ReachableMember){
+         ReachableMember ev = (ReachableMember) msg;
+         this.logger.debug("Member(address:{}) is reachable.", ev.member().address());
+      }else if(msg instanceof MemberEvent){
+         MemberEvent ev = (MemberEvent) msg;
+         this.logger.debug("Member(address:{}) issued {}.", ev.member().address(), ev.getClass().getSimpleName());
+      }
+
+      else{
          this.unhandled(msg);
       }
    }
 
-   private void updateRouterWithMemberEvent(@Nonnull MemberEvent ev){
+   private void updateRouterWithMemberEvent(@Nullable MemberEvent ev){
+      if(ev == null){ return; }
+
       Address addr = ev.member().address();
-      String protocol = addr.protocol();
       String nodeId = this.nodeIdResolver.resolveNodeId(ev.member());
       if(StringUtils.isBlank(nodeId)){
          this.logger.warning("Can't resolve node ID from member whose address is {}.", addr.toString());
          return;
       }
 
-      String hostPort = addr.hostPort();
-      String path = new StringBuilder().append(protocol).append("://")
-            .append(hostPort).append("/user/").append(this.routeeFullName).toString();
+      String path = new StringBuilder().append(addr.protocol()).append("://")
+            .append(addr.hostPort()).append("/user/").append(this.routeeFullName).toString();
 
       ActorSystem system = this.getContext().system();
       KeyedRoutee<T> routee = null;
@@ -123,7 +139,7 @@ public class MappedRouterActor<T extends java.io.Serializable> extends UntypedAc
             }
          }
       }else if(ev instanceof MemberExited){
-         //@TODO Need implementation
+
       }
 
       MappedRouterConfig2 routerFactory = new MappedRouterConfig2(this.routees);

@@ -1,5 +1,6 @@
 package thirdstage.exercise.akka.wordanalysis.mappedrouter;
 
+import java.net.InetAddress;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import akka.actor.ActorSystem;
@@ -7,9 +8,12 @@ import akka.actor.ActorSystem;
 public class MappedRouterActorTest1Worker{
 
    public static void main(String[] args) throws Exception{
+      String addr = InetAddress.getLocalHost().getHostAddress();
+
       Config config = ConfigFactory.load();
       config = config.getConfig("wordanalysis").withFallback(config);
       config = ConfigFactory.parseString("akka.cluster.roles = [compute]").withFallback(config);
+      config = ConfigFactory.parseString("akka.remote.netty.tcp.hostname=" + addr).withFallback(config);
       config = ConfigFactory.parseString("akka.remote.netty.tcp.port=" + 2552).withFallback(config);
 
       ActorSystem system = ActorSystem.create("WordAnalysis", config);

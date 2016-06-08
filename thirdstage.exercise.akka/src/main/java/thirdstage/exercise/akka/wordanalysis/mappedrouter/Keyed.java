@@ -1,7 +1,9 @@
 package thirdstage.exercise.akka.wordanalysis.mappedrouter;
 
+import javax.annotation.Nonnull;
+
 public interface Keyed<T extends java.io.Serializable>{
 
-   public Key<T> getKey();
+   @Nonnull public Key<T> getKey();
 
 }

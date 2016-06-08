@@ -11,19 +11,27 @@ public class MappedRoutingLogic<T extends java.io.Serializable> implements Routi
 
 
    @Override
-   public Routee select(Object message, IndexedSeq<Routee> routees){
-      if(!(message instanceof Keyed<?>)){
+   public Routee select(Object msg, IndexedSeq<Routee> routees){
+      if(!(msg instanceof Keyed<?>)){
          this.logger.error("Keyed type message should be provided. But {} type message is provided.",
-               message.getClass().getSimpleName());
+               msg.getClass().getSimpleName());
+
+         //@TODO Need more consideration on the choice among execption or NoRoutee
          return akka.routing.NoRoutee$.MODULE$;
       }
 
-      Keyed<T> keyedMsg = (Keyed<T>)message;
+      Key<T> key = ((Keyed<T>)msg).getKey();
+      if(key == null){
+         this.logger.error("The provided key is null.");
+         return akka.routing.NoRoutee$.MODULE$;
+      }
 
+      //@TODO Isn't it need to guide the routee?
       int size = routees.size();
       Routee routee = null;
       KeyedRoutee<T> keyedRoutee = null;
       for(int i = 0; i < size; i++){
+         if(!routees.isDefinedAt(i)){ break;} // the basic guide on routees, but much fragile
          routee = routees.apply(i);
          if(!(routee instanceof KeyedRoutee<?>)){
             this.logger.warn("KeyedRoutee type routee should be provided. But {} type is provided.",
@@ -31,16 +39,16 @@ public class MappedRoutingLogic<T extends java.io.Serializable> implements Routi
             continue;
          }
 
-         if(keyedMsg.getKey().equals(((KeyedRoutee<T>)routee).getKey())){
-            this.logger.debug("Found routee mapped to the key of {}.", keyedMsg.getKey());
+         if(key.equals(((KeyedRoutee<T>)routee).getKey())){
+            this.logger.debug("Found routee mapped to the key of {}.", key);
             keyedRoutee = (KeyedRoutee<T>)routee;
             break;
          }
       }
-      if(keyedRoutee != null){
-         return keyedRoutee;
-      }else{
-         this.logger.warn("Can't find routee is mapped to the key of {}.", keyedMsg.getKey());
+
+      if(keyedRoutee != null){ return keyedRoutee; }
+      else{
+         this.logger.warn("Can't find routee is mapped to the key of {}.", key);
          return akka.routing.NoRoutee$.MODULE$;
       }
 

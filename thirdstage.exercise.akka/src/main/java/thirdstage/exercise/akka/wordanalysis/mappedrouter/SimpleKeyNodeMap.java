@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.hibernate.validator.constraints.NotBlank;
@@ -17,9 +18,14 @@ public class SimpleKeyNodeMap<T extends java.io.Serializable> implements KeyNode
 
    public SimpleKeyNodeMap(){ }
 
-   public SimpleKeyNodeMap(@Nonnull Map<T, String> map){
-      for(T key : map.keySet()){
-         this.map.put(new Key<T>(key), map.get(key));
+   /**
+    * @param map if not null, will be shallow-copied, not referenced
+    */
+   public SimpleKeyNodeMap(@Nullable Map<T, String> map){
+      if(map != null){
+         for(Map.Entry<T, String> entry : map.entrySet()){
+            this.map.put(new Key<T>(entry.getKey()), entry.getValue());
+         }
       }
    }
 

@@ -11,6 +11,7 @@ import akka.cluster.Member;
  */
 public class PortBaseNodeIdResolver implements NodeIdResolver{
 
+   //@TODO Consider more to set member parameter nullable
    @Override @Nullable
    public String resolveNodeId(@Nonnull Member member){
       Validate.isTrue(member != null, "Member shouldn't be null.");
