@@ -3,6 +3,8 @@ package thirdstage.exercise.akka.wordanalysis.mappedrouter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
@@ -18,11 +20,14 @@ import akka.cluster.ClusterEvent.MemberExited;
 import akka.cluster.ClusterEvent.MemberUp;
 import akka.cluster.ClusterEvent.ReachableMember;
 import akka.cluster.ClusterEvent.UnreachableMember;
+import akka.cluster.Member;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.routing.Router;
 
 public class MappedRouterActor<T extends java.io.Serializable> extends UntypedActor{
+
+   //@TODO Update to manage member list to double check the timing of router update.
 
    private final LoggingAdapter logger = Logging.getLogger(getContext().system(), this);
    private final Cluster cluster;
@@ -44,6 +49,8 @@ public class MappedRouterActor<T extends java.io.Serializable> extends UntypedAc
    private final List<KeyedRoutee<T>> routees = new ArrayList<KeyedRoutee<T>>();
 
    @Nonnull protected List<KeyedRoutee<T>> getRoutees(){ return this.routees; }
+
+   private final Lock routeesLock = new ReentrantLock();
 
    private volatile Router router = null;
 
@@ -92,25 +99,29 @@ public class MappedRouterActor<T extends java.io.Serializable> extends UntypedAc
          }
       }else if(msg instanceof MemberUp){
          MemberUp ev = (MemberUp) msg;
-         this.logger.debug("Member(address:{}) is up.", ev.member().address());
+         this.logger.info("Member(address:{}) is up.", ev.member().address());
 
-         this.updateRouterWithMemberEvent(ev);
-
+         //this.updateRouterWithMemberEvent(ev);
+         this.addRouteesForMember(ev.member());
       }else if(msg instanceof MemberExited){
          MemberExited ev = (MemberExited) msg;
-         this.logger.debug("Member(address:{}) has exited.", ev.member().address());
+         this.logger.info("Member(address:{}) has exited.", ev.member().address());
+
+         this.removeRouteesOfMember(ev.member());
       }else if(msg instanceof UnreachableMember){
          UnreachableMember ev = (UnreachableMember) msg;
-         this.logger.debug("Member(address:{}) is unreachable.", ev.member().address());
+         this.logger.info("Member(address:{}) is unreachable.", ev.member().address());
+
+         this.removeRouteesOfMember(ev.member());
       }else if(msg instanceof ReachableMember){
          ReachableMember ev = (ReachableMember) msg;
-         this.logger.debug("Member(address:{}) is reachable.", ev.member().address());
+         this.logger.info("Member(address:{}) is reachable.", ev.member().address());
+
+         this.addRouteesForMember(ev.member());
       }else if(msg instanceof MemberEvent){
          MemberEvent ev = (MemberEvent) msg;
-         this.logger.debug("Member(address:{}) issued {}.", ev.member().address(), ev.getClass().getSimpleName());
-      }
-
-      else{
+         this.logger.info("Member(address:{}) caused {}.", ev.member().address(), ev.getClass().getSimpleName());
+      }else{
          this.unhandled(msg);
       }
    }
@@ -132,14 +143,28 @@ public class MappedRouterActor<T extends java.io.Serializable> extends UntypedAc
       KeyedRoutee<T> routee = null;
 
       if(ev instanceof MemberUp){
-         for(Map.Entry<Key<T>, String> entry : this.nodeMap.getEntrySet()){
-            if(nodeId.equals(entry.getValue())){
-               routee = new KeyedActorSelectionRoutee(entry.getKey(), system.actorSelection(path));
-               this.routees.add(routee);
+         this.routeesLock.lock();
+         try{
+            for(Map.Entry<Key<T>, String> entry : this.nodeMap.getEntrySet()){
+               if(nodeId.equals(entry.getValue())){
+                  routee = new KeyedActorSelectionRoutee(entry.getKey(), system.actorSelection(path));
+                  this.routees.add(routee);
+               }
             }
+         }finally{
+            this.routeesLock.unlock();
          }
       }else if(ev instanceof MemberExited){
-
+         String id = null;
+         this.routeesLock.lock();
+         try{
+            for(int i = this.routees.size() - 1; i > -1; i--){
+               id = this.nodeMap.getNodeId(this.routees.get(i).getKey());
+               if(nodeId.equals(id)){ this.routees.remove(i); }
+            }
+         }finally{
+            this.routeesLock.unlock();
+         }
       }
 
       MappedRouterConfig2 routerFactory = new MappedRouterConfig2(this.routees);
@@ -149,4 +174,76 @@ public class MappedRouterActor<T extends java.io.Serializable> extends UntypedAc
       this.logger.info("Updated the router. The number of routees become {} from {}.", n2, n1);
    }
 
+   private void addRouteesForMember(@Nullable Member member){
+      if(member == null){
+         this.logger.warning("Specified member is null, which is not expected.");
+         return;
+      }
+
+      Address addr = member.address();
+      String nodeId = this.nodeIdResolver.resolveNodeId(member);
+      if(StringUtils.isBlank(nodeId)){
+         this.logger.warning("Can't resolve node ID from member whose address is {}.", addr.toString());
+         return;
+      }
+
+      String path = new StringBuilder().append(addr.protocol()).append("://")
+            .append(addr.hostPort()).append("/user/").append(this.routeeFullName).toString();
+
+      ActorSystem system = this.getContext().system();
+      KeyedRoutee<T> routee = null;
+
+      this.routeesLock.lock();
+      try{
+         for(Map.Entry<Key<T>, String> entry : this.nodeMap.getEntrySet()){
+            if(nodeId.equals(entry.getValue())){
+               routee = new KeyedActorSelectionRoutee(entry.getKey(), system.actorSelection(path));
+               this.routees.add(routee);
+            }
+         }
+      }finally{
+         this.routeesLock.unlock();
+      }
+
+      this.updateRouter();
+   }
+
+
+   private void removeRouteesOfMember(@Nullable Member member){
+      if(member == null){
+         this.logger.warning("Specified member is null, which is not expected.");
+         return;
+      }
+
+      Address addr = member.address();
+      String nodeId = this.nodeIdResolver.resolveNodeId(member);
+      if(StringUtils.isBlank(nodeId)){
+         this.logger.warning("Can't resolve node ID from member whose address is {}.", addr.toString());
+         return;
+      }
+
+      ActorSystem system = this.getContext().system();
+
+      String id = null;
+      this.routeesLock.lock();
+      try{
+         for(int i = this.routees.size() - 1; i > -1; i--){
+            id = this.nodeMap.getNodeId(this.routees.get(i).getKey());
+            if(nodeId.equals(id)){ this.routees.remove(i); }
+         }
+      }finally{
+         this.routeesLock.unlock();
+      }
+
+      this.updateRouter();
+   }
+
+   private void updateRouter(){
+
+      MappedRouterConfig2 routerFactory = new MappedRouterConfig2(this.routees);
+      int n1 = (this.router == null) ? 0 : this.router.routees().size();
+      this.router = routerFactory.createRouter(this.getContext().system());
+      int n2 = this.router.routees().size();
+      this.logger.info("Updated the router. The number of routees become {} from {}.", n2, n1);
+   }
 }
