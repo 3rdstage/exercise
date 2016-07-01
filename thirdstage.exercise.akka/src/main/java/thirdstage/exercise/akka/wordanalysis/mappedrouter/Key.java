@@ -11,7 +11,7 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
  *
  * @author Sangmoon Oh
  *
- * @param <T> the type of key
+ * @param <T> the type of key core
  */
 @Immutable
 public class Key<T extends java.io.Serializable> implements java.io.Serializable{

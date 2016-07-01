@@ -45,12 +45,15 @@ public abstract class ClusterNodeBase implements ClusterNode{
       return this;
    }
 
+   //@TODO Try to find to expose the config instance via platform JMX server
    private Config config;
 
    protected Config getConfig(){ return this.config; }
 
+   //@TODO Try to find to expose the actor system instance via platform JMX server
    private ActorSystem system;
 
+   //@TODO Why set to public ?
    public ActorSystem getActorSystem(){ return this.system; }
 
    public ClusterNodeBase(@NotBlank String clusterName, @NotBlank String applName,
