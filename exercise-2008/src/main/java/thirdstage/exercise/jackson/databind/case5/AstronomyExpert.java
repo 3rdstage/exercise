@@ -16,6 +16,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 
 /**
+ * Exercise on the {@code JsonCreator} annotation
+ *
+ *
  * @author Sangmoon Oh
  *
  */
