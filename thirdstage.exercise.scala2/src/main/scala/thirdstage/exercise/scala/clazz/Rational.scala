@@ -11,6 +11,8 @@ class Rational(n: Int, d:Int) {
   val numer: Int = n
   val denom: Int = d
 
+  def this(n: Int) = this(n, 1)
+  
   override def toString = n + "/" + d
 
   def add(that: Rational): Rational =
@@ -18,5 +20,10 @@ class Rational(n: Int, d:Int) {
         numer * that.denom + denom * that.numer,
         denom * that.denom
     )
-
+  
+  def + (that: Rational): Rational = this.add(that)
+  
+  def * (that: Rational): Rational =
+    new Rational(this.numer * that.numer, this.denom * that.denom)
+  
 }
