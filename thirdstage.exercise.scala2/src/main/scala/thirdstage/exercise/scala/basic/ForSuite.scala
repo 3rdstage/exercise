@@ -13,4 +13,13 @@ class ForSuite extends FunSuite {
 
   }
 
+  test("Listing files using for clasue"){
+
+    val files = (new java.io.File(java.lang.System.getenv("windir"))).listFiles()
+
+    println("Files under %windir% directory")
+    for(file <- files) println(file)
+
+  }
+
 }

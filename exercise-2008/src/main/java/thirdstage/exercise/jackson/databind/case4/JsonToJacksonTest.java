@@ -4,7 +4,9 @@
 package thirdstage.exercise.jackson.databind.case4;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.TimeZone;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
@@ -14,8 +16,10 @@ import org.json.JSONObject;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping;
 import com.fasterxml.jackson.module.jaxb.JaxbAnnotationModule;
 import junit.framework.Assert;
 import thirdstage.exercise.jackson.databind.case4.RequestToken.Action;
@@ -51,7 +55,8 @@ public class JsonToJacksonTest {
       this.jacksonMapper.enable(MapperFeature.AUTO_DETECT_GETTERS);
       this.jacksonMapper.enable(MapperFeature.AUTO_DETECT_SETTERS);
       this.jacksonMapper.enable(MapperFeature.AUTO_DETECT_IS_GETTERS);
-      //this.jacksonMapper.enableDefaultTyping();
+      this.jacksonMapper.enableDefaultTyping(DefaultTyping.NON_CONCRETE_AND_ARRAYS);
+      this.jacksonMapper.enableDefaultTyping(DefaultTyping.NON_CONCRETE_AND_ARRAYS, JsonTypeInfo.As.PROPERTY);
    }
 
 
@@ -62,7 +67,7 @@ public class JsonToJacksonTest {
       byte[] bytes = FileUtils.readFileToByteArray(new File(ClassLoader.getSystemResource(imgLoc).toURI()));
 
       JSONObject imgJson = new JSONObject();
-      imgJson.put("class", "thirdstage.exercise.jackson.databind.case4.Image");
+      imgJson.put("@class", "thirdstage.exercise.jackson.databind.case4.Image");
       imgJson.put("location", imgLoc);
       imgJson.put("width", 470);
       imgJson.put("height", 465);
@@ -95,16 +100,18 @@ public class JsonToJacksonTest {
    @Test
    public void testSerDe2() throws Exception{
 
+      String[] arry = new String[]{"11", "12", "13"};
 
       JSONArray arryJson = new JSONArray();
-      arryJson.put("11");
-      arryJson.put("12");
-      arryJson.put("13");
+      for(String str : arry){ arryJson.put(str); }
+
+      JSONArray arryJson2 = new JSONArray();
+      arryJson2.put("java.util.ArrayList");
+      arryJson2.put(arryJson);
 
       JSONObject reqJson = new JSONObject();
-      reqJson.put("id", 1);
-            reqJson.put("action", Action.REMOVE_FACES);
-      reqJson.put("object", arryJson);
+      reqJson.put("action", Action.REMOVE_FACES);
+      reqJson.put("object", arryJson2);
 
       String reqStr = reqJson.toString();
       this.logger.info(reqStr);
@@ -112,7 +119,15 @@ public class JsonToJacksonTest {
       RequestToken req = this.jacksonMapper.readValue(reqStr, RequestToken.class);
 
       @SuppressWarnings("unused")
-      Object obj = req.getObject();
+      List<String> obj = (ArrayList<String>)(req.getObject());
+
+      for(int i = 0, n = obj.size(); i < n; i++){
+         Assert.assertEquals(obj.get(i), arry[i]);
+      }
+
+      this.logger.info("The deserialized object is : {}", obj.toString());
+
+
    }
 
 

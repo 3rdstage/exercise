@@ -52,7 +52,7 @@ public class RequestToken {
 
    public Object getObject(){ return this.obj; }
 
-   @JsonTypeInfo(use=JsonTypeInfo.Id.CLASS, include=JsonTypeInfo.As.PROPERTY, property="class")
+   @JsonTypeInfo(use=JsonTypeInfo.Id.CLASS, include=JsonTypeInfo.As.PROPERTY, property="@class")
    public RequestToken setObject(Object obj){
       this.obj = obj;
       return this;
