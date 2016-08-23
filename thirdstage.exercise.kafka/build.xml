@@ -68,5 +68,22 @@
     <fail unless="env.MAVEN_HOME">Environment variable MAVEN_HOME should be specified properly.</fail>
   </target>
 
+   <target name="zookeeper.start">
+      <mkdir dir="${project.pom.build.directory}/zookeeper"/>
+      <antelope:stringutil string="${project.pom.build.directory}/zookeeper" property="zookeeper.datadir">
+         <replace regex="\\" replacement="/"/>
+      </antelope:stringutil>
+      <echo>${zookeeper.datadir}</echo>
+      <concat destfile="${project.pom.build.directory}/zoo.cfg" append="no" overwrite="yes">
+         <resources>
+            <file file="${basedir}/src/test/resources/thirdstage/exercise/kafka/zoo.cfg"/>
+            <string>${line.separator}${line.separator}dataDir=${zookeeper.datadir}</string>
+         </resources>
+      </concat>
 
+      <java classname="org.apache.zookeeper.server.ZooKeeperServerMain"
+         classpathref="project.classpath" fork="true" failonerror="true">
+         <arg value='"${project.pom.build.directory}/zoo.cfg"'/>
+      </java>
+   </target>
 </project>
