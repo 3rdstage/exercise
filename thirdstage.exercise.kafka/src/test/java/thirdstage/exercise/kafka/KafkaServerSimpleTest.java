@@ -14,7 +14,7 @@ public class KafkaServerSimpleTest{
       props.setProperty("host.name", "localhost");
       props.setProperty("port", "9090");
       props.setProperty("broker.id", "1");
-      props.setProperty("log.dir", StringUtils.defaultIfBlank(System.getenv("TEMP"), System.getenv("TMP")));
+      props.setProperty("log.dir", StringUtils.defaultIfBlank(System.getenv("TEMP"), System.getenv("TMP")) + "/kafka");
       props.setProperty("zookeeper.connect", "127.0.0.1:2181");
 
       final KafkaConfig config = new KafkaConfig(props);
