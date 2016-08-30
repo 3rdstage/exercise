@@ -85,9 +85,25 @@
       <java classname="org.apache.zookeeper.server.ZooKeeperServerMain"
          classpathref="project.classpath" fork="false" failonerror="true">
          <sysproperty key="zookeeper.jmx.log4j.disable" value="true"/>
-         <arg value='"${project.pom.build.directory}/zoo.cfg"'/>
+         <arg value='${project.pom.build.directory}/zoo.cfg'/>
       </java>
    </target>
 
+   <target name="kafka-manager.start">
+      <fail message="Kafka Manager should be installed and environment varialbe of 'KAFKA_MANAGER_HOME' for it should be defined to run this target">
+         <condition>
+            <or>
+               <not><isset property="env.KAFKA_MANAGER_HOME"/></not>
+               <not><available file="${env.KAFKA_MANAGER_HOME}\bin\kafka_manager.bat"/></not>
+            </or>
+         </condition>
+      </fail>
+      <exec executable="cmd" dir="${env.KAFKA_MANAGER_HOME}">
+         <arg value="/c"/>
+         <arg value="bin\kafka_manager.bat"/>
+         <arg value="-Dhttp.port=9000"/>   <!-- default value -->
+      </exec>
+      <echo>The Kafka Manager has started successfully. Check 'http://127.0.0.1:9000/'</echo>
+   </target>
 
 </project>
