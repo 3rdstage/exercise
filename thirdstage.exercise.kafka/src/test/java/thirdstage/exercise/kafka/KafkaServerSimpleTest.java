@@ -1,26 +1,37 @@
 package thirdstage.exercise.kafka;
 
+import java.util.List;
 import java.util.Properties;
 import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.ZkConnection;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
+import kafka.admin.AdminUtils;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServerStartable;
 import kafka.utils.ZKStringSerializer$;
+import kafka.utils.ZkUtils;
+import scala.collection.JavaConversions;
 
 public class KafkaServerSimpleTest{
+
+   private final org.slf4j.Logger logger = LoggerFactory.getLogger(this.getClass());
 
    @Test
    public void testStartUp() throws Exception{
 
-      String zkConnStr = "127.0.0.1:2181";
+      final String zkConnStr = "127.0.0.1:2181";
+      final String host = "127.0.0.1";
+      final int port = 9090;
+      final String id = "1";
 
       final Properties props = new Properties();
-      props.setProperty("host.name", "localhost");
-      props.setProperty("port", "9090");
-      props.setProperty("broker.id", "1");
+      props.setProperty("host.name", host);
+      props.setProperty("port", String.valueOf(port));
+      props.setProperty("broker.id", id);
       props.setProperty("log.dir", StringUtils.defaultIfBlank(System.getenv("TEMP"), System.getenv("TMP")) + "/kafka");
-      props.setProperty("zookeeper.connect", "127.0.0.1:2181");
+      props.setProperty("zookeeper.connect", zkConnStr);
 
       final KafkaConfig config = new KafkaConfig(props);
 
@@ -41,7 +52,23 @@ public class KafkaServerSimpleTest{
          }
       });
 
-      ZkClient zkClient = new ZkClient(zkConnStr, 10 * 1000, 5 * 1000, ZKStringSerializer$.MODULE$);
+      final ZkClient zkClient = new ZkClient(zkConnStr, 10 * 1000, 5 * 1000, ZKStringSerializer$.MODULE$);
+      final ZkConnection zkConn = new ZkConnection(zkConnStr);
+      final ZkUtils zkUtils = new ZkUtils(zkClient, zkConn, false);
+
+      final List<String> topics = JavaConversions.seqAsJavaList(zkUtils.getAllTopics());
+
+      if(topics == null || topics.isEmpty()){
+         logger.info("The Kafka broker at {}:{} has no topics", host, port);
+      }else{
+         logger.info("The Kafka broker at {}:{} has {} topics", host, port, topics.size());
+      }
+
+      if(!topics.contains("orders")){
+         AdminUtils.createTopic(zkUtils, "orders", 5, 2, new Properties(), kafka.admin.RackAwareMode.Enforced$.MODULE$);
+      }
+
+
 
 
       System.out.println("Press [Enter] key to end this JVM.");
