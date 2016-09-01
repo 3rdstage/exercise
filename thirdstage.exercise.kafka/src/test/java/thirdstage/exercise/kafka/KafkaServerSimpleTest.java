@@ -65,10 +65,8 @@ public class KafkaServerSimpleTest{
       }
 
       if(!topics.contains("orders")){
-         AdminUtils.createTopic(zkUtils, "orders", 5, 2, new Properties(), kafka.admin.RackAwareMode.Enforced$.MODULE$);
+         AdminUtils.createTopic(zkUtils, "orders", 5, 1, new Properties(), kafka.admin.RackAwareMode.Enforced$.MODULE$);
       }
-
-
 
 
       System.out.println("Press [Enter] key to end this JVM.");
