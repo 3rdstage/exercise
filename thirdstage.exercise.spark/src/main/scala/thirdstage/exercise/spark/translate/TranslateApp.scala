@@ -2,6 +2,8 @@ package thirdstage.exercise.spark.translate
 
 import org.slf4j.LoggerFactory
 import scala.io.Source
+import org.apache.spark.SparkConf
+import org.apache.spark.SparkContext
 
 
 object TranslateApp {
@@ -20,9 +22,13 @@ object TranslateApp {
     }
     
     val Seq(appName, bookPath, outputPath, lang) = args.toSeq
-    val dic = getDictionary(lang)
+    val dict = getDictionary(lang)
     
-    
+    val conf = new SparkConf().setAppName(appName).setJars(SparkContext.jarOfClass(this.getClass).toSeq)
+    val sc = new SparkContext(conf)
+    val book = sc.textFile(bookPath)
+    val translated = book.map(line => line.split("\\s+").map(word => dict.getOrElse(word, word)).mkString(" "))
+    translated.saveAsTextFile(outputPath)
   }
   
   def getDictionary(lang: String): Map[String, String] = {
