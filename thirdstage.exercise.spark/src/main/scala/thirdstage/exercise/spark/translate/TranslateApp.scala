@@ -16,6 +16,8 @@ object TranslateApp {
   
   def main(args: Array[String]){
     
+    System.out.println("Starting Spark Application")
+    
     if(args.length != 4){
       System.err.println("Usage : TranslateApp <app_name> <book_path> <output_path> <lang>")
       System.exit(1)
