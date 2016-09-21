@@ -6,7 +6,7 @@ object TranslateAppLocalLauncher extends App {
 
    override def main(args: Array[String]){
 
-      val spark = new SparkLauncher().setSparkHome(System.getProperty("appl.spark.home"))
+      val spark = new SparkLauncher()
       .setAppResource(System.getProperty("appl.spark.resource"))
       .setMainClass("thirdstage.exercise.spark.translate.TranslateApp")
       .setMaster("local[*]")
