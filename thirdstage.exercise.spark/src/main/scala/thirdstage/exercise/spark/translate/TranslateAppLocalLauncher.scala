@@ -10,12 +10,13 @@ object TranslateAppLocalLauncher extends App {
 
     val env = new HashMap[String, String]()
     env.put("SPARK_PRINT_LAUNCH_COMMAND", "1");
+    
+    val masterUrl = "spark://localhost:" + System.getenv("SPARK_MASTER_PORT")
 
     val spark = new SparkLauncher(env)
-//      .setSparkHome("C:/lang/spark-1.6.2")
       .setAppResource(System.getProperty("appl.spark.resource"))
       .setMainClass("thirdstage.exercise.spark.translate.TranslateApp")
-      .setMaster("local[*]")
+      .setMaster(masterUrl)
       .addSparkArg("--verbose")
       .setVerbose(true)
 
