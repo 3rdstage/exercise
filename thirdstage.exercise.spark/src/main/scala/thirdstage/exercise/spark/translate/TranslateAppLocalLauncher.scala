@@ -6,25 +6,37 @@ import java.util.HashMap
 
 object TranslateAppLocalLauncher extends App {
 
-   override def main(args: Array[String]){
+  override def main(args: Array[String]) {
 
-      val env = new HashMap[String, String]()
-      env.put("SPARK_PRINT_LAUNCH_COMMAND", "1");
+    val env = new HashMap[String, String]()
+    env.put("SPARK_PRINT_LAUNCH_COMMAND", "1");
 
-      val spark = new SparkLauncher(env)
-            .setSparkHome("C:/lang/spark-1.6.2")
-            .setAppResource(System.getProperty("appl.spark.resource"))
-            .setMainClass("thirdstage.exercise.spark.translate.TranslateApp")
-            .setMaster("local[*]")
-            .addSparkArg("--verbose")
-            .setVerbose(true);
+    val spark = new SparkLauncher(env)
+//      .setSparkHome("C:/lang/spark-1.6.2")
+      .setAppResource(System.getProperty("appl.spark.resource"))
+      .setMainClass("thirdstage.exercise.spark.translate.TranslateApp")
+      .setMaster("local[*]")
+      .addSparkArg("--verbose")
+      .setVerbose(true)
 
-      //val process = spark.launch()
-      spark.startApplication()
+    //val process = spark.launch()
+    spark.startApplication()
 
-      System.out.println("Launched Spark Application")
+    System.out.println("Launched Spark Application")
 
-      //process.waitFor()
-   }
+    System.out.println("Press [Enter] key to end this process.");
 
+    var cnt = 0
+    var keyed = false
+    do {
+      cnt = System.in.available()
+      if (cnt >= 1) keyed = true
+      else Thread.sleep(500)
+    } while (!keyed)
+
+    while (cnt > 0) {
+      System.in.read()
+      cnt -= cnt
+    }
+  }
 }
