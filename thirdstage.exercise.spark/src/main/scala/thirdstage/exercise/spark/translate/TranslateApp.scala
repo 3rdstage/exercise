@@ -19,6 +19,7 @@ object TranslateApp {
     System.out.println("Starting Spark Application")
 
     if(args.length != 4){
+      logger.warn("Fail to execute application due to improper number of argument")
       System.err.println("Usage : TranslateApp <app_name> <book_path> <output_path> <lang>")
       System.exit(1)
     }
