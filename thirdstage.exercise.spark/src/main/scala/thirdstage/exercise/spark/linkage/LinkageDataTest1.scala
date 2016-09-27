@@ -87,5 +87,14 @@ class LinkageDataTest1 extends FunSuite with SharedSparkContext {
      assert(record2.matched)
      
   }
+  
+  test("The hisotram of block 1 data on 'matched' attribute shows ..."){
+    
+    val dataLines = block1.filter(x => !x.contains("id_1"))
+    val lines1 = dataLines.count()
+    
+    
+    
+  }
 
 }
