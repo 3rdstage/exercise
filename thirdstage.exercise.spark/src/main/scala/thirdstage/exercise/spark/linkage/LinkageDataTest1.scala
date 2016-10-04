@@ -37,7 +37,7 @@ class LinkageDataTest1 extends FunSuite with SharedSparkContext {
 
   }
 
-  test("The total rows of the block 1 is more than tens of thousands"){
+  test("The total rows of the block 1 is more than tens of thousands") {
     assert(this.block1.count() > 10000)
   }
 
@@ -46,12 +46,12 @@ class LinkageDataTest1 extends FunSuite with SharedSparkContext {
     assert(head.length == 10)
   }
 
-  test("The block 1 has just one header line"){
+  test("The block 1 has just one header line") {
     val header = this.block1.filter(x => x.contains("id_1"))
     assert(header.count() == 1)
   }
 
-  test("The 1st data line of block 1 goes like '37291', '53113', ..., 'TRUE'"){
+  test("The 1st data line of block 1 goes like '37291', '53113', ..., 'TRUE'") {
 
     val items1 = this.block1.take(5)(1).split(',')
     assert(items1(0).toInt == 37291)
@@ -59,41 +59,46 @@ class LinkageDataTest1 extends FunSuite with SharedSparkContext {
     assert(items1.last.toBoolean)
   }
 
-  test("The scores of 1st data line from block 1 goes like '0.833333333333333', NaN, '1.0', NaN"){
+  test("The scores of 1st data line from block 1 goes like '0.833333333333333', NaN, '1.0', NaN") {
     val scores1 = this.block1.take(5)(1).split(',').slice(2, 11)
-      .map(x => if("?".equals(x)) Double.NaN else x.toDouble)
+      .map(x => if ("?".equals(x)) Double.NaN else x.toDouble)
     assert(scores1(0) == 0.833333333333333)
-    assert(scores1(1) == Double.NaN)
+    assert(scores1(1).equals(Double.NaN))
     assert(scores1(2) == 1.0)
 
   }
 
-  case class MatchRecord(id1:Int, id2:Int, scores: Array[Double], matched: Boolean)
-
   def parseToMatchRecord(line: String) = {
     val items = line.split(',')
     MatchRecord(items(0).toInt,
-        items(1).toInt,
-        items.slice(2, 11).map(x => if("?".equals(x)) Double.NaN else x.toDouble),
-        items.last.toBoolean)
+      items(1).toInt,
+      items.slice(2, 11).map(x => if ("?".equals(x)) Double.NaN else x.toDouble),
+      items.last.toBoolean)
   }
 
-  test("The 2nd data line of block 1 goes like '39086','47614','1','?'..."){
-     val items2 = this.block1.take(5)(2)
+  test("The 2nd data line of block 1 goes like '39086','47614','1','?'...") {
+    val items2 = this.block1.take(5)(2)
 
-     val record2 = parseToMatchRecord(items2)
-     assert(record2.id1.equals("39086"))
-     assert(record2.id2.equals("47614"))
-     assert(record2.matched)
+    val record2 = parseToMatchRecord(items2)
+    assert(record2.id1.equals(39086))
+    assert(record2.id2.equals(47614))
+    assert(record2.matched)
 
   }
 
-  test("The hisotram of block 1 data on 'matched' attribute shows 2093 trues and 572820 falses"){
+  test("The hisotram of block 1 data on 'matched' attribute shows 2093 trues and 572820 falses") {
 
     val data1 = block1.filter(x => !x.contains("id_1")) //data lines
     val cnt1 = data1.count()
 
-    val records1 = data1.map(line => parseToMatchRecord(line))
+    //@Note Do NOT call 'parseToMatchRecord' which is not serializable
+    val records1 = data1.map(line => {
+      val items = line.split(',')
+      MatchRecord(items(0).toInt,
+        items(1).toInt,
+        items.slice(2, 11).map(x => if ("?".equals(x)) Double.NaN else x.toDouble),
+        items.last.toBoolean)
+    })
     val counts1 = records1.map(r => r.matched).countByValue()
 
     val trues = counts1.get(true)
@@ -104,5 +109,6 @@ class LinkageDataTest1 extends FunSuite with SharedSparkContext {
     assert(falses.get == 572820)
 
   }
-
 }
+
+case class MatchRecord(id1: Int, id2: Int, scores: Array[Double], matched: Boolean) extends java.io.Serializable
