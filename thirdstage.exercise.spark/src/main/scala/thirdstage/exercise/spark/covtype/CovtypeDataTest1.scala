@@ -27,16 +27,19 @@ class CovtypeDataTest1 extends FunSuite with SharedSparkContext {
 
   private val logger = LoggerFactory.getLogger(this.getClass)
 
+  private var workDir  = ""
+  private var filePath = "" //full path for the data file
+
   override def beforeAll {
     super.beforeAll()
 
-    val workDir = System.getProperty("workDir")
+    this.workDir = System.getProperty("workDir")
     if (workDir == null || workDir.isEmpty()) {
       throw new IllegalStateException("The 'workDir' should be provided at command-line")
     }
 
-    val dfPath = workDir + raw"\covtype.data"
-    val dFile = new File(dfPath)
+    this.filePath = workDir + raw"\covtype.data"
+    val dFile = new File(filePath)
     val zfPath = workDir + raw"\covtype.data.gz"  //Need to enhance the code in case when 'workDir' ends with path separator (slash or back-slash)
     val zFile = new File(zfPath)
     val url = "https://archive.ics.uci.edu/ml/machine-learning-databases/covtype/covtype.data.gz"
@@ -53,10 +56,10 @@ class CovtypeDataTest1 extends FunSuite with SharedSparkContext {
 
       logger.info("Start to unzip archive file {} to {}",  zfPath, workDir:Any)
       ZipUtil.unpack(zFile, new java.io.File(workDir))
-      logger.info("Completed unzipping archive file to {}", dfPath)
+      logger.info("Completed unzipping archive file to {}", filePath)
 
     }else{
-      logger.info("Sample data file is already prepared at {}", dfPath)
+      logger.info("Sample data file is already prepared at {}", filePath)
     }
 
 
@@ -71,6 +74,13 @@ class CovtypeDataTest1 extends FunSuite with SharedSparkContext {
 
   test("Dummy test - test nothing but just assert true."){
     assert(true);
+  }
+
+  test("Raw data contains 581012 rows."){
+    val raw = sc.textFile(this.filePath)
+
+    assert(raw.count() == 581012)
+
   }
 
 }
