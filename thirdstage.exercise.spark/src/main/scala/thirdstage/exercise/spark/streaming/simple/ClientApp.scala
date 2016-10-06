@@ -19,8 +19,9 @@ object ClientApp {
     var in: java.io.BufferedReader = null
     try {
       val server = new ServerSocket(9087)
-      val client = server.accept()
+      println("Waiting client")
 
+      val client = server.accept()
       println("Connection accepted")
 
       os = client.getOutputStream()
