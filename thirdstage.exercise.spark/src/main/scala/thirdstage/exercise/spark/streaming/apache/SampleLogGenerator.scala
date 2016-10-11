@@ -1,12 +1,25 @@
 package thirdstage.exercise.spark.streaming.apache
 
-import sys.process._
-import org.apache.commons.io.FileUtils
-import java.net.URL
-import org.zeroturnaround.zip.ZipUtil
-import org.slf4j.LoggerFactory
 import java.io.FileReader
+import java.net.URL
 
+import scala.sys.process._
+
+import org.apache.commons.io.FileUtils
+import org.apache.commons.lang3.time.FastDateFormat
+import org.slf4j.LoggerFactory
+import org.zeroturnaround.zip.ZipUtil
+
+/**
+ * This application would create access log files (names of 'access_yyyyMMddHHmmssSSS.log') and
+ * error log file (names of 'error_yyyyMMddHHmmssSSS.log') under the directory of '${workDir}/logs'
+ * where the 'workDir' is specified via Java system properties.
+ * <p>
+ * This application expects single parameter at runtime which is to be 'access_log' or 'error_log'
+ *
+ * @author Sangmoon Oh
+ * @since 2016-10-11
+ */
 object SampleLogGenerator {
 
   private val logger = LoggerFactory.getLogger(this.getClass)
@@ -16,6 +29,16 @@ object SampleLogGenerator {
     val workDir = System.getProperty("workDir")
     if (workDir == null || workDir.isEmpty()) {
       throw new IllegalStateException("The 'workDir' should be provided at command-line")
+    }
+
+    val logLines = Integer.valueOf(System.getProperty("logLines", "100"))
+    if(logLines < 100){
+      throw new IllegalStateException("The 'logLines' should be at least 100")
+    }
+
+    val sleepMilliSec = Integer.valueOf(System.getProperty("sleepMilliSec", "200"))
+    if(sleepMilliSec < 100){
+      throw new IllegalStateException("The 'sleepMilliSec' should be at least 100")
     }
 
     val dPath = workDir + raw"\error_log"
@@ -41,29 +64,53 @@ object SampleLogGenerator {
       logger.info(raw"Sample data files ({}\error_log and {}\access_log) are already prepared at {}", workDir, workDir, workDir)
     }
 
-
     var in :java.io.BufferedReader = null
     var out :java.io.FileOutputStream = null
     try{
-      if(args.length != 2){
-        System.out.println("Usage - java SampleLogGenerator file1 file2")
+      if(!(args.length == 1 && (Array("access_log", "error_log") contains args(0)))){
+        System.out.println("Usage - java SampleLogGenerator access_log|error_log")
         System.exit(0)
       }
 
-      in = new java.io.BufferedReader(new FileReader(new java.io.File(args(0))))
-      out = new java.io.FileOutputStream(new java.io.File(args(1)))
+      val ft = args(0).substring(0, args(0).indexOf('_')) //output file type : 'access' or 'error'
+
+      def timestamp() = {
+        val formatter = FastDateFormat.getInstance("yyyyMMddHHmmssSSS")
+        formatter.format(new java.util.Date())
+      }
+
+      FileUtils.forceMkdir(new java.io.File(workDir + "/logs"))
+      var fn = workDir + "/" + ft + "_" + timestamp() + ".log"
+
+      in = new java.io.BufferedReader(new FileReader(new java.io.File(workDir + "/" + args(0))))
+      out = new java.io.FileOutputStream(new java.io.File(fn))
       var line:String = null
+      var cnt = 0
+      var fn2:String = null
       while(true){
         line = in.readLine()
         if(line == null){
           in.close()
-          in = new java.io.BufferedReader(new FileReader(new java.io.File(args(0))))
+          in = new java.io.BufferedReader(new FileReader(new java.io.File(workDir + "/" + args(0))))
           line = in.readLine()
         }
         out.write((line + "\n").getBytes())
         out.flush()
-        logger.info("Wrote a line to {}", args(1))
-        Thread.sleep(500)
+        logger.debug("Wrote a line to {}", fn)
+        cnt += 1
+        if(cnt >= logLines){
+          out.close()
+          //move the closed file
+          fn2 = workDir + "/logs/" + fn.substring(fn.lastIndexOf("/") + 1)
+          new java.io.File(fn).renameTo(new java.io.File(fn2))
+          logger.debug("Move the log file {} under 'logs' directory", fn)
+
+          //next output file
+          fn = workDir + "/" + ft + "_" + timestamp() + ".log"
+          out = new java.io.FileOutputStream(new java.io.File(fn))
+          cnt = 0
+        }
+        Thread.sleep(sleepMilliSec.toLong)
       }
 
     }catch {
