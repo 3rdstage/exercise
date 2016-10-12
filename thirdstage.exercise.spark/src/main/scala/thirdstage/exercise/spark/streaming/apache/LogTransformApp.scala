@@ -13,6 +13,8 @@ object LogTransformApp extends {
   def main(args: Array[String]) {
 
     val workDir = System.getProperty("workDir")
+    logger.debug("The 'workDir' is : {}", workDir)
+
     if (workDir == null || workDir.isEmpty()) {
       throw new IllegalStateException("The 'workDir' should be provided at command-line")
     }
@@ -36,6 +38,11 @@ object LogTransformApp extends {
 
   private def transform(stream:DStream[(String, String)], cntx:StreamingContext){
     logger.debug("Transforming map stream")
+
+    val gets = stream.filter(x => x._1.equals("method") && x._2.contains("GET")).count().print()
+
+    println("The number of GET requests is : " + gets)
+
   }
 
 }

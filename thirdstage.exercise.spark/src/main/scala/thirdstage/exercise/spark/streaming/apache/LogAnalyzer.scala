@@ -20,8 +20,15 @@ class LogAnalyzer extends Serializable{
   }
 
   private def createDataMap(m:Matcher) = {
-    Map("IP" -> m.group(1), "client" -> m.group(2), "user" -> m.group(3), "date" -> m.group(4), "method" -> m.group(5), "request" -> m.group(6),
-        "protocol" -> m.group(7), "respCode" -> m.group(8), "size" -> m.group(9))
+    Map[String, String](("IP" -> m.group(1)),
+        ("client" -> m.group(2)),
+        ("user" -> m.group(3)),
+        ("date" -> m.group(4)),
+        ("method" -> m.group(5)),
+        ("request" -> m.group(6)),
+        ("protocol" -> m.group(7)),
+        ("respCode" -> m.group(8)),
+        ("size" -> m.group(9)))
   }
 
 

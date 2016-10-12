@@ -116,8 +116,12 @@
       </exec>
    </target>
 
-   <target name="spark.submit.exercise.streaming.apache"
+   <target name="run.exercise.streaming.apache.analyze"
       description="Submit Spark application at thirdstage.exercise.spark.streaming.apache">
+
+      <antelope:stringutil string="${project.pom.build.directory}" property="project.pom.build.directory.slashed">
+         <antelope:replace regex="\\" replacement="/"/>
+      </antelope:stringutil>
       <exec executable="cmd" dir="${env.SPARK_HOME}" failonerror="true">
          <arg value="/c"/>
          <arg value="bin\spark-submit.cmd"/>
@@ -126,10 +130,25 @@
          <arg value="--master"/>
          <arg value="local[8]"/>
          <arg value="--conf"/>
-         <arg value='spark.driver.extraJavaOptions=-DworkDir="${project.pom.build.directory}\apache-sample"'/>
+         <arg value='spark.driver.extraJavaOptions=-DworkDir="${project.pom.build.directory.slashed}/apache-sample"'/>
          <arg value="${project.pom.build.directory}\${project.pom.build.finalName}.jar"/>
       </exec>
    </target>
 
+   <target name="run.exercise.streaming.apache.genAccessLog"
+      description="Generate access log to demon thirdstage.exercise.spark.streaming.apache">
+
+      <java fork="true" spawn="false" classname="thirdstage.exercise.spark.streaming.apache.SampleLogGenerator">
+         <classpath>
+            <pathelement location="${project.pom.build.directory}\classes"/>
+            <path refid="project.classpath"/>
+         </classpath>
+         <jvmarg value="-Xmx512m"/>
+         <jvmarg value="-XX:MaxPermSize=512M"/>
+         <jvmarg value="-XX:+CMSClassUnloadingEnabled"/>
+         <sysproperty key="workDir" value="${basedir}/target/apache-sample"/>
+         <arg value="access_log"/>
+      </java>
+   </target>
 
 </project>
