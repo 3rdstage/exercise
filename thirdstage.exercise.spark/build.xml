@@ -117,7 +117,7 @@
    </target>
 
    <target name="run.exercise.streaming.apache.analyze"
-      description="Submit Spark application at thirdstage.exercise.spark.streaming.apache">
+      description="Submits Spark application at thirdstage.exercise.spark.streaming.apache">
 
       <antelope:stringutil string="${project.pom.build.directory}" property="project.pom.build.directory.slashed">
          <antelope:replace regex="\\" replacement="/"/>
@@ -130,13 +130,16 @@
          <arg value="--master"/>
          <arg value="local[8]"/>
          <arg value="--conf"/>
-         <arg value='spark.driver.extraJavaOptions=-DworkDir="${project.pom.build.directory.slashed}/apache-sample"'/>
+         <arg value="spark.driver.extraJavaOptions=-DworkDir=${project.pom.build.directory.slashed}/apache-sample"/>
+         <!-- With Spark 2.0 the following causes DOS shell parsing error
+         <arg value="spark.driver.extraJavaOptions=-DworkDir=${project.pom.build.directory.slashed}/apache-sample -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8002"/>
+         -->
          <arg value="${project.pom.build.directory}\${project.pom.build.finalName}.jar"/>
       </exec>
    </target>
 
-   <target name="run.exercise.streaming.apache.genAccessLog"
-      description="Generate access log to demon thirdstage.exercise.spark.streaming.apache">
+   <target name="run.exercise.streaming.apache.genAccessLogs"
+      description="Generates access log to demonstrate thirdstage.exercise.spark.streaming.apache">
 
       <java fork="true" spawn="false" classname="thirdstage.exercise.spark.streaming.apache.SampleLogGenerator">
          <classpath>
@@ -146,9 +149,17 @@
          <jvmarg value="-Xmx512m"/>
          <jvmarg value="-XX:MaxPermSize=512M"/>
          <jvmarg value="-XX:+CMSClassUnloadingEnabled"/>
+         <jvmarg value="-Xdebug"/>
+         <jvmarg value="-Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=8003"/>
          <sysproperty key="workDir" value="${basedir}/target/apache-sample"/>
          <arg value="access_log"/>
       </java>
    </target>
 
+   <target name="run.exercise.streaming.apache.removeAllLogs"
+      description="Deletes all generated log files by thirdstage.exercise.spark.streaming.apache">
+      <delete>
+         <fileset dir="${basedir}/target/apache-sample/logs" includes="*.log"/>
+      </delete>
+   </target>
 </project>
