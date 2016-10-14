@@ -2,9 +2,11 @@ package thirdstage.exercise.spark.streaming.apache
 
 import java.util.regex.Pattern
 import java.util.regex.Matcher
+import org.slf4j.LoggerFactory
 
 class LogAnalyzer extends Serializable{
 
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
   def transformLogData(line : String) : Map[String, String] = {
 
@@ -13,10 +15,11 @@ class LogAnalyzer extends Serializable{
 
 
     if(!matcher.find()){
-      throw new IllegalArgumentException("Cannot parse the specified string : " + line)
+      logger.warn("Cannot parse the specified string : {}", line)
+      createEmptyDataMap()
+    }else{
+      createDataMap(matcher)
     }
-
-    createDataMap(matcher)
   }
 
   private def createDataMap(m:Matcher) = {
@@ -29,6 +32,18 @@ class LogAnalyzer extends Serializable{
         ("protocol" -> m.group(7)),
         ("respCode" -> m.group(8)),
         ("size" -> m.group(9)))
+  }
+
+  private def createEmptyDataMap() = {
+    Map[String, String](("IP" -> ""),
+        ("client" -> ""),
+        ("user" -> ""),
+        ("date" -> ""),
+        ("method" -> ""),
+        ("request" -> ""),
+        ("protocol" -> ""),
+        ("respCode" -> ""),
+        ("size" -> ""))
   }
 
 
