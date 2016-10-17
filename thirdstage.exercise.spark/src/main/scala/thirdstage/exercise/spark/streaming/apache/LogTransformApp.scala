@@ -33,14 +33,16 @@ object LogTransformApp extends {
     val stream = cntx.textFileStream(workDir + "\\logs")
     val stream2 = stream.flatMap(x => analyzer.transformLogData(x))
 
-    transform(stream2, cntx)
+    countGet(stream2, cntx)
+    stream2.transform(countByRequestUrlFunc).print(100)
+    countByRespCodeAndWindow(stream2, cntx, 40, 20)
 
     cntx.start()
     cntx.awaitTermination()
 
   }
 
-  private def transform(stream:DStream[(String, String)], cntx:StreamingContext){
+  private def countGet(stream:DStream[(String, String)], cntx:StreamingContext){
     logger.debug("Transforming map stream")
 
     val getStream = stream.filter(x => x._1.equals("method") && x._2.contains("GET"))
@@ -56,6 +58,20 @@ object LogTransformApp extends {
     }})
 
     println("The number of GET requests is : " + gets)
+
+  }
+
+  private def countByRequestUrlFunc = (rdd:RDD[(String, String)]) => {
+    rdd.filter(x => x._1.contains("request"))
+      .map(y => (y._2, 1))
+      .reduceByKey(_+_)
+  }
+
+  private def countByRespCodeAndWindow(stream:DStream[(String, String)], cntx:StreamingContext, windowDuration:Int, slidingDuration:Int){
+
+    println("Applying and printing 'groupByKeyAndWindow' in a sliding window")
+    stream.filter(x => x._1.contains("respCode")).map(x => (x._2, 1))
+      .groupByKeyAndWindow(Seconds(windowDuration), Seconds(slidingDuration)).print(100)
 
   }
 
