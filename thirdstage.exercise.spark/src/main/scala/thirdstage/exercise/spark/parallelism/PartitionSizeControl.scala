@@ -26,6 +26,38 @@ object PartitionSizeControl {
   private val logger = LoggerFactory.getLogger(this.getClass)
   
   
+  def main(args:Array[String]) = {
+    
+    val inputPath = args(0)
+    var desc = "Scenario 1. Default"
+    var partitions = 0
+    var blockSize = 0L  //32MB by default
+    var minBlockSz = 0L  //default
+    
+  }
+  
+  def print(desc:String, inputPath:String, partitions:Int, blockSz:Long, minPartitionSz:Long) = {
+    
+    val blockSize = if(blockSz == 0) 32 * OneMB else blockSz
+
+    logger.info("********** " + desc + " **********")
+    //val goalSize = 
+    
+  }
+  
+  def getGoalSize(inputPath:String, partitions:Int) = {
+    val fs = FileSystem.get(new Configuration())
+    val files = fs.listFiles(new Path(inputPath), true)
+    
+    var totalSize = 0L
+    while(files.hasNext()){
+      val f = files.next()
+      if(!f.isDirectory()) totalSize += f.getLen()
+    }
+    
+    
+  }
+  
   
   def printSizeOfEachPartition(inputPath:String, partSize:Long, splitsOverall:Boolean) = {
   
@@ -69,5 +101,8 @@ object PartitionSizeControl {
     }
     
   }
+  
+  
+  
   
 }
