@@ -41,7 +41,8 @@ object PartitionSizeControl {
     val blockSize = if(blockSz == 0) 32 * OneMB else blockSz
 
     logger.info("********** " + desc + " **********")
-    //val goalSize = 
+    val goalSize = getGoalSize(inputPath, partitions)
+    //val partitionSize = 
     
   }
   
@@ -54,8 +55,17 @@ object PartitionSizeControl {
       val f = files.next()
       if(!f.isDirectory()) totalSize += f.getLen()
     }
+
+    Math.round(totalSize.toFloat/(if(partitions == 0) 1 else partitions))
     
+  }
+  
+  def computePartitionSize(goalSz:Long, minPartitionSz:Long, blockSz:Long) = {
+    val blockSize = if(blockSz == 0) 32 * OneMB else blockSz
     
+    val minPartitionSize = if(minPartitionSz == 0) 1 else minPartitionSz
+    
+    Math.max(minPartitionSize, Math.min(goalSz, blockSize))
   }
   
   
@@ -76,7 +86,6 @@ object PartitionSizeControl {
         
       }
     }
-    
     
     def controlMapSidePartitionSize(inputPath:String, outputPath:String, partitions:Int, batchSize:Long, minPartitionSize:Long) = {
       val cntx = new SparkContext("local", "PartitionSizeControl")
