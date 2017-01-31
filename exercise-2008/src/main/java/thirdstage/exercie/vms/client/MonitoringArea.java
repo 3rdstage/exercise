@@ -11,8 +11,8 @@ import javax.validation.constraints.Min;
 import org.apache.commons.lang3.tuple.Pair;
 import org.hibernate.validator.constraints.NotBlank;
 import org.hibernate.validator.constraints.NotEmpty;
-import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Sangmoon Oh
@@ -81,7 +81,8 @@ public class MonitoringArea{
    }
 
    private int getNumberOfEmptyTiles(){
-      for
+
+      return 0;
 
    }
 
