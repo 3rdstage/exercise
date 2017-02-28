@@ -1,7 +1,7 @@
 /**
  *
  */
-package thirdstage.exercie.vms.client;
+package thirdstage.exercise.vms.client;
 
 /**
  * @author Sangmoon Oh

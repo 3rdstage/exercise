@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package thirdstage.exercise.annotation.case1;
 
@@ -20,58 +20,57 @@ import com.sun.mirror.util.SimpleDeclarationVisitor;
 
 /**
  * @author 3rdstage
- * 
+ *
  */
 public class DumpFactory implements AnnotationProcessorFactory{
 
-	private static final Collection<String> supportedAnnotations 
-		= Collections.unmodifiableCollection(Arrays.asList("*"));
+  private static final Collection<String> supportedAnnotations = Collections.unmodifiableCollection(Arrays.asList("*"));
 
-	private static final Collection<String> supportedOptions
-		= Collections.emptySet();
-	
-	public Collection<String> supportedAnnotationTypes(){
-		return supportedAnnotations;
-	}
-	
-	public Collection<String> supportedOptions(){
-		return supportedOptions;
-	}
-	
-	public AnnotationProcessor getProcessorFor(Set<AnnotationTypeDeclaration> atds, AnnotationProcessorEnvironment env){
-		return new DumpProcessor(env);
-	}
+  private static final Collection<String> supportedOptions = Collections.emptySet();
 
-	private static class DumpProcessor implements AnnotationProcessor{
-		private final AnnotationProcessorEnvironment env;
-		
-		public DumpProcessor(AnnotationProcessorEnvironment env){
-			this.env = env;
-		}
-		
-		public void process(){
-			for(TypeDeclaration typeDecl : env.getSpecifiedTypeDeclarations()){
-				typeDecl.accept(DeclarationVisitors.getDeclarationScanner(new DumpVisitor(), DeclarationVisitors.NO_OP));
-			}
-		}
-		
-	}
-	
-	private static class DumpVisitor extends SimpleDeclarationVisitor{
-		
-		public void visitMethodDeclaration(MethodDeclaration d){
-			System.out.println("\t" + d.getSimpleName());
-		}
-		
-		public void visitClassDeclaration(ClassDeclaration c){
-			System.out.println(c.getQualifiedName());
-		}
-		
-		public void visitInterfaceDeclaration(InterfaceDeclaration i){
-			System.out.println(i.getQualifiedName());
-		}
-		
-	}
-	
-	
+  public Collection<String> supportedAnnotationTypes(){
+    return supportedAnnotations;
+  }
+
+  public Collection<String> supportedOptions(){
+    return supportedOptions;
+  }
+
+  @Override
+  public AnnotationProcessor getProcessorFor(Set<AnnotationTypeDeclaration> atds, AnnotationProcessorEnvironment env){
+    return new DumpProcessor(env);
+  }
+
+  private static class DumpProcessor implements AnnotationProcessor{
+    private final AnnotationProcessorEnvironment env;
+
+    public DumpProcessor(AnnotationProcessorEnvironment env){
+      this.env = env;
+    }
+
+    @Override
+    public void process(){
+      for(TypeDeclaration typeDecl: env.getSpecifiedTypeDeclarations()){
+        typeDecl.accept(DeclarationVisitors.getDeclarationScanner(new DumpVisitor(), DeclarationVisitors.NO_OP));
+      }
+    }
+
+  }
+
+  private static class DumpVisitor extends SimpleDeclarationVisitor{
+
+    public void visitMethodDeclaration(MethodDeclaration d){
+      System.out.println("\t" + d.getSimpleName());
+    }
+
+    public void visitClassDeclaration(ClassDeclaration c){
+      System.out.println(c.getQualifiedName());
+    }
+
+    public void visitInterfaceDeclaration(InterfaceDeclaration i){
+      System.out.println(i.getQualifiedName());
+    }
+
+  }
+
 }

@@ -1,7 +1,7 @@
 /**
  *
  */
-package thirdstage.exercie.vms.client;
+package thirdstage.exercise.vms.client;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;

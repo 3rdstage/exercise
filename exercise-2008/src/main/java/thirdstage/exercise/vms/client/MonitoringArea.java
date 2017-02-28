@@ -1,7 +1,7 @@
 /**
  *
  */
-package thirdstage.exercie.vms.client;
+package thirdstage.exercise.vms.client;
 
 import java.util.HashMap;
 import java.util.List;

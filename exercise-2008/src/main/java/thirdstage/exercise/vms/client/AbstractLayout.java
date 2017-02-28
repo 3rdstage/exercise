@@ -1,7 +1,7 @@
 /**
  *
  */
-package thirdstage.exercie.vms.client;
+package thirdstage.exercise.vms.client;
 
 import javax.validation.constraints.Min;
 import org.hibernate.validator.constraints.NotBlank;
