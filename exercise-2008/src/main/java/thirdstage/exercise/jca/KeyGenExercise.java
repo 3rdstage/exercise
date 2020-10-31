@@ -35,7 +35,7 @@ public class KeyGenExercise{
     try {
       InputStream is = ClassLoader.getSystemResourceAsStream("thirdstage/exercise/jca/pkcs11-softhsm2.cfg");
 
-      Provider p = new sun.security.pkcs11.SunPKCS11(is);
+      Provider p = Security.getProvider("SunPKCS11");
       Security.addProvider(p);
 
       final char[] pin = "abcd".toCharArray();

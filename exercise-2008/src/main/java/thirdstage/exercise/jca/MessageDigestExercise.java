@@ -3,6 +3,7 @@
  */
 package thirdstage.exercise.jca;
 
+import java.security.Key;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import javax.crypto.KeyGenerator;
