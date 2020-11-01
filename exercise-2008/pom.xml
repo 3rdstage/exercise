@@ -11,7 +11,21 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <java.version>1.8</java.version>
+    <!-- behavior control -->
+    <skipTests>false</skipTests>
+    <maven.deploy.skip>true</maven.deploy.skip>
+    <maven.site.skip>false</maven.site.skip> <!-- consumed by maven-site-plugin -->
+    <maven.site.deploy.skip>true</maven.site.deploy.skip> <!-- consumed by maven-site-plugin -->
+    <generateProjectInfo>false</generateProjectInfo> <!-- consumed by maven-site-plugin -->
+    <generateReports>true</generateReports> <!-- consumed by maven-site-plugin -->
+    <maven.javadoc.skip>true</maven.javadoc.skip>
+    <maven.javadoc.failOnWarnings>false</maven.javadoc.failOnWarnings>
+    <aspectj.skip>true</aspectj.skip> <!-- aspectj-maven-plugin -->
+    <findbugs.skip>true</findbugs.skip>
+    <checkstyle.skip>true</checkstyle.skip>
+    <dependencies.release.updatePolicy>never</dependencies.release.updatePolicy> <!-- always | daily | never -->
+    <!-- dependencies versions -->
+    <java.version>1.9</java.version>
     <javaee-api.version>7.0</javaee-api.version>
     <slf4j.version>1.7.12</slf4j.version>
     <spring.version>4.0.9.RELEASE</spring.version>
@@ -20,6 +34,15 @@
     <red5.version>1.0.5-RELEASE</red5.version>
     <jmxtrans.version>251</jmxtrans.version>
     <netty.version>4.0.31.Final</netty.version>
+    <!-- maven plugins versions -->
+    <maven-enforcer-plugin.version>3.0.0-M3</maven-enforcer-plugin.version> <!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-enforcer-plugin -->
+    <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version> <!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-compiler-plugin -->
+    <maven-jar-plugin.version>3.2.0</maven-jar-plugin.version> <!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-jar-plugin -->
+    <duplicate-finder-maven-plugin.version>1.5.0</duplicate-finder-maven-plugin.version> <!-- https://mvnrepository.com/artifact/org.basepom.maven/duplicate-finder-maven-plugin -->
+    <aspectj-maven-plugin.version>1.11</aspectj-maven-plugin.version>
+    <maven-eclipse-plugin.version>2.10</maven-eclipse-plugin.version>
+    <maven.compiler.source>${java.version}</maven.compiler.source>
+    <maven.compiler.target>${java.version}</maven.compiler.target>
   </properties>
 
   <build>
@@ -29,9 +52,7 @@
       <resource>
         <filtering>true</filtering>
         <directory>src/main/resources</directory>
-        <includes>
-          <include>**/*.*</include>
-        </includes>
+        <includes><include>**/*.*</include></includes>
         <excludes>
           <exclude>**/build*.xml</exclude>
           <exclude>**/*.ddl</exclude>
@@ -42,39 +63,60 @@
     <testResources>
       <testResource>
         <directory>src/test/resources</directory>
-        <includes>
-        </includes>
+        <includes></includes>
       </testResource>
     </testResources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>1.4</version>
+        <version>${maven-enforcer-plugin.version}</version>
         <executions>
           <execution>
             <id>enforce-java</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
+            <goals><goal>enforce</goal></goals>
             <configuration>
               <!-- For more standard rules, refer http://maven.apache.org/enforcer/enforcer-rules/ -->
               <rules>
-                <requireJavaVersion>
-                  <version>${java.version}</version>
-                </requireJavaVersion>
-                <requireMavenVersion>
-                  <version>3.0</version>
-                </requireMavenVersion>
+                <requireJavaVersion><version>${java.version}</version></requireJavaVersion>
+                <requireMavenVersion><version>3.0</version></requireMavenVersion>
               </rules>
             </configuration>
           </execution>
         </executions>
       </plugin>
       <plugin>
+        <groupId>org.basepom.maven</groupId>
+        <artifactId>duplicate-finder-maven-plugin</artifactId>
+        <version>${duplicate-finder-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>find-duplicate-classes</id>
+            <phase>prepare-package</phase>
+            <goals><goal>check</goal></goals>
+          </execution>
+        </executions>
+        <configuration>
+          <!-- For more, refer https://github.com/basepom/duplicate-finder-maven-plugin/wiki -->
+          <skip>false</skip>
+          <checkCompileClasspath>false</checkCompileClasspath>
+          <checkRuntimeClasspath>true</checkRuntimeClasspath>
+          <checkTestClasspath>false</checkTestClasspath>
+          <ignoredResourcePatterns>
+            <ignoredResourcePattern>about.html</ignoredResourcePattern>
+          </ignoredResourcePatterns>
+          <ignoredDependencies>
+            <dependency>
+              <groupId>org.slf4j</groupId>
+              <artifactId>jcl-over-slf4j</artifactId>
+            </dependency>
+          </ignoredDependencies>
+        </configuration>
+      </plugin>      
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>2.3.2</version>
+        <version>${maven-compiler-plugin.version}</version>
         <configuration>
           <source>${java.version}</source>
           <target>${java.version}</target>
@@ -86,7 +128,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-war-plugin</artifactId>
-        <version>2.6</version>
+        <version>${maven-jar-plugin.version}</version>
         <configuration>
           <warSourceDirectory>web</warSourceDirectory>
         </configuration>
@@ -94,31 +136,38 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-eclipse-plugin</artifactId>
-        <version>2.5.1</version>
+        <version>${maven-eclipse-plugin.version}</version>
         <configuration>
           <downloadSources>true</downloadSources>
           <downloadJavaDocs>true</downloadJavaDocs>
         </configuration>
       </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>aspectj-maven-plugin</artifactId>
-        <version>1.6</version>
-        <executions>
-          <execution>
-            <goals>
-              <goal>compile</goal>
-            </goals>
-            <configuration>
-              <!-- default is src/main/aspect -->
-              <aspectDirectory>src/main/java</aspectDirectory>
-              <includes>
-                <include>**/*.aj</include>
-              </includes>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
+<!--       <plugin> -->
+<!--         https://www.mojohaus.org/aspectj-maven-plugin/ -->
+<!--         <groupId>org.codehaus.mojo</groupId> -->
+<!--         <artifactId>aspectj-maven-plugin</artifactId> -->
+<!--         <version>${aspectj-maven-plugin.version}</version> -->
+<!--         <dependencies> -->
+<!--           <dependency> -->
+<!--             <groupId>org.aspectj</groupId> -->
+<!--             <artifactId>aspectjtools</artifactId> -->
+<!--             <version>${aspectj.version}</version> -->
+<!--           </dependency> -->
+<!--         </dependencies> -->
+<!--         <executions> -->
+<!--           <execution> -->
+<!--             <goals><goal>compile</goal></goals> -->
+<!--             <configuration> -->
+<!--               <skip>true</skip> -->
+<!--               default is src/main/aspect -->
+<!--               <aspectDirectory>src/main/java</aspectDirectory> -->
+<!--               <includes> -->
+<!--                 <include>**/*.aj</include> -->
+<!--               </includes> -->
+<!--             </configuration> -->
+<!--           </execution> -->
+<!--         </executions> -->
+<!--       </plugin> -->
       <plugin>
         <groupId>org.apache.felix</groupId>
         <artifactId>maven-bundle-plugin</artifactId>
@@ -140,26 +189,18 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
                     <versionRange>[1.0.0,)</versionRange>
-                    <goals>
-                      <goal>copy-dependencies</goal>
-                    </goals>
+                    <goals><goal>copy-dependencies</goal></goals>
                   </pluginExecutionFilter>
-                  <action>
-                    <ignore />
-                  </action>
+                  <action><ignore /></action>
                 </pluginExecution>
                 <pluginExecution>
                   <pluginExecutionFilter>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-antrun-plugin</artifactId>
                     <versionRange>[1.0.0,)</versionRange>
-                    <goals>
-                      <goal>run</goal>
-                    </goals>
+                    <goals><goal>run</goal></goals>
                   </pluginExecutionFilter>
-                  <action>
-                    <ignore />
-                  </action>
+                  <action><ignore /></action>
                 </pluginExecution>
                 <pluginExecution>
                   <pluginExecutionFilter>
@@ -171,9 +212,7 @@
                       <goal>test-compile</goal>
                     </goals>
                   </pluginExecutionFilter>
-                  <action>
-                    <ignore />
-                  </action>
+                  <action><ignore /></action>
                 </pluginExecution>
               </pluginExecutions>
             </lifecycleMappingMetadata>
@@ -187,23 +226,20 @@
     <repository>
       <id>irisa</id>
       <url>http://maven.irisa.fr/artifactory/list/kermeta-public-release/</url>
-      <snapshots>
-        <checksumPolicy>false</checksumPolicy>
-      </snapshots>
+      <releases><updatePolicy>${dependencies.release.updatePolicy}</updatePolicy></releases>
+      <snapshots><checksumPolicy>false</checksumPolicy></snapshots>
     </repository>
     <repository>
       <id>openmind</id>
       <url>http://repository.openmindonline.it/</url>
-      <snapshots>
-        <checksumPolicy>false</checksumPolicy>
-      </snapshots>
+      <releases><updatePolicy>${dependencies.release.updatePolicy}</updatePolicy></releases>
+      <snapshots><checksumPolicy>false</checksumPolicy></snapshots>
     </repository>
     <repository> <!--  for com.sun.tools/1.5.0 -->
       <id>jahia</id>
       <url>http://maven.jahia.org/maven2/</url>
-      <snapshots>
-        <checksumPolicy>false</checksumPolicy>
-      </snapshots>
+      <releases><updatePolicy>${dependencies.release.updatePolicy}</updatePolicy></releases>
+      <snapshots><checksumPolicy>false</checksumPolicy></snapshots>
     </repository>
   </repositories>
 
