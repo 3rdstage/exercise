@@ -5,7 +5,6 @@ package thirdstage.exercise.vms.client;
 
 import javax.validation.constraints.Min;
 import org.hibernate.validator.constraints.NotBlank;
-import com.sun.tools.javac.util.LayoutCharacters;
 import checkers.nullness.quals.Nullable;
 
 /**
@@ -13,7 +12,7 @@ import checkers.nullness.quals.Nullable;
  * @since Dec 23, 2016
  *
  */
-public abstract class AbstractLayout implements LayoutCharacters, Layout{
+public abstract class AbstractLayout implements Layout{
 
 
    @NotBlank private final String id;
