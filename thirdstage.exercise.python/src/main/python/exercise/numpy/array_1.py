@@ -8,3 +8,5 @@ print(array.dtype)
 
 array2 = np.eye(2, 3, 4)
 print(array2)
+
+
